@@ -175,16 +175,33 @@ record(
 );
 
 /*
- * 考试这类内容确实出现在明细里。
+ * 界面上的考试条数与后端数据一致。
  *
- * 没有这条的话，考试在实现里被排除掉也不会有任何检查报警——
- * toUnitDetails 里曾经有一行「考试除外」，而当时所有检查都是通过的。
+ * 不能假设账号里一定有考试——勾选的课程决定了有哪些内容，把带考试的课
+ * 取消勾选之后，明细里自然就没有考试。早先这里写的是「考试数必须大于零」，
+ * 于是那句话变成了对一个与代码无关的账号状态的断言：换一门课就失败。
+ *
+ * 要检查的是另一件事：后端给了几场考试，界面就该显示几场。
+ * 一类内容在渲染时被整体漏掉（toUnitDetails 里曾经有一行排除考试），
+ * 这里就能看出来。
  */
+const backendExams = (
+  await session.send('Runtime.evaluate', {
+    expression: `(async () => {
+      const res = await chrome.runtime.sendMessage({ type: 'UNIT_DETAILS' });
+      const list = res?.value ?? [];
+      return list.filter((d) => String(d.type).startsWith('exam')).length;
+    })()`,
+    awaitPromise: true,
+    returnByValue: true,
+  })
+).result?.value;
+
 const examLinks = links.filter((r) => /#\/learn\/exam/.test(r.href ?? ''));
 record(
-  '考试在明细里有条目',
-  examLinks.length > 0,
-  examLinks.length ? `${examLinks.length} 场` : '（当前账号下没有考试，跳过）',
+  '考试条数与后端一致',
+  Number(backendExams) === examLinks.length,
+  `后端 ${backendExams} 场，界面 ${examLinks.length} 场`,
 );
 
 record(
