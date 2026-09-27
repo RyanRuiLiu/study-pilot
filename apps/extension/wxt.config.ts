@@ -112,8 +112,8 @@ export default defineConfig({
      * 声明 default_locale 并放置对应的 messages.json 之后，
      * 商店才能识别出中文，也才能在以后增加其它语言。
      */
-    name: '__MSG_extName__',
-    description: '__MSG_extDescription__',
+    name: '__MSG_extensionName__',
+    description: '__MSG_extensionDescription__',
     default_locale: 'zh_CN',
     version: '0.1.0',
     /*
