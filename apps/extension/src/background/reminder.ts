@@ -23,11 +23,50 @@ import type { Snapshot } from './snapshot';
 import type { ExecResult } from './execute';
 import type { Settings } from '../settings';
 
-/** 通知标识。同名通知会覆盖上一条，避免堆积。 */
-export const NOTIFICATION_ID = 'study-pilot-summary';
+/*
+ * 通知标识。
+ *
+ * 每次发送都用一个新的 id（前缀 + 时间戳），而不是复用同一个固定 id。
+ *
+ * 在固定 id 上调用 create 是「更新」而不是「新建」：那条通知还在系统通知
+ * 中心里时，更新只替换内容，不会再弹一次横幅。表现就是「通知只能收到一次」，
+ * 而用户分不清是扩展没发还是系统没弹。先 clear 再 create 只绕过一部分情况——
+ * 系统仍记着这个 tag，照样可能按更新处理。
+ *
+ * 唯一 id 的副作用是通知堆积，所以发送前先按前缀清掉本类通知的旧条目，
+ * 通知中心里始终只留最近一条。
+ *
+ * 前缀同时用于判断点击来源，见 background.ts 的 onClicked：
+ * 判据要跟着 id 的生成规则走，不能写死某个具体值。
+ */
+export const NOTIFICATION_PREFIX = 'study-pilot-';
 
-/** 示例通知用单独的标识，免得被工作总结覆盖掉。 */
-export const SAMPLE_NOTIFICATION_ID = 'study-pilot-sample';
+/** 工作总结（后台做完什么、有什么临近截止）。 */
+export const SUMMARY_PREFIX = `${NOTIFICATION_PREFIX}summary-`;
+
+/** 示例通知，与工作总结分开，免得互相清掉。 */
+export const SAMPLE_PREFIX = `${NOTIFICATION_PREFIX}sample-`;
+
+/**
+ * 清掉本扩展早先发出的同类通知。
+ *
+ * 按前缀匹配，因此旧版本留下的固定 id（`study-pilot-summary` 这种）也在范围内。
+ */
+async function clearOutstanding(prefix: string): Promise<void> {
+  try {
+    const all = await browser.notifications.getAll();
+    await Promise.all(
+      Object.keys(all)
+        .filter((id) => id.startsWith(prefix))
+        .map((id) => browser.notifications.clear(id)),
+    );
+  } catch {
+    /*
+     * 清理失败不能挡住发送本身。旧通知多留一条只是不够干净，
+     * 而通知发不出去是用户直接可感的后果——两者不对称，所以这里吞掉异常。
+     */
+  }
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -179,18 +218,15 @@ export function composeNotice(
 /**
  * 发出通知。内容为空时不打扰用户，返回 false。
  *
- * 先 clear 再 create，而不是直接 create 同名通知。
- *
- * create 一个已存在的 id 是「更新」而不是「新建」：那条通知若还留在系统
- * 通知中心里，更新只改内容，不会再弹一次横幅。表现就是「通知只收到过一次」，
- * 第二次点毫无动静。先清掉再建，每次都算新的一条。id 仍然固定，
- * 免得通知堆积。
+ * 先清掉上一条同类通知，再用新的 id 建一条。两件事都必要：
+ * 清是为了不堆积，新 id 是为了让系统把它当成新通知弹出来，
+ * 而不是把旧的那条改一行字。理由见文件上方 NOTIFICATION_PREFIX 的说明。
  */
 export async function notify(notice: Notice | null): Promise<boolean> {
   if (notice === null) return false;
 
-  await browser.notifications.clear(NOTIFICATION_ID);
-  await browser.notifications.create(NOTIFICATION_ID, {
+  await clearOutstanding(SUMMARY_PREFIX);
+  await browser.notifications.create(`${SUMMARY_PREFIX}${Date.now()}`, {
     type: 'basic',
     iconUrl: browser.runtime.getURL('/icon/128.png'),
     title: notice.title,
@@ -228,9 +264,10 @@ export async function notifySample(
 
   const notice = composeNotice(plan, [], noticeSettings, now);
 
-  // 同样先清再建：这是个给用户反复点的按钮，第二次必须真的再弹一条。
-  await browser.notifications.clear(SAMPLE_NOTIFICATION_ID);
-  await browser.notifications.create(SAMPLE_NOTIFICATION_ID, {
+  // 与 notify 同一套做法：先清掉上一条示例通知，再用新的 id 建一条。
+  // 这个按钮会被反复点，第二次必须真的再弹一次。
+  await clearOutstanding(SAMPLE_PREFIX);
+  await browser.notifications.create(`${SAMPLE_PREFIX}${Date.now()}`, {
     type: 'basic',
     iconUrl: browser.runtime.getURL('/icon/128.png'),
     title: notice?.title ?? 'Study Pilot：示例通知',
