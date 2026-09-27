@@ -1,13 +1,19 @@
 /*
  * 生成商店列表用的图像。
  *
- * 需要三种尺寸，各自用途不同：
- *   徽标        300x300   列表页的方形图标
- *   小促销磁贴  440x280   列表页的一格
- *   大促销磁贴  1400x560  精选位
+ * 一次产出全部材料：
+ *   logo-300.png              300x300   列表页的方形图标
+ *   tile-small-440x280.png    440x280   列表页的一格
+ *   tile-large-1400x560.png   1400x560  精选位
+ *   shot-1-options.png        1280x800  设置页
+ *   shot-2-details.png        1280x800  单元明细
+ *   shot-3-popup.png          1280x800  待办弹窗
  *
- * 做法是用 HTML 画好再截图：与界面共用同一套颜色与字体，改版时不容易
- * 与扩展本身脱节。尺寸靠 deviceScaleFactor 精确控制，不依赖缩放。
+ * 前三个用 HTML 绘制再截图，颜色与字体取自界面同一套令牌，改版时不容易
+ * 与扩展本身脱节；后三个是扩展页面的实际渲染。
+ *
+ * 全部写进 dist/store/，与上传包放在一起——交付物都该在同一个地方，
+ * 散在探测工作区里会被当成临时文件清掉。
  *
  * 用法：node scripts/probe/run/make-store-assets.mjs
  */
@@ -15,6 +21,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Session, newPageTarget, closeTarget } from '../lib/cdp.mjs';
+import { requireExtensionId } from '../lib/ext-id.mjs';
 
 const OUT = resolve(import.meta.dirname, '../../../dist/store');
 mkdirSync(OUT, { recursive: true });
@@ -134,6 +141,107 @@ for (const job of JOBS) {
   writeFileSync(path, Buffer.from(shot.data, 'base64'));
   console.log(`  ${job.name}  ${job.width}x${job.height}`);
 }
+
+/*
+ * 扩展自身的页面截图。
+ *
+ * 商店要求 1280x800 或 640x400，取前者。分辨率倍数设为 1，
+ * 截出来就是商店要的像素尺寸——用 2 倍会得到 2560x1600，上传时被判为过大。
+ *
+ * 弹窗要另外处理：它本身只有 370px 宽，直接放进 1280x800 的画布会
+ * 在右侧和下方留下大片空白。做法是先按原尺寸截下来，再居中合成到
+ * 画布上。宽页面（设置页）占满整个宽度，不需要这一步。
+ */
+const extId = await requireExtensionId();
+
+/** 把一张图居中放到 1280x800 的画布上。 */
+async function composeOnCanvas(pngBase64, name) {
+  const page = await newPageTarget();
+  const s = await Session.open(page.webSocketDebuggerUrl);
+  await s.send('Page.enable');
+  await s.send('Emulation.setDeviceMetricsOverride', {
+    width: 1280,
+    height: 800,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  const html = `<!doctype html><meta charset="utf-8">
+    <style>html,body{margin:0;padding:0;overflow:hidden}</style>
+    <div style="width:1280px;height:800px;background:${TOKENS.paper};
+      display:flex;align-items:center;justify-content:center">
+      <img src="data:image/png;base64,${pngBase64}" style="
+        border-radius:12px;border:1px solid ${TOKENS.line};
+        box-shadow:0 8px 32px rgba(16,24,40,0.10);
+      ">
+    </div>`;
+  await s.send('Page.navigate', {
+    url: `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
+  });
+  await new Promise((r) => setTimeout(r, 500));
+  const shot = await s.send('Page.captureScreenshot', {});
+  writeFileSync(`${OUT}/${name}`, Buffer.from(shot.data, 'base64'));
+  console.log(`  ${name}  1280x800`);
+  s.close();
+  await closeTarget(page.id);
+}
+
+/** 打开扩展页面并截下可视区域。高度传 null 表示按内容自适应。 */
+async function capturePage(pagePath, width, height, settle) {
+  const t = await newPageTarget();
+  const s = await Session.open(t.webSocketDebuggerUrl);
+  await s.send('Page.enable');
+  await s.send('Emulation.setDeviceMetricsOverride', {
+    width,
+    height: height ?? 800,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await s.send('Page.navigate', { url: `chrome-extension://${extId}/${pagePath}` });
+  await new Promise((r) => setTimeout(r, settle));
+
+  /*
+   * 按内容量一遍高度再截。
+   *
+   * 弹窗的高度由浏览器决定，模拟视口给多少它就用多少，因此固定给一个
+   * 高度会在下方留出空白。先量出真实高度再重设视口，截出来才是紧密的。
+   */
+  let finalHeight = height;
+  if (height === null) {
+    const measured = await s.send('Runtime.evaluate', {
+      expression: 'document.body.scrollHeight',
+      returnByValue: true,
+    });
+    finalHeight = Math.max(200, Math.min(800, measured.result?.value ?? 400));
+    await s.send('Emulation.setDeviceMetricsOverride', {
+      width,
+      height: finalHeight,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await new Promise((r) => setTimeout(r, 400));
+  }
+
+  const shot = await s.send('Page.captureScreenshot', {});
+  s.close();
+  await closeTarget(t.id);
+  return { data: shot.data, height: finalHeight };
+}
+
+const wideShots = [
+  { page: 'options.html', name: 'shot-1-options.png', settle: 6000 },
+  { page: 'options.html#details', name: 'shot-2-details.png', settle: 8000 },
+];
+
+for (const job of wideShots) {
+  const { data } = await capturePage(job.page, 1280, 800, job.settle);
+  writeFileSync(`${OUT}/${job.name}`, Buffer.from(data, 'base64'));
+  console.log(`  ${job.name}  1280x800`);
+}
+
+// 弹窗按内容高度截，再居中合成
+const popup = await capturePage('popup.html', 380, null, 5000);
+console.log(`  （弹窗内容高度 ${popup.height}px）`);
+await composeOnCanvas(popup.data, 'shot-3-popup.png');
 
 session.close();
 await closeTarget(target.id);

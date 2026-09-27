@@ -42,9 +42,18 @@ if (!existsSync(OUT)) {
 
 const version = readVersion();
 const target = resolve(DIST, 'study-pilot');
+const zipPath = resolve(DIST, `study-pilot-${version}.zip`);
 
 console.log('整理产物…');
-rmSync(DIST, { recursive: true, force: true });
+/*
+ * 只清这个脚本自己产出的两项。
+ *
+ * 早先清的是整个 dist，那会连带删掉不是它生成的东西——商店列表用的
+ * 图像也放在 dist 下，一次重新打包就把它们清掉了，而报错要到上传时
+ * 才发现文件不在了。
+ */
+rmSync(target, { recursive: true, force: true });
+rmSync(zipPath, { force: true });
 mkdirSync(DIST, { recursive: true });
 cpSync(OUT, target, { recursive: true });
 
@@ -52,7 +61,6 @@ cpSync(OUT, target, { recursive: true });
  * 归档 zip 用系统自带的压缩命令生成，不额外引入依赖。
  * 只打包目录内容，不打顶层文件夹——解压后直接就是扩展根目录。
  */
-const zipPath = resolve(DIST, `study-pilot-${version}.zip`);
 console.log('生成归档…');
 if (process.platform === 'win32') {
   execFileSync(
