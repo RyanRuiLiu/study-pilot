@@ -24,8 +24,7 @@ import {
 import { ensureSession, readToken } from '../src/platform/mooc-session';
 import { getSettings, saveSettings, watchSettings, type Settings } from '../src/settings';
 import {
-  NOTIFICATION_ID,
-  SAMPLE_NOTIFICATION_ID,
+  NOTIFICATION_PREFIX,
   composeNotice,
   noticeSettingsOf,
   notify,
@@ -463,13 +462,11 @@ export default defineBackground(() => {
      * 而通知 id 是固定的 `study-pilot-summary`——条件永远为假，
      * 锚点一次都没生效过，用户点通知总是落在设置页顶部。
      *
-     * 三类通知的去处现在直接写清楚：
-     *   工作总结与示例通知 → 单元明细，用户能对着看是哪一项
-     *   示例通知也去这里   → 它展示的就是明细里的内容
+     * 判据现在跟着 id 的生成规则走，而不是跟着某一个具体值走：
+     * 发送用的 id 每次都不一样（前缀加时间戳，见 reminder.ts），
+     * 任何等值比较都会立刻失效——这个坑不能踩第二次。
      */
-    const anchor = notificationId === NOTIFICATION_ID || notificationId === SAMPLE_NOTIFICATION_ID
-      ? '#details'
-      : '';
+    const anchor = notificationId.startsWith(NOTIFICATION_PREFIX) ? '#details' : '';
     const url = browser.runtime.getURL(`/options.html${anchor}`);
     void browser.tabs.create({ url });
   });
