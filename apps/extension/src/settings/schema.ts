@@ -21,6 +21,8 @@
  *   - mode 决定学习页前缀（/learn/ 或 /spoc/learn/）；
  *   - 时间与计数为 0 表示平台未提供该数据。
  */
+type Json = unknown;
+
 export interface SelectedCourse {
   /** 课程 id */
   courseId: number;
@@ -301,3 +303,63 @@ export const DEFAULT_SETTINGS: Settings = {
     },
   },
 };
+
+/**
+ * 以 `base` 为骨架合并 `patch`。
+ *
+ * - 对象：逐键递归，只保留 `base` 里存在的键
+ * - 数组：整体替换（课程列表是用户数据，不做逐项合并）
+ * - 原始值：类型一致才采纳
+ *
+ * 放在这里而不是 storage.ts：这是纯逻辑，测试要能直接调它。
+ * storage.ts 顶层会建立存储项，导入即读 browser.runtime，
+ * 测试环境里会直接抛错，纯逻辑跟着一起就不可测了。
+ */
+export function mergeWithBase<T>(base: T, patch: Json): T {
+  if (patch === null || patch === undefined) return base;
+
+  if (Array.isArray(base)) {
+    return (Array.isArray(patch) ? patch : base) as T;
+  }
+
+  if (typeof base === 'object' && base !== null) {
+    if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) return base;
+    const source = patch as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(base as Record<string, unknown>)) {
+      out[key] = mergeWithBase(value, source[key]);
+    }
+    return out as T;
+  }
+
+  return (typeof patch === typeof base ? patch : base) as T;
+}
+
+/**
+ * 把任意来源的数据规范成合法配置。
+ *
+ * 除逐键合并之外，还有一处按语义兜底：互评评语不能为空。
+ * 合并只做类型检查，而空串是合法的 string，会被原样采纳——平台在校验时
+ * 会拒掉空评语，返回的错误却不指明是哪个字段，用户清空输入框之后就只看到
+ * 一句「提交失败」。这里留空退回默认评语，设置页也标注了这一条。
+ */
+export function normalize(raw: Json): Settings {
+  const merged = mergeWithBase(DEFAULT_SETTINGS, raw);
+  const review = merged.mooc.background.autoReview;
+
+  return {
+    ...merged,
+    version: SETTINGS_VERSION,
+    mooc: {
+      ...merged.mooc,
+      background: {
+        ...merged.mooc.background,
+        autoReview: {
+          ...review,
+          comment:
+            review.comment.trim() || DEFAULT_SETTINGS.mooc.background.autoReview.comment,
+        },
+      },
+    },
+  };
+}
