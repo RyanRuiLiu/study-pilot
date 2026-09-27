@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Study Pilot",
+    "description": "扩展名称。商店列表与浏览器工具栏都用它。"
+  },
+  "extDescription": {
+    "message": "慕课平台辅助工具：整理课程待办与截止时间，可辅助完成客观题测验",
+    "description": "商店列表里显示的一行说明。"
+  }
+}

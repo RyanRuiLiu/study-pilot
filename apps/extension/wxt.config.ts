@@ -102,14 +102,19 @@ export default defineConfig({
   srcDir: '.',
   outDir: '.output',
   manifest: {
-    name: 'Study Pilot',
     /*
-     * 商店列表里显示的就是这一句。
+     * 名称与说明取自 _locales，而不是写字面量。
      *
-     * 措辞克制：不写「破解」「刷课」这类说法，也不宣称与平台有任何关联。
-     * 只客观说明它辅助什么。功能细节在设置页与 README 里如实列出。
+     * 商店与浏览器靠 _locales 目录判断扩展支持哪些语言。一个都没有时
+     * 会被当作未本地化，默认归到英语——而这个扩展的界面全是中文，
+     * 于是在商店里会要求填一份英文详情，中文反而要另外添加。
+     *
+     * 声明 default_locale 并放置对应的 messages.json 之后，
+     * 商店才能识别出中文，也才能在以后增加其它语言。
      */
-    description: '慕课平台辅助工具：整理课程待办与截止时间，可辅助完成客观题测验',
+    name: '__MSG_extName__',
+    description: '__MSG_extDescription__',
+    default_locale: 'zh_CN',
     version: '0.1.0',
     /*
      * 最低浏览器版本。
