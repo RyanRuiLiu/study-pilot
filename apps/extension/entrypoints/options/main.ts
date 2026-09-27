@@ -1059,7 +1059,7 @@ function render(): void {
         ),
         row(
           '互评评语',
-          '提交互评与自评时统一使用的评语',
+          '提交互评与自评时统一使用的评语。平台要求非空，留空时会退回默认值',
           textInput(mooc.background.autoReview.comment, persistAfter((value: string) => {
             mooc.background.autoReview.comment = value;
           })),
