@@ -60,12 +60,25 @@ for (const size of SIZES) {
       ctx.roundRect(offset, offset, content, content, radius);
       ctx.fill();
 
-      // 白色字母 S，用无衬线字体，垂直位置按字体度量微调
+      /*
+       * 白色字母 S。
+       *
+       * 垂直位置按实际墨迹范围算，不用 textBaseline: 'middle' 加经验偏移。
+       * 后者对齐的是字体度量线，而字母的墨迹上下并不对称——实测 128px 的
+       * 图标里会偏上 6px，尺寸越大越明显。
+       *
+       * actualBoundingBoxAscent / Descent 给的是墨迹相对基线的上下距离，
+       * 用它把墨迹中心对齐到方块中心。
+       */
       ctx.fillStyle = '#ffffff';
       ctx.font = '600 ' + Math.round(content * 0.62) + 'px "Segoe UI", system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('S', size / 2, size / 2 + content * 0.02);
+      ctx.textBaseline = 'alphabetic';
+      const met = ctx.measureText('S');
+      const ascent = met.actualBoundingBoxAscent;
+      const descent = met.actualBoundingBoxDescent;
+      const baseline = size / 2 + (ascent - descent) / 2;
+      ctx.fillText('S', size / 2, baseline);
 
       return c.toDataURL('image/png');
     })()`,
