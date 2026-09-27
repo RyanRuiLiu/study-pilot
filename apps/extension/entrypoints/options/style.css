@@ -1,0 +1,756 @@
+@import '../../src/ui/tokens.css';
+
+/*
+ * 设置页。宽 1080px，左导航右内容。
+ *
+ * 分成两栏的理由：这一页有一千多像素长，五个分区首尾不能相顾。
+ * 左栏常驻，随时知道自己在哪、能跳到哪；右栏是内容。
+ *
+ * 层次的表达只有两种：
+ *   实线 —— 换了一个话题（分区之间）
+ *   虚线 —— 同一话题里的下一项（设置项之间）
+ * 不用色块、不用阴影、不用卡片套卡片。
+ */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 极淡的点阵。给大片留白一点质感，不干扰阅读 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle at 1px 1px, rgba(16, 24, 40, 0.035) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+.shell {
+  position: relative;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 56px 28px 96px;
+}
+
+/*
+ * 页头。左侧一道竖条，右侧标题与说明。
+ *
+ * 不再放「STUDYPILOT」那行大字距标签：它与标题挤在一起时像个杂斑，
+ * 而扩展自身的名字在浏览器里已经写着，页头再说一遍没有新信息。
+ * 页脚保留一处署名即可。
+ */
+.masthead {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 40px;
+}
+
+.masthead::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  background: var(--accent);
+}
+
+.masthead h1 {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.masthead .lede {
+  margin: 8px 0 0;
+  max-width: 44ch;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+/* ---------- 两栏 ---------- */
+
+/*
+ * 左导航右内容。
+ *
+ * 导航列宽按最长的一项定：分区名最长是「执行与诊断」五个字，
+ * 14px 字号下约 70px，加上左侧 14px 的竖线占位，132px 已有富余。
+ * 先前给的 176px 是照着"猜一个够宽的数"来的，多出来的四十多像素
+ * 全成了空白，正文列反而被压窄。
+ */
+.layout {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 40px;
+}
+
+/* ---------- 左侧导航 ---------- */
+
+/*
+ * 吸顶。页面往下滚时它留在原处，这就是「不用滚到底才能看到」的实现。
+ * top 由 JS 按页头实测高度写入，页头换行时不会挡住。
+ */
+.toc {
+  position: sticky;
+  top: var(--toc-top, 150px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/*
+ * 当前项的标记是左侧一道竖线，不是色块也不是加粗。
+ * 竖线贴着文字，视线扫过时能顺着一条直线读下来；
+ * 竖线位置始终留空，切换时文字不会横向跳动。
+ */
+.toc a {
+  position: relative;
+  padding: 4px 0 4px 16px;
+  color: var(--ink-faint);
+  font-size: 14px;
+  line-height: 1.5;
+  text-decoration: none;
+  transition: color 0.12s ease;
+}
+
+.toc a::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 2px;
+  background: transparent;
+}
+
+.toc a:hover { color: var(--ink-soft); }
+.toc a.is-current { color: var(--ink); }
+.toc a.is-current::before { background: var(--accent); }
+.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- 分区 ---------- */
+
+/*
+ * 分区之间用一条实线隔开，线画在分区自己的上边。
+ *
+ * 不写成「每个分区上下都画」：那样相邻两条会叠在一起变成双线，
+ * 是页面里最容易出现又最不容易被说清的一类瑕疵。只画上边，
+ * 相邻两条之间恰好一条线。
+ *
+ * 第一个分区也不破例。它上面是页头，页头不带线，
+ * 因此这一条正好把标题区与内容区分开。
+ */
+.section {
+  padding: 32px 0;
+  border-top: 1px solid var(--line);
+}
+
+/*
+ * 最后一个分区的下边线。
+ *
+ * 它下面是页脚那一行操作（恢复默认设置）。这条线把「配置」与
+ * 「对配置动手」分开，与分区之间那些线是同一个作用。
+ *
+ * 页脚操作与页脚署名之间还有一条线，来自 .colophon 自己的上边。
+ * 两处夹着页脚，各有各的分隔对象，不是重复。
+ */
+.section:last-of-type { border-bottom: 1px solid var(--line); }
+
+.section-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.section-desc {
+  margin: 0 0 20px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+/* ---------- 平台分组 ---------- */
+
+/* 一张白卡片。全站唯一用卡片的地方，用来区分「这是哪个平台的设置」 */
+.platform {
+  margin-bottom: 14px;
+  padding: 4px 16px 12px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.platform-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.platform-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* 域名。不是徽章而是出处说明，所以只有边框与浅色，没有底色 */
+.origin {
+  padding: 4px 8px;
+  color: var(--ink-faint);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--line);
+}
+
+/* ---------- 设置项 ---------- */
+
+/* 一行：左侧名称与说明，右侧控件。虚线分隔，实线留给分区 */
+.opt {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.opt:last-child { border-bottom: none; }
+
+.opt .text { min-width: 0; }
+.opt .name { font-size: 14px; }
+
+.opt .note {
+  margin-top: 2px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.opt .ctrl {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+/* ---------- 说明块 ---------- */
+
+/*
+ * 用于「运作方式」这类只讲事实、没有可调项的分区。
+ *
+ * 用 dt/dd 而不是段落：每一条都是「一个名目 + 一段说明」，
+ * 语义上就是定义列表，读屏软件也能正确念出配对关系。
+ */
+.prose {
+  margin: 0;
+  padding: 0;
+}
+
+.prose dt {
+  margin: 16px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.prose dt:first-of-type { margin-top: 0; }
+
+.prose dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+
+/* ---------- 提示与占位 ---------- */
+
+.hint {
+  padding: 8px 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+/*
+ * 登录状态行：文字、刷新、前往登录三者并排。
+ *
+ * 这三个元素的按钮外观统一定义在下方「按钮与链接」一节，
+ * 不在这里各写一份——先前分开写，于是同一行里两个按钮尺寸不同。
+ */
+.session {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.session > span:first-child { min-width: 132px; }
+
+/* 读取中。占住位置，数据到达时页面不跳 */
+.loading {
+  padding: 12px 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+/* ---------- 开关 ---------- */
+
+.switch {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  width: 46px;
+  height: 26px;
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.switch .track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--toggle-off);
+  transition: background 0.18s ease;
+}
+
+.switch .knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--paper-2);
+  transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track .knob { transform: translateX(20px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- 按钮 ---------- */
+
+/*
+ * 按钮与外观相同的链接共用一套外观。
+ *
+ * 两者必须写在同一条规则里：先前 button 与 .login-link 各写一份，
+ * 于是同一行里「刷新」（button）与「前往登录」（a）尺寸不同，
+ * 并排看着像两个层级的控件。它们对用户是同一类东西——可以点、会立刻有反应，
+ * 样式上就该一致，而一致最省事的做法就是让它们真的共用一条规则。
+ *
+ * 链接额外要 display 与 text-decoration：它们是 a 的默认值，
+ * 而这两条正是让 a 看起来像按钮所必需的。
+ */
+button,
+.login-link {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+button:hover,
+.login-link:hover {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+}
+
+button:disabled { opacity: 0.6; cursor: default; }
+
+button:focus-visible,
+.login-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 次要场合：描边代替填充，不与页面上的主操作抢注意力 */
+button.quiet,
+.login-link.quiet {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+button.quiet:hover,
+.login-link.quiet:hover {
+  background: transparent;
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+
+/* 登录状态行：文字、刷新、前往登录三者并排 */
+.session {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/*
+ * 状态文字占固定宽度。
+ * 三个状态的说法长度不同（「已登录」「未登录」「读取中」），
+ * 不固定的话，刷新时两个按钮会随着文字长度左右移动。
+ */
+.session > span:first-child { min-width: 84px; }
+
+/* ---------- 输入 ---------- */
+
+.txt,
+.num {
+  flex: none;
+  padding: 8px 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.txt { width: 150px; }
+
+/*
+ * 数字输入框与它的单位。
+ *
+ * 单位紧跟在输入框右侧且不换行：两者是一个整体，隔开或换行都会让人
+ * 以为单位是另一列的内容。单位用弱色，它不参与输入。
+ */
+.num-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.num-unit {
+  color: var(--ink-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.num {
+  width: 78px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.txt:focus-visible,
+.num:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.num::-webkit-outer-spin-button,
+.num::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* ---------- 星期 ---------- */
+
+.weekdays { display: flex; gap: 8px; }
+
+.weekday {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 30px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.weekday input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.weekday:has(input:checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.weekday:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- 课程列表 ---------- */
+
+.courses { margin-top: 4px; }
+
+/*
+ * 收起状态的概要条。整条可点：
+ * 「已选 3 门，共 6 门」本身就是想知道的结果，让它同时也是展开开关。
+ *
+ * 不画上边线。它紧跟在「课程列表」那一行下面，而那一行已经有下边线；
+ * 再画一条两条就只差 4px，看上去像一条双线。
+ * 概要条是那一行的展开内容，不是新的一节，本来也不该分隔。
+ */
+.courses-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.courses-toggle:hover { background: none; border-color: var(--line); color: var(--ink); }
+
+.courses-summary { flex: 1; }
+.courses-disclosure { flex: none; color: var(--accent); font-size: 12px; }
+
+/*
+ * 列表本体不加边框。
+ * 概要条已经有一条 border-top 把课程区与上面的设置项分开；
+ * 这里再加一条，展开时就会看到两条紧挨着的线。
+ */
+.courses-list { padding-top: 2px; }
+
+.course {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.course + .course { border-top: 1px solid var(--line); }
+
+.course-check { flex: none; margin-top: 3px; }
+
+.course-main {
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.course-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+
+.course-name { color: var(--ink); font-size: 14px; }
+.course-main:hover .course-name { color: var(--accent); }
+
+.course-mode {
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.course-meta,
+.course-stats {
+  margin-top: 2px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.courses .empty { padding: 8px 0; color: var(--ink-faint); font-size: 12px; }
+
+/* ---------- 执行进度 ---------- */
+
+.progress {
+  white-space: pre-wrap;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* ---------- 单元明细 ---------- */
+
+.details { margin-top: 4px; }
+
+.details.is-error {
+  padding: 12px;
+  background: var(--paper);
+  border-left: 3px solid var(--warn);
+  color: var(--warn);
+}
+
+/* 列表头。比数据行浅，靠一条稍重的线分开 */
+.details-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--ink-faint);
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.details-course {
+  padding: 12px 0 4px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.details-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 可点的那几行给一点悬停反馈，说明这里能点进去 */
+a.details-row:hover { background: var(--hover); }
+
+a.details-row:hover .details-name { color: var(--accent); }
+
+a.details-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.details-row + .details-row { border-top: 1px solid var(--line); }
+
+.details-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * 四列固定宽度，各行竖直对齐，逐行比对才快。
+ *
+ * 名称占满剩余空间；后三列定宽。列宽按最长可能的内容定：
+ * 「已过截止未提交」六个字，以及「10月18日 20:00」这样的时间。
+ */
+.details-status {
+  flex: none;
+  width: 108px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.details-when {
+  flex: none;
+  width: 108px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.details-score {
+  flex: none;
+  width: 84px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* 表头与数据行同宽同字形，两行才对得上 */
+.details-head .details-status,
+.details-head .details-when,
+.details-head .details-score {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+/*
+ * 状态配色。三种语气对应三类处境：
+ *   ok      一切正常（已公布、已完成）
+ *   active  正在进行（互评中、等待中）
+ *   warn    需要你处理（未提交、已过截止）
+ */
+.details-status.ok { color: var(--accent); }
+.details-status.active { color: var(--ink-soft); }
+.details-status.warn { color: var(--warn); }
+
+/* ---------- 页脚 ---------- */
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 40px;
+}
+
+/*
+ * 提示条。浮在窗口底部居中，不占布局位置。
+ *
+ * 深底白字而不是主色：提示是「刚刚发生了什么」的通报，
+ * 不是可点的东西，用主色会和按钮抢注意力。
+ * 淡入时带一点位移，让它是「浮上来」而不是「突然出现」。
+ */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 10;
+  transform: translate(-50%, 8px);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: var(--on-accent);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(16, 24, 40, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* 页脚署名。全站第二处也是最后一处用大字距的地方 */
+.colophon {
+  margin-top: 64px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
+/* ---------- 隐藏 ---------- */
+
+.f-dn { display: none !important; }

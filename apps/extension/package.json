@@ -1,0 +1,25 @@
+{
+  "name": "@study-pilot/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "typecheck": "wxt prepare && tsc --noEmit",
+    "test": "vitest run",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "@study-pilot/core": "workspace:*",
+    "@study-pilot/platform-mooc": "workspace:*",
+    "@study-pilot/transport": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2",
+    "web-ext": "^10.7.0",
+    "wxt": "^0.21.4"
+  }
+}

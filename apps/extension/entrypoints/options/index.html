@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Pilot 设置</title>
+    <!--
+      设置页在独立标签页中打开，而不是嵌进扩展管理页的小弹窗。
+      不声明这一条的话，WXT 生成的 manifest 会写成 open_in_tab: false，
+      即便 wxt.config.ts 里写的是 true——entrypoint 自己的声明优先。
+      嵌在小弹窗里时页面宽度只有约 600px，表单会被压成一条窄栏。
+    -->
+    <meta name="manifest.open_in_tab" content="true" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="masthead">
+        <h1>设置</h1>
+        <p class="lede">改动会立即保存。</p>
+      </header>
+
+      <div class="layout">
+        <!--
+          左侧分区导航。设置页有五个分区，页面上千像素长，
+          没有导航就只能一路滚到底找某一项。
+          导航由 main.ts 依据实际渲染出的分区生成，两边不会脱节。
+        -->
+        <nav id="toc" class="toc" aria-label="设置分区"></nav>
+
+        <div id="app"></div>
+      </div>
+
+      <div class="footer">
+        <button id="reset" class="quiet" type="button">恢复默认设置</button>
+      </div>
+
+      <p class="colophon">STUDYPILOT / MOOC ENHANCER</p>
+    </div>
+
+    <!-- 提示条。放在内容之外，浮在底部居中，不占布局位置 -->
+    <span id="toast" class="toast" role="status" aria-live="polite"></span>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

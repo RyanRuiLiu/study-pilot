@@ -1,0 +1,15 @@
+# 统一换行符：仓库内一律 LF，避免 Windows 上 diff 出现整文件抖动。
+* text=auto eol=lf
+
+# 二进制资源不参与文本转换与 diff。
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# 抓包样本体量大，折叠显示。
+docs/data/*.json -diff
+docs/samples/*.html -diff
