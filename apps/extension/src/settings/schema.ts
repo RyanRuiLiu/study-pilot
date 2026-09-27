@@ -200,8 +200,18 @@ export interface Settings {
   mooc: MoocSettings;
 }
 
-/** 配置版本。结构发生不兼容变化时递增，并在 `migrate` 里补迁移。 */
-export const SETTINGS_VERSION = 2;
+/**
+ * 配置结构版本。
+ *
+ * 首个发布的结构记作 1。结构发生不兼容变化时递增，届时在 `normalize` 里
+ * 补一段迁移——存储里存的是值，没有「用户改过」与「默认填的」之分，
+ * 因此默认值的语义变了也要递增。
+ *
+ * 现在只有 1，所以没有迁移分支：不为还没发生的事写一个永不执行的判断。
+ * 早先这里写的是 2 而从来没有过 1——那是开发过程中的临时痕迹，
+ * 不是真实存在过的历史版本，不该留在发布版本里。
+ */
+export const SETTINGS_VERSION = 1;
 
 export const DEFAULT_SETTINGS: Settings = {
   version: SETTINGS_VERSION,
