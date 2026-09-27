@@ -176,10 +176,20 @@ export function composeNotice(
   return { title, message: lines.join('\n') };
 }
 
-/** 发出通知。内容为空时不打扰用户，返回 false。 */
+/**
+ * 发出通知。内容为空时不打扰用户，返回 false。
+ *
+ * 先 clear 再 create，而不是直接 create 同名通知。
+ *
+ * create 一个已存在的 id 是「更新」而不是「新建」：那条通知若还留在系统
+ * 通知中心里，更新只改内容，不会再弹一次横幅。表现就是「通知只收到过一次」，
+ * 第二次点毫无动静。先清掉再建，每次都算新的一条。id 仍然固定，
+ * 免得通知堆积。
+ */
 export async function notify(notice: Notice | null): Promise<boolean> {
   if (notice === null) return false;
 
+  await browser.notifications.clear(NOTIFICATION_ID);
   await browser.notifications.create(NOTIFICATION_ID, {
     type: 'basic',
     iconUrl: browser.runtime.getURL('/icon/128.png'),
@@ -218,6 +228,8 @@ export async function notifySample(
 
   const notice = composeNotice(plan, [], noticeSettings, now);
 
+  // 同样先清再建：这是个给用户反复点的按钮，第二次必须真的再弹一条。
+  await browser.notifications.clear(SAMPLE_NOTIFICATION_ID);
   await browser.notifications.create(SAMPLE_NOTIFICATION_ID, {
     type: 'basic',
     iconUrl: browser.runtime.getURL('/icon/128.png'),

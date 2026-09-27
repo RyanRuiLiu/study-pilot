@@ -32,6 +32,7 @@ import {
   notifySample,
 } from '../src/background/reminder';
 import { executeActions } from '../src/background/execute';
+import { mergeCourses } from '../src/background/course-selection';
 import { clearAlarm, ensureAlarm, isCheckAlarm } from '../src/background/alarms';
 import { listNetRules, whenNetRulesReady } from '../src/background/net-rules';
 import {
@@ -54,13 +55,6 @@ import {
 import { derivePlan, shouldRefresh } from '../src/background/task-plan';
 import { toPendingSummary, toUnitDetails } from '../src/background/to-messages';
 import type { BackgroundRequest } from '../src/platform/messaging';
-
-/**
- * 自动评价时填写的留言。
- *
- * 平台要求这项非空。内容如实说明来源，不假装是人工写的评语——
- * 被评的同学有权知道这句话是怎么来的。
- */
 
 /** 平台的登录凭证 cookie。出现即表示登录成功。 */
 const LOGIN_COOKIE = 'NTESSTUDYSI';
@@ -234,23 +228,10 @@ export default defineBackground(() => {
     }
 
     /*
-     * 新出现的课程按「是否正在开课」决定默认勾选：
-     * 学期区间覆盖当下的自动勾上，尚未开课或已经结课的默认不勾。
-     *
-     * 已存在记录的勾选状态一律保留——那是用户的选择，不该被覆盖。
-     * 用户取消勾选某门正在开课的课程后，重新读取不应该又把它勾回来。
+     * 合并时只沿用用户自己做过的勾选，新出现的课程一律不勾。
+     * 规则与理由在 `src/background/course-selection.ts`。
      */
-    const now = Date.now();
-    const inTerm = (course: CourseSummary): boolean =>
-      course.startTime !== null &&
-      course.endTime !== null &&
-      course.startTime <= now &&
-      now <= course.endTime;
-
     const settings = await getSettings();
-    const previous = new Map(
-      settings.mooc.background.courses.map((course) => [course.termId, course.enabled]),
-    );
 
     await saveSettings({
       ...settings,
@@ -258,24 +239,7 @@ export default defineBackground(() => {
         ...settings.mooc,
         background: {
           ...settings.mooc.background,
-          courses: courses.map((course) => ({
-            courseId: course.courseId,
-            termId: course.termId,
-            name: course.name,
-            shortName: course.shortName,
-            // 平台未提供时统一记为 -1，界面据此不显示类型标签
-            mode: course.mode ?? -1,
-            schoolName: course.schoolName,
-            schoolShortName: course.schoolShortName,
-            coverUrl: course.coverUrl,
-            // 数值字段统一用 0 表示「未提供」，读取侧不必再判空
-            startTime: course.startTime ?? 0,
-            endTime: course.endTime ?? 0,
-            lessonsCount: course.lessonsCount ?? 0,
-            enrollCount: course.enrollCount ?? 0,
-            // 新出现的课程：正在开课的默认勾选，其余默认不勾
-            enabled: previous.get(course.termId) ?? inTerm(course),
-          })),
+          courses: mergeCourses(settings.mooc.background.courses, courses),
         },
       },
     });

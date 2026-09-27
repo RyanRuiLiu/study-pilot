@@ -15,7 +15,7 @@
  * 而模块名（autoQuiz、deadlineBadge）是唯一的，查它才说明问题。
  *
  * 解析 DEFAULT_SETTINGS 时逐字符扫而不是按行处理：对象可能写在一行里
- * （`quizHelper: { enabled: true },`），按行切会让花括号对不上，
+ * （`quizHelper: { enabled: false },`），按行切会让花括号对不上，
  * 路径就会串成 `foreground.quizHelper.homeworkAnswers...` 这样。
  */
 

@@ -36,9 +36,20 @@ export async function updateSettings(patch: unknown): Promise<Settings> {
   return saveSettings(mergeWithBase(current, patch));
 }
 
+/**
+ * 恢复默认设置。
+ *
+ * 写入与返回的都是 `normalize` 出来的**副本**，不是 DEFAULT_SETTINGS 本身。
+ *
+ * 调用方拿到返回值后会直接改它——设置页每个控件都是就地赋值再落盘，这是
+ * 既有的做法。若这里把模块级常量交出去，用户恢复默认之后随手改任意一项，
+ * 改的就是常量本身；之后同一次会话里再点「恢复默认设置」，恢复出来的
+ * 是他刚改过的值，fallback 与评语兜底也跟着一起变。给副本就没这回事。
+ */
 export async function resetSettings(): Promise<Settings> {
-  await item.setValue(DEFAULT_SETTINGS);
-  return DEFAULT_SETTINGS;
+  const next = normalize(DEFAULT_SETTINGS);
+  await item.setValue(next);
+  return next;
 }
 
 /** 订阅配置变化，返回取消订阅函数。 */
