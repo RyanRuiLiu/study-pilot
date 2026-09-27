@@ -11,7 +11,14 @@
 import { Session, listTargets, newPageTarget } from '../lib/cdp.mjs';
 import { resolve } from 'node:path';
 
-const DIST = resolve(import.meta.dirname, '../../dist/study-pilot');
+/*
+ * 打包产物的位置。
+ *
+ * 这个文件在 scripts/probe/checks/ 下，而 dist 在项目根，
+ * 因此要往上前三层。写少一层会解析成 scripts/dist/…，
+ * 报出来的是「File path cannot be resolved」——看不出是路径写错了。
+ */
+const DIST = resolve(import.meta.dirname, '../../../dist/study-pilot');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** 找一个可用的浏览器级 CDP 连接。 */
