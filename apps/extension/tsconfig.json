@@ -1,0 +1,15 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@study-pilot/core": [
+        "../../packages/core/src/index.ts"
+      ],
+      "@study-pilot/platform-mooc": [
+        "../../packages/platform-mooc/src/index.ts"
+      ]
+    },
+    "noUncheckedIndexedAccess": false
+  }
+}

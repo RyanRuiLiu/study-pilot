@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Pilot</title>
+    <!--
+      样式在 main.ts 里通过 import 引入。
+      不用 <link>：构建后源路径不会被打包器改写，会变成死链，
+      页面于是回退到浏览器默认样式（字体、间距全丢）。
+    -->
+  </head>
+  <body>
+    <main class="pop">
+      <!--
+        顶栏一行放完：品牌、立即执行、更多。
+        总开关不在这里：它是低频操作，而弹窗的空间该留给待办本身。
+        设置页的「账号与课程」里有它，那里也是开关其他功能的地方。
+      -->
+      <header class="bar">
+        <span class="brand">Study Pilot</span>
+        <button id="run-now" class="act" type="button" title="立即执行一轮：拉取最新数据，完成能自动做的事">立即执行</button>
+        <button id="open-settings" class="act quiet" type="button">更多</button>
+      </header>
+
+      <p id="state-text" class="state f-dn"></p>
+
+      <!--
+        待办区先放一句加载提示。
+        弹窗每次打开都会拉取最新数据，那是一次网络往返，实测约两秒。
+        期间这里留空的话，用户看到的是一个空白面板，无从判断是在读取
+        还是扩展坏了。写入第一份数据时会被覆盖。
+      -->
+      <div id="todo-text" class="todo is-loading">正在获取最新数据</div>
+
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

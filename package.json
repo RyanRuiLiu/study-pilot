@@ -1,0 +1,50 @@
+{
+  "name": "study-pilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "慕课平台辅助工具：整理课程待办与截止时间，可辅助完成客观题测验",
+  "author": "Ryan Liu",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @study-pilot/extension dev",
+    "build": "pnpm --filter @study-pilot/extension build",
+    "package": "node scripts/package.mjs",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "probe:launch": "node scripts/probe/inspect/launch.mjs",
+    "probe:launch:ext": "node scripts/probe/inspect/launch.mjs --extension apps/extension/.output/chrome-mv3",
+    "probe:kill": "node scripts/probe/inspect/launch.mjs --kill",
+    "probe:collect": "node scripts/probe/inspect/collect.mjs",
+    "probe:decompile": "node scripts/probe/inspect/decompile.mjs",
+    "probe:watch": "node scripts/probe/inspect/watch.mjs",
+    "probe:call": "node scripts/probe/inspect/call.mjs",
+    "probe:session": "node scripts/probe/lib/session.mjs",
+    "probe:redact": "node scripts/probe/inspect/redact.mjs",
+    "probe:reload": "node scripts/probe/run/reload-ext.mjs",
+    "probe:shot": "node scripts/probe/run/shot.mjs",
+    "selfcheck": "node scripts/probe/checks/selfcheck.mjs",
+    "check:privacy": "node scripts/probe/checks/check-privacy.mjs"
+  },
+  "devDependencies": {
+    "@material/material-color-utilities": "^0.3.0",
+    "prettier": "^3.9.9"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RyanRuiLiu/study-pilot.git"
+  },
+  "homepage": "https://github.com/RyanRuiLiu/study-pilot#readme",
+  "bugs": {
+    "url": "https://github.com/RyanRuiLiu/study-pilot/issues"
+  },
+  "keywords": [
+    "browser-extension",
+    "icourse163",
+    "education",
+    "wxt"
+  ]
+}

@@ -1,0 +1,35 @@
+node_modules/
+dist/
+.output/
+.wxt/
+.dev-profile/
+.cdp-profile/
+*.log
+.DS_Store
+.env
+.vite/
+*.local
+*.bak
+__pycache__/
+*.tsbuildinfo
+
+# 探测工作区：抓下来的原始响应、截图、临时产物。不入库。
+# 这些是调试过程的材料，不是项目内容，而且可能带着账号与课程数据。
+.probe/
+
+# 抓取的真实接口数据。同样不入库。
+# 领域测试用的是合成的结构样本（见 packages/*/test/），
+# 验的是「按 id 能否匹配上」这类结构性质，不需要真实题库。
+fixtures/
+
+# 逆向产物，用 pnpm probe:decompile 重新生成
+.reverse/
+
+# 临时 profile（调试时用，不入库）
+.tmp-profile/
+
+# 打包产物（由 pnpm package 生成）
+dist/
+
+# 临时文件
+.msg.txt
