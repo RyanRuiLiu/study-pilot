@@ -80,5 +80,5 @@ Study Pilot 不收集、不上传、不分享任何数据。
 
 ## 联系方式
 
-本项目由个人开发维护，尚未发布到扩展商店。问题与建议请提交到
+本项目由个人开发维护。问题与建议请提交到
 [项目仓库的 Issues](https://github.com/RyanRuiLiu/study-pilot/issues)。
