@@ -30,7 +30,7 @@ const TOKENS = {
 };
 
 const FONT =
-  "system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif";
+  "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 /** 方形图标：品牌色底 + 白色字母。 */
 function mark(size) {
@@ -100,13 +100,13 @@ const JOBS = [
     name: 'tile-small-440x280.png',
     width: 440,
     height: 280,
-    html: tile(440, 280, 'Study Pilot', 'Course tasks and deadlines in one place'),
+    html: tile(440, 280, 'Study Pilot', '课程待办与截止提醒'),
   },
   {
     name: 'tile-large-1400x560.png',
     width: 1400,
     height: 560,
-    html: tile(1400, 560, 'Study Pilot', 'Course tasks and deadlines in one place'),
+    html: tile(1400, 560, 'Study Pilot', '课程待办与截止提醒'),
   },
 ];
 
