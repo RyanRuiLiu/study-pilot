@@ -1089,17 +1089,30 @@ function render(): void {
           '示例通知',
           '按当前账号的待办发一条示例，内容与开启提醒后实际收到的相同。系统可能把浏览器的通知静音或挡住，若收不到请检查系统的通知设置',
           button('发送示例通知', () => {
-            void sendToBackground({ type: 'NOTIFY_SAMPLE' });
+            /*
+             * 必须有反馈。这条通知收不到的原因通常不在扩展里——系统静音、
+             * 专注模式、通知权限——而「点了没反应」与「发了但系统没弹」
+             * 在界面上完全一样。没有回执时，用户会以为扩展只肯发一次。
+             */
+            void sendToBackground({ type: 'NOTIFY_SAMPLE' })
+              .then((response) => {
+                toast(
+                  response.hasContent
+                    ? '已发送示例通知，内容取自当前待办'
+                    : '已发送示例通知：当前没有待办，内容为说明文本',
+                );
+              })
+              .catch(() => toast('示例通知发送失败，请重试'));
           }),
         ),
       ]),
     ]),
 
-    section('foreground', '前台功能', '打开对应页面时生效，不做任何提交，也不影响后台任务。', [
+    section('foreground', '前台功能', '打开对应页面时生效，不影响后台任务。做题助手需要你自己点提交，扩展不代点。', [
       platform('慕课平台', 'icourse163.org', [
         row(
           '做题助手',
-          '在单元测验作答页展示面板，可一次填充全部客观题',
+          '在单元测验与客观题考试页展示面板，可按题库填充，也可以由你点提交。填充会触发页面保存草稿',
           toggle(mooc.foreground.quizHelper.enabled, persistAfter((value: boolean) => {
             mooc.foreground.quizHelper.enabled = value;
           })),
@@ -1352,7 +1365,7 @@ async function init(): Promise<void> {
   });
 
   document.getElementById('reset')?.addEventListener('click', () => {
-    if (!window.confirm('确定恢复默认设置？课程列表也会被清空。')) return;
+    if (!window.confirm('确定恢复默认设置？所有开关回到默认，课程列表与勾选一并清空。')) return;
     void resetSettings().then((next) => {
       current = next;
       render();
