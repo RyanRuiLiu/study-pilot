@@ -22,7 +22,7 @@ import {
   type CourseSummary,
 } from '@study-pilot/platform-mooc';
 import { ensureSession, readToken } from '../src/platform/mooc-session';
-import { getSettings, saveSettings, watchSettings, type Settings } from '../src/settings';
+import { getSettings, updateSettings, watchSettings, type Settings } from '../src/settings';
 import {
   NOTIFICATION_PREFIX,
   composeNotice,
@@ -40,8 +40,10 @@ import {
   clearAwaitingLogin,
   finishRun,
   getTaskState,
+  liveRunState,
   markAwaitingLogin,
   resetState,
+  touchRun,
 } from '../src/background/scheduler';
 import {
   fetchedToday,
@@ -229,15 +231,19 @@ export default defineBackground(() => {
     /*
      * 合并时只沿用用户自己做过的勾选，新出现的课程一律不勾。
      * 规则与理由在 `src/background/course-selection.ts`。
+     *
+     * 写入只带 courses 一条路径，不整份回写。
+     *
+     * 这里曾经是「读配置 → 发两次网络请求 → 把几秒前读到的那份整体写回」。
+     * 那几秒里用户可能刚在设置页拨了开关，或者别的入口改了配置，于是那些
+     * 改动被这份旧数据抹掉——不报错，用户看到的是「设置自己变回去了」。
+     * 现在合并基准是存储里的当前值（updateSettings），只动 courses。
      */
     const settings = await getSettings();
 
-    await saveSettings({
-      ...settings,
+    await updateSettings({
       mooc: {
-        ...settings.mooc,
         background: {
-          ...settings.mooc.background,
           courses: mergeCourses(settings.mooc.background.courses, courses),
         },
       },
@@ -350,9 +356,20 @@ export default defineBackground(() => {
 
     await beginRun(now);
     try {
+      /*
+       * 每一步之前刷新心跳。
+       *
+       * 一轮执行里有好几次网络往返。心跳过期会让界面把「正在跑」读成
+       * 「上次没结束」——那是用户最容易被误导的地方，他会以为扩展卡住了，
+       * 而实际上一切正常。刷心跳只是一次本地存储写入，相比一次接口调用
+       * 可以忽略。
+       */
+      await touchRun();
+
       // 课程列表先刷新：勾选的课程可能变动，而后续读取按它进行
       await refreshCourses().catch(() => undefined);
 
+      await touchRun();
       const latest = await loadSnapshot(courses, session.userId);
 
       const plan = derivePlan(latest, settings, now);
@@ -371,6 +388,9 @@ export default defineBackground(() => {
               plan.auto,
               session.userId,
               settings.mooc.background.autoReview.comment,
+              // 每完成一项刷一次心跳：一轮里可能有好几项，中间任何一项卡住
+              // 都会让心跳过期，界面于是把「正在跑」读成「上次没结束」
+              () => touchRun(),
             )
           : [];
 
@@ -547,7 +567,11 @@ export default defineBackground(() => {
           const manualNow = Date.now();
           await beginRun(manualNow);
           try {
+            // 与自动执行同一套：每一步之前刷心跳，理由见 autoRun 里的说明
+            await touchRun();
             await refreshCourses().catch(() => undefined);
+
+            await touchRun();
             const manualSnapshot = await loadSnapshot(manualCourses, manualSession.userId);
             const manualPlan = derivePlan(manualSnapshot, manualSettings, manualNow);
 
@@ -566,6 +590,7 @@ export default defineBackground(() => {
               manualPlan.auto,
               manualSession.userId,
               manualSettings.mooc.background.autoReview.comment,
+              () => touchRun(),
             );
 
             const done = results.filter((r) => r.status === 'done').length;
@@ -606,6 +631,33 @@ export default defineBackground(() => {
           }
 
           const coursesForPending = selectedCourses(settingsForPending);
+
+          /*
+           * 正在执行时不重新拉取，只回现有快照。
+           *
+           * 执行那一轮自己就在写快照，两边同时拉会互相覆盖——后写的把先写的
+           * 结果抹掉，而用户看到的正好是被抹掉的那一份，却无从知道。
+           * 而且此刻他更该看到的是「正在执行」，不是一份正在被改写的清单。
+           *
+           * 执行结束后弹窗会自己重读一次待办（跟随轮询看到不是 running 就重读），
+           * 所以省掉的这次请求不会被漏掉。
+           */
+          if (liveRunState(await getTaskState()) === 'running') {
+            const cached = await readSnapshot().catch(() => null);
+            const plan = cached
+              ? derivePlan(cached, settingsForPending)
+              : { auto: [], manual: [] };
+
+            sendResponse({
+              status: 'ok',
+              running: true,
+              value: toPendingSummary(
+                plan,
+                settingsForPending.mooc.background.schedule.keepOverdueDays,
+              ),
+            });
+            break;
+          }
 
           try {
             /*
@@ -736,9 +788,18 @@ export default defineBackground(() => {
           break;
         }
 
-        case 'TASK_STATE':
-          sendResponse(await getTaskState());
+        case 'TASK_STATE': {
+          /*
+           * 状态与判据一起给。
+           *
+           * 界面不再自己拿 `runningSince !== null` 猜「在不在跑」：那个字段
+           * 在浏览器被强杀后会留着没人清，猜出来是「正在执行」，而实际什么
+           * 都没发生。判据归后台（scheduler.liveRunState），界面只负责显示。
+           */
+          const state = await getTaskState();
+          sendResponse({ state, live: liveRunState(state) });
           break;
+        }
 
         case 'RESET_TASK_STATE':
           await resetState();

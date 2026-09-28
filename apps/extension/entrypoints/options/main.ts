@@ -20,7 +20,7 @@ import './style.css';
 import {
   getSettings,
   resetSettings,
-  saveSettings,
+  updateSettings,
   type Settings,
 } from '../../src/settings';
 import {
@@ -45,6 +45,15 @@ function toast(text: string): void {
   toastEl.classList.add('on');
   window.setTimeout(() => toastEl.classList.remove('on'), 3200);
 }
+
+/*
+ * 版本号显示在左栏底部，与「恢复默认设置」并列。
+ *
+ * 取运行时清单里的版本，不写死字面量：它就是浏览器里实际装着的这一版。
+ * 排查「改动有没有生效」时看这一个数就够，比翻扩展管理页快。
+ */
+const versionEl = document.getElementById('version');
+if (versionEl) versionEl.textContent = `v${browser.runtime.getManifest().version}`;
 
 // ---------- 基础控件 ----------
 
@@ -370,9 +379,9 @@ function lastRunHint(): HTMLElement {
   el.textContent = '读取中';
 
   void Promise.all([getSettings(), sendToBackground({ type: 'TASK_STATE' })])
-    .then(([settings, state]) => {
+    .then(([settings, status]) => {
       el.textContent = settings.enabled
-        ? describeRunState(state)
+        ? describeRunState(status.state)
         : 'Study Pilot 已停用';
     })
     .catch(() => {
@@ -670,21 +679,88 @@ function section(
 
 // ---------- 落盘 ----------
 
-async function persist(): Promise<void> {
-  current = await saveSettings(current);
+/*
+ * 设置页只提交「被改动的那一条路径」，从不整份写回。
+ *
+ * 原因是这里持有的只是一份内存快照，而配置还有别的写入方：后台任务读取
+ * 课程列表时会改写 `courses`，启动检查也会。整份提交等于「谁后写谁赢」——
+ * 用户拨开关时会把后台刚写入的课程列表覆盖回旧的，后台也会把用户刚拨的
+ * 开关覆盖回旧的。两边都不报错，用户看到的是「设置自己变回去了」，
+ * 尤其在浏览器刚启动、后台正在跑的时候。
+ */
+
+/**
+ * 落盘队列。
+ *
+ * 串行执行：连着拨两个开关会产生两次写入，谁先落到存储取决于调度，
+ * 而最终结果必须是最新那次。排队之后顺序与用户的操作顺序一致。
+ */
+let writing: Promise<void> = Promise.resolve();
+
+/**
+ * 提交一份只含改动字段的 patch。
+ *
+ * 合并基准是**存储里的当前值**（见 updateSettings），不是内存快照，
+ * 因此即使设置页手里的数据已经过时，也不会把别的字段带回去。
+ */
+function writePatch(patch: unknown): Promise<void> {
+  writing = writing
+    .then(() => updateSettings(patch))
+    .then((next) => {
+      current = next;
+    })
+    .catch(() => undefined);
+  return writing;
+}
+
+/** 按路径就地改内存。界面靠它做即时反馈，落盘见 bindSetting。 */
+function setPath(target: unknown, path: string, value: unknown): void {
+  const parts = path.split('.');
+  let node = target as Record<string, unknown>;
+  for (let i = 0; i < parts.length - 1; i++) node = node[parts[i]] as Record<string, unknown>;
+  node[parts[parts.length - 1]] = value;
+}
+
+/** 把一条路径展开成 patch 对象。 */
+function patchAt(path: string, value: unknown): Record<string, unknown> {
+  const parts = path.split('.');
+  const root: Record<string, unknown> = {};
+  let node = root;
+  for (const key of parts.slice(0, -1)) {
+    const child: Record<string, unknown> = {};
+    node[key] = child;
+    node = child;
+  }
+  node[parts[parts.length - 1]] = value;
+  return root;
 }
 
 /**
- * 包装一个赋值动作：先执行赋值，再落盘。
+ * 把一个设置项接到控件上。
  *
- * 表单改动没有独立的保存按钮，所有改动都经此落盘，保证界面状态与存储一致。
- * 类型参数由调用处的赋值函数推导，因此布尔、数字、文本控件共用同一个包装。
+ * 表单没有保存按钮，改动即时落盘。类型参数由调用处的初始值推导，
+ * 因此布尔、数字、文本控件共用同一个包装。
  */
-function persistAfter<T>(assign: (value: T) => void): (value: T) => void {
+function bindSetting<T>(path: string): (value: T) => void {
   return (value: T) => {
-    assign(value);
-    void persist();
+    setPath(current, path, value);
+    void writePatch(patchAt(path, value));
   };
+}
+
+/**
+ * 更新某门课程的勾选。
+ *
+ * 基准取的是**存储里的那份**课程列表，而不是设置页内存里的：课程列表会被
+ * 后台任务整份重写（读取课程、启动检查都会），内存里的可能已经过时。
+ * 基于旧数据写回，会把后台刚读到的课程覆盖掉。
+ */
+async function toggleCourse(termId: number, enabled: boolean): Promise<void> {
+  const latest = await getSettings();
+  const courses = latest.mooc.background.courses.map((course) =>
+    course.termId === termId ? { ...course, enabled } : course,
+  );
+  await writePatch({ mooc: { background: { courses } } });
 }
 
 // ---------- 动作 ----------
@@ -804,7 +880,8 @@ function courseList(): HTMLElement {
         courses.filter((c) => c.enabled).length
       } 门，共 ${courses.length} 门`;
 
-      void persist().then(() => reloadUnitDetails());
+      // 落盘以存储里的课程列表为基准（见 toggleCourse），界面上的改动是即时的
+      void toggleCourse(course.termId, check.checked).then(() => reloadUnitDetails());
     });
 
     const link = document.createElement('a');
@@ -863,9 +940,7 @@ function render(): void {
         row(
           '启用 Study Pilot',
           '关闭后不再执行后台任务，页面里的辅助面板也不再显示',
-          toggle(current.enabled, persistAfter((value: boolean) => {
-            current.enabled = value;
-          })),
+          toggle(current.enabled, bindSetting<boolean>('enabled')),
         ),
         row(
           '登录状态',
@@ -904,16 +979,12 @@ function render(): void {
         row(
           '运行期间检查间隔',
           '浏览器开着时每隔多少分钟检查一次。检查只读本地数据、不发请求，调小它不会增加网络负担。可设 5 到 360 分钟',
-          numberInput(mooc.background.schedule.checkIntervalMinutes, 5, 360, '分钟', persistAfter((value: number) => {
-            mooc.background.schedule.checkIntervalMinutes = value;
-          })),
+          numberInput(mooc.background.schedule.checkIntervalMinutes, 5, 360, '分钟', bindSetting<number>('mooc.background.schedule.checkIntervalMinutes')),
         ),
         row(
           '启动延迟',
           '启动后等待多少分钟再开始检查，0 表示立即开始，可设 0 到 30 分钟。运行期间的定时检查不受它影响',
-          numberInput(mooc.background.schedule.startupDelayMinutes, 0, 30, '分钟', persistAfter((value: number) => {
-            mooc.background.schedule.startupDelayMinutes = value;
-          })),
+          numberInput(mooc.background.schedule.startupDelayMinutes, 0, 30, '分钟', bindSetting<number>('mooc.background.schedule.startupDelayMinutes')),
         ),
         row('上次运行', '最近一次运行的时间。这一轮无事可做时也计入', lastRunHint()),
       ]),
@@ -921,9 +992,7 @@ function render(): void {
         row(
           '保留天数',
           '已过截止的事项在待办里再显示几天，可设 0 到 90 天，0 表示立刻不再显示。它们不影响完成，列在这里是让你知道自己漏了什么',
-          numberInput(mooc.background.schedule.keepOverdueDays, 0, 90, '天', persistAfter((value: number) => {
-            mooc.background.schedule.keepOverdueDays = value;
-          })),
+          numberInput(mooc.background.schedule.keepOverdueDays, 0, 90, '天', bindSetting<number>('mooc.background.schedule.keepOverdueDays')),
         ),
       ]),
     ]),
@@ -1038,52 +1107,38 @@ function render(): void {
         row(
           '自动完成测验',
           '对尚未提交的单元测验生成答案并提交。只处理客观题',
-          toggle(mooc.background.autoQuiz.enabled, persistAfter((value: boolean) => {
-            mooc.background.autoQuiz.enabled = value;
-          })),
+          toggle(mooc.background.autoQuiz.enabled, bindSetting<boolean>('mooc.background.autoQuiz.enabled')),
         ),
         row(
           '自动完成互评',
           '对处于互评期的单元作业提交评分，按平台要求的份数评够为止',
-          toggle(mooc.background.autoReview.enabled, persistAfter((value: boolean) => {
-            mooc.background.autoReview.enabled = value;
-          })),
+          toggle(mooc.background.autoReview.enabled, bindSetting<boolean>('mooc.background.autoReview.enabled')),
         ),
 
         row(
           '自动完成自评',
           '对自己的单元作业提交评分，分数按满分给出',
-          toggle(mooc.background.autoSelfEvaluate.enabled, persistAfter((value: boolean) => {
-            mooc.background.autoSelfEvaluate.enabled = value;
-          })),
+          toggle(mooc.background.autoSelfEvaluate.enabled, bindSetting<boolean>('mooc.background.autoSelfEvaluate.enabled')),
         ),
         row(
           '互评评语',
           '提交互评与自评时统一使用的评语。平台要求非空，留空时会退回默认值',
-          textInput(mooc.background.autoReview.comment, persistAfter((value: string) => {
-            mooc.background.autoReview.comment = value;
-          })),
+          textInput(mooc.background.autoReview.comment, bindSetting<string>('mooc.background.autoReview.comment')),
         ),
         row(
           '截止提醒',
           '每次检查后，对临近截止且未完成的单元发出桌面通知',
-          toggle(mooc.background.deadlineReminder.enabled, persistAfter((value: boolean) => {
-            mooc.background.deadlineReminder.enabled = value;
-          })),
+          toggle(mooc.background.deadlineReminder.enabled, bindSetting<boolean>('mooc.background.deadlineReminder.enabled')),
         ),
         row(
           '提前提醒天数',
           '距截止不足该天数时开始提醒，可设 1 到 30 天',
-          numberInput(mooc.background.deadlineReminder.advanceDays, 1, 30, '天', persistAfter((value: number) => {
-            mooc.background.deadlineReminder.advanceDays = value;
-          })),
+          numberInput(mooc.background.deadlineReminder.advanceDays, 1, 30, '天', bindSetting<number>('mooc.background.deadlineReminder.advanceDays')),
         ),
         row(
           '完成提醒',
           '每次检查后，对后台替你完成的事项发出桌面通知',
-          toggle(mooc.background.completionNotice.enabled, persistAfter((value: boolean) => {
-            mooc.background.completionNotice.enabled = value;
-          })),
+          toggle(mooc.background.completionNotice.enabled, bindSetting<boolean>('mooc.background.completionNotice.enabled')),
         ),
         row(
           '示例通知',
@@ -1113,16 +1168,12 @@ function render(): void {
         row(
           '做题助手',
           '在单元测验与客观题考试页展示面板，可按题库填充，也可以由你点提交。填充会触发页面保存草稿',
-          toggle(mooc.foreground.quizHelper.enabled, persistAfter((value: boolean) => {
-            mooc.foreground.quizHelper.enabled = value;
-          })),
+          toggle(mooc.foreground.quizHelper.enabled, bindSetting<boolean>('mooc.foreground.quizHelper.enabled')),
         ),
         row(
           '作业得分指导',
           '在单元作业页把每题的得分说明插到题目下方，不显示面板',
-          toggle(mooc.foreground.homeworkAnswers.enabled, persistAfter((value: boolean) => {
-            mooc.foreground.homeworkAnswers.enabled = value;
-          })),
+          toggle(mooc.foreground.homeworkAnswers.enabled, bindSetting<boolean>('mooc.foreground.homeworkAnswers.enabled')),
         ),
       ]),
     ]),
@@ -1264,8 +1315,8 @@ function progressView(): HTMLElement {
   box.textContent = '正在读取…';
 
   void sendToBackground({ type: 'TASK_STATE' })
-    .then((state) => {
-      box.textContent = describeRunState(state);
+    .then((status) => {
+      box.textContent = describeRunState(status.state);
       signalContentReady();
     })
     .catch(() => {

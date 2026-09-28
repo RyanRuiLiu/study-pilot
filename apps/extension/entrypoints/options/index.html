@@ -21,17 +21,25 @@
 
       <div class="layout">
         <!--
-          左侧分区导航。设置页有五个分区，页面上千像素长，
-          没有导航就只能一路滚到底找某一项。
+          左侧一栏：分区导航 + 页脚操作。
+          设置页有七个分区、页面上千像素长，没有导航就只能一路滚到底找某一项。
           导航由 main.ts 依据实际渲染出的分区生成，两边不会脱节。
+
+          恢复默认与版本号放在这一栏的底部，跟着导航一起吸顶：
+          它们是整页范围的操作（不是某一个分区里的设置），放在正文末尾时
+          要滚过七个分区才够得着；而版本号是「我现在用的是哪一版」，
+          排查问题时最常要用，顺手能看见比埋在页脚有用。
         -->
-        <nav id="toc" class="toc" aria-label="设置分区"></nav>
+        <div class="rail">
+          <nav id="toc" class="toc" aria-label="设置分区"></nav>
+
+          <div class="rail-foot">
+            <button id="reset" class="quiet" type="button">恢复默认设置</button>
+            <p id="version" class="version"></p>
+          </div>
+        </div>
 
         <div id="app"></div>
-      </div>
-
-      <div class="footer">
-        <button id="reset" class="quiet" type="button">恢复默认设置</button>
       </div>
 
       <p class="colophon">STUDYPILOT / MOOC ENHANCER</p>

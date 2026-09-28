@@ -175,6 +175,20 @@ body {
   line-height: 1.7;
 }
 
+/*
+ * 后台正在执行。与空状态、失败都不同：它不是结论，是一句说明——
+ * 下面的清单取自执行之前，稍后会自己刷新。
+ * 用中性色，不上警示色：这里没有任何出错。
+ */
+.todo-running {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 /* 空状态。给出下一步该做什么，而不是只说这里没有东西 */
 .todo-empty {
   margin: 0;
