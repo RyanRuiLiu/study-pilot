@@ -24,10 +24,19 @@ const STATE_KEY = 'study-pilot:task-state';
 /** 跨次运行保留的状态。 */
 export interface TaskState {
   /**
-   * 正在执行的批次开始时间。非 null 表示上次运行没有正常结束，
-   * 下次启动要接着做（这一轮不受任何节流限制）。
+   * 正在执行的批次开始时间。非 null 表示上次运行没有正常结束——
+   * 可能是正在跑，也可能是浏览器被强杀后留下的标记，两者要靠心跳区分。
    */
   runningSince: number | null;
+  /**
+   * 最近一次心跳。
+   *
+   * 执行线程活着的时候不断刷新它。MV3 的 worker 会被回收、浏览器会被强杀，
+   * 那时 runningSince 还留在存储里没人清，而实际已经没有东西在跑了。
+   * 只看 runningSince 会把「残留」误报成「正在执行」——用户于是等一个
+   * 永远不会结束的动作，界面与事实分离。判据见 liveRunState。
+   */
+  heartbeatAt: number | null;
   /** 最近一次正常结束的时间 */
   lastFinishedAt: number | null;
   /**
@@ -43,9 +52,38 @@ export interface TaskState {
 
 export const EMPTY_STATE: TaskState = {
   runningSince: null,
+  heartbeatAt: null,
   lastFinishedAt: null,
   awaitingLogin: false,
 };
+
+/**
+ * 心跳超时。
+ *
+ * 取两分钟：单个动作（一次接口调用）通常几秒内返回，一轮完整执行里
+ * 每一步之前都会刷新心跳，两分钟没动静只能是线程已经不在了。
+ * 宁可多等一会儿也不要误报中断——误报会让用户以为扩展坏了。
+ */
+const HEARTBEAT_TIMEOUT_MS = 120_000;
+
+/** 后台此刻处于哪种状态。 */
+export type LiveRunState = 'idle' | 'running' | 'interrupted' | 'awaiting-login';
+
+/**
+ * 由持久状态推出「此刻在做什么」。
+ *
+ * 这是**唯一**的判据：界面不自己拿 `runningSince !== null` 去猜。
+ * 曾经弹窗就是这么猜的，于是浏览器被强杀之后，那个残留标记让弹窗一直
+ * 显示「正在执行」，而实际什么都不会发生——状态与显示分离，用户无从判断。
+ */
+export function liveRunState(state: TaskState, now: number = Date.now()): LiveRunState {
+  if (state.runningSince === null) {
+    return state.awaitingLogin ? 'awaiting-login' : 'idle';
+  }
+
+  const beat = state.heartbeatAt ?? state.runningSince;
+  return now - beat <= HEARTBEAT_TIMEOUT_MS ? 'running' : 'interrupted';
+}
 
 /** 本地日期键，格式 YYYY-MM-DD。按本地时区计算，跨时区不适用。 */
 export function dateKey(now: number = Date.now()): string {
@@ -118,16 +156,33 @@ export async function resetState(): Promise<void> {
   await writeState(EMPTY_STATE);
 }
 
-/** 标记本轮开始。 */
+/** 标记本轮开始。同时落下第一次心跳。 */
 export async function beginRun(now: number = Date.now()): Promise<void> {
   const state = await readState();
-  await writeState({ ...state, runningSince: now });
+  await writeState({ ...state, runningSince: now, heartbeatAt: now });
 }
 
-/** 标记本轮结束。 */
+/**
+ * 刷新心跳。执行过程中每一步之前调用，说明这一轮还活着。
+ *
+ * 已经结束的轮次不再续：一个迟到的回调不该把一个中断的标记又写活。
+ */
+export async function touchRun(now: number = Date.now()): Promise<void> {
+  const state = await readState();
+  if (state.runningSince === null) return;
+  await writeState({ ...state, heartbeatAt: now });
+}
+
+/** 标记本轮结束。心跳一并清掉，免得下一轮被读成「还在跑」。 */
 export async function finishRun(now: number = Date.now()): Promise<void> {
   const state = await readState();
-  await writeState({ ...state, runningSince: null, lastFinishedAt: now, awaitingLogin: false });
+  await writeState({
+    ...state,
+    runningSince: null,
+    heartbeatAt: null,
+    lastFinishedAt: now,
+    awaitingLogin: false,
+  });
 }
 
 /** 标记本轮因未登录而挂起。 */

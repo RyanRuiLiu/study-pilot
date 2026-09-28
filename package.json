@@ -1,6 +1,6 @@
 {
   "name": "study-pilot",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "慕课平台辅助工具：整理课程待办与截止时间，可辅助完成客观题测验",
   "author": "Ryan Liu",

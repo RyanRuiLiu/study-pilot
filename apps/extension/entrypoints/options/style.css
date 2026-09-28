@@ -704,13 +704,44 @@ a.details-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 .details-status.active { color: var(--ink-soft); }
 .details-status.warn { color: var(--warn); }
 
-/* ---------- 页脚 ---------- */
+/* ---------- 左栏（导航 + 页脚操作） ---------- */
 
-.footer {
+/*
+ * 这一栏整体吸顶：导航跟着滚，底部的恢复默认与版本号也就一起留在视野里。
+ * 先前按钮在正文末尾的页脚里，要滚过七个分区才够得着。
+ */
+.rail {
+  position: sticky;
+  top: var(--toc-top, 150px);
   display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 40px;
+  flex-direction: column;
+  gap: 24px;
+  align-self: start;
+}
+
+/*
+ * 恢复默认是整页范围的操作，与导航之间用一条细线分开——
+ * 两者性质不同：上面是「去哪里」，下面是「对整份配置做什么」。
+ */
+.rail-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.rail-foot .quiet {
+  width: 100%;
+  text-align: left;
+}
+
+/* 版本号。排查问题时最常要用，跟着左栏一起常驻 */
+.version {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+  letter-spacing: 0.02em;
 }
 
 /*

@@ -42,7 +42,7 @@ export type BackgroundRequest =
   | { type: 'UNIT_DETAILS' }
   | { type: 'NOTIFY_SAMPLE' };
 
-import type { TaskState } from '../background/scheduler';
+import type { LiveRunState, TaskState } from '../background/scheduler';
 
 /** 诊断报告，一次性给出后台的关键状态。 */
 export interface DiagnoseReport {
@@ -67,7 +67,18 @@ export interface DiagnoseReport {
  * 只有用户去登录才能解决，界面上的说法与提供的去处也都不同。
  */
 export type QueryOutcome<T> =
-  | { status: 'ok'; value: T }
+  | {
+      status: 'ok';
+      value: T;
+      /**
+       * 这一份数据是在后台正在执行时给出的。
+       *
+       * 执行那一轮自己就在写快照，此时重新拉取会与它互相覆盖，所以后台
+       * 只回现有快照并带上这个标记；界面据此说明「数据可能是执行前的」，
+       * 而不是让用户以为看到的就是最新。
+       */
+      running?: boolean;
+    }
   | { status: 'error'; message: string; reason?: 'NOT_LOGGED_IN' };
 
 /**
@@ -297,6 +308,18 @@ export interface RunScheduledTasksResponse {
  */
 export type TaskStateSnapshot = TaskState;
 
+/**
+ * 后台此刻的状态。
+ *
+ * `live` 由后台判定（见 scheduler.liveRunState），界面只负责显示。
+ * 界面不自己拿 `state.runningSince !== null` 去猜：那个字段在浏览器被强杀后
+ * 会留着没人清，猜的结果是弹窗一直显示「正在执行」，而实际什么都没发生。
+ */
+export interface TaskStatus {
+  state: TaskStateSnapshot;
+  live: LiveRunState;
+}
+
 export interface ResponseMap {
   SESSION: MoocSession;
   COURSES: CourseSummary[];
@@ -304,7 +327,7 @@ export interface ResponseMap {
     | { ok: true; courses: CourseSummary[] }
     | { ok: false; reason: JobRejection; message?: string };
   RUN_SCHEDULED_TASKS: RunScheduledTasksResponse;
-  TASK_STATE: TaskStateSnapshot;
+  TASK_STATE: TaskStatus;
   RESET_TASK_STATE: { ok: true };
   PENDING_SUMMARY: QueryOutcome<PendingSummary>;
   DIAGNOSE: DiagnoseReport;

@@ -93,29 +93,48 @@ function startFollowing(): void {
  * 「下次执行」不在弹窗显示：它是排程信息，而这里最需要回答的是
  * 「现在要做什么」，何时自动执行属于配置，放设置页更合适。
  */
+/**
+ * 渲染总开关与执行状态。返回「此刻后台是否真的在跑」。
+ *
+ * 状态一律取自后台（TASK_STATE 的 live），弹窗不自己推断：
+ *   running         正在跑——跟着轮询，跑完自动重读待办
+ *   interrupted     上次运行没结束，是浏览器被强杀留下的标记，不会自己恢复
+ *   awaiting-login  因未登录挂起，登录后会自动补做
+ *
+ * 早期这里是 `settings.enabled && state.runningSince !== null`，两处都错：
+ * 总开关一关，真实状态就被掩盖；而那个字段在强杀之后仍留着，于是弹窗
+ * 一直显示「正在执行」，用户等的是一件永远不会发生的事。
+ *
+ * 按钮的可按性也由这里决定：正在跑时点击只会被后台拒绝。
+ */
 async function renderState(): Promise<boolean> {
   const settings = await getSettings();
   current = settings;
 
   /*
-   * 手动执行正在进行时，状态行由点击那一刻写好，这里不覆盖它。
-   * 否则点下去显示的「正在执行」会被这一轮读到的旧状态冲掉。
+   * 刚点下「执行」的那一两秒里，后台可能还没落下心跳。这时保留点击那一刻
+   * 写好的文案（下面 idle 分支不覆盖它），但状态本身仍以后台为准——
+   * 下一秒的轮询就会把它纠正过来。
    */
-  if (manualRunning) return true;
+  const justClicked = manualRunning;
 
   try {
-    const state = await sendToBackground({ type: 'TASK_STATE' });
+    const status = await sendToBackground({ type: 'TASK_STATE' });
+    const running = status.live === 'running';
 
     stateEl?.classList.remove('is-busy', 'is-error');
 
-    const running = settings.enabled && state.runningSince !== null;
-
-    /*
-     * 总开关关闭时不写状态行：那时按钮已禁用，
-     * 而「可以点但不能点」的原因由开关自身的位置表达就够了。
-     */
-    if (running) setText(stateEl, '正在执行');
-    else setText(stateEl, '');
+    if (running) {
+      setText(stateEl, '正在执行');
+      stateEl?.classList.add('is-busy');
+    } else if (status.live === 'interrupted') {
+      setText(stateEl, '上次运行未结束，下次检查时接着做');
+    } else if (status.live === 'awaiting-login') {
+      setText(stateEl, '等待登录，登录后接着完成');
+    } else if (!justClicked) {
+      // 没有正在发生的事就收起这一行；刚点过执行时留着结果显示
+      setText(stateEl, '');
+    }
 
     if (runBtn) runBtn.disabled = !settings.enabled || running;
 
@@ -231,7 +250,7 @@ async function renderTodo(): Promise<void> {
     const outcome = (await browser.runtime.sendMessage({
       type: 'PENDING_SUMMARY',
     })) as
-      | { status: 'ok'; value: PendingSummary }
+      | { status: 'ok'; value: PendingSummary; running?: boolean }
       | { status: 'error'; message: string; reason?: 'NOT_LOGGED_IN' }
       | undefined;
 
@@ -256,7 +275,14 @@ async function renderTodo(): Promise<void> {
     }
 
     const { entries } = outcome.value;
-    writeTodo([]);
+
+    /*
+     * 后台正在执行时，这一份取自执行前的快照（后台刻意不再重新拉取，
+     * 免得与执行互相覆盖）。说明来源与后续，否则用户看到清单迟迟不变，
+     * 会以为扩展没有反应。
+     */
+    const pending = outcome.running ? runningNote() : null;
+    writeTodo(pending ? [pending] : []);
 
     /*
      * 过期项单独一段，不参与课程分组。
@@ -518,6 +544,19 @@ function buildRow(entry: PendingEntry): HTMLElement {
 function writeTodo(children: Node[]): void {
   todoEl.classList.remove('is-loading');
   todoEl.replaceChildren(...children);
+}
+
+/**
+ * 后台正在执行时，待办顶部的一行说明。
+ *
+ * 它解释的是「为什么这份清单看起来没变」，并给出后续会自己刷新——
+ * 不说明的话，用户没法区分「后台在做」与「扩展没反应」。
+ */
+function runningNote(): HTMLElement {
+  const note = document.createElement('p');
+  note.className = 'todo-running';
+  note.textContent = '正在执行，下面是执行前的清单，结束后会自动刷新';
+  return note;
 }
 
 /** 待办区呈现失败状态。 */
