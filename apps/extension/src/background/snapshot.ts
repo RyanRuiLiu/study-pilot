@@ -35,6 +35,7 @@ import {
   getEvaluationDetail,
   type MoocClient,
 } from '@study-pilot/platform-mooc';
+import { SessionExpiredError } from '../platform/mooc-session';
 import { dateKey } from './scheduler';
 
 /** 一个单元项在快照里的样子。 */
@@ -180,10 +181,18 @@ export async function inspect(
 ): Promise<Snapshot> {
   const snapshotCourses: SnapshotCourse[] = [];
   let failures = 0;
+  let authFailures = 0;
 
   for (const course of courses) {
     const structure = await getCourseStructure(client, course.termId);
     if (!structure.ok) {
+      /*
+       * auth 失败单独记账：它同时是「会话已死」的候选证据。
+       * mocTermDto 为 null 也可能只是那一门课真的没了，所以只有
+       * **全部**课程都栽在这个形态上才判会话失效——个别课程如此时，
+       * 仍按普通的单门失败处理，其余课程照常进快照。
+       */
+      if (structure.error.kind === 'auth') authFailures++;
       failures++;
       continue;
     }
@@ -261,6 +270,13 @@ export async function inspect(
   }
 
   if (failures > 0 && snapshotCourses.length === 0) {
+    /*
+     * 全部失败且全部是未登录形态：会话在服务端已死。
+     * 抛专用错误而不是普通消息，调用方才能走「续期后重读」而不是
+     * 把一句失败文案端给用户。续期后仍如此的情形（课程真的都不在了）
+     * 由编排层区分，这里不下那个结论。
+     */
+    if (authFailures === courses.length) throw new SessionExpiredError();
     throw new Error(`全部 ${failures} 门课程都读取失败`);
   }
 

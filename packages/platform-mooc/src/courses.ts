@@ -14,8 +14,8 @@
  * 只取一类会漏掉另一类课程。
  */
 
-import { ok, type Result } from '@study-pilot/core';
-import type { TransportError } from '@study-pilot/transport';
+import { ok, err, type Result } from '@study-pilot/core';
+import { unauthenticatedError, type TransportError } from '@study-pilot/transport';
 import type { MoocClient } from './client.ts';
 import { COURSE_TYPE, ENDPOINTS, type CourseType } from './endpoints.ts';
 import type { CourseSummary } from './types.ts';
@@ -96,7 +96,16 @@ export async function getCourses(
   );
 
   if (!payload.ok) return payload;
-  const list = payload.value?.result ?? [];
+  /*
+   * 未登录形态：code 0，但内层 result 是 null 而不是空数组。
+   *
+   * 实测（2026-10-03，匿名与伪造失效会话两个用例一致）：平台对失效会话
+   * 返回 `result: null`；已登录账号即使一门课都没有，这里也应是空数组。
+   * 两者的差别就是「平台认不认得你」。吞掉 null 当空列表，失效会话就会
+   * 被上层当成「确实没有课程」——界面显示空而不是提示登录。
+   */
+  if (payload.value?.result == null) return err(unauthenticatedError());
+  const list = payload.value.result;
   return ok(list.map(toSummary).filter((course) => course.termId > 0));
 }
 
@@ -133,7 +142,12 @@ export async function getCoursesWithTrace(
     return { request, error: `${payload.error.kind}: ${payload.error.message}` };
   }
 
-  const list = payload.value?.result ?? [];
+  // 与 getCourses 同一判据：null 是未登录形态，不是「没有课程」
+  if (payload.value?.result == null) {
+    const auth = unauthenticatedError();
+    return { request, error: `${auth.kind}: ${auth.message}` };
+  }
+  const list = payload.value.result;
   const parsed = list.map(toSummary).filter((course) => course.termId > 0);
 
   return {

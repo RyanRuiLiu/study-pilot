@@ -14,7 +14,17 @@ export type TransportErrorKind =
   /** 响应不是合法 JSON（通常是登录失效被重定向到 HTML 页面） */
   | 'parse'
   /** 业务错误码：响应是 JSON 但 `code !== 0` */
-  | 'api';
+  | 'api'
+  /**
+   * 服务端视角的未登录：响应是 `code: 0` 的「成功」，但数据是未登录形态
+   * （课程列表的 result 为 null、课程结构的 mocTermDto 为 null）。
+   *
+   * 平台对失效会话不报错也不重定向，回的就是这种空壳（实测见
+   * docs/platforms/mooc.md 第 3 节）。把它从「api」里分出来，是因为
+   * 它的处置完全不同：续期一次会话再重读通常就能好，而不是让用户
+   * 对着一句「读取失败」猜原因。
+   */
+  | 'auth';
 
 export interface TransportError {
   kind: TransportErrorKind;
@@ -59,6 +69,21 @@ export function apiError(code: number, message?: string, raw?: string): Transpor
     kind: 'api',
     message: message || `业务错误码 ${code}`,
     code,
+    raw: raw?.slice(0, RAW_LIMIT),
+  };
+}
+
+/**
+ * 服务端视角的未登录。
+ *
+ * 由领域层在识别出未登录形态的响应时构造（transport 自己看不出
+ * 「result 为 null」意味着什么），错误种类归在这里，处置逻辑才能
+ * 按种类路由：auth 失败先续期会话重读一次，其余失败如实上报。
+ */
+export function unauthenticatedError(raw?: string): TransportError {
+  return {
+    kind: 'auth',
+    message: '平台会话已失效（返回了未登录形态的数据）',
     raw: raw?.slice(0, RAW_LIMIT),
   };
 }

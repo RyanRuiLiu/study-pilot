@@ -27,8 +27,8 @@
  * 取卷接口参数、判决条件都各自独立，合并成一条会丢掉一半信息。
  */
 
-import { ok, type Result } from '@study-pilot/core';
-import type { TransportError } from '@study-pilot/transport';
+import { ok, err, type Result } from '@study-pilot/core';
+import { unauthenticatedError, type TransportError } from '@study-pilot/transport';
 import type { MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
 import type { CourseStructure, CourseWork, WorkStatus, WorkTest, WorkType } from './types.ts';
@@ -136,7 +136,19 @@ export async function getCourseStructure(
   );
   if (!payload.ok) return payload;
 
-  const dto = payload.value?.mocTermDto ?? {};
+  /*
+   * 未登录形态：code 0，但 result 为 null（实测 2026-10-03，匿名与伪造
+   * 失效会话一致）。此前 `?? {}` 把它吞成「没有章节的合法课程」，
+   * 失效会话于是被上层当成「这门课没有待办」——快照永远空，界面显示
+   * 「暂无待办」，而不是提示登录。
+   *
+   * mocTermDto 为 null 也可能出现在别的场合（课程已结束、termId 无效），
+   * 但那些场合续期重读后仍是 null；编排层据此把它与登录失效区分开，
+   * 这里只负责如实报「auth」，不下最终结论。
+   */
+  if (payload.value?.mocTermDto == null) return err(unauthenticatedError());
+
+  const dto = payload.value.mocTermDto;
   const chapters = dto.chapters ?? [];
   const works: CourseWork[] = [];
 

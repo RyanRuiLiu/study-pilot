@@ -71,6 +71,10 @@ export async function readSession(): Promise<MoocSession> {
  * 所以这里一次静默请求即可，不必打开标签页打扰用户。
  *
  * 只在确实没有会话时才发请求：已经可用时跳过，避免每次读会话都打一次网络。
+ *
+ * 边界：它只处理「本地 cookie 缺失」这一种失效。cookie 还在而服务端会话
+ * 已死的情形由 {@link renewSession} 处理——那里的判据是服务端的表态，
+ * 不是本地的 cookie。
  */
 export async function ensureSession(): Promise<MoocSession> {
   const current = await readSession();
@@ -84,6 +88,47 @@ export async function ensureSession(): Promise<MoocSession> {
   }
 
   return readSession();
+}
+
+/**
+ * 平台会话在服务端已失效。
+ *
+ * 由数据读取路径在识别出未登录形态（auth 错误）后抛出，编排层捕获它
+ * 决定续期重试。它不是给界面看的错误文案——用户该看到的是「已自动恢复」
+ * 或「请重新登录」，而不是这句内部描述。
+ */
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('平台会话已失效');
+    this.name = 'SessionExpiredError';
+  }
+}
+
+/**
+ * 用持久凭证换取一份新会话，并回答「换到没有」。
+ *
+ * 为什么需要它：`ensureSession` 只在本地 cookie **缺失**时才发起恢复，
+ * 而「本地 cookie 还在、服务端会话已死」是另一种真实状态——浏览器长期
+ * 驻留（启动加速、后台运行）会让会话级 cookie 活过服务端会话的寿命。
+ * 此时按 cookie 存在与否判断登录必然误判，只有让服务端重新表态才有意义。
+ *
+ * 换发与否不靠猜：服务端重新接受登录时会下发新的 `STUDY_SESS`，
+ * 值发生变化即换发成功；值未变说明持久凭证也失效了，只能让用户去登录。
+ * 用 cookie 值前后对比而不是读响应头，是因为 `Set-Cookie` 对脚本不可见，
+ * 而 cookies API 是扩展本来就持有的权限。
+ *
+ * 只在已经看到「未登录形态」的响应之后调用。会话本来就活着时调用它，
+ * 「未换发」会被误读成「登录失效」——它其实说明不了任何事。
+ */
+export async function renewSession(): Promise<{ renewed: boolean; session: MoocSession }> {
+  const before = await readCookie('STUDY_SESS');
+  try {
+    await fetch(`${MOOC_ORIGIN}/`, { credentials: 'include' });
+  } catch {
+    return { renewed: false, session: await readSession() };
+  }
+  const after = await readCookie('STUDY_SESS');
+  return { renewed: after !== '' && after !== before, session: await readSession() };
 }
 
 /** 读取令牌，供后台使用。 */

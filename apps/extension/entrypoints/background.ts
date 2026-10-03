@@ -21,7 +21,7 @@ import {
   getEvaluationDetail,
   type CourseSummary,
 } from '@study-pilot/platform-mooc';
-import { ensureSession, readToken } from '../src/platform/mooc-session';
+import { ensureSession, readSession, readToken, renewSession } from '../src/platform/mooc-session';
 import { getSettings, updateSettings, watchSettings, type Settings } from '../src/settings';
 import {
   NOTIFICATION_PREFIX,
@@ -54,8 +54,9 @@ import {
   type Snapshot,
 } from '../src/background/snapshot';
 import { derivePlan, shouldRefresh } from '../src/background/task-plan';
+import { withSessionRecovery } from '../src/background/session-recovery';
 import { toPendingSummary, toUnitDetails } from '../src/background/to-messages';
-import type { BackgroundRequest } from '../src/platform/messaging';
+import type { BackgroundRequest, JobRejection } from '../src/platform/messaging';
 
 /** 平台的登录凭证 cookie。出现即表示登录成功。 */
 const LOGIN_COOKIE = 'NTESSTUDYSI';
@@ -186,6 +187,14 @@ export default defineBackground(() => {
     md5: md5hex,
   });
 
+  /**
+   * 会话续期，供各读取路径在见到未登录形态后调用。
+   *
+   * 返回布尔而不是会话对象：调用点关心的只有「换到没有」，
+   * 换到之后一律重新读数据，而不是拿旧对象接着用。
+   */
+  const renew = async (): Promise<boolean> => (await renewSession()).renewed;
+
 
 
   /**
@@ -203,7 +212,7 @@ export default defineBackground(() => {
    */
   async function refreshCourses(): Promise<
     | { ok: true; courses: CourseSummary[]; byType: unknown }
-    | { ok: false; message: string; byType?: unknown }
+    | { ok: false; message: string; byType?: unknown; auth?: boolean }
   > {
     // 两类课程要分别请求再合并：只取一类会漏掉另一类
     const mooc = await getCourses(client, { courseType: COURSE_TYPE.MOOC });
@@ -220,8 +229,17 @@ export default defineBackground(() => {
         : { ok: false, message: `${spoc.error.kind} ${spoc.error.message}` },
     };
 
-    if (!mooc.ok) return { ok: false, message: `MOOC：${byType.mooc.message}` };
-    if (!spoc.ok) return { ok: false, message: `SPOC：${byType.spoc.message}` };
+    if (!mooc.ok || !spoc.ok) {
+      /*
+       * 两类请求都栽在未登录形态上，标记 auth：调用方据此先续期重读，
+       * 而不是把「两类课程都为空」当结论端给用户——那正是本修复要
+       * 消灭的误报（失效会话下平台回的就是空形态，code 还是 0）。
+       */
+      const authLost =
+        !mooc.ok && mooc.error.kind === 'auth' && !spoc.ok && spoc.error.kind === 'auth';
+      const message = !mooc.ok ? `MOOC：${byType.mooc.message}` : `SPOC：${byType.spoc.message}`;
+      return { ok: false, message, byType, auth: authLost };
+    }
 
     const courses = [...mooc.value, ...spoc.value];
     if (courses.length === 0) {
@@ -355,6 +373,13 @@ export default defineBackground(() => {
     }
 
     await beginRun(now);
+    /*
+     * 因登录挂起的结论先记在这里，收尾之后才落盘。
+     *
+     * finishRun 会把 awaitingLogin 一并清掉（它假定本轮正常结束），
+     * 若在 try 内落标记，会被本轮自己的收尾立刻抹掉——挂起就没人记得了。
+     */
+    let suspendedLogin = false;
     try {
       /*
        * 每一步之前刷新心跳。
@@ -370,34 +395,55 @@ export default defineBackground(() => {
       await refreshCourses().catch(() => undefined);
 
       await touchRun();
-      const latest = await loadSnapshot(courses, session.userId);
-
-      const plan = derivePlan(latest, settings, now);
 
       /*
-       * 执行并只发一次通知。
+       * 快照读取带会话恢复。
        *
-       * 结果要与计划一起交给通知：计划是执行之前算的，里面写着「将自动完成」，
-       * 而执行之后那些事已经完成了。只用计划组织通知，用户会以为它们还没做；
-       * 分两次发（执行后一次、再补一次）则会把同一件事说两遍。
+       * 长时间闲置后的那次检查最容易撞上「cookie 还在、服务端会话已死」：
+       * 此时平台回的是未登录形态的空数据，不恢复会话就会把空快照当事实，
+       * 一整天不发通知也不报错。恢复不了则挂起等登录——沿用启动时
+       * 未登录的同一机制，用户在平台上重新活动后自动补做。
        */
-      const results =
-        plan.auto.length > 0
-          ? await executeActions(
-              client,
-              plan.auto,
-              session.userId,
-              settings.mooc.background.autoReview.comment,
-              // 每完成一项刷一次心跳：一轮里可能有好几项，中间任何一项卡住
-              // 都会让心跳过期，界面于是把「正在跑」读成「上次没结束」
-              () => touchRun(),
-            )
-          : [];
+      const recovered = await withSessionRecovery(
+        () => loadSnapshot(courses, session.userId),
+        renew,
+      );
+      if (!recovered.ok) {
+        if (recovered.kind !== 'login') throw new Error(recovered.message);
+        suspendedLogin = true;
+      } else {
+        const latest = recovered.value;
 
-      await notify(composeNotice(plan, results, noticeSettingsOf(settings), now));
+        const plan = derivePlan(latest, settings, now);
+
+        /*
+         * 执行并只发一次通知。
+         *
+         * 结果要与计划一起交给通知：计划是执行之前算的，里面写着「将自动完成」，
+         * 而执行之后那些事已经完成了。只用计划组织通知，用户会以为它们还没做；
+         * 分两次发（执行后一次、再补一次）则会把同一件事说两遍。
+         */
+        const results =
+          plan.auto.length > 0
+            ? await executeActions(
+                client,
+                plan.auto,
+                session.userId,
+                settings.mooc.background.autoReview.comment,
+                // 每完成一项刷一次心跳：一轮里可能有好几项，中间任何一项卡住
+                // 都会让心跳过期，界面于是把「正在跑」读成「上次没结束」
+                () => touchRun(),
+              )
+            : [];
+
+        await notify(composeNotice(plan, results, noticeSettingsOf(settings), now));
+      }
     } finally {
       await finishRun();
     }
+
+    // 已在 beginRun 之后收尾完毕，此刻落挂起标记不会再被 finishRun 抹掉
+    if (suspendedLogin) await markAwaitingLogin();
   }
 
   /*
@@ -496,9 +542,45 @@ export default defineBackground(() => {
 
     void (async () => {
       switch (request?.type) {
-        case 'SESSION':
-          sendResponse(await ensureSession());
+        case 'SESSION': {
+          /*
+           * 登录状态必须问过服务端才算数。
+           *
+           * 本地 cookie 只能证明「过去某一刻登录过」。浏览器长期驻留
+           * （启动加速、后台运行）会让会话级 cookie 活过服务端会话的寿命，
+           * 此时照读 cookie 必然误报「已登录」——设置页的登录行于是与
+           * 课程区各说各话，用户看到的「已登录」其实早已失效。
+           *
+           * 课程列表的未登录形态（result 为 null）是服务端的表态，拿它当
+           * 判据：可疑时先续期一次，仍可疑才如实报未登录。
+           * pageSize 压到 1，这次探问只为「认不认得我」，不为数据。
+           */
+          const session = await ensureSession();
+          if (!session.loggedIn) {
+            sendResponse(session);
+            break;
+          }
+
+          const probe = await getCourses(client, { courseType: COURSE_TYPE.MOOC, pageSize: 1 });
+          if (probe.ok || probe.error.kind !== 'auth') {
+            sendResponse(session);
+            break;
+          }
+
+          if ((await renewSession()).renewed) {
+            const afterRenewal = await getCourses(client, {
+              courseType: COURSE_TYPE.MOOC,
+              pageSize: 1,
+            });
+            if (afterRenewal.ok || afterRenewal.error.kind !== 'auth') {
+              sendResponse(await readSession());
+              break;
+            }
+          }
+
+          sendResponse({ loggedIn: false, userId: 0, token: session.token });
           break;
+        }
 
         case 'COURSES': {
           const settings = await getSettings();
@@ -521,11 +603,35 @@ export default defineBackground(() => {
             sendResponse({ ok: false, reason: 'NOT_LOGGED_IN' });
             break;
           }
-          // 主动点「读取课程列表」时总是去平台拿最新的
-          const result = await refreshCourses();
+          /*
+           * 主动点「读取课程列表」时总是去平台拿最新的。
+           *
+           * 长时间闲置后 cookie 可能还活着而服务端会话已死——那种时候
+           * 平台回的是未登录形态的空数据。带恢复重读：续期成功通常一次
+           * 就好；确认救不回来才报 NOT_LOGGED_IN，前台据此显示登录入口，
+           * 不再让「刷新加载不出」只能靠用户自己开官网破案。
+           */
+          const outcome = await withSessionRecovery(() => refreshCourses(), renew);
+          if (!outcome.ok) {
+            sendResponse(
+              outcome.kind === 'login'
+                ? { ok: false, reason: 'NOT_LOGGED_IN' }
+                : {
+                    ok: false,
+                    reason: 'FETCH_FAILED',
+                    message: outcome.message,
+                  },
+            );
+            break;
+          }
+          const result = outcome.value;
           if (!result.ok) {
             // 失败原因必须带回去，否则前台只能显示一个笼统的失败
-            sendResponse({ ok: false, reason: 'FETCH_FAILED', message: result.message });
+            sendResponse({
+              ok: false,
+              reason: result.auth ? 'NOT_LOGGED_IN' : 'FETCH_FAILED',
+              message: result.message,
+            });
             break;
           }
           sendResponse(
@@ -572,7 +678,27 @@ export default defineBackground(() => {
             await refreshCourses().catch(() => undefined);
 
             await touchRun();
-            const manualSnapshot = await loadSnapshot(manualCourses, manualSession.userId);
+            /*
+             * 与自动执行同一条恢复路径：失效会话在手动执行时同样要先
+             * 续期，否则拉回的是空快照，「没有可自动完成的事项」会变成
+             * 一个看似正常的假结论。
+             */
+            const manualOutcome = await withSessionRecovery(
+              () => loadSnapshot(manualCourses, manualSession.userId),
+              renew,
+            );
+            if (!manualOutcome.ok) {
+              sendResponse({
+                ok: false,
+                reason:
+                  manualOutcome.kind === 'login'
+                    ? 'NOT_LOGGED_IN'
+                    : ('FETCH_FAILED' as JobRejection),
+                message: manualOutcome.message,
+              });
+              break;
+            }
+            const manualSnapshot = manualOutcome.value;
             const manualPlan = derivePlan(manualSnapshot, manualSettings, manualNow);
 
             if (manualPlan.auto.length === 0) {
@@ -665,8 +791,28 @@ export default defineBackground(() => {
              * 因此这里无条件拉最新并更新快照——不受「今天是否已拉过」约束。
              * 那条约束只用于浏览器启动时的自动触发，目的是省请求；
              * 用户明确表达了想看，省这一步就违背了他的意图。
+             *
+             * 拉取带会话恢复：这是「长时间不点扩展后显示暂无待办」的
+             * 现场路径。失效会话拿回的是未登录形态的空数据，不恢复的话
+             * 上一行会以 status: ok 交出去，界面上便是一句「暂无待办」；
+             * 恢复失败才以 NOT_LOGGED_IN 交出去，弹窗据此显示登录入口。
              */
-            const snapshot = await loadSnapshot(coursesForPending, pendingSession.userId);
+            const pendingOutcome = await withSessionRecovery(
+              () => loadSnapshot(coursesForPending, pendingSession.userId),
+              renew,
+            );
+            if (!pendingOutcome.ok) {
+              sendResponse({
+                status: 'error',
+                reason: pendingOutcome.kind === 'login' ? 'NOT_LOGGED_IN' : undefined,
+                message:
+                  pendingOutcome.kind === 'login'
+                    ? '登录已失效，且自动恢复没有成功，请重新登录慕课平台'
+                    : pendingOutcome.message,
+              });
+              break;
+            }
+            const snapshot = pendingOutcome.value;
             sendResponse({
               status: 'ok',
               value: toPendingSummary(
@@ -695,7 +841,10 @@ export default defineBackground(() => {
      */
     case 'NOTIFY_SAMPLE': {
       const [snapshot, settings] = await Promise.all([readSnapshot(), getSettings()]);
-      return { ok: true, hasContent: await notifySample(snapshot, settings) };
+      // 必须经 sendResponse 交回：直接 return 的是这个异步函数自己，
+      // 调用方只能等到通道关闭，拿到的是「后台无响应」
+      sendResponse({ ok: true, hasContent: await notifySample(snapshot, settings) });
+      break;
     }
 
     case 'UNIT_DETAILS': {
@@ -724,9 +873,25 @@ export default defineBackground(() => {
              * 快照也是新的 —— 下一次浏览器启动的自动判断会基于它。
              * 若两处各拉各的，就会出现「弹窗看到的是新数据、
              * 启动判断用的是旧数据」这种说不清的状态。
+             *
+             * 恢复路径与待办汇总同源：先续期再重读，救不回来才报登录失效。
              */
-            const snapshot = await loadSnapshot(selectedCourses(settings), session.userId);
-            sendResponse({ status: 'ok', value: toUnitDetails(snapshot) });
+            const unitOutcome = await withSessionRecovery(
+              () => loadSnapshot(selectedCourses(settings), session.userId),
+              renew,
+            );
+            if (!unitOutcome.ok) {
+              sendResponse({
+                status: 'error',
+                reason: unitOutcome.kind === 'login' ? 'NOT_LOGGED_IN' : undefined,
+                message:
+                  unitOutcome.kind === 'login'
+                    ? '登录已失效，且自动恢复没有成功，请重新登录慕课平台'
+                    : unitOutcome.message,
+              });
+              break;
+            }
+            sendResponse({ status: 'ok', value: toUnitDetails(unitOutcome.value) });
           } catch (error) {
             sendResponse({
               status: 'error',
@@ -810,7 +975,14 @@ export default defineBackground(() => {
           sendResponse(undefined);
       }
     })().catch((error: unknown) => {
-      sendResponse({ ok: false, reason: 'NOT_LOGGED_IN', message: String(error) });
+      /*
+       * 兜底响应只能报「失败」，不能报「未登录」。
+       *
+       * 曾经这里把任何异常都包成 NOT_LOGGED_IN：一个与登录毫无关系的
+       * 存储异常会让界面显示「尚未登录」，用户于是去重复登录——
+       * 症状被替换成了另一个错误答案。未登录只能由明确判定它的分支返回。
+       */
+      sendResponse({ ok: false, reason: 'FETCH_FAILED', message: String(error) });
     });
 
     // 异步响应，保持消息通道打开

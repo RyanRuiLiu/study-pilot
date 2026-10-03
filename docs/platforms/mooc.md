@@ -127,6 +127,37 @@ try {
 3. `STUDY_INFO` 的值是管道分隔的 `邮箱|8|userId|时间戳`，第三段是用户 id。
    该格式已由 `getQuizInfo` 响应中的 `answererId` 交叉验证（两处一致）。
 
+### 3.1 未登录形态与会话续期（实测 2026-10-03）
+
+以匿名会话与伪造的失效会话（`STUDY_SESS` 为服务端不认识的随机值）各调一次
+只读接口，两个用例的响应**完全一致**：
+
+| 端点 | 失效会话下的响应 |
+|---|---|
+| `learnerCourseRpcBean.getMyLearnedCoursePanelList` | HTTP 200，`code: 0`，`result: { pagination, result: null }` |
+| `courseBean.getLastLearnedMocTermDto` | HTTP 200，`code: 0`，`result: null` |
+
+由此得出四条事实：
+
+1. **平台对失效会话不报错**：没有非 2xx、没有错误码、没有重定向、不清理
+   cookie。区别只在「内层 result 是 `null` 还是数组/对象」——已登录账号
+   即使一门课都没有，列表的内层 result 也是空数组而不是 null。
+2. **失效会话与匿名会话不可区分**（就响应而言），因此代码里只能报
+   「未登录」，不能细分。
+3. **会话级 cookie 可以活过服务端会话**：浏览器长期驻留（Edge 的启动加速、
+   后台运行）与「打开上次的页面」的会话恢复都会把会话 cookie 留在盘上。
+   「本地有 cookie」因此不是「服务端还认得你」的证据，两者要分开验证。
+4. **带凭据 GET 首页即可续期**（沿用本文件早前的实测结论）：服务端接受
+   持久凭证（NTES_YD_PASSPORT / STUDY_PERSIST）时，`NTESSTUDYSI`、
+   `STUDY_INFO`、`STUDY_SESS` 会被重新下发。续期是否发生可以用
+   `STUDY_SESS` 的值是否变化来回答——这正是官网打开首页就能"自动登录"的
+   机制，扩展里对应的实现是 `apps/extension/src/platform/mooc-session.ts`
+   的 `renewSession`。
+
+官网前端不靠 cookie 判断登录：`core.js` 中的 `_$isLogin` 读的是
+`window.webUser.loginId`，而 `webUser` 由服务端渲染进页面——判断权在
+服务端，这是客户端实现应当效仿的形态。
+
 ## 4. DWR（互评通道）
 
 互评接口不走 `.rpc`，走 DWR 的纯文本调用：
