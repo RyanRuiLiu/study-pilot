@@ -293,9 +293,11 @@ function prose(items: Array<{ term: string; text: string }>): HTMLElement {
 /**
  * 登录状态。
  *
- * 平台的登录凭证是会话级 cookie，关闭浏览器即失效，因此每次启动后都需要
- * 重新登录。扩展不代为输入账号密码——那需要保存用户凭据，既无必要也不该做。
- * 这里只如实展示状态，未登录时给一个跳转入口。
+ * 平台的登录凭证是会话级 cookie。浏览器长期驻留（启动加速、后台运行）
+ * 会让 cookie 活过服务端会话的寿命，所以「cookie 还在」不代表还能用——
+ * 状态由后台向服务端核对（见 SESSION 的处理），可疑时还会先尝试用
+ * 持久凭证自动恢复，救不回来才显示未登录。这里只如实展示，未登录时
+ * 给一个跳转入口。
  *
  * 状态用文字表达，不套色块：色块会让这一行的分量超过它实际的重要程度。
  *//**
@@ -304,8 +306,8 @@ function prose(items: Array<{ term: string; text: string }>): HTMLElement {
  * 状态用文字表达，不套色块：色块会让这一行的分量超过它实际的重要程度。
  *
  * 两个按钮各有分工，不能合并：
- *   刷新   重读登录状态。会话 cookie 关浏览器几天就失效，而平台在收到
- *          一次带凭据的请求时会用持久凭证换回会话，因此点击刷新通常即可恢复。
+ *   刷新   重读登录状态。后台会先向服务端核对，会话可疑时自动用持久
+ *          凭证恢复一次，通常点一下即可恢复，不必真的去登录页。
  *          用户在别处登录过之后也用这个确认。
  *   前往登录  真的要去登录页。它是刷新之后的下一步，不是同一个动作。
  */
@@ -328,7 +330,7 @@ function sessionBadge(): HTMLElement {
   refresh.className = 'quiet';
   refresh.type = 'button';
   refresh.textContent = '刷新';
-  refresh.title = '重新读取登录状态。会话过期时会先尝试用持久凭证恢复';
+  refresh.title = '重新向平台核对登录状态，会话可疑时自动尝试恢复';
   refresh.addEventListener('click', () => {
     refresh.disabled = true;
     el.textContent = '读取中';
@@ -340,14 +342,25 @@ function sessionBadge(): HTMLElement {
   wrap.append(el, refresh, login);
   void readSessionInto(el, login);
 
+  // 课程列表等别的动作报出「未登录」时，让这一行同步重读，
+  // 两处不能各说各话——那是本次修复之前最误导人的样子
+  syncSessionBadge = () => {
+    el.textContent = '读取中';
+    void readSessionInto(el, login);
+  };
+
   return wrap;
 }
+
+/** 让登录状态行重读一次。渲染登录行时被赋值，其余动作按需触发。 */
+let syncSessionBadge: (() => void) | null = null;
 
 /**
  * 读一次登录状态并更新这一行。
  *
- * 后台的 SESSION 走 ensureSession：没有会话时会先发一次请求尝试恢复，
- * 因此「刷新」在会话过期后往往能直接恢复，不必真的去登录页。
+ * 后台的 SESSION 不只读本地 cookie：它会探问一次平台，服务端不认时先
+ * 尝试用持久凭证自动恢复，恢复成功则直接显示「已登录」——
+ * 这正是刷新按钮通常一下就好的原因。
  *
  * 只显示「已登录」不显示用户 id：那一行是给用户确认状态用的，
  * 而 id 是账号内部标识，对他没有用处，露在界面上也没有必要。
@@ -788,6 +801,14 @@ async function refreshCourses(): Promise<void> {
   const response = await sendToBackground({ type: 'REFRESH_COURSES' });
   if (!response.ok) {
     toast(describeRejection(response.reason));
+    /*
+     * 后台报未登录时同步刷新登录状态行。
+     *
+     * 长时间闲置后出现「课程读不出」时，登录行可能还挂着旧的「已登录」
+     * ——那是按本地 cookie 读的。让两处一致，用户才不会对着
+     * 「已登录 + 请先登录」各自矛盾的两行字。
+     */
+    if (response.reason === 'NOT_LOGGED_IN') syncSessionBadge?.();
     return;
   }
   current = await getSettings();

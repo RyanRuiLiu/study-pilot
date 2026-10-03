@@ -44,6 +44,7 @@ export {
   httpError,
   parseError,
   apiError,
+  unauthenticatedError,
   type TransportError,
   type TransportErrorKind,
 } from './errors.ts';
