@@ -76,6 +76,20 @@ function toSummary(raw: RawCourse): CourseSummary {
 }
 
 /**
+ * 课程列表的未登录形态判定，getCourses 与 getCoursesWithTrace 共用。
+ *
+ * 内层 result 为 `null` 时平台在说「我不认得你」；空数组才是
+ * 「认得，但确实没有课程」（实测 2026-10-03，见 docs/platforms/mooc.md 3.1）。
+ * 吞掉 null 当空列表，失效会话就会被上层当成「确实没有课程」。
+ */
+function authedCourseList(
+  payload: CourseListPayload,
+): Result<RawCourse[], TransportError> {
+  if (payload?.result == null) return err(unauthenticatedError());
+  return ok(payload.result);
+}
+
+/**
  * 取当前账号的课程列表。
  *
  * 只返回带 `termId` 的课程——没有学期 id 的课程在本项目的所有后续接口里都用不了。
@@ -96,17 +110,9 @@ export async function getCourses(
   );
 
   if (!payload.ok) return payload;
-  /*
-   * 未登录形态：code 0，但内层 result 是 null 而不是空数组。
-   *
-   * 实测（2026-10-03，匿名与伪造失效会话两个用例一致）：平台对失效会话
-   * 返回 `result: null`；已登录账号即使一门课都没有，这里也应是空数组。
-   * 两者的差别就是「平台认不认得你」。吞掉 null 当空列表，失效会话就会
-   * 被上层当成「确实没有课程」——界面显示空而不是提示登录。
-   */
-  if (payload.value?.result == null) return err(unauthenticatedError());
-  const list = payload.value.result;
-  return ok(list.map(toSummary).filter((course) => course.termId > 0));
+  const list = authedCourseList(payload.value);
+  if (!list.ok) return list;
+  return ok(list.value.map(toSummary).filter((course) => course.termId > 0));
 }
 
 /**
@@ -142,18 +148,17 @@ export async function getCoursesWithTrace(
     return { request, error: `${payload.error.kind}: ${payload.error.message}` };
   }
 
-  // 与 getCourses 同一判据：null 是未登录形态，不是「没有课程」
-  if (payload.value?.result == null) {
-    const auth = unauthenticatedError();
-    return { request, error: `${auth.kind}: ${auth.message}` };
+  // 与 getCourses 共用同一份未登录形态判定
+  const list = authedCourseList(payload.value);
+  if (!list.ok) {
+    return { request, error: `${list.error.kind}: ${list.error.message}` };
   }
-  const list = payload.value.result;
-  const parsed = list.map(toSummary).filter((course) => course.termId > 0);
+  const parsed = list.value.map(toSummary).filter((course) => course.termId > 0);
 
   return {
     request,
     envelope: payload.value,
-    rawCount: list.length,
+    rawCount: list.value.length,
     parsedCount: parsed.length,
   };
 }

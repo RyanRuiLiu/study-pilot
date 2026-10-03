@@ -21,7 +21,12 @@ import {
   getEvaluationDetail,
   type CourseSummary,
 } from '@study-pilot/platform-mooc';
-import { ensureSession, readSession, readToken, renewSession } from '../src/platform/mooc-session';
+import {
+  ensureSession,
+  readToken,
+  renewSession,
+  SessionExpiredError,
+} from '../src/platform/mooc-session';
 import { getSettings, updateSettings, watchSettings, type Settings } from '../src/settings';
 import {
   NOTIFICATION_PREFIX,
@@ -54,9 +59,12 @@ import {
   type Snapshot,
 } from '../src/background/snapshot';
 import { derivePlan, shouldRefresh } from '../src/background/task-plan';
-import { withSessionRecovery } from '../src/background/session-recovery';
+import {
+  recoveryFailure,
+  withSessionRecovery,
+} from '../src/background/session-recovery';
 import { toPendingSummary, toUnitDetails } from '../src/background/to-messages';
-import type { BackgroundRequest, JobRejection } from '../src/platform/messaging';
+import type { BackgroundRequest } from '../src/platform/messaging';
 
 /** 平台的登录凭证 cookie。出现即表示登录成功。 */
 const LOGIN_COOKIE = 'NTESSTUDYSI';
@@ -212,7 +220,7 @@ export default defineBackground(() => {
    */
   async function refreshCourses(): Promise<
     | { ok: true; courses: CourseSummary[]; byType: unknown }
-    | { ok: false; message: string; byType?: unknown; auth?: boolean }
+    | { ok: false; message: string; byType?: unknown }
   > {
     // 两类课程要分别请求再合并：只取一类会漏掉另一类
     const mooc = await getCourses(client, { courseType: COURSE_TYPE.MOOC });
@@ -231,14 +239,21 @@ export default defineBackground(() => {
 
     if (!mooc.ok || !spoc.ok) {
       /*
-       * 两类请求都栽在未登录形态上，标记 auth：调用方据此先续期重读，
-       * 而不是把「两类课程都为空」当结论端给用户——那正是本修复要
-       * 消灭的误报（失效会话下平台回的就是空形态，code 还是 0）。
+       * 未登录形态必须**抛** SessionExpiredError，不能当返回值交回。
+       *
+       * withSessionRecovery 靠异常识别「会话死了」；返回值通道它只能读成
+       * 正常完成——曾把 auth 失败放在 { ok:false, auth:true } 里交回，
+       * 结果编排一次都没有续期，首次失败就报「未登录」，注释里写的
+       * 「续期重读」是没发生的。两类课程任一是未登录形态即视为会话
+       * 失效：死会话下两类必然都是这个形态；续期后重读再失败的会以
+       * 普通失败上报。
        */
       const authLost =
-        !mooc.ok && mooc.error.kind === 'auth' && !spoc.ok && spoc.error.kind === 'auth';
+        (!mooc.ok && mooc.error.kind === 'auth') || (!spoc.ok && spoc.error.kind === 'auth');
+      if (authLost) throw new SessionExpiredError();
+
       const message = !mooc.ok ? `MOOC：${byType.mooc.message}` : `SPOC：${byType.spoc.message}`;
-      return { ok: false, message, byType, auth: authLost };
+      return { ok: false, message, byType };
     }
 
     const courses = [...mooc.value, ...spoc.value];
@@ -567,13 +582,14 @@ export default defineBackground(() => {
             break;
           }
 
-          if ((await renewSession()).renewed) {
+          const { renewed, session: renewedSession } = await renewSession();
+          if (renewed) {
             const afterRenewal = await getCourses(client, {
               courseType: COURSE_TYPE.MOOC,
               pageSize: 1,
             });
             if (afterRenewal.ok || afterRenewal.error.kind !== 'auth') {
-              sendResponse(await readSession());
+              sendResponse(renewedSession);
               break;
             }
           }
@@ -607,31 +623,25 @@ export default defineBackground(() => {
            * 主动点「读取课程列表」时总是去平台拿最新的。
            *
            * 长时间闲置后 cookie 可能还活着而服务端会话已死——那种时候
-           * 平台回的是未登录形态的空数据。带恢复重读：续期成功通常一次
-           * 就好；确认救不回来才报 NOT_LOGGED_IN，前台据此显示登录入口，
-           * 不再让「刷新加载不出」只能靠用户自己开官网破案。
+           * 平台回的是未登录形态的空数据。refreshCourses 遇到该形态会抛
+           * SessionExpiredError，编排随即续期并重读一次；确认救不回来才报
+           * NOT_LOGGED_IN，前台据此显示登录入口，不再让「刷新加载不出」
+           * 只能靠用户自己开官网破案。
            */
           const outcome = await withSessionRecovery(() => refreshCourses(), renew);
           if (!outcome.ok) {
-            sendResponse(
-              outcome.kind === 'login'
-                ? { ok: false, reason: 'NOT_LOGGED_IN' }
-                : {
-                    ok: false,
-                    reason: 'FETCH_FAILED',
-                    message: outcome.message,
-                  },
-            );
+            const failure = recoveryFailure(outcome);
+            sendResponse({
+              ok: false,
+              reason: failure.reason ?? 'FETCH_FAILED',
+              message: failure.message,
+            });
             break;
           }
           const result = outcome.value;
           if (!result.ok) {
             // 失败原因必须带回去，否则前台只能显示一个笼统的失败
-            sendResponse({
-              ok: false,
-              reason: result.auth ? 'NOT_LOGGED_IN' : 'FETCH_FAILED',
-              message: result.message,
-            });
+            sendResponse({ ok: false, reason: 'FETCH_FAILED', message: result.message });
             break;
           }
           sendResponse(
@@ -688,13 +698,11 @@ export default defineBackground(() => {
               renew,
             );
             if (!manualOutcome.ok) {
+              const manualFailure = recoveryFailure(manualOutcome);
               sendResponse({
                 ok: false,
-                reason:
-                  manualOutcome.kind === 'login'
-                    ? 'NOT_LOGGED_IN'
-                    : ('FETCH_FAILED' as JobRejection),
-                message: manualOutcome.message,
+                reason: manualFailure.reason ?? 'FETCH_FAILED',
+                message: manualFailure.message,
               });
               break;
             }
@@ -802,14 +810,7 @@ export default defineBackground(() => {
               renew,
             );
             if (!pendingOutcome.ok) {
-              sendResponse({
-                status: 'error',
-                reason: pendingOutcome.kind === 'login' ? 'NOT_LOGGED_IN' : undefined,
-                message:
-                  pendingOutcome.kind === 'login'
-                    ? '登录已失效，且自动恢复没有成功，请重新登录慕课平台'
-                    : pendingOutcome.message,
-              });
+              sendResponse({ status: 'error', ...recoveryFailure(pendingOutcome) });
               break;
             }
             const snapshot = pendingOutcome.value;
@@ -881,14 +882,7 @@ export default defineBackground(() => {
               renew,
             );
             if (!unitOutcome.ok) {
-              sendResponse({
-                status: 'error',
-                reason: unitOutcome.kind === 'login' ? 'NOT_LOGGED_IN' : undefined,
-                message:
-                  unitOutcome.kind === 'login'
-                    ? '登录已失效，且自动恢复没有成功，请重新登录慕课平台'
-                    : unitOutcome.message,
-              });
+              sendResponse({ status: 'error', ...recoveryFailure(unitOutcome) });
               break;
             }
             sendResponse({ status: 'ok', value: toUnitDetails(unitOutcome.value) });
