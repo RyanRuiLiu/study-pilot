@@ -61,3 +61,22 @@ export async function withSessionRecovery<T>(
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
+
+/** 确认救不回来时给用户的统一说法。四个调用点共用，不许各写一份。 */
+export const LOGIN_RECOVERY_FAILED_MESSAGE = '登录已失效，且自动恢复没有成功，请重新登录慕课平台';
+
+/** 恢复失败时前台消息的失败形状。 */
+export interface RecoveryFailure {
+  /** 仅在确认登录失效时给出；普通失败只带 message，界面据此区分入口与错误说明 */
+  reason?: 'NOT_LOGGED_IN';
+  message: string;
+}
+
+/** 把恢复失败的结局归一到前台的失败形状。调用方只在 outcome.ok === false 时用它。 */
+export function recoveryFailure(
+  outcome: Extract<RecoveryOutcome<unknown>, { ok: false }>,
+): RecoveryFailure {
+  return outcome.kind === 'login'
+    ? { reason: 'NOT_LOGGED_IN', message: LOGIN_RECOVERY_FAILED_MESSAGE }
+    : { message: outcome.message };
+}
