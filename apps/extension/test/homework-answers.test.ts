@@ -59,6 +59,31 @@ function homeworkPaper(tid: number, guidance: string): HomeworkPaper {
   };
 }
 
+/** 一个带多个评分点的作业卷，评分依据里混着行内公式小图。 */
+function multiPointPaper(tid: number): HomeworkPaper {
+  return {
+    tid,
+    subjectiveQList: [
+      {
+        id: tid * 10,
+        position: 0,
+        score: 15,
+        judgeDtos: [
+          { id: 1, msg: '<p>示例评分点甲</p>', maxScore: 6 },
+          {
+            id: 2,
+            msg:
+              '<p>示例评分点乙<img src="https://x/ri.png">前半，' +
+              '<img src="https://x/c1.png">示例片段乙' +
+              '<img src="https://x/fl.png">示例片段丙</p>',
+            maxScore: 3,
+          },
+        ],
+      },
+    ],
+  };
+}
+
 /**
  * 挂一份作业作答页。
  *
@@ -217,6 +242,48 @@ describe('幂等与卸载', () => {
     await injecting;
 
     expect(injectedTexts()).toHaveLength(0);
+  });
+});
+
+describe('评分依据的排版', () => {
+  it('行内公式留在句子里，不被拆成独立一行', async () => {
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(ok(multiPointPaper(100)));
+
+    await injectHomeworkAnswers(client, 100, 'homework');
+
+    const block = currentDocument().querySelector(ANSWER_BLOCK)!;
+    const images = Array.from(block.querySelectorAll('img'));
+    expect(images).toHaveLength(3);
+
+    // 三张公式图仍在原来那句话里，句子本身也没被掏空
+    for (const image of images) {
+      expect(image.closest('p')?.textContent ?? '').toContain('示例评分点乙');
+    }
+
+    const paragraph = Array.from(block.querySelectorAll('p')).find((p) => p.querySelector('img'));
+    expect(paragraph?.textContent).toContain('示例评分点乙');
+    expect(paragraph?.textContent).toContain('示例片段乙');
+    expect(paragraph?.textContent).toContain('示例片段丙');
+  });
+
+  it('多个评分点各成一块，满分与依据不连成一片', async () => {
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(ok(multiPointPaper(100)));
+
+    await injectHomeworkAnswers(client, 100, 'homework');
+
+    const block = currentDocument().querySelector(ANSWER_BLOCK)!;
+    const text = block.textContent ?? '';
+    expect(text).toContain('满分 6 分');
+    expect(text).toContain('满分 3 分');
+    expect(text.indexOf('满分 6 分')).toBeLessThan(text.indexOf('满分 3 分'));
+
+    // 第二个评分点带分隔线，第一个不带
+    const points = Array.from(block.children).filter((child) => child.querySelector('img, p'));
+    expect(points).toHaveLength(2);
+    expect(points[1]?.getAttribute('style') ?? '').toContain('border-top');
+    expect(points[0]?.getAttribute('style') ?? '').not.toContain('border-top');
   });
 });
 
