@@ -91,15 +91,9 @@ export default defineContentScript({
        * 两者的题目结构相同（.u-questionItem / .qaDescription / .j-answer），
        * 取卷接口不同但返回的 judgeDtos 同构，因此注入逻辑共用。
        *
-       * 互评评分页不挂注入。评分页与列表页的 URL 完全相同
-       * （都是 #/learn/hw?id=...），页面靠切换 DOM 进入评分态，
-       * 因此只能看 DOM：
-       *   列表态  有 .listtable，无 .u-evaluateItem
-       *   评分态  无 .listtable，有 .u-evaluateItem 与 .u-questionItem
-       * 评分时用户要专注给同学打分，注入的内容会干扰阅读。
+       * 页面自己已经列出评分依据的题目不重复注入：给别人打分的互评页面上每题
+       * 都有「得分指导」。这个判断由功能模块逐题做，依据是页面内容而不是类名。
        */
-      const reviewing = document.querySelector('.u-evaluateItem') !== null;
-
       const isSubjective =
         location.view === 'homework' || location.view === 'exam-subjective';
 
@@ -107,8 +101,7 @@ export default defineContentScript({
         enabled &&
         foreground.homeworkAnswers.enabled &&
         isSubjective &&
-        location.contentId !== null &&
-        !reviewing
+        location.contentId !== null
       ) {
         const kind = location.view === 'exam-subjective' ? 'exam' : 'homework';
         void injectHomeworkAnswers(client, location.contentId, kind).catch(() => undefined);

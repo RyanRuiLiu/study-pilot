@@ -9,7 +9,7 @@
  */
 
 export { showQuizHelper, removeQuizHelper, type QuizHelperOptions } from './quiz-helper';
-export { injectHomeworkAnswers, removeHomeworkAnswers, isReviewMode } from './homework-answers';
+export { injectHomeworkAnswers, removeHomeworkAnswers } from './homework-answers';
 export {
   detectQuizStage,
   probeQuizStage,
