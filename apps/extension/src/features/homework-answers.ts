@@ -31,6 +31,26 @@
  *
  * 题目对应关系按 position 建立，不按数组下标：页面题号从 1 开始，接口的
  * `position` 从 0 开始，下标在题目顺序变化时会错位。
+ *
+ * 注入块必须记得自己属于哪一份卷
+ * ------------------------------
+ * 学习页是 hash 路由的单页应用，切换单元不重新加载文档：站点只更新它自己
+ * 渲染的那部分 DOM，而注入块是插进题目节点里的外来节点，站点重渲染时未必
+ * 会带走它。若「已经注入过」的判断只认「题目里有没有块」，上一单元的得分
+ * 指导就会被当成当前单元的，一直留在页面上，直到用户手动刷新。
+ *
+ * 因此每个块都带上来源（`kind:tid`）：来源对不上，先清掉再注入。
+ * 取卷是异步的，而且换单元时前一次请求可能还在路上——它回来时若目标已经
+ * 换了卷、或页面已被卸载，这次结果就作废，不能让它把旧卷的评分标准写进
+ * 新单元的题目。
+ *
+ * 只在页面自己没有展示评分依据时注入
+ * --------------------------------
+ * 给别人打分的互评页面上每题都列着「得分指导」，再注入一份既重复又干扰阅读；
+ * 而查看自己已提交的作业——包括成绩公布——站点只给分数与评语，评分依据要由
+ * 本模块补上。两者的区别要看页面内容，不能看类名：已提交的作业每道题都带
+ * `analysisMode`，`.u-evaluateItem` 在「查看评价结果」时也出现，按类名判断会
+ * 把用户真正需要的那些页面一起挡掉。
  */
 
 import {
@@ -41,21 +61,106 @@ import {
   type MoocClient,
   type PaperQuestion,
 } from '@study-pilot/platform-mooc';
-import { CLASS_ANALYSIS_MODE, SELECTORS } from './selectors';
+import { SELECTORS } from './selectors';
 
-const MARK_ATTRIBUTE = 'data-study-pilot-answer';
+/** 块存在与否的标记。 */
+export const ANSWER_MARK_ATTRIBUTE = 'data-study-pilot-answer';
 
-/** 判断当前页面是否处于批改或互评状态。 */
-export function isReviewMode(): boolean {
-  const items = Array.from(document.querySelectorAll<HTMLElement>(SELECTORS.questionItem));
+/** 块属于哪一份卷（`kind:tid`）。空值表示来源不明，按别的卷处理。 */
+export const ANSWER_SOURCE_ATTRIBUTE = 'data-study-pilot-answer-source';
 
-  // 全部题目都带批改标记，说明整卷已批改
-  if (items.length > 0 && items.every((item) => item.classList.contains(CLASS_ANALYSIS_MODE))) {
-    return true;
+/**
+ * 当前挂载的目标，以及是否卸载过。
+ *
+ * 取卷是异步的：换了单元或切到别的页面，上一次的结果就过时了。但它不能仅仅
+ * 因为「又调了一次挂载」就作废——同一单元的重复挂载很常见（页面每次变动都会
+ * 重新评估一遍），那样每次都在等一个安静的窗口，注入会一直轮不上。
+ * 因此只在目标换了卷、或期间卸载过时才作废。
+ */
+let requestedSource: string | null = null;
+let unmountCount = 0;
+
+/** 一次取卷的凭据，用于回来时判断结果是否还作数。 */
+interface InjectionRequest {
+  source: string;
+  unmountCount: number;
+}
+
+/** 记下这次取卷的目标，并取回判断过时所需的凭据。 */
+function beginRequest(source: string): InjectionRequest {
+  requestedSource = source;
+  return { source, unmountCount };
+}
+
+/** 这次取卷的结果是否已经过时（目标换卷，或期间卸载过）。 */
+function isStale(request: InjectionRequest): boolean {
+  return requestedSource !== request.source || unmountCount !== request.unmountCount;
+}
+
+/** 一份卷的标识。kind 要参与：考试与作业走不同的取卷接口。 */
+function answerSource(kind: 'homework' | 'exam', contentId: number): string {
+  return `${kind}:${contentId}`;
+}
+
+/** 页面上的题目节点。 */
+function questionItems(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(SELECTORS.questionItem));
+}
+
+/** 某个题目里已注入的块。 */
+function injectedBlocks(item: HTMLElement): HTMLElement[] {
+  return Array.from(item.querySelectorAll<HTMLElement>(`[${ANSWER_MARK_ATTRIBUTE}]`));
+}
+
+/** 块是哪一份卷的。旧版本注入的块没有来源属性，返回 null，按别的卷处理。 */
+function blockSource(block: HTMLElement): string | null {
+  return block.getAttribute(ANSWER_SOURCE_ATTRIBUTE);
+}
+
+/** 该题是否已经有当前这份卷的块。 */
+function hasCurrentBlock(item: HTMLElement, source: string): boolean {
+  return injectedBlocks(item).some((block) => blockSource(block) === source);
+}
+
+/**
+ * 得分指导的标题文案。取自页面语言包（KEY_LEARN_SCORING_GUIDANCE）。
+ * 同一句话也用来判断页面自己是不是已经在展示评分依据。
+ */
+const GUIDANCE_LABEL = '得分指导';
+
+/**
+ * 页面自己是否已经在展示这道题的评分依据。
+ *
+ * 网站给别人打分的互评界面上，每题都列着「得分指导」：此时再注入一份既重复
+ * 又干扰阅读。而查看自己已提交的作业（含成绩公布）时，站点只给分数与评语，
+ * 评分依据要靠本模块补上——按类名判断做不到这件事：`analysisMode` 只说明
+ * 整卷已批改，`.u-evaluateItem` 在「查看评价结果」时同样出现。
+ *
+ * 只看站点自己的容器：注入块插在 .j-title 之后，不会落进 .j-answer 或
+ * .j-evaluate 里，因此这里不会把刚注入的内容当成「页面已经展示」。
+ */
+function selfShowsGuidance(item: HTMLElement): boolean {
+  const containers = [SELECTORS.answerArea, SELECTORS.evaluateModule]
+    .map((selector) => item.querySelector<HTMLElement>(selector))
+    .filter((node): node is HTMLElement => node !== null);
+
+  return containers.some((node) => (node.textContent ?? '').includes(GUIDANCE_LABEL));
+}
+
+/**
+ * 整理一道题上的注入块，返回它是否还需要注入。
+ *
+ * 两种块要清掉：站点自己展示评分依据的题目（不重复展示），以及来源不是当前
+ * 这份卷的块（换单元时站点未必带走它们）。
+ */
+function normalizeItem(item: HTMLElement, source: string): boolean {
+  const siteShows = selfShowsGuidance(item);
+
+  for (const block of injectedBlocks(item)) {
+    if (siteShows || blockSource(block) !== source) block.remove();
   }
 
-  // 互评流程页面上会挂载互评组件，此时页面自身已展示答案与评分入口
-  return document.querySelector('.u-evaluateItem') !== null;
+  return !siteShows && !hasCurrentBlock(item, source);
 }
 
 /** 从富文本中提取图片地址与纯文本。 */
@@ -76,10 +181,11 @@ function parseRichText(html: string): { images: string[]; text: string } {
   return { images, text };
 }
 
-/** 构造一道题的得分指导块。 */
-function buildAnswerBlock(question: PaperQuestion): HTMLElement {
+/** 构造一道题的得分指导块。`source` 记录它属于哪一份卷。 */
+function buildAnswerBlock(question: PaperQuestion, source: string): HTMLElement {
   const block = document.createElement('div');
-  block.setAttribute(MARK_ATTRIBUTE, '1');
+  block.setAttribute(ANSWER_MARK_ATTRIBUTE, '1');
+  block.setAttribute(ANSWER_SOURCE_ATTRIBUTE, source);
   block.style.cssText = [
     'margin-top:12px',
     'padding:12px 14px',
@@ -96,7 +202,7 @@ function buildAnswerBlock(question: PaperQuestion): HTMLElement {
 
   const head = document.createElement('div');
   head.style.cssText = 'font-weight:600;color:#0d9488;margin-bottom:8px';
-  head.textContent = '得分指导：';
+  head.textContent = `${GUIDANCE_LABEL}：`;
   if (question.score != null) {
     const score = document.createElement('span');
     score.style.cssText = 'font-weight:400;color:#98a2b3';
@@ -163,8 +269,12 @@ function positionOf(item: HTMLElement): number | null {
 /**
  * 把得分指导插入页面。
  *
- * 幂等：已注入的题目会被跳过，因此可以反复调用（页面异步渲染时需要）。
- * 处于批改或互评页面时改而移除已有注入。
+ * 幂等：当前卷已注入的题目会被跳过，因此可以反复调用（页面异步渲染时需要）。
+ *
+ * 两道清理在同一处完成：站点自己展示了评分依据的题目不重复注入（正在给别人
+ * 打分的互评页就是这样），页面上留着别的卷的块时先清掉（换单元不会重新加载
+ * 文档，站点未必带走注入块，见文件头）。否则「有没有注入过」的判断会把上一
+ * 单元的内容当成当前单元的。
  *
  * 作业与考试的取卷接口不同，但返回的题目结构相同（都带 judgeDtos）：
  *   作业  getOpenHomeworkInfo + getOpenHomeworkPaperDto
@@ -176,17 +286,20 @@ export async function injectHomeworkAnswers(
   tid: number,
   kind: 'homework' | 'exam' = 'homework',
 ): Promise<void> {
-  const items = Array.from(document.querySelectorAll<HTMLElement>(SELECTORS.questionItem));
-  if (items.length === 0) return;
+  const source = answerSource(kind, tid);
 
-  if (isReviewMode()) {
-    removeHomeworkAnswers();
-    return;
-  }
+  if (questionItems().length === 0) return;
 
-  if (items.every((item) => item.querySelector(`[${MARK_ATTRIBUTE}]`))) return;
+  // 先整理一遍：换单元留下的旧块此时就该消失，不必等取卷回来
+  if (!normalizePage(source)) return;
 
-  const questions = kind === 'exam' ? await loadExamQuestions(client, tid) : await loadHomeworkQuestions(client, tid);
+  const request = beginRequest(source);
+
+  const questions =
+    kind === 'exam' ? await loadExamQuestions(client, tid) : await loadHomeworkQuestions(client, tid);
+
+  // 取卷期间又换了单元，或页面被卸载：这次结果已经过时
+  if (isStale(request)) return;
   if (!questions || questions.length === 0) return;
 
   // 按 position 建立索引，接口的 position 从 0 开始
@@ -196,8 +309,9 @@ export async function injectHomeworkAnswers(
     byPosition.set(position + 1, question);
   }
 
-  items.forEach((item, index) => {
-    if (item.querySelector(`[${MARK_ATTRIBUTE}]`)) return;
+  // 取卷期间站点可能重建过题目节点，按现在的 DOM 注入
+  questionItems().forEach((item, index) => {
+    if (!normalizeItem(item, source)) return;
 
     const position = positionOf(item) ?? index + 1;
     const question = byPosition.get(position);
@@ -207,8 +321,19 @@ export async function injectHomeworkAnswers(
       item.querySelector(SELECTORS.richText)?.closest('.j-title') ??
       item.querySelector(SELECTORS.answerArea) ??
       item;
-    anchor.insertAdjacentElement('afterend', buildAnswerBlock(question));
+    anchor.insertAdjacentElement('afterend', buildAnswerBlock(question, source));
   });
+}
+
+/** 整理整页的注入块，返回是否还有题目需要注入。 */
+function normalizePage(source: string): boolean {
+  let needed = false;
+
+  for (const item of questionItems()) {
+    if (normalizeItem(item, source)) needed = true;
+  }
+
+  return needed;
 }
 
 /** 取作业的题目。任一步失败返回 null，由调用方决定不注入。 */
@@ -247,7 +372,11 @@ async function loadExamQuestions(
 
 /** 移除已注入的得分指导块。 */
 export function removeHomeworkAnswers(): void {
-  for (const block of document.querySelectorAll(`[${MARK_ATTRIBUTE}]`)) {
+  // 在途的取卷请求一并作废：否则它回来时会把刚清掉的块又插回去
+  requestedSource = null;
+  unmountCount++;
+
+  for (const block of document.querySelectorAll(`[${ANSWER_MARK_ATTRIBUTE}]`)) {
     block.remove();
   }
 }

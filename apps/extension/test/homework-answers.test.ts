@@ -1,0 +1,260 @@
+/*
+ * 作业得分指导注入测试。
+ *
+ * 盯住的是单页应用里的「换单元」：学习页是 hash 路由，切换单元不重新加载文档，
+ * 站点只更新自己那部分 DOM。注入块是插进题目节点里的外来节点，站点重渲染时
+ * 未必带走它，而「已经注入过」的判断若只认「有没有块」（不认「是哪一份卷」），
+ * 就会把上一单元的得分指导留在页面上，直到用户手动刷新。
+ *
+ * 这个场景在真实页面上由点击触发，这里用真实 DOM 实现（linkedom）把它复现成
+ * 可反复运行的断言：站点复用题目节点、切换单元时只改自己的文本。
+ *
+ * 取卷接口整体 mock：本测试验的是注入的时序与归属，不是接口。
+ */
+
+import { parseHTML } from 'linkedom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ok } from '@study-pilot/core';
+
+vi.mock('@study-pilot/platform-mooc', () => ({
+  currentEvaluatePhase: () => 1,
+  getHomeworkInfo: vi.fn(),
+  getHomeworkPaper: vi.fn(),
+  getQuizPaper: vi.fn(),
+}));
+
+import { getHomeworkInfo, getHomeworkPaper } from '@study-pilot/platform-mooc';
+import type { HomeworkInfo, HomeworkPaper, MoocClient } from '@study-pilot/platform-mooc';
+import {
+  ANSWER_MARK_ATTRIBUTE,
+  injectHomeworkAnswers,
+  removeHomeworkAnswers,
+} from '../src/features/homework-answers';
+
+const info = vi.mocked(getHomeworkInfo);
+const paper = vi.mocked(getHomeworkPaper);
+
+/** 取卷接口的替身：本测试不关心凭证与签名。 */
+const client = {} as MoocClient;
+
+const ANSWER_BLOCK = `[${ANSWER_MARK_ATTRIBUTE}]`;
+
+/** 作业信息，字段够 currentEvaluatePhase 用即可。 */
+function homeworkInfo(tid: number): HomeworkInfo {
+  return { tid, aid: 1, deadline: 0, evaluateScoreReleaseTime: 0 };
+}
+
+/** 一份只有一道主观题的作业卷，题干带一句可辨识的得分指导。 */
+function homeworkPaper(tid: number, guidance: string): HomeworkPaper {
+  return {
+    tid,
+    subjectiveQList: [
+      {
+        id: tid * 10,
+        position: 0,
+        score: 10,
+        judgeDtos: [{ id: 1, msg: `<p>${guidance}</p>`, maxScore: 10 }],
+      },
+    ],
+  };
+}
+
+/**
+ * 挂一份作业作答页。
+ *
+ * 结构与 docs/platforms/mooc.md 第 7.5/7.8 节的实测一致：
+ * 题干在 .j-richTxt 里，作答区是 .j-answer。
+ */
+function mountHomeworkPage(questionCount = 1): void {
+  const items = Array.from(
+    { length: questionCount },
+    (_, index) => `
+      <div class="u-questionItem">
+        <div class="j-title title">
+          <div class="position f-fl">${index + 1}</div>
+          <div class="qaDescription f-fl f-cb">
+            <div class="f-richEditorText j-richTxt">题干 ${index + 1}</div>
+          </div>
+        </div>
+        <div class="j-answer answer"></div>
+      </div>`,
+  ).join('');
+
+  const { document } = parseHTML(`<!doctype html><html><body>${items}</body></html>`);
+  (globalThis as unknown as { document: Document }).document = document as unknown as Document;
+}
+
+function currentDocument(): Document {
+  return (globalThis as unknown as { document: Document }).document;
+}
+
+/** 页面上已注入的得分指导文本。 */
+function injectedTexts(): string[] {
+  return Array.from(currentDocument().querySelectorAll(ANSWER_BLOCK)).map(
+    (block) => block.textContent ?? '',
+  );
+}
+
+/** 站点自己渲染的作答区/互评模块。打分页里带评分标准，查看结果时只有分数与评语。 */
+function setSiteEvaluateModule(html: string): void {
+  const answer = currentDocument().querySelector('.j-answer');
+  if (!answer) throw new Error('页面结构里没有 .j-answer');
+  answer.innerHTML = html;
+}
+
+/** 让测试可以决定取卷响应何时回来。 */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mountHomeworkPage();
+});
+
+describe('换单元', () => {
+  it('站点复用题目节点时，上一单元的得分指导必须被换掉', async () => {
+    // 第一次进入：100 单元，正常注入
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
+    await injectHomeworkAnswers(client, 100, 'homework');
+    expect(injectedTexts().join('')).toContain('A 单元评分标准');
+
+    // 切到 200 单元：站点只更新了自己渲染的那部分文本，注入块留在原地
+    currentDocument().querySelector('.j-richTxt')!.textContent = '题干 B';
+    info.mockResolvedValue(ok(homeworkInfo(200)));
+    paper.mockResolvedValue(ok(homeworkPaper(200, 'B 单元评分标准')));
+    await injectHomeworkAnswers(client, 200, 'homework');
+
+    expect(injectedTexts()).toHaveLength(1);
+    expect(injectedTexts()[0]).toContain('B 单元评分标准');
+    expect(currentDocument().body.textContent).not.toContain('A 单元评分标准');
+  });
+
+  it('旧单元的取卷结果迟到时，不能占住新单元的题目', async () => {
+    const first = deferred<Awaited<ReturnType<typeof getHomeworkPaper>>>();
+    const second = deferred<Awaited<ReturnType<typeof getHomeworkPaper>>>();
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockImplementation((_client, tid) => (tid === 100 ? first.promise : second.promise));
+
+    const pendingA = injectHomeworkAnswers(client, 100, 'homework');
+    const pendingB = injectHomeworkAnswers(client, 200, 'homework');
+
+    // 旧单元的响应先回来——它晚于切换发生，但它带的仍是旧卷
+    first.resolve(ok(homeworkPaper(100, 'A 单元评分标准')));
+    await pendingA;
+
+    second.resolve(ok(homeworkPaper(200, 'B 单元评分标准')));
+    await pendingB;
+
+    expect(injectedTexts()).toHaveLength(1);
+    expect(injectedTexts()[0]).toContain('B 单元评分标准');
+  });
+
+  it('站点替换题目节点时，新单元照常注入', async () => {
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
+    await injectHomeworkAnswers(client, 100, 'homework');
+    expect(injectedTexts()).toHaveLength(1);
+
+    // 站点重建了整个题目区，注入块随之消失
+    mountHomeworkPage();
+    info.mockResolvedValue(ok(homeworkInfo(200)));
+    paper.mockResolvedValue(ok(homeworkPaper(200, 'B 单元评分标准')));
+    await injectHomeworkAnswers(client, 200, 'homework');
+
+    expect(injectedTexts()).toHaveLength(1);
+    expect(injectedTexts()[0]).toContain('B 单元评分标准');
+  });
+});
+
+describe('幂等与卸载', () => {
+  it('同一单元反复注入不会叠加', async () => {
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
+
+    await injectHomeworkAnswers(client, 100, 'homework');
+    await injectHomeworkAnswers(client, 100, 'homework');
+    await injectHomeworkAnswers(client, 100, 'homework');
+
+    expect(injectedTexts()).toHaveLength(1);
+  });
+
+  it('同一单元的重复挂载不会作废先到的结果', async () => {
+    // 页面每次变动都会重新评估一遍；两次挂载对的是同一份卷时，先回来的那次照样算数，
+    // 否则注入要等一个「没有下一次挂载」的安静窗口，可能一直轮不上。
+    const first = deferred<Awaited<ReturnType<typeof getHomeworkPaper>>>();
+    const second = deferred<Awaited<ReturnType<typeof getHomeworkPaper>>>();
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
+
+    const pendingFirst = injectHomeworkAnswers(client, 100, 'homework');
+    const pendingSecond = injectHomeworkAnswers(client, 100, 'homework');
+
+    first.resolve(ok(homeworkPaper(100, 'A 单元评分标准')));
+    await pendingFirst;
+    expect(injectedTexts()).toHaveLength(1);
+
+    second.resolve(ok(homeworkPaper(100, 'A 单元评分标准')));
+    await pendingSecond;
+    expect(injectedTexts()).toHaveLength(1);
+  });
+
+  it('卸载之后，在途的取卷结果不再把块插回来', async () => {
+    const pending = deferred<Awaited<ReturnType<typeof getHomeworkPaper>>>();
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockReturnValue(pending.promise);
+
+    const injecting = injectHomeworkAnswers(client, 100, 'homework');
+    // 页面切到不注入的状态，内容脚本会调卸载
+    removeHomeworkAnswers();
+
+    pending.resolve(ok(homeworkPaper(100, 'A 单元评分标准')));
+    await injecting;
+
+    expect(injectedTexts()).toHaveLength(0);
+  });
+});
+
+describe('页面自己是否已在展示评分依据', () => {
+  it('互评打分页自己列出了评分标准：不重复注入，并清掉已有注入', async () => {
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
+    await injectHomeworkAnswers(client, 100, 'homework');
+    expect(injectedTexts()).toHaveLength(1);
+
+    // 页面切到给别人打分：站点自己在互评模块里列出了评分标准
+    setSiteEvaluateModule(
+      '<div class="j-evaluate"><div class="u-evaluateItem">' +
+        '<div class="u-point"><div class="breif"><p class="f-fc3">得分指导：</p>' +
+        '<div class="f-richEditorText">站点自己的评分标准</div></div></div>' +
+        '</div></div>',
+    );
+    await injectHomeworkAnswers(client, 100, 'homework');
+
+    expect(injectedTexts()).toHaveLength(0);
+  });
+
+  it('已提交与成绩公布页只给分数和评语：照常注入', async () => {
+    // 实测结构：整卷带 analysisMode，每题下方挂 resultMode 的互评模块。
+    // 这两样都只是「已提交」的标志，并不代表页面给出了评分依据。
+    for (const item of currentDocument().querySelectorAll('.u-questionItem')) {
+      item.classList.add('analysisMode');
+    }
+    setSiteEvaluateModule(
+      '<div class="j-evaluate"><div class="u-evaluateItem resultMode">' +
+        '互评得分 8 分，评语：思路清楚</div></div>',
+    );
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
+
+    await injectHomeworkAnswers(client, 100, 'homework');
+
+    expect(injectedTexts()).toHaveLength(1);
+    expect(injectedTexts()[0]).toContain('A 单元评分标准');
+  });
+});
