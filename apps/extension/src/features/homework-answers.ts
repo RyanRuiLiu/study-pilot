@@ -29,6 +29,12 @@
  *
  * 本模块复现其中的信息部分（得分指导与满分），去掉只有评分者才需要的打分控件。
  *
+ * 评分依据整段渲染，不把图片与文字拆开：公式在富文本里就是行内小图，
+ * 拆开会把符号从句子中间抽走（见 renderRichText）。
+ *
+ * 一题有多个评分点时，每点单独成块并用分隔线隔开——模电的作业题就是
+ * 三四个评分点、每点都带图，首尾相接时读不出哪句属于哪一点。
+ *
  * 题目对应关系按 position 建立，不按数组下标：页面题号从 1 开始，接口的
  * `position` 从 0 开始，下标在题目顺序变化时会错位。
  *
@@ -163,22 +169,57 @@ function normalizeItem(item: HTMLElement, source: string): boolean {
   return !siteShows && !hasCurrentBlock(item, source);
 }
 
-/** 从富文本中提取图片地址与纯文本。 */
-function parseRichText(html: string): { images: string[]; text: string } {
+/** 文本节点与元素节点的 nodeType。用数字而不是 Node 常量：测试环境里没有 Node 全局。 */
+const TEXT_NODE = 3;
+const ELEMENT_NODE = 1;
+
+/** 富文本里夹带的零宽字符与方向控制符会干扰阅读，逐段去掉。 */
+function stripInvisible(node: Node): void {
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType === TEXT_NODE) {
+      const text = child.textContent ?? '';
+      const cleaned = text.replace(/[\u200b\u200c\u200d\u200e\u200f\u202a-\u202e]/g, '');
+      if (cleaned !== text) child.textContent = cleaned;
+    } else if (child.nodeType === ELEMENT_NODE) {
+      stripInvisible(child);
+    }
+  }
+}
+
+/**
+ * 把评分依据的富文本整段渲染进来。
+ *
+ * 不能把图片与文字分开取：评分依据里的公式就是行内小图（实测 18×22 上下）。
+ * 分开取会把它们从句子中间抽出来堆成一列，正文则把符号丢掉——
+ * 「因为〔R_i〕很大，〔C_1〕取值较小时对〔f_L〕下限截止频率影响不大」
+ * 会变成「因为很大，取值较小时对下限截止频率影响不大」，读者无从理解。
+ * 站点自己也是整段渲染的（EvaluateItemUI 把 msg 直接放进 .f-richEditorText）。
+ *
+ * 只做三件事：去掉可执行的节点与事件属性、把图片限制在块宽之内、
+ * 清掉夹带的零宽字符。结构保持原样，因此段落的相对位置与站点一致。
+ */
+function renderRichText(html: string): HTMLElement {
   const container = document.createElement('div');
   container.innerHTML = html;
 
-  const images: string[] = [];
-  for (const image of container.querySelectorAll('img')) {
-    const src = image.getAttribute('src');
-    if (src) images.push(src);
+  for (const node of container.querySelectorAll('script, style, link, iframe')) node.remove();
+
+  for (const element of container.querySelectorAll<HTMLElement>('*')) {
+    for (const attribute of Array.from(element.attributes)) {
+      if (/^on/i.test(attribute.name)) element.removeAttribute(attribute.name);
+    }
   }
 
-  // 富文本里夹带的零宽字符与方向控制符会干扰阅读
-  const text = (container.textContent ?? '')
-    .replace(/[\u200b\u200c\u200d\u200e\u200f\u202a-\u202e]/g, '')
-    .trim();
-  return { images, text };
+  for (const image of container.querySelectorAll<HTMLImageElement>('img')) {
+    image.loading = 'lazy';
+    image.style.maxWidth = '100%';
+    image.style.height = 'auto';
+    image.style.verticalAlign = 'middle';
+  }
+
+  stripInvisible(container);
+
+  return container;
 }
 
 /** 构造一道题的得分指导块。`source` 记录它属于哪一份卷。 */
@@ -214,37 +255,33 @@ function buildAnswerBlock(question: PaperQuestion, source: string): HTMLElement 
   let hasContent = false;
 
   judges.forEach((judge, index) => {
-    const { images, text } = parseRichText(judge.msg ?? '');
-    if (images.length === 0 && !text) return;
+    const content = renderRichText(judge.msg ?? '');
+    const hasText = (content.textContent ?? '').trim().length > 0;
+    const hasImage = content.querySelector('img') !== null;
+    if (!hasText && !hasImage) return;
     hasContent = true;
 
-    if (judges.length > 1) {
-      const label = document.createElement('div');
-      label.style.cssText = 'color:#98a2b3;margin:8px 0 4px';
-      label.textContent = `满分 ${judge.maxScore ?? 0} 分`;
-      block.append(label);
-    } else if (judge.maxScore != null) {
+    /*
+     * 一个评分点一个块。模电这类作业一题有三四个评分点（满分各 6/6/3 分），
+     * 每点的评分标准都带图，首尾相接时会连成一片、分不清哪句属于哪点，
+     * 因此后续的点之间加一条分隔线。
+     */
+    const point = document.createElement('div');
+    if (index > 0) {
+      point.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid #e4e7ec';
+    }
+
+    // 只有多评分点时才把 0 分也写出来：单点评分依据缺失满分时没什么可说的
+    const maxScore = judge.maxScore ?? (judges.length > 1 ? 0 : null);
+    if (maxScore != null) {
       const label = document.createElement('div');
       label.style.cssText = 'color:#98a2b3;margin:0 0 4px';
-      label.textContent = `满分 ${judge.maxScore} 分`;
-      block.append(label);
+      label.textContent = `满分 ${maxScore} 分`;
+      point.append(label);
     }
 
-    for (const src of images) {
-      const image = document.createElement('img');
-      image.src = src;
-      image.loading = 'lazy';
-      image.style.cssText =
-        'display:block;max-width:100%;border:1px solid #e4e7ec;border-radius:8px;margin-bottom:6px';
-      block.append(image);
-    }
-
-    if (text) {
-      const paragraph = document.createElement('div');
-      paragraph.style.whiteSpace = 'pre-wrap';
-      paragraph.textContent = text;
-      block.append(paragraph);
-    }
+    point.append(content);
+    block.append(point);
   });
 
   // judgeDtos 为空说明这份作业没有配置评分依据，属于数据本身的情况
