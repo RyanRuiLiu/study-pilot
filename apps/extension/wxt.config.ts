@@ -115,7 +115,7 @@ export default defineConfig({
     name: '__MSG_extensionName__',
     description: '__MSG_extensionDescription__',
     default_locale: 'zh_CN',
-    version: '0.3.1',
+    version: '0.3.2',
     /*
      * 最低浏览器版本。
      *
