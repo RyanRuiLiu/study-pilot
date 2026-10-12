@@ -85,6 +85,57 @@ function multiPointPaper(tid: number): HomeworkPaper {
 }
 
 /**
+ * 两个题目的作业卷，两题的评分依据文字可区分。
+ * 用来盯「题号与题目对不上」：页面异步渲染时题号可能还没写进去。
+ */
+function twoQuestionPaper(tid: number): HomeworkPaper {
+  return {
+    tid,
+    subjectiveQList: [
+      {
+        id: tid * 10,
+        position: 0,
+        score: 10,
+        judgeDtos: [{ id: 1, msg: '<p>第一题依据</p>', maxScore: 10 }],
+      },
+      {
+        id: tid * 10 + 1,
+        position: 1,
+        score: 10,
+        judgeDtos: [{ id: 2, msg: '<p>第二题依据</p>', maxScore: 10 }],
+      },
+    ],
+  };
+}
+
+/** 改掉某道题的题号，模拟页面还没渲染出题号。 */
+function setPosition(index: number, text: string): void {
+  const item = currentDocument().querySelectorAll('.u-questionItem')[index] as HTMLElement | undefined;
+  if (!item) throw new Error(`没有第 ${index + 1} 个题目`);
+  const node = item.querySelector('.position');
+  if (!node) throw new Error('页面结构里没有 .position');
+  node.textContent = text;
+}
+
+/** 去掉题干与作答区，模拟题目节点已插入、内容还没渲染。 */
+function stripAnchor(index: number): void {
+  const item = currentDocument().querySelectorAll('.u-questionItem')[index] as HTMLElement | undefined;
+  if (!item) throw new Error(`没有第 ${index + 1} 个题目`);
+  item.querySelector('.j-title')?.remove();
+  item.querySelector('.j-answer')?.remove();
+}
+
+/** 某道题上的注入块数量。 */
+function blockCountOf(item: Element): number {
+  return item.querySelectorAll(ANSWER_BLOCK).length;
+}
+
+/** 某道题上的注入块文本。 */
+function blockTextOf(item: Element): string {
+  return (item.querySelector(ANSWER_BLOCK)?.textContent ?? '').replace(/\s+/g, ' ');
+}
+
+/**
  * 挂一份作业作答页。
  *
  * 结构与 docs/platforms/mooc.md 第 7.5/7.8 节的实测一致：
@@ -323,5 +374,60 @@ describe('页面自己是否已在展示评分依据', () => {
 
     expect(injectedTexts()).toHaveLength(1);
     expect(injectedTexts()[0]).toContain('A 单元评分标准');
+  });
+});
+
+describe('题号与题目的对应', () => {
+  it('题号还没渲染出来的题目不按顺序硬配，题号出来后再补上', async () => {
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(ok(twoQuestionPaper(100)));
+    mountHomeworkPage(2);
+
+    // 第一个题目节点已经是第 2 题，第二个节点的题号还没渲染出来
+    setPosition(0, '2');
+    setPosition(1, '');
+
+    await injectHomeworkAnswers(client, 100, 'homework');
+
+    const items = Array.from(currentDocument().querySelectorAll('.u-questionItem'));
+    // 有题号的那道按题号对上
+    expect(blockTextOf(items[0] as Element)).toContain('第二题依据');
+    // 题号未知的那道这一轮不猜——否则它会被安上第二题的依据
+    expect(blockCountOf(items[1] as Element)).toBe(0);
+
+    // 题号渲染出来（它其实是第 1 题）
+    setPosition(1, '1');
+    await injectHomeworkAnswers(client, 100, 'homework');
+
+    expect(blockCountOf(items[1] as Element)).toBe(1);
+    expect(blockTextOf(items[1] as Element)).toContain('第一题依据');
+    expect(blockTextOf(items[1] as Element)).not.toContain('第二题依据');
+  });
+
+  it('题干还没渲染出来时不把块插到题目之外', async () => {
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
+    mountHomeworkPage(1);
+    stripAnchor(0);
+
+    await injectHomeworkAnswers(client, 100, 'homework');
+
+    // 没有锚点就这一轮不插：插在题目节点之后会看起来属于下一题
+    expect(injectedTexts()).toHaveLength(0);
+
+    // 题干随站点渲染出现，块落在题目内部、题干之后
+    const item = currentDocument().querySelector('.u-questionItem') as HTMLElement;
+    item.innerHTML =
+      '<div class="j-title"><div class="position">1</div>' +
+      '<div class="f-richEditorText j-richTxt">题干</div></div>' +
+      '<div class="j-answer"></div>';
+
+    await injectHomeworkAnswers(client, 100, 'homework');
+
+    expect(blockCountOf(item)).toBe(1);
+    expect(blockTextOf(item)).toContain('A 单元评分标准');
+    expect(item.querySelector('.j-title')?.nextElementSibling).toBe(
+      item.querySelector(ANSWER_BLOCK),
+    );
   });
 });
