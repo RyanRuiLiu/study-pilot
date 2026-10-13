@@ -63,7 +63,7 @@ for (const file of files) {
       const text = m[1] ?? m[2] ?? m[3] ?? '';
       if (!CJK.test(text)) continue;
       // 滤掉纯标点、模板片段
-      if (/^[\s、。，：；（）「」\/·—…]+$/.test(text)) continue;
+      if (/^[\s、。，：；（）「」/·—…]+$/.test(text)) continue;
       found.push({ line: i + 1, text: text.trim() });
     }
   });

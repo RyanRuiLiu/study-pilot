@@ -28,7 +28,7 @@
 import { mkdir, writeFile, appendFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { Session, browserVersion, closeTarget, newPageTarget, waitForCdp } from '../lib/cdp.mjs';
+import { Session, closeTarget, newPageTarget, waitForCdp } from '../lib/cdp.mjs';
 
 const MAX_BODY_BYTES = 1024 * 1024;
 

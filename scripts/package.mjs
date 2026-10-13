@@ -11,16 +11,13 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createRequire } from 'node:module';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const EXT = resolve(ROOT, 'apps/extension');
 const OUT = resolve(EXT, '.output/chrome-mv3');
 const DIST = resolve(ROOT, 'dist');
-
-const require = createRequire(import.meta.url);
 
 /** 从 manifest 读版本号，避免版本号写两处而不一致。 */
 function readVersion() {

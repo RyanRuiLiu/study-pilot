@@ -11,7 +11,7 @@
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Session, browserVersion, listTargets } from '../lib/cdp.mjs';
+import { Session, browserVersion } from '../lib/cdp.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const dir = path.resolve(process.argv[2] ?? path.join(ROOT, 'apps/extension/.output/chrome-mv3'));

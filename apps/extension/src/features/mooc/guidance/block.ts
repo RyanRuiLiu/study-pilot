@@ -16,12 +16,28 @@ import { ANSWER_MARK_ATTRIBUTE, ANSWER_SOURCE_ATTRIBUTE, GUIDANCE_LABEL } from '
 const TEXT_NODE = 3;
 const ELEMENT_NODE = 1;
 
-/** 富文本里夹带的零宽字符与方向控制符会干扰阅读，逐段去掉。 */
+/**
+ * 要清掉的零宽字符与方向控制符。
+ *
+ * 两个部分，逐字符删除，语义与逐码点去字符一致：
+ *   - 零宽空格/非连接符与方向控制符（U+200B/200C/200E/200F、U+202A–202E）
+ *   - U+200D 零宽连接符
+ *
+ * U+200D 用「或」而不是并进字符类：字符类里出现连接符时，它会被读成
+ * 「把前后字符连成一个序列」（no-misleading-character-class 报的就是这个
+ * 读法），而这里要的只是把这个码点本身删掉，写成或项才不会误导读者。
+ * 带 u 标志：方向控制符按码位解释，不按 UTF-16 码元。
+ */
+const INVISIBLE = /[\u200b\u200c\u200e\u200f\u202a-\u202e]|\u200d/gu;
+
+/**
+ * 富文本里夹带的零宽字符与方向控制符会干扰阅读，逐段去掉。
+ */
 function stripInvisible(node: Node): void {
   for (const child of Array.from(node.childNodes)) {
     if (child.nodeType === TEXT_NODE) {
       const text = child.textContent ?? '';
-      const cleaned = text.replace(/[\u200b\u200c\u200d\u200e\u200f\u202a-\u202e]/g, '');
+      const cleaned = text.replace(INVISIBLE, '');
       if (cleaned !== text) child.textContent = cleaned;
     } else if (child.nodeType === ELEMENT_NODE) {
       stripInvisible(child);

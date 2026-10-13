@@ -12,6 +12,7 @@ import '../../src/ui/tokens.css';
 import './style.css';
 
 import { sendToBackground } from '../../src/platform/messaging';
+import { required } from '../../src/platform/dom';
 import { formatDateTime } from '../../src/features/format';
 import type { DashboardView } from '../../src/domain/task';
 import {
@@ -23,13 +24,13 @@ import {
 } from './render.ts';
 import { renderBoard } from './render.ts';
 
-const app = document.getElementById('app')!;
-const fetchedEl = document.getElementById('fetched')!;
-const courseEl = document.getElementById('course') as HTMLSelectElement;
-const kindEl = document.getElementById('kind') as HTMLSelectElement;
-const modeEl = document.getElementById('mode') as HTMLSelectElement;
-const stateEl = document.getElementById('state') as HTMLSelectElement;
-const reloadEl = document.getElementById('reload') as HTMLButtonElement;
+const app = required<HTMLElement>('#app');
+const fetchedEl = required<HTMLElement>('#fetched');
+const courseEl = required<HTMLSelectElement>('#course');
+const kindEl = required<HTMLSelectElement>('#kind');
+const modeEl = required<HTMLSelectElement>('#mode');
+const stateEl = required<HTMLSelectElement>('#state');
+const reloadEl = required<HTMLButtonElement>('#reload');
 
 let view: DashboardView = { fetchedAt: 0, courses: [], tasks: [] };
 let filters: Filters = { ...DEFAULT_FILTERS };

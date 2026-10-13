@@ -86,7 +86,7 @@ export async function autoRun(deps: RunDeps, reason: 'startup' | 'alarm' | 'logi
     const now = Date.now();
 
     // 读快照。读不出来就当作没有，会走拉取分支
-    let snapshot: Snapshot | null = null;
+    let snapshot: Snapshot | null;
     try {
       snapshot = await readSnapshot();
     } catch {
@@ -95,13 +95,17 @@ export async function autoRun(deps: RunDeps, reason: 'startup' | 'alarm' | 'logi
 
     const fresh = await snapshotIsFresh(now);
 
-    if (!shouldRefresh(snapshot, settings, fresh, now)) {
+    /*
+     * 快照为空时 shouldRefresh 必定为真（没有快照什么都判断不了），
+     * 因此这里同时判空只是为了把这条不变式写进代码，让分支里拿到确定的非空类型。
+     */
+    if (snapshot !== null && !shouldRefresh(snapshot, settings, fresh, now)) {
       /*
        * 不必拉取：快照说没有能自动完成的事，且今天已经全量看过。
        * 用快照出提醒后结束——截止时间一旦发布就不会变，
        * 所以快照里的它是可靠的；而"是否已完成"会变，所以只报未完成的。
        */
-      await notify(composeNotice(derivePlan(snapshot!, settings, now), [], noticeSettingsOf(settings), now));
+      await notify(composeNotice(derivePlan(snapshot, settings, now), [], noticeSettingsOf(settings), now));
       return;
     }
 

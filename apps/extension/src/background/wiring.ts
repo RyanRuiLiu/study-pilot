@@ -14,7 +14,11 @@ import { autoRun, type RunDeps } from './run-tasks.ts';
 /** 平台的登录凭证 cookie。出现即表示登录成功。 */
 const LOGIN_COOKIE = 'NTESSTUDYSI';
 
-export interface WiringDeps extends RunDeps {}
+/*
+ * 装配所需的依赖与 run-tasks 完全一致，因此直接复用它的类型，
+ * 不再声明一个空接口——空接口与超类型等价，多一层只会让人以为这里会加东西。
+ */
+export type WiringDeps = RunDeps;
 
 export function registerBackgroundWiring(deps: WiringDeps): void {
   /*

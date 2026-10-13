@@ -20,15 +20,15 @@ import './style.css';
 import {
   getSettings,
   resetSettings,
-  type Settings,
 } from '../../src/settings';
 import {
   sendToBackground,
 } from '../../src/platform/messaging';
+import { required } from '../../src/platform/dom';
 
-const app = document.getElementById('app')!;
+const app = required<HTMLElement>('#app');
 const toc = document.getElementById('toc');
-const toastEl = document.getElementById('toast')!;
+const toastEl = required<HTMLElement>('#toast');
 
 function toast(text: string): void {
   toastEl.textContent = text;

@@ -98,7 +98,7 @@ export function createChatClient(options: ChatClientOptions): ChatClient {
          * 带上响应体的一小段：401 与 429 的处理完全不同，只报状态码不够用。
          * 截断到 200 字符，任何情况下都不包含密钥（密钥只在请求头里）。
          */
-        let snippet = '';
+        let snippet: string;
         try {
           snippet = (await response.text()).replace(/\s+/g, ' ').slice(0, 200);
         } catch {
