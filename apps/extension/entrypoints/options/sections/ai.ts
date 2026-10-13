@@ -4,7 +4,7 @@
  * 从 options/main.ts 的 render() 搬出；表达式原样，只在开头取一次配置。
  */
 
-import { row, toggle, textInput, button, prose, section } from '../ui.ts';
+import { row, toggle, textInput, button, prose, section } from '../../../src/ui/form.ts';
 import { bindSetting } from '../settings-write.ts';
 import { requestAiPermission, checkAiConnection } from '../actions.ts';
 import { current } from '../state.ts';
@@ -45,15 +45,23 @@ export function aiSection(): HTMLElement {
       row(
         '主机权限',
         '只申请上面填写的那个域名',
-        button('申请权限', () => {
-          void requestAiPermission();
+        button({
+          label: '申请权限',
+          variant: 'primary',
+          onClick: () => {
+            void requestAiPermission();
+          },
         }),
       ),
       row(
         '连通性',
         '用当前配置发一次最小请求，确认地址、模型与密钥可用',
-        button('测试连接', () => {
-          void checkAiConnection();
+        button({
+          label: '测试连接',
+          variant: 'primary',
+          onClick: () => {
+            void checkAiConnection();
+          },
         }),
       ),
     ]);

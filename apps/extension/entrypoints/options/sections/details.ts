@@ -4,7 +4,7 @@
  * 从 options/main.ts 的 render() 搬出；表达式原样，只在开头取一次配置。
  */
 
-import { platform, section } from '../ui.ts';
+import { platform, section } from '../../../src/ui/form.ts';
 import { unitDetailsView } from '../unit-details.ts';
 
 export function detailsSection(): HTMLElement {

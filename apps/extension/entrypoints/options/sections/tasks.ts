@@ -6,7 +6,7 @@
 
 import { sendToBackground } from '../../../src/platform/messaging';
 
-import { row, toggle, numberInput, textInput, button, platform, section } from '../ui.ts';
+import { row, toggle, numberInput, textInput, button, platform, section } from '../../../src/ui/form.ts';
 import { bindSetting } from '../settings-write.ts';
 import { toast } from '../state.ts';
 import { current } from '../state.ts';
@@ -59,22 +59,26 @@ export function tasksSection(): HTMLElement {
         row(
           '示例通知',
           '按当前账号的待办发一条示例，内容与开启提醒后实际收到的相同。系统可能把浏览器的通知静音或挡住，若收不到请检查系统的通知设置',
-          button('发送示例通知', () => {
-            /*
-             * 必须有反馈。这条通知收不到的原因通常不在扩展里——系统静音、
-             * 专注模式、通知权限——而「点了没反应」与「发了但系统没弹」
-             * 在界面上完全一样。没有回执时，用户会以为扩展只肯发一次。
-             */
+          button({
+            label: '发送示例通知',
+            variant: 'primary',
+            onClick: () => {
+              /*
+               * 必须有反馈。这条通知收不到的原因通常不在扩展里——系统静音、
+               * 专注模式、通知权限——而「点了没反应」与「发了但系统没弹」
+               * 在界面上完全一样。没有回执时，用户会以为扩展只肯发一次。
+               */
 
-            void sendToBackground({ type: 'NOTIFY_SAMPLE' })
-              .then((response) => {
-                toast(
-                  response.hasContent
-                    ? '已发送示例通知，内容取自当前待办'
-                    : '已发送示例通知：当前没有待办，内容为说明文本',
-                );
-              })
-              .catch(() => toast('示例通知发送失败，请重试'));
+              void sendToBackground({ type: 'NOTIFY_SAMPLE' })
+                .then((response) => {
+                  toast(
+                    response.hasContent
+                      ? '已发送示例通知，内容取自当前待办'
+                      : '已发送示例通知：当前没有待办，内容为说明文本',
+                  );
+                })
+                .catch(() => toast('示例通知发送失败，请重试'));
+            },
           }),
         ),
       ]),

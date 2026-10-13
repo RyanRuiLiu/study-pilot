@@ -19,7 +19,7 @@ import { render, toast } from './state.ts';
  */
 export function progressView(): HTMLElement {
   const box = document.createElement('div');
-  box.className = 'progress';
+  box.className = 'sp-progress';
   box.id = 'progress-view';
   box.textContent = '正在读取…';
 
