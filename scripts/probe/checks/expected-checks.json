@@ -56,5 +56,8 @@
   ],
   "check-doc-refs.mjs": [
     "源码注释引用的文档与节号都存在（doc-refs）"
+  ],
+  "check-anchors.mjs": [
+    "源码里的页面锚点都指向存在的 id（anchors）"
   ]
 }
