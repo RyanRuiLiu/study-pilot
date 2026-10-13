@@ -72,7 +72,7 @@
 - 讨论：同样由上报驱动，但平台**延迟记账**（一例约 12 分钟）
 - 字幕、直播、专栏、音乐类、互动课件在账号的课程里没有出现，没有实测，不猜
 
-报文、取值来源与完整取证记录见 [docs/platforms/courseware.md](docs/platforms/courseware.md)。
+报文、取值来源与完整取证记录见 [docs/platforms/mooc.md](docs/platforms/mooc.md)。
 
 ## [0.3.2] - 2026-10-13
 
