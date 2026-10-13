@@ -62,7 +62,6 @@ import { current, setCurrent, setRender, setToast } from './state.ts';
 import { accountSection } from './sections/account.ts';
 import { detailsSection } from './sections/details.ts';
 import { scheduleSection } from './sections/schedule.ts';
-import { behaviorSection } from './sections/behavior.ts';
 import { tasksSection } from './sections/tasks.ts';
 import { aiSection } from './sections/ai.ts';
 import { foregroundSection } from './sections/foreground.ts';
@@ -127,7 +126,6 @@ function render(): void {
      *
      * 每一条都对应代码里的一个实际分支，不是泛泛的承诺。
      */
-    behaviorSection(),
 
     tasksSection(),
 
