@@ -1,0 +1,173 @@
+/*
+ * 组件层样式。
+ *
+ * 两条纪律，都是为了将来把它原样放进注入面板的 shadow root：
+ *   1. 只用类选择器（含 [data-*] 属性选择器），不写元素选择器、不写 !important。
+ *      shadow root 里没有我们文档上的全局重置与 body 字体，每个类必须自带所需。
+ *   2. 颜色、圆角一律取 tokens.css 的变量（Shoelace 侧由 theme.css 映射），
+ *      这一份里不出现色值，也不改宿主页面的任何既有元素。
+ *
+ * 这里是「控件长什么样」，页面「怎么摆」在各页自己的 style.css。
+ */
+
+.sp {
+  box-sizing: border-box;
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.sp *,
+.sp *::before,
+.sp *::after {
+  box-sizing: border-box;
+}
+
+/* ---------- 顶栏：品牌 + 主操作 ---------- */
+
+.sp-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sp-brand {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-run {
+  flex: none;
+}
+
+/* ---------- 状态一行 ---------- */
+
+.sp-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-2);
+  font-size: 12px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.sp-status[data-tone='busy'] {
+  color: var(--accent);
+}
+
+.sp-status[data-tone='error'] {
+  color: var(--warn);
+}
+
+.sp-spinner {
+  flex: none;
+  font-size: 14px;
+}
+
+/* ---------- 计数一行 ---------- */
+
+.sp-count {
+  margin: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 待办：一行一条，整行可点 ---------- */
+
+.sp-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sp-item + .sp-item {
+  border-top: 1px solid var(--line);
+}
+
+.sp-item-body {
+  display: block;
+  padding: 8px 16px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.sp-item-body[href]:hover {
+  background: var(--hover);
+}
+
+.sp-item-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sp-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.sp-item-when {
+  flex: none;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sp-item-when[data-urgent='true'] {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.sp-empty {
+  margin: 0;
+  padding: 20px 16px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+/* ---------- 状态行下面的一排动作与底部的两个入口 ---------- */
+
+.sp-actions,
+.sp-nav {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+}
+
+.sp-actions {
+  border-bottom: 1px solid var(--line);
+}
+
+.sp-nav {
+  border-top: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.sp-actions .sp-button,
+.sp-nav .sp-button {
+  flex: 1;
+}
