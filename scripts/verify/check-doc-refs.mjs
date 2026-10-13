@@ -54,6 +54,15 @@ function sectionsOf(file) {
   return numbers;
 }
 
+/** 目标是不是一个存在的文件（不存在、目录、权限问题都算「没有」）。 */
+function isFile(path) {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
 /*
  * 节号有两种写法：`第 3 节` / `第 7.5/7.8 节`，以及紧跟在路径后面的裸号
  * `mooc.md 3.1）`。只认这两种，避免把注释里的版本号当成节号。
@@ -73,13 +82,7 @@ for (const file of FILES) {
       checked += 1;
       const target = join(ROOT, match[0]);
       const where = `${relative(ROOT, file)}:${index + 1}`;
-      let exists = true;
-      try {
-        exists = statSync(target).isFile();
-      } catch {
-        exists = false;
-      }
-      if (!exists) {
+      if (!isFile(target)) {
         problems.push(`${where} 指向不存在的 ${match[0]}`);
         continue;
       }
