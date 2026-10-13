@@ -255,7 +255,6 @@ const MAX_LINES = 300;
 const PENDING = [
   'apps/extension/entrypoints/background.ts',
   'apps/extension/entrypoints/options/main.ts',
-  'packages/platform-mooc/src/review.ts',
 ];
 
 /*
