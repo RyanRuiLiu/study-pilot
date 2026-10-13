@@ -24,22 +24,6 @@ export async function loadAnswerIndex(client: MoocClient, termId: number): Promi
   return index;
 }
 
-/**
- * 取当前活跃答卷的 id。
- *
- * 必须走 getOpenQuizInfo 的顶层 aid。getOpenQuizPaperDto 传 0 返回的未必是
- * 页面正在用的那一份，targetAnswerform.aid 则是最近一次已提交的记录。
- */
-export async function resolveActiveAid(
-  client: MoocClient,
-  quizId: number,
-): Promise<number | null> {
-  const info = await getOpenQuizInfo(client, quizId);
-  if (!info.ok) return null;
-  const aid = info.value.aid;
-  return typeof aid === 'number' && aid > 0 ? aid : null;
-}
-
 /** 缓存的测验信息，用于展示总分。 */
 let cachedInfo: { tid: number; fetchedAt: number; value: OpenQuizInfo } | null = null;
 

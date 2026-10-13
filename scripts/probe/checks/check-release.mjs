@@ -374,6 +374,27 @@ for (const file of [...collect(join(ROOT, 'packages'), (n) => n.endsWith('.ts'))
 }
 record('依赖方向没有反向', layerHits.length === 0, layerHits.slice(0, 4).join('  '));
 
+// ---------- 12. 写入路径只在后台 ----------
+//
+// 内容脚本与后台是两个执行上下文，各自建的客户端各有节流器、互不知情。
+// 写入只要散到两边，就可能并发打到平台并撞上并发限制（-2）。
+// 因此写接口只允许出现在 src/background/ 下。
+
+console.log('');
+console.log('=== 写入路径 ===');
+
+const WRITE_APIS = /\b(submitQuiz|saveDraft|submitEvaluation|completeUnit)\s*\(/;
+const writeHits = [];
+for (const file of [
+  ...collect(join(ROOT, 'apps/extension/src/features'), (n) => n.endsWith('.ts')),
+  ...collect(join(ROOT, 'apps/extension/entrypoints'), (n) => n.endsWith('.content.ts')),
+]) {
+  if (/[\\/]test[\\/]/.test(file)) continue;
+  const text = readFileSync(file, 'utf8');
+  if (WRITE_APIS.test(text)) writeHits.push(rel(file));
+}
+record('写接口只出现在后台', writeHits.length === 0, writeHits.slice(0, 4).join('  '));
+
 // ---------- 汇总 ----------
 
 const failed = results.filter((r) => !r.ok);
