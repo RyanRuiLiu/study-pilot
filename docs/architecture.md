@@ -140,6 +140,7 @@ Web Crypto 不提供 MD5，而签名需要它，因此 `core` 里有一份自实
 | 权限与隐私口径 | [check-privacy.mjs](../scripts/probe/checks/check-privacy.mjs) |
 | 注释里引用的文档与节号真实存在 | [check-doc-refs.mjs](../scripts/verify/check-doc-refs.mjs) |
 | 源码里跳转用的锚点在目标页面里存在 | [check-anchors.mjs](../scripts/verify/check-anchors.mjs) |
+| 变更的代码有没有被测试真正约束（变异测试） | [check-mutation.mjs](../scripts/verify/check-mutation.mjs)（`stryker.config.mjs`） |
 | 唯一来源、端口注入、不兜底、测试即契约 | 代码结构本身 + 类型检查 + 测试 |
 
 规则本身写在配置或标准工具里，不自写正则；标准工具的报告由 [scripts/verify/](../scripts/verify/)
