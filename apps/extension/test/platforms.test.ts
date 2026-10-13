@@ -12,7 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_TYPE } from '@study-pilot/platform-mooc';
 import type { SnapshotCourse, SnapshotWork } from '../src/background/mooc/snapshot';
-import { MOOC_PLATFORM, toCourse, toTasks } from '../src/platforms/index';
+import { MOOC_PLATFORM, toCourse, toTasks } from '../src/platforms/mooc.ts';
 import { taskId } from '../src/domain/task';
 
 const COURSE: SnapshotCourse = {

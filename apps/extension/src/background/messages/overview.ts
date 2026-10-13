@@ -9,7 +9,7 @@
 
 import type { Course, DashboardView, Task } from '../../domain/task';
 import type { QueryOutcome } from '../../platform/messaging';
-import { toCourse, toTasks } from '../../platforms/index';
+import { toCourse, toTasks } from '../../platforms/mooc.ts';
 import { readSnapshot } from '../mooc/snapshot';
 import type { RouterDeps } from './router.ts';
 
