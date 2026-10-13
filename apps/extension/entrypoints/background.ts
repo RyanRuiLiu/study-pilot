@@ -62,6 +62,7 @@ import {
 } from '../src/background/mooc/snapshot';
 import { derivePlan, shouldRefresh } from '../src/background/mooc/task-plan';
 import { registerMessageHandler } from '../src/background/messages/router';
+import { autoRun } from '../src/background/run-tasks';
 import {
   recoveryFailure,
   withSessionRecovery,
@@ -69,8 +70,6 @@ import {
 import { toPendingSummary, toUnitDetails } from '../src/background/mooc/to-messages';
 import type { BackgroundRequest } from '../src/platform/messaging';
 
-/** 平台的登录凭证 cookie。出现即表示登录成功。 */
-const LOGIN_COOKIE = 'NTESSTUDYSI';
 
 /**
  * 课件行为的上下文。
@@ -101,19 +100,6 @@ function selectedCourses(settings: Settings): InspectCourse[] {
     }));
 }
 
-/**
- * 本地已有快照是否算「今天拉过」。
- *
- * 读失败不当作拉过：否则一次存储异常会让今天再也不会重新拉取，
- * 而用户看不到任何异常——只是所有判断都基于越来越旧的数据。
- */
-async function snapshotIsFresh(now: number): Promise<boolean> {
-  try {
-    return fetchedToday(await readSnapshot(), now);
-  } catch {
-    return false;
-  }
-}
 
 export default defineBackground(() => {
   // 回调内包一层 try/catch 是有必要的：生产构建会把 console 替换为空函数，
@@ -349,230 +335,16 @@ export default defineBackground(() => {
    * 区别只在启动延迟那一项——alarm 触发时用户已经在用浏览器了，
    * 再延迟没有意义。
    */
-  async function autoRun(reason: 'startup' | 'alarm' | 'login'): Promise<void> {
-    const settings = await getSettings();
-    if (!settings.enabled) return;
+  /** 执行一轮所需的协作方。传进 run-tasks 后，那边不认识它们的来历。 */
+  const runDeps = {
+    client,
+    renew,
+    refreshCourses,
+    loadSnapshot,
+    selectedCourses,
+    coursewareContext,
+  };
 
-    const state = await getTaskState();
-    if (!canStartRun(state)) return;
-
-    const session = await ensureSession();
-    if (!session.loggedIn) {
-      await markAwaitingLogin();
-      return;
-    }
-    await clearAwaitingLogin();
-
-    const courses = selectedCourses(settings);
-    if (courses.length === 0) return;
-
-    /*
-     * 启动延迟。
-     *
-     * 只对浏览器启动生效：它存在的意义是错开启动时的资源争抢。
-     * alarm 触发时浏览器早已启动完毕，登录后的补偿执行更是已经晚了一步，
-     * 这两种情况下再等只会让它更晚。
-     */
-    if (reason === 'startup') {
-      const delayMs = Math.max(0, settings.mooc.background.schedule.startupDelayMinutes) * 60_000;
-      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-
-    const now = Date.now();
-    const advanceDays = settings.mooc.background.deadlineReminder.advanceDays;
-
-    // 读快照。读不出来就当作没有，会走拉取分支
-    let snapshot: Snapshot | null = null;
-    try {
-      snapshot = await readSnapshot();
-    } catch {
-      snapshot = null;
-    }
-
-    const fresh = await snapshotIsFresh(now);
-
-    if (!shouldRefresh(snapshot, settings, fresh, now)) {
-      /*
-       * 不必拉取：快照说没有能自动完成的事，且今天已经全量看过。
-       * 用快照出提醒后结束——截止时间一旦发布就不会变，
-       * 所以快照里的它是可靠的；而"是否已完成"会变，所以只报未完成的。
-       */
-      await notify(composeNotice(derivePlan(snapshot!, settings, now), [], noticeSettingsOf(settings), now));
-      return;
-    }
-
-    await beginRun(now);
-    /*
-     * 因登录挂起的结论先记在这里，收尾之后才落盘。
-     *
-     * finishRun 会把 awaitingLogin 一并清掉（它假定本轮正常结束），
-     * 若在 try 内落标记，会被本轮自己的收尾立刻抹掉——挂起就没人记得了。
-     */
-    let suspendedLogin = false;
-    try {
-      /*
-       * 每一步之前刷新心跳。
-       *
-       * 一轮执行里有好几次网络往返。心跳过期会让界面把「正在跑」读成
-       * 「上次没结束」——那是用户最容易被误导的地方，他会以为扩展卡住了，
-       * 而实际上一切正常。刷心跳只是一次本地存储写入，相比一次接口调用
-       * 可以忽略。
-       */
-      await touchRun();
-
-      // 课程列表先刷新：勾选的课程可能变动，而后续读取按它进行
-      await refreshCourses().catch(() => undefined);
-
-      await touchRun();
-
-      /*
-       * 快照读取带会话恢复。
-       *
-       * 长时间闲置后的那次检查最容易撞上「cookie 还在、服务端会话已死」：
-       * 此时平台回的是未登录形态的空数据，不恢复会话就会把空快照当事实，
-       * 一整天不发通知也不报错。恢复不了则挂起等登录——沿用启动时
-       * 未登录的同一机制，用户在平台上重新活动后自动补做。
-       */
-      const recovered = await withSessionRecovery(
-        () => loadSnapshot(courses, session.userId),
-        renew,
-      );
-      if (!recovered.ok) {
-        if (recovered.kind !== 'login') throw new Error(recovered.message);
-        suspendedLogin = true;
-      } else {
-        const latest = recovered.value;
-
-        const plan = derivePlan(latest, settings, now);
-
-        /*
-         * 执行并只发一次通知。
-         *
-         * 结果要与计划一起交给通知：计划是执行之前算的，里面写着「将自动完成」，
-         * 而执行之后那些事已经完成了。只用计划组织通知，用户会以为它们还没做；
-         * 分两次发（执行后一次、再补一次）则会把同一件事说两遍。
-         */
-        const results =
-          plan.auto.length > 0
-            ? await executeActions(
-                client,
-                plan.auto,
-                session.userId,
-                settings.mooc.background.autoReview.comment,
-                // 每完成一项刷一次心跳：一轮里可能有好几项，中间任何一项卡住
-                // 都会让心跳过期，界面于是把「正在跑」读成「上次没结束」
-                () => touchRun(),
-                coursewareContext(settings),
-              )
-            : [];
-
-        await notify(composeNotice(plan, results, noticeSettingsOf(settings), now));
-      }
-    } finally {
-      await finishRun();
-    }
-
-    // 已在 beginRun 之后收尾完毕，此刻落挂起标记不会再被 finishRun 抹掉
-    if (suspendedLogin) await markAwaitingLogin();
-  }
-
-  /*
-   * 周期检查：安装时建一次。
-   *
-   * 单独用 onInstalled 而不是只放在启动流程里：装好扩展的那一刻浏览器
-   * 不会重启，onStartup 不会触发，如果只在那里建定时器，
-   * 用户装完之后得重启一次浏览器才会开始工作。
-   */
-  browser.runtime.onInstalled.addListener(() => {
-    void ensureAlarm();
-  });
-
-  /*
-   * 总开关变化时同步定时器。
-   *
-   * 关掉总开关之后不该再有后台活动，包括这个定时空转。
-   * autoRun 进来会检查开关并立刻返回，所以空转本身无害；
-   * 但一个「已关闭却仍在定时唤醒」的扩展会让用户怀疑它到底停了没有，
-   * 而定时器的建与清本来就是一句话的事。
-   */
-  watchSettings((next) => {
-    if (next.enabled) void ensureAlarm();
-    else void clearAlarm();
-  });
-
-  browser.runtime.onStartup.addListener(() => {
-    void ensureAlarm();
-    void autoRun('startup').catch((error: unknown) => {
-      void browser.storage.local.set({
-        backgroundError: error instanceof Error ? error.message : String(error),
-      });
-    });
-  });
-
-  /*
-   * 周期检查。
-   *
-   * 这是「作业刚发布、浏览器正开着」这一情况下唯一的执行时机。
-   * 没有它，界面只能说「下次启动浏览器时处理」——而用户会问
-   * 做作业不该依赖重启浏览器。
-   *
-   * 间隔见 alarms.ts。监听器本身不做判断，交给 autoRun：
-   * 它自己会看总开关、是否正在执行、有没有登录、以及值不值得拉取。
-   */
-  browser.alarms.onAlarm.addListener((alarm) => {
-    if (!isCheckAlarm(alarm)) return;
-    void autoRun('alarm').catch(() => undefined);
-  });
-
-  /**
-   * 登录后补执行。
-   *
-   * 只观察 NTESSTUDYSI——它是平台的登录凭证，出现即表示登录成功。
-   * 挂起标记不存在时这里不做任何事，因此日常浏览网页不会误触发。
-   */
-  browser.cookies.onChanged.addListener((change) => {
-    if (change.cookie.name !== LOGIN_COOKIE) return;
-    if (change.cookie.domain && !change.cookie.domain.includes('icourse163.org')) return;
-
-    void (async () => {
-      if (change.removed) return;
-      const state = await getTaskState();
-      if (!state.awaitingLogin) return;
-      await autoRun('login');
-    })();
-  });
-
-  /*
-   * 点击通知直接落到设置页的单元明细。
-   *
-   * 通知说的就是「哪几项要处理」，点进去自然该看到那份清单，
-   * 而不是设置页顶部再自己往下找。
-   * openOptionsPage 不接受锚点，只能用 tabs.create 指定完整地址；
-   * tabs.create 不需要额外权限。
-   */
-  browser.notifications.onClicked.addListener((notificationId) => {
-    /*
-     * 工作总结与示例通知都送到单元明细。
-     *
-     * 早先这里按 `startsWith('deadline-reminder')` 判断要不要带锚点，
-     * 而通知 id 是固定的 `study-pilot-summary`——条件永远为假，
-     * 锚点一次都没生效过，用户点通知总是落在设置页顶部。
-     *
-     * 判据现在跟着 id 的生成规则走，而不是跟着某一个具体值走：
-     * 发送用的 id 每次都不一样（前缀加时间戳，见 reminder.ts），
-     * 任何等值比较都会立刻失效——这个坑不能踩第二次。
-     */
-    const anchor = notificationId.startsWith(NOTIFICATION_PREFIX) ? '#details' : '';
-    const url = browser.runtime.getURL(`/options.html${anchor}`);
-    void browser.tabs.create({ url });
-  });
-
-  /*
-   * 消息路由在 src/background/messages/router.ts。
-   *
-   * 传进去的是入口创建的那些东西（客户端、会话续期、快照读取）；
-   * 路由本身不认识它们的来历。
-   */
   registerMessageHandler({
     client,
     renew,
