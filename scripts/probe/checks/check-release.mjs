@@ -245,7 +245,7 @@ const SINGLE_SOURCE = new Map([
   ['ENDPOINTS', 'packages/platform-mooc/src/endpoints.ts'],
   ['DWR_ENDPOINTS', 'packages/platform-mooc/src/endpoints.ts'],
   ['BEHAVIORS', 'packages/platform-mooc/src/courseware/index.ts'],
-  ['SNAPSHOT_VERSION', 'apps/extension/src/background/mooc/snapshot/types.ts'],
+  ['SNAPSHOT_VERSION', 'apps/extension/src/platforms/mooc/read/types.ts'],
   ['SETTINGS_VERSION', 'apps/extension/src/settings/schema/index.ts'],
   ['AI_TASKS', 'apps/extension/src/ai/index.ts'],
   ['GUIDANCE_LABEL', 'apps/extension/src/features/mooc/guidance/markers.ts'],

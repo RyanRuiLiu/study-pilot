@@ -12,7 +12,7 @@
  */
 
 import { WORK_STATUS, type WorkStatus } from '../../platform/messaging';
-import type { SnapshotWork } from './snapshot';
+import type { SnapshotWork } from './read';
 
 /**
  * 一个单元此刻的状态。

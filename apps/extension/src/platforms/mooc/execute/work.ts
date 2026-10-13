@@ -18,7 +18,7 @@ import {
   submitQuiz,
   type MoocClient,
 } from '@study-pilot/platform-mooc';
-import type { WorkAutoAction } from '../task-plan';
+import type { WorkAutoAction } from '../plan';
 import type { BankCache } from './bank.ts';
 import type { ExecResult } from './types.ts';
 

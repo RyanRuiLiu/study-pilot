@@ -10,8 +10,8 @@
 
 import { workPageUrl } from '@study-pilot/platform-mooc';
 import type { PendingEntry, PendingKind, PendingSummary, UnitDetail } from '../../platform/messaging';
-import { OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from './task-plan';
-import type { Snapshot, SnapshotCourse } from './snapshot';
+import { OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from './plan';
+import type { Snapshot, SnapshotCourse } from './read';
 import { describeStatusDetail, describeWorkStatus } from './work-status';
 
 /**

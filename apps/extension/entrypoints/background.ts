@@ -23,7 +23,7 @@ import { whenNetRulesReady } from '../src/background/net-rules';
 
 import {
   type InspectCourse,
-} from '../src/background/mooc/snapshot';
+} from '../src/platforms/mooc/read';
 import { registerMessageHandler } from '../src/background/messages/router';
 import { registerBackgroundWiring } from '../src/background/wiring';
 import { createPlatformClient, loadSnapshot, refreshCourses } from '../src/background/platform-sync';

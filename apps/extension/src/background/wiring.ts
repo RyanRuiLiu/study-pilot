@@ -9,7 +9,7 @@
 import { clearAlarm, ensureAlarm, isCheckAlarm } from './runtime/alarms';
 import { watchSettings } from '../settings';
 import { getTaskState } from './runtime/scheduler';
-import { NOTIFICATION_PREFIX } from './mooc/reminder';
+import { NOTIFICATION_PREFIX } from '../platforms/mooc/reminder';
 import { autoRun, type RunDeps } from './run-tasks.ts';
 /** 平台的登录凭证 cookie。出现即表示登录成功。 */
 const LOGIN_COOKIE = 'NTESSTUDYSI';

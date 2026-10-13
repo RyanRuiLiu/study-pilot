@@ -11,7 +11,7 @@
  */
 
 import type { QueryOutcome } from '../../platform/messaging';
-import { readSnapshot, type Snapshot } from '../mooc/snapshot';
+import { readSnapshot, type Snapshot } from '../../platforms/mooc/read';
 import type { RouterDeps } from './router.ts';
 
 export async function handleDashboard(_deps: RouterDeps): Promise<QueryOutcome<Snapshot | null>> {

@@ -18,8 +18,8 @@
  * 一条已经错过的事，关掉提醒也不会让它变得没发生过。
  */
 
-import { OVERDUE_REASONS, derivePlan, type Plan } from './task-plan';
-import type { Snapshot } from './snapshot';
+import { OVERDUE_REASONS, derivePlan, type Plan } from './plan';
+import type { Snapshot } from './read';
 import type { ExecResult } from './execute';
 import type { Settings } from '../../settings';
 

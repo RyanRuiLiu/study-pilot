@@ -19,7 +19,7 @@
 
 import { hasTextGenerator } from '../../../ai';
 import type { Settings } from '../../../settings';
-import type { Snapshot } from '../snapshot';
+import type { Snapshot } from '../read';
 import { planCourseware } from './courseware.ts';
 import { byCheapest } from './order.ts';
 import type { AutoAction, ManualItem, Plan, TaskSwitches } from './types.ts';

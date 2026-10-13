@@ -4,7 +4,7 @@
  * 课件单元不在这里：它不是「待办」（没有截止时间），见 `courseware.ts`。
  */
 
-import type { SnapshotCourse, SnapshotWork } from '../snapshot';
+import type { SnapshotCourse, SnapshotWork } from '../read';
 import { isExam, type ManualItem, type TaskSwitches, type WorkAutoAction } from './types.ts';
 
 /**

@@ -10,8 +10,8 @@ import { md5hex } from '@study-pilot/core';
 import { COURSE_TYPE, createMoocClient, getCourses, type CourseSummary, type MoocClient } from '@study-pilot/platform-mooc';
 import { getSettings, updateSettings } from '../settings';
 import { readToken, renewSession, SessionExpiredError } from '../platform/mooc/session';
-import { inspect, writeSnapshot, type InspectCourse, type Snapshot } from './mooc/snapshot';
-import { mergeCourses } from './mooc/course-selection';
+import { inspect, writeSnapshot, type InspectCourse, type Snapshot } from '../platforms/mooc/read';
+import { mergeCourses } from '../platforms/mooc/course-selection';
 import { whenNetRulesReady } from './net-rules';
 
 export interface PlatformClient {

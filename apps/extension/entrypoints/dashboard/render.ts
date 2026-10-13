@@ -10,7 +10,7 @@
  */
 
 import { UNIT_TYPE, workPageUrl, type CourseUnit } from '@study-pilot/platform-mooc';
-import type { Snapshot, SnapshotCourse, SnapshotWork } from '../../src/background/mooc/snapshot';
+import type { Snapshot, SnapshotCourse, SnapshotWork } from '../../src/platforms/mooc/read';
 import { formatDate, relativeDay } from '../../src/features/format';
 
 /** 工作项类别（平台的 work.type 原样）。 */

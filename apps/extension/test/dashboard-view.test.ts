@@ -13,7 +13,7 @@ vi.mock('@shoelace-style/shoelace/dist/components/button/button.js', () => ({}))
 vi.mock('@shoelace-style/shoelace/dist/components/spinner/spinner.js', () => ({}));
 
 import { UNIT_TYPE, type CourseUnit } from '@study-pilot/platform-mooc';
-import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/background/mooc/snapshot';
+import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/platforms/mooc/read';
 import {
   boardItems,
   DEFAULT_FILTERS,

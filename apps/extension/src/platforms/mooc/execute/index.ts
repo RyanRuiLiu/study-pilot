@@ -19,7 +19,7 @@
  */
 
 import type { CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
-import type { AutoAction } from '../task-plan';
+import type { AutoAction } from '../plan';
 import { BankCache } from './bank.ts';
 import { runCourseware } from './courseware.ts';
 import type { ExecResult } from './types.ts';
