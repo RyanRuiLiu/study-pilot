@@ -58,6 +58,25 @@ const ITEMS = [
     takes: (message) => message.ruleId === 'max-lines',
     detail: (message) => `${message.file}:${message.line} ${message.message}`,
   },
+  {
+    /*
+     * 原先是一组自写正则（: any / @ts-ignore / eslint-disable / debugger /
+     * console.log / 非空断言），正则会漏写法；这里是同一件事的官方规则。
+     * eslint-disable 由 linterOptions.noInlineConfig 负责，报错没有 ruleId，
+     * 只看消息文本——它说的正是「这行禁用注释不生效」。
+     */
+    name: '源码里没有「让报错消失」的手法',
+    takes: (message) =>
+      [
+        '@typescript-eslint/no-explicit-any',
+        '@typescript-eslint/no-non-null-assertion',
+        '@typescript-eslint/ban-ts-comment',
+        'no-console',
+        'no-debugger',
+      ].includes(message.ruleId) ||
+      (message.ruleId === null && /noInlineConfig/.test(message.message)),
+    detail: (message) => `${message.file}:${message.line} ${message.message}`,
+  },
 ];
 
 for (const item of ITEMS) {
