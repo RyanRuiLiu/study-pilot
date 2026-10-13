@@ -9,7 +9,9 @@
  * 会留下一条「回复数:0」的记录，与真人对不上。因此这里两件事都做：
  * 先发一条回复，再上报完成。
  *
- * 回复文案是占位的一句，接 AI 之后换成生成内容；位置只有这一处。
+ * 回复文案由调用方注入的生成器（AI）写出，**没有固定文案兜底**：
+ * 生成失败时先由上层重试，仍失败就如实返回错误——这一步不完成，
+ * 留给用户手动处理，不写一条假装学过的留言。
  */
 
 import { err, ok, type Result } from '@study-pilot/core';
@@ -20,8 +22,16 @@ import { UNIT_TYPE } from '../types.ts';
 import type { UnitBehavior } from './behavior.ts';
 import { completionDto, postLearnInfo } from './reports.ts';
 
-/** 讨论回复文案。接入 AI 之前先用这一句。 */
-export const REPLY_TEXT = '已学习本节内容。';
+/** 生成器返回的文本不能直接发出去：这段校验是「模型生成的内容」与平台之间的最后一道闸。 */
+function sanitize(generated: string): string | null {
+  const text = generated
+    .replace(/```[\s\S]*?```/g, ' ') // 代码块：讨论区不适合放代码
+    .replace(/https?:\/\/\S+/g, ' ') // 链接：可能是模型编的
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (text.length < 2 || text.length > 200) return null;
+  return text;
+}
 
 /**
  * 在帖子下发一条回复。
@@ -50,7 +60,11 @@ async function postReply(
 ): Promise<Result<void, TransportError>> {
   const encoder = new DwrEncoder();
   const postIdRef = encoder.number(postId);
-  const contentRef = encoder.string(`<p>${text}</p>`);
+  /*
+   * DWR 的字符串值按百分号编码发出（真实抓包里是 `%3Cp%3E…%3C%2Fp%3E`）。
+   * 互评评语走的是同一条约定（见 review.ts 的 submitEvaluation），这里保持一致。
+   */
+  const contentRef = encoder.string(encodeURIComponent(`<p>${text}</p>`));
   const anonymousRef = encoder.number(0);
 
   const response = await client.dwr.call(
@@ -71,10 +85,29 @@ async function postReply(
 
 export const discussBehavior: UnitBehavior = {
   type: UNIT_TYPE.DISCUSS,
-  // 回复要带帖子 id；没有它只能标完成，那与真人不一样
+  // 回复由 AI 生成：没有这个能力就不该进计划（见 courseware/index.ts 的 isCompletable）
+  needs: 'text',
+  // 回复要带帖子 id
   ready: (unit) => unit.contentId > 0,
-  async run(client, unit) {
-    const replied = await postReply(client, unit.contentId, REPLY_TEXT);
+  async run(client, unit, context) {
+    if (!context.generateText) {
+      return err(apiError(-1, '未配置 AI，无法生成讨论回复'));
+    }
+
+    /*
+     * 生成失败直接返回错误：上层会重试，仍失败就记为失败交人处理。
+     * 这里**不写替代文案**——一条假装学过的留言比一条失败记录更糟。
+     */
+    const generated = await context.generateText({ task: 'discuss-reply', input: unit.name });
+    if (!generated.ok) {
+      return err(apiError(-1, `AI 生成讨论回复失败：${generated.reason}`));
+    }
+    const text = sanitize(generated.text);
+    if (!text) {
+      return err(apiError(-1, 'AI 生成的讨论回复不合规（为空、过长或含链接）'));
+    }
+
+    const replied = await postReply(client, unit.contentId, text);
     if (!replied.ok) return replied;
 
     const result = await postLearnInfo(client, completionDto(unit));

@@ -20,7 +20,7 @@
  * 而且它是 32 位十六进制，编码与否结果相同。保持原样减少不必要的差异。
  */
 
-import { err, ok, type Md5HexFn, type Result } from '@study-pilot/core';
+import { err, ok, type FetchLike, type Md5HexFn, type Result } from '@study-pilot/core';
 import {
   CONCURRENCY_LIMIT_CODE,
   apiError,
@@ -45,7 +45,11 @@ export interface RpcEnvelope<T = unknown> {
   sampled?: unknown;
 }
 
-export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
+/**
+ * `FetchLike` 定义在 `@study-pilot/core`：平台协议与模型调用两个包都要注入
+ * `fetch`，类型只能有一处。这里保持对外导出不变。
+ */
+export type { FetchLike } from '@study-pilot/core';
 export type TokenProvider = () => string | Promise<string>;
 
 export interface RpcClientOptions {

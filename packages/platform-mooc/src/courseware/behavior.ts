@@ -18,9 +18,38 @@ export type BehaviorOutcome =
   /** 结构里缺少必需数据（例如视频没有时长），没有上报 */
   | 'skipped';
 
+/**
+ * 生成一段文本（讨论留言）。失败时**不要**返回替代文案——这里没有「固定文案」
+ * 这回事：讨论单元必须由 AI 写出内容，写不出来就如实失败，交人处理。
+ */
+export type TextGenerator = (
+  request: { task: string; input: string },
+) => Promise<{ ok: true; text: string } | { ok: false; reason: string }>;
+
+/**
+ * 执行课件行为需要的能力。
+ *
+ * 行为自己声明需要什么（`needs`），调用方声明具备什么（这里）。两者对不上时
+ * 该类型**不进计划**——与其写一条永远失败的待办，不如让用户看到
+ * 「需要先配置 AI」。
+ */
+export interface CoursewareCapabilities {
+  /** 是否具备文本生成能力（配置了 AI） */
+  text: boolean;
+}
+
+export interface CoursewareContext {
+  generateText?: TextGenerator;
+}
+
 export interface UnitBehavior {
   /** 课件单元类型，取 `UNIT_TYPE` 的值 */
   readonly type: number;
+  /**
+   * 这个行为需要什么能力。缺省表示不需要额外能力。
+   * 目前只有讨论需要 `text`。
+   */
+  readonly needs?: 'text';
   /**
    * 结构里的数据够不够执行它。
    *
@@ -29,5 +58,9 @@ export interface UnitBehavior {
    */
   ready(unit: CourseUnit): boolean;
   /** 执行。成败都经 Result 表达，不抛异常 */
-  run(client: MoocClient, unit: CourseUnit): Promise<Result<BehaviorOutcome, TransportError>>;
+  run(
+    client: MoocClient,
+    unit: CourseUnit,
+    context: CoursewareContext,
+  ): Promise<Result<BehaviorOutcome, TransportError>>;
 }

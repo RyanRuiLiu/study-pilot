@@ -43,6 +43,9 @@ export {
   isCompletable,
   completeUnit,
   type BehaviorOutcome,
+  type CoursewareCapabilities,
+  type CoursewareContext,
+  type TextGenerator,
   type UnitBehavior,
 } from './courseware/index.ts';
 
