@@ -12,8 +12,6 @@ import { courseList } from '../course-list.ts';
 import { current } from '../state.ts';
 
 export function accountSection(): HTMLElement {
-  const mooc = current.mooc;
-  const ai = current.ai;
   return section('account', '账号与课程', '先确认登录状态，再选择参与任务的课程。', [
       platform('慕课平台', 'icourse163.org', [
         row(

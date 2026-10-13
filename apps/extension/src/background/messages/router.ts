@@ -41,6 +41,7 @@ import {
 import { recoveryFailure, withSessionRecovery } from '../runtime/session-recovery';
 import { handleQuery } from './queries.ts';
 import { handleUnitQuestions } from './papers.ts';
+import { handleDashboard } from './overview.ts';
 import { handleSubmitQuiz } from './quiz.ts';
 
 /** 回响应给前台。形状由 messaging 的 ResponseMap 约束，这里只要求可调用。 */
@@ -264,6 +265,12 @@ export function registerMessageHandler(deps: RouterDeps): void {
         case 'UNIT_QUESTIONS': {
           // 得分指导要的题目：取数集中在后台，前台只拿结果
           sendResponse(await handleUnitQuestions(deps, request.kind, request.tid));
+          break;
+        }
+
+        case 'DASHBOARD': {
+          // 看板数据：只读快照，不发平台请求
+          sendResponse(await handleDashboard(deps));
           break;
         }
 

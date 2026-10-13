@@ -9,8 +9,6 @@ import { unitDetailsView } from '../unit-details.ts';
 import { current } from '../state.ts';
 
 export function detailsSection(): HTMLElement {
-  const mooc = current.mooc;
-  const ai = current.ai;
   return section('details', '单元明细', '已勾选课程下的全部单元。状态取自平台，截止列为该单元的截止时间，得分列为你已得的分数。', [
       platform('已勾选课程', '当前课程', [unitDetailsView()]),
     ]);

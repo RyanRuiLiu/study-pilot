@@ -11,7 +11,6 @@ import { current } from '../state.ts';
 
 export function scheduleSection(): HTMLElement {
   const mooc = current.mooc;
-  const ai = current.ai;
   return section('schedule', '运行时机', '决定后台什么时候检查，以及检查之后什么时候真的去拉取。', [
       platform('检查', '', [
         row(

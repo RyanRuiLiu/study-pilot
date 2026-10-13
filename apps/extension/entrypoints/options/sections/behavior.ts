@@ -8,8 +8,6 @@ import { platform, prose, section } from '../ui.ts';
 import { current } from '../state.ts';
 
 export function behaviorSection(): HTMLElement {
-  const mooc = current.mooc;
-  const ai = current.ai;
   return section('behavior', '运作方式', '扩展做哪些动作、什么时候做。', [
       platform('动作', '', [
         prose([
