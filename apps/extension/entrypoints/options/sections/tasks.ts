@@ -13,7 +13,6 @@ import { current } from '../state.ts';
 
 export function tasksSection(): HTMLElement {
   const mooc = current.mooc;
-  const ai = current.ai;
   return section('tasks', '自动任务', '开启后这些事会在检查时自动完成。做不了的仍然需要你自己处理，并在有结果时收到桌面通知。', [
       platform('慕课平台', 'icourse163.org', [
         row(

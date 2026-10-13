@@ -10,8 +10,6 @@ import { row, button, platform, section } from '../ui.ts';
 import { current } from '../state.ts';
 
 export function executionSection(): HTMLElement {
-  const mooc = current.mooc;
-  const ai = current.ai;
   return section('execution', '执行与诊断', '手动运行一次，并查看运行状态。', [
       platform('手动执行', '按需触发', [
         row(
@@ -31,6 +29,15 @@ export function executionSection(): HTMLElement {
       ]),
       platform('运行状态', '中断可续', [
         progressView(),
+      ]),
+      platform('看板', '只读', [
+        row(
+          '打开看板',
+          '各平台各课程的任务一览。只读本地快照，打开它不会向平台发请求',
+          button('打开看板', () => {
+            void browser.tabs.create({ url: browser.runtime.getURL('/dashboard.html') });
+          }),
+        ),
       ]),
     ]);
 }

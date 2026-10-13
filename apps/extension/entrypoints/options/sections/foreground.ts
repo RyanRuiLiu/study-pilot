@@ -10,7 +10,6 @@ import { current } from '../state.ts';
 
 export function foregroundSection(): HTMLElement {
   const mooc = current.mooc;
-  const ai = current.ai;
   return section('foreground', '前台功能', '打开对应页面时生效，不影响后台任务。做题助手需要你自己点提交，扩展不代点。', [
       platform('慕课平台', 'icourse163.org', [
         row(

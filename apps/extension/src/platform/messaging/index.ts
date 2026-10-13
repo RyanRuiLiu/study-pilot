@@ -17,6 +17,7 @@ import type {
   OpenQuizInfo,
   PaperQuestion,
 } from '@study-pilot/platform-mooc';
+import type { DashboardView } from '../../domain/task.ts';
 import type { MoocSession } from '../mooc/session';
 import type {
   DiagnoseReport,
@@ -65,6 +66,8 @@ export type BackgroundRequest =
   | { type: 'QUIZ_INFO'; tid: number }
   /** 得分指导要的题目（作业或考试） */
   | { type: 'UNIT_QUESTIONS'; kind: 'homework' | 'exam'; tid: number }
+  /** 看板要的课程与任务（中立模型），只读本地快照 */
+  | { type: 'DASHBOARD' }
   /*
    * 提交单元测验。前台点「提交答案」走这里，而不是自己调写接口：
    * 写入只从后台发出，理由同上，且写入不可逆。
@@ -89,6 +92,7 @@ export interface ResponseMap {
   QUIZ_BANK: QueryOutcome<BankQuestion[]>;
   QUIZ_INFO: QueryOutcome<OpenQuizInfo>;
   UNIT_QUESTIONS: QueryOutcome<PaperQuestion[]>;
+  DASHBOARD: QueryOutcome<DashboardView>;
   SUBMIT_QUIZ: { ok: true; matched: number } | { ok: false; message: string };
 }
 

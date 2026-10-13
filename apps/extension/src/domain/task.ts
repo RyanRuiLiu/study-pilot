@@ -90,3 +90,17 @@ export function taskId(
 ): string {
   return `${platformId}:${courseId}:${kind}:${localId}`;
 }
+
+/**
+ * 看板要的全部数据。
+ *
+ * `fetchedAt` 是**读快照的时刻**，不是此刻：看板不直接发请求（见设计文档），
+ * 因此必须把「数据有多旧」如实告诉用户，而不是让他以为看到的是最新。
+ * 0 表示还没有快照。
+ */
+export interface DashboardView {
+  fetchedAt: number;
+  courses: Course[];
+  tasks: Task[];
+}
+

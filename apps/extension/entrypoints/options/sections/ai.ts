@@ -10,7 +10,6 @@ import { requestAiPermission, checkAiConnection } from '../actions.ts';
 import { current } from '../state.ts';
 
 export function aiSection(): HTMLElement {
-  const mooc = current.mooc;
   const ai = current.ai;
   return section('ai', 'AI 能力', '需要 AI 的功能（目前是讨论区留言）由你提供接口地址、模型与密钥。密钥只存在本机，不参与同步、不上报。', [
       prose([
