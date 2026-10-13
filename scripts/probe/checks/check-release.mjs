@@ -279,26 +279,11 @@ console.log('');
 console.log('=== 代码卫生 ===');
 console.log('（由 eslint 标准规则负责，见 scripts/verify/check-eslint.mjs）');
 
-const LAYER_RULES = [
-  ['packages/core/', []],
-  ['packages/transport/', ['@study-pilot/core']],
-  ['packages/ai/', ['@study-pilot/core']],
-  // platform-mooc 不认识 AI：模型能力由 app 侧以端口注入
-  ['packages/platform-mooc/', ['@study-pilot/core', '@study-pilot/transport']],
-];
-
-const PACKAGE_IMPORT = /from '(@study-pilot\/[a-z-]+)/g;
-const layerHits = [];
-for (const file of [...collect(join(ROOT, 'packages'), (n) => n.endsWith('.ts'))]) {
-  if (/[\\/]test[\\/]/.test(file)) continue;
-  const here = rel(file);
-  const rule = LAYER_RULES.find(([prefix]) => here.startsWith(prefix));
-  if (!rule) continue;
-  for (const match of readFileSync(file, 'utf8').matchAll(PACKAGE_IMPORT)) {
-    if (!rule[1].includes(match[1])) layerHits.push(`${here} → ${match[1]}`);
-  }
-}
-record('依赖方向没有反向', layerHits.length === 0, layerHits.slice(0, 4).join('  '));
+// ---------- 11b. 依赖方向 ----------
+//
+// 原先这里是一张 LAYER_RULES 表 + 正则抓 `from '@study-pilot/x'`：dynamic import、
+// require 这类写法它看不到。现在由 eslint-plugin-boundaries 负责（配置在
+// eslint.config.mjs，脚本见 scripts/verify/check-eslint.mjs 的「依赖方向没有反向」）。
 
 // ---------- 12. 写入路径只在后台 ----------
 //
