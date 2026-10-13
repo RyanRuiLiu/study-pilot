@@ -122,19 +122,17 @@ record(
 console.log('');
 console.log('=== 文案 ===');
 
+/*
+ * 检查哪些文件里的界面文案。
+ *
+ * 这里**不维护文件清单**：清单会随目录重构而过期，而过期的表现是
+ * 「检查照常通过、只是没检查到那些文件」——静默失效，比不检查更糟。
+ * 因此按目录取全部源码与页面，宁可多一些误报（误报看得见，漏报看不见）。
+ */
 const UI_FILES = [
-  'apps/extension/entrypoints/options/main.ts',
-  'apps/extension/entrypoints/options/index.html',
-  'apps/extension/entrypoints/popup/main.ts',
-  'apps/extension/entrypoints/popup/index.html',
-  'apps/extension/src/background/reminder.ts',
-  'apps/extension/src/background/work-status.ts',
-  'apps/extension/src/background/to-messages.ts',
-  'apps/extension/src/background/scheduler.ts',
-  'apps/extension/src/platform/messaging.ts',
-  'apps/extension/src/features/quiz-helper.ts',
-  'apps/extension/src/features/quiz-stage.ts',
-].map((p) => join(ROOT, p));
+  ...collect(join(ROOT, 'apps', 'extension', 'entrypoints'), (n) => /\.(ts|html)$/.test(n)),
+  ...collect(join(ROOT, 'apps', 'extension', 'src'), (n) => /\.(ts|html)$/.test(n)),
+];
 
 /** 从源码里取出用户可见的中文字符串。 */
 function uiStrings(source) {
@@ -234,6 +232,72 @@ const JUNK = ['node_modules', '.probe', 'apps/extension/.wxt', 'apps/extension/.
 const gitignore = readFileSync(join(ROOT, '.gitignore'), 'utf8');
 const notIgnored = JUNK.filter((p) => !gitignore.includes(p.split('/').pop()));
 record('构建与探测产物已忽略', notIgnored.length === 0, notIgnored.join('  '));
+
+// ---------- 7. 文件长度 ----------
+
+/*
+ * 一个文件一个职责，超过 300 行必须拆。
+ *
+ * 这条规则不写在文档里靠人记：文档会在下一次重构后过期，而过期的规则
+ * 比没有规则更坏事——照着它做会做错。这里直接判定。
+ *
+ * PENDING 是已知欠账，拆完就清空；清空之后这只清单本身也删掉。
+ * 留着它的代价是「新超限文件仍需人发现」——所以它必须尽快变空。
+ */
+console.log('');
+console.log('=== 文件长度 ===');
+
+const MAX_LINES = 300;
+/*
+ * 已知欠账，拆完就清空；清空之后这只清单本身也删掉。
+ * 留着它的代价是「新超限文件仍需人发现」——所以它必须尽快变空。
+ */
+const PENDING = [
+  'apps/extension/entrypoints/background.ts',
+  'apps/extension/entrypoints/options/main.ts',
+  'packages/platform-mooc/src/review.ts',
+  'packages/platform-mooc/src/types.ts',
+  'packages/platform-mooc/src/structure.ts',
+];
+
+/*
+ * 只判源码，不判测试：测试按被测模块聚合，一个模块一个测试文件本身就是
+ * 「一个职责」，按用例数再拆只会把同一件事散到多处。测试文件也确实是长文，
+ * 但它改动少、且读到哪一条只取决于失败的用例名。
+ */
+const longFiles = [];
+for (const file of [...collect(join(ROOT, 'apps'), (n) => n.endsWith('.ts')), ...collect(join(ROOT, 'packages'), (n) => n.endsWith('.ts'))]) {
+  if (/\.config\.ts$|d\.ts$/.test(file)) continue;
+  if (/[\\/]test[\\/]/.test(file)) continue;
+  const count = readFileSync(file, 'utf8').split('\n').length;
+  if (count > MAX_LINES && !PENDING.includes(rel(file))) longFiles.push(`${rel(file)} ${count} 行`);
+}
+record(`源码文件都在 ${MAX_LINES} 行以内`, longFiles.length === 0, longFiles.slice(0, 4).join('  '));
+
+const staleEntries = PENDING.filter((p) => {
+  const full = join(ROOT, p);
+  return !existsSync(full) || readFileSync(full, 'utf8').split('\n').length <= MAX_LINES;
+});
+record('超限欠账清单已清空', staleEntries.length === 0, staleEntries.join('  '));
+
+// ---------- 8. 文档里的路径引用 ----------
+//
+// 文档漂移最常见的形态是「路径还在、文件早已改名」。这不是靠少写文档能解决的：
+// 只要文档提到路径，就必须能被核对。这里把提到的每个仓库内路径都验一遍，
+// 过期的当场报出来——比约定「记得同步更新」可靠。
+
+console.log('');
+console.log('=== 文档引用 ===');
+
+const PATH_TOKEN = /`((?:apps|packages|scripts|docs)\/[A-Za-z0-9_./-]+\.(?:ts|mjs|js|json|css|html|md))`/g;
+const staleRefs = [];
+for (const file of MD_FILES) {
+  const text = readFileSync(file, 'utf8');
+  for (const match of text.matchAll(PATH_TOKEN)) {
+    if (!existsSync(join(ROOT, match[1]))) staleRefs.push(`${rel(file)} → ${match[1]}`);
+  }
+}
+record('文档里引用的文件都存在', staleRefs.length === 0, staleRefs.slice(0, 5).join('  '));
 
 // ---------- 汇总 ----------
 

@@ -138,7 +138,7 @@ packages/core           纯函数：MD5、Result、FetchLike
 1. 同一套协议层要能同时跑在浏览器（读 cookie）与 Node（读测试夹具）里；
 2. 凭证来源是宿主环境的知识，不是协议的知识。
 
-`apps/extension/src/platform/mooc-session.ts` 负责读取，
+`apps/extension/src/platform/mooc/session.ts` 负责读取，
 `createMoocClient` 通过 `getToken` 注入。
 
 它还负责**会话恢复**：平台的会话凭证是会话级 cookie，关闭浏览器即失效，
@@ -210,20 +210,26 @@ Web Crypto 不提供 MD5，而签名需要它。因此 `core` 里有一份自实
 ```
 apps/extension/
   entrypoints/
-    background.ts              后台装配：消息路由、启动流程
+    background.ts              后台装配（本文件将只留装配，见第 6 节）
     mooc.content.ts            MOOC 内容脚本装配
-    options/                   设置页
+    options/                   设置页（main.ts + style.css + index.html）
     popup/                     弹窗
+      main.ts                  装配
+      elements.ts              元素引用与版本号
+      status.ts                状态行、按钮可按性、执行期间跟随
+      todo.ts                  待办区取数、分组与三种状态
+      todo-row.ts              一条待办的构造
+      run.ts                   「立即执行」与结果文案
   src/
     background/
       runtime/                  与平台无关的运行时
-        scheduler.ts            运行状态：中断标记、挂起标记
+        scheduler.ts            运行状态：中断标记、挂起标记、日期键
         alarms.ts               定时唤醒
         session-recovery.ts     会话失效后的续期重读
       mooc/                     MOOC 的后台任务
-        snapshot.ts             本地快照的结构、存取与拉取（inspect）
-        task-plan.ts            派生：由快照算出该做什么（纯函数）
-        execute.ts              执行：只写不判断
+        snapshot/               本地快照：types / inspect / storage
+        task-plan/              派生计划：types / work / courseware / order
+        execute/                执行：types / bank / work / courseware
         reminder.ts             通知：组织内容与发出
         work-status.ts          由快照字段推出展示状态
         to-messages.ts          内部结构转消息格式
@@ -232,24 +238,28 @@ apps/extension/
     features/                   页面内功能
       index.ts                  装配入口
       panel.ts                  浮动面板
-      format.ts                 格式化
+      format.ts                 展示格式化（含自然日算法）
       mooc/
-        quiz-helper.ts          做题助手
+        quiz/                   做题助手：options / data / panel / actions
         quiz-stage.ts           作答页阶段判定
-        homework-answers.ts     得分指导注入
+        guidance/               得分指导：markers / page / block / paper
         selectors.ts            页面选择器
     platform/
-      messaging.ts              消息类型
+      messaging/                消息协议：envelope（通用）/ mooc（载荷）
       mooc/
         session.ts              凭证读取与会话恢复
         url.ts                  路由解析
-    settings/                   配置结构、默认值与存储
+    ai/                         模型调用接入：tasks / permission
+    settings/
+      schema/                   配置结构：index（根与规范化）/ mooc / ai
+      storage.ts                存储读写
     ui/tokens.css               设计令牌
   public/icon/                  扩展图标
 
 packages/core/
   src/md5.ts                   MD5 实现
   src/result.ts                Result 类型
+  src/fetch.ts                 FetchLike（transport 与 ai 共用的注入类型）
 
 packages/transport/
   src/sign.ts                  签名算法
@@ -258,21 +268,44 @@ packages/transport/
   src/dwr.ts                   DWR 协议与参数编码器
   src/errors.ts                错误分类
 
+packages/ai/
+  src/chat.ts                  OpenAI 兼容的对话调用
+  src/endpoint.ts              接口地址归一化
+  src/errors.ts                失败分类
+
 packages/platform-mooc/
   src/endpoints.ts             端点清单（标注证据等级）
-  src/types.ts                 领域类型
+  src/types.ts                 领域类型与单元类型常量
   src/client.ts                领域客户端装配
   src/courses.ts               课程列表
   src/structure.ts             课程结构与状态判定
   src/quiz.ts                  测验：取卷、题库、答案构造
   src/review.ts                作业与互评
+  src/courseware/              课件行为：index（注册表）/ video / document /
+                               text / unit-quiz / discuss / reports / resource
 
 scripts/probe/                 探测与自检工具链，见其 README
 ```
 
-## 5. 测试策略
+## 5. 规则放在哪里
 
-### 5.1 三个层次
+**不靠文档记规则。**写在这里的每条规则都要能被机器判定，否则它会在下一次
+重构后过期，而过期的规则比没有规则更坏事——照着它做会做错。
+
+| 规则 | 由谁保证 |
+|---|---|
+| 一个文件一个职责，超过 300 行必须拆 | `scripts/probe/checks/check-release.mjs` 的文件长度一节（附待清空的欠账清单） |
+| 界面文案、身份信息、遗留标记、文档链接、文档里的路径引用 | `scripts/probe/checks/check-release.mjs` |
+| 权限与隐私口径 | `scripts/probe/checks/check-privacy.mjs` |
+| 唯一来源、端口注入、不兜底、测试即契约 | 代码结构本身 + 类型检查 + 测试（见第 4 节目录与各模块文件头） |
+
+文档只保留「为什么这么做」——即各模块文件头与第 3 节的设计决策；
+「怎么做」写在代码与门禁里。凡是两处都写的内容，以代码与门禁为准。
+
+
+## 6. 测试策略
+
+### 6.1 三个层次
 
 | 层次 | 方式 | 覆盖 |
 |---|---|---|
@@ -281,7 +314,7 @@ scripts/probe/                 探测与自检工具链，见其 README
 | 领域层 | 真实样本回放 | 答案匹配、课程结构判定 |
 | 计划层 | 纯函数断言 | 什么该自动做、什么该交给用户 |
 
-### 5.2 样本回放
+### 6.2 样本回放
 
 领域测试用合成的结构样本（见 `packages/*/test/`），验的是「按 id 能否匹配上」
 这类结构性质。抓取的真实接口数据不入库——它不属于本项目，也可能带着账号痕迹。
@@ -292,7 +325,7 @@ scripts/probe/                 探测与自检工具链，见其 README
 
 样本已脱敏：身份字段替换为固定占位值，保留结构 id。
 
-### 5.3 界面与打包自检
+### 6.3 界面与打包自检
 
 `scripts/probe/` 下有一批自检脚本，验证的是**实际渲染结果与打包产物**，而非源码。
 完整清单与用法见 [scripts/probe/README.md](../scripts/probe/README.md)：
