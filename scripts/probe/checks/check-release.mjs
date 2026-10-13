@@ -200,25 +200,11 @@ for (const file of [...collect(join(ROOT, 'apps'), TEXT), ...collect(join(ROOT, 
 record('源码里没有未处理的标记', markerHits.length === 0, markerHits.slice(0, 4).join('  '));
 
 // ---------- 5. 文档链接 ----------
-
-console.log('');
-console.log('=== 文档 ===');
-
-const MD_FILES = [
-  ...collect(ROOT, (n) => n.endsWith('.md')),
-];
-
-const badLinks = [];
-for (const file of MD_FILES) {
-  const text = readFileSync(file, 'utf8');
-  for (const m of text.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)) {
-    const target = m[2];
-    if (/^https?:|^#|^mailto:/.test(target)) continue;
-    const [path] = target.split('#');
-    if (path && !existsSync(join(dirname(file), path))) badLinks.push(`${rel(file)} → ${target}`);
-  }
-}
-record('文档内部链接都有效', badLinks.length === 0, badLinks.slice(0, 3).join('  '));
+//
+// 原先这里自写正则验 `[文字](目标)` 的目标文件是否存在，第 8 段又自写一次验
+// 反引号里的仓库路径。两段都只看「文件在不在」，锚点看不到。现在文档里提到的
+// 仓库文件一律写成链接（链接文字仍是路径），由 remark + remark-validate-links
+// 统一校验（见 scripts/verify/check-remark.mjs），两段自写实现都已删除。
 
 // ---------- 6. 产物无关文件 ----------
 
@@ -238,22 +224,9 @@ record('构建与探测产物已忽略', notIgnored.length === 0, notIgnored.joi
 
 // ---------- 8. 文档里的路径引用 ----------
 //
-// 文档漂移最常见的形态是「路径还在、文件早已改名」。这不是靠少写文档能解决的：
-// 只要文档提到路径，就必须能被核对。这里把提到的每个仓库内路径都验一遍，
-// 过期的当场报出来——比约定「记得同步更新」可靠。
-
-console.log('');
-console.log('=== 文档引用 ===');
-
-const PATH_TOKEN = /`((?:apps|packages|scripts|docs)\/[A-Za-z0-9_./-]+\.(?:ts|mjs|js|json|css|html|md))`/g;
-const staleRefs = [];
-for (const file of MD_FILES) {
-  const text = readFileSync(file, 'utf8');
-  for (const match of text.matchAll(PATH_TOKEN)) {
-    if (!existsSync(join(ROOT, match[1]))) staleRefs.push(`${rel(file)} → ${match[1]}`);
-  }
-}
-record('文档里引用的文件都存在', staleRefs.length === 0, staleRefs.slice(0, 5).join('  '));
+// 文档漂移最常见的形态是「路径还在、文件早已改名」。原先这里把反引号里
+// 形如 `docs/x.md` 的路径逐个判存在——现在这些引用都写成了链接，由
+// remark + remark-validate-links 校验（见 scripts/verify/check-remark.mjs）。
 
 // ---------- 9. 唯一来源 ----------
 //

@@ -177,7 +177,7 @@ interface PlatformAdapter {
 3. `src/platforms/index.ts`：`PLATFORMS` 注册表。
 4. 后台计划改为在 `Task[]` 上工作（`mode`/`state` 决定是否自动），写动作仍由平台包提供。
 5. 新 entrypoint `dashboard`，只读渲染中立模型；options 里的「单元明细」迁入。
-6. 文档：更新 `docs/architecture.md`（加三个平面与中立模型）、新增 `docs/specs/`（本文件）。
+6. 文档：更新 [`docs/architecture.md`](../architecture.md)（加三个平面与中立模型）、新增 `docs/specs/`（本文件）。
 
 ## 11. 验收标准
 

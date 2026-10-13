@@ -138,7 +138,7 @@ packages/core           纯函数：MD5、Result、FetchLike
 1. 同一套协议层要能同时跑在浏览器（读 cookie）与 Node（读测试夹具）里；
 2. 凭证来源是宿主环境的知识，不是协议的知识。
 
-`apps/extension/src/platform/mooc/session.ts` 负责读取，
+[`apps/extension/src/platform/mooc/session.ts`](../apps/extension/src/platform/mooc/session.ts) 负责读取，
 `createMoocClient` 通过 `getToken` 注入。
 
 它还负责**会话恢复**：平台的会话凭证是会话级 cookie，关闭浏览器即失效，
@@ -294,9 +294,9 @@ scripts/probe/                 探测与自检工具链，见其 README
 
 | 规则 | 由谁保证 |
 |---|---|
-| 一个文件一个职责，超过 300 行必须拆 | `scripts/probe/checks/check-release.mjs` 的文件长度一节（附待清空的欠账清单） |
-| 界面文案、身份信息、遗留标记、文档链接、文档里的路径引用 | `scripts/probe/checks/check-release.mjs` |
-| 权限与隐私口径 | `scripts/probe/checks/check-privacy.mjs` |
+| 一个文件一个职责，超过 300 行必须拆 | [`scripts/probe/checks/check-release.mjs`](../scripts/probe/checks/check-release.mjs) 的文件长度一节（附待清空的欠账清单） |
+| 界面文案、身份信息、遗留标记、文档链接、文档里的路径引用 | [`scripts/probe/checks/check-release.mjs`](../scripts/probe/checks/check-release.mjs) |
+| 权限与隐私口径 | [`scripts/probe/checks/check-privacy.mjs`](../scripts/probe/checks/check-privacy.mjs) |
 | 唯一来源、端口注入、不兜底、测试即契约 | 代码结构本身 + 类型检查 + 测试（见第 4 节目录与各模块文件头） |
 
 文档只保留「为什么这么做」——即各模块文件头与第 3 节的设计决策；

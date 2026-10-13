@@ -143,7 +143,7 @@
 
 ## 7. 工具层面的防护
 
-`scripts/probe/inspect/call.mjs` 默认只放行只读方法，前缀白名单如下：
+[`scripts/probe/inspect/call.mjs`](../scripts/probe/inspect/call.mjs) 默认只放行只读方法，前缀白名单如下：
 
 ```
 get / list / search / query / has / is / can / check / page / find
@@ -274,7 +274,7 @@ the server" 阶段，因此改写对服务端可见。实测改写后 service wo
 - `modifyHeaders` 不能限定 `resourceTypes`。指定后就匹配不上了，
   因为 service worker 发出的请求被归类为 `other`。
 
-实现见 `apps/extension/src/background/net-rules.ts`，在后台注册时幂等安装。
+实现见 [`apps/extension/src/background/net-rules.ts`](../apps/extension/src/background/net-rules.ts)，在后台注册时幂等安装。
 
 ## 12. 调试宿主必须用 Chrome for Testing
 
