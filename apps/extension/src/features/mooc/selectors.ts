@@ -5,7 +5,7 @@
  * 因此这里不再记录任何选项相关的选择器。
  *
  * 全部取自线上 bundle 的模板取证与真实页面采集，来源见
- * docs/platforms/mooc.md 第 6 节。平台改版后先重跑探测工具核对，再改本文件。
+ * docs/platforms/mooc.md 第 7 节（页面结构契约）。平台改版后先重跑探测工具核对，再改本文件。
  */
 
 export const SELECTORS = {
