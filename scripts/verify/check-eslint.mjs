@@ -83,6 +83,12 @@ const ITEMS = [
     takes: (message) => message.ruleId === 'id-denylist',
     detail: (message) => `${message.file}:${message.line} ${message.message}`,
   },
+  {
+    /* 原先是一张自写 LAYER_RULES 表 + 抓 `from '...'` 的正则；现在由 boundaries 判定。 */
+    name: '依赖方向没有反向',
+    takes: (message) => (message.ruleId ?? '').startsWith('boundaries/'),
+    detail: (message) => `${message.file}:${message.line} ${message.message}`,
+  },
 ];
 
 for (const item of ITEMS) {

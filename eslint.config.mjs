@@ -9,9 +9,37 @@
  */
 
 import js from '@eslint/js';
+import boundaries from 'eslint-plugin-boundaries';
 import globals from 'globals';
 import unusedImports from 'eslint-plugin-unused-imports';
 import tseslint from 'typescript-eslint';
+
+/*
+ * ---- 替代手写的「依赖方向」检查 ----
+ *
+ * 原先是一张 LAYER_RULES 表 + 正则抓 `from '@study-pilot/x'`：只认静态 import/export
+ * 这一种写法（dynamic import、require 全漏），也看不出包与包之间的方向。
+ * 这里交给 eslint-plugin-boundaries：
+ *   - 每个包是一个元素（element），元素之间按策略允许或禁止依赖；
+ *   - 包之间的引用必须用 module.source 匹配。原因很实在：pnpm 只把「声明过的依赖」
+ *     链接进每个包的 node_modules，非法引用（没声明就 import）恰恰解析不到文件，
+ *     默认会被归类成 external 而跳过检查。因此用 flag-as-external 明确把
+ *     @study-pilot/* 当外部模块，再按源串匹配；配合 checkAllOrigins 才会评估它们。
+ *   - @study-pilot/* 之外的第三方与 Node 内置不在管辖范围（第一条策略放行）。
+ *
+ * 只判 packages/：apps 是组合层，按设计可以依赖任何包（原检查同样只看 packages）。
+ * 同一个包内部的相对导入是「元素内部依赖」，规则默认不判。
+ */
+const WORKSPACE_IMPORTS = '@study-pilot/**';
+
+/* 每个包允许依赖的工作区包。core 是空数组：它谁也不依赖。 */
+const PACKAGE_DEPENDENCIES = {
+  core: [],
+  transport: ['@study-pilot/core'],
+  ai: ['@study-pilot/core'],
+  // platform-mooc 不认识 AI：模型能力由 app 侧以端口注入
+  'platform-mooc': ['@study-pilot/core', '@study-pilot/transport'],
+};
 
 export default tseslint.config(
   {
@@ -122,6 +150,42 @@ export default tseslint.config(
      */
     files: ['**/*.config.ts', '**/*.d.ts'],
     rules: { 'max-lines': 'off' },
+  },
+
+  {
+    files: ['packages/**/*.ts'],
+    plugins: { boundaries },
+    settings: {
+      'boundaries/root-path': import.meta.dirname,
+      // 工作区包不由 node_modules 解析（见文件头的说明）
+      'boundaries/flag-as-external': { customSourcePatterns: ['@study-pilot/*'] },
+      'boundaries/elements': Object.keys(PACKAGE_DEPENDENCIES).map((name) => ({
+        type: name,
+        pattern: `packages/${name}`,
+        partialMatch: false,
+      })),
+    },
+    rules: {
+      'boundaries/dependencies': [
+        'error',
+        {
+          default: 'disallow',
+          // external 目标默认不评估，而工作区包正是被当成 external 的
+          checkAllOrigins: true,
+          policies: [
+            // 第三方与 Node 内置不归这条规则管
+            { from: { element: { type: '*' } }, allow: { to: { module: { source: '**' } } } },
+            ...Object.entries(PACKAGE_DEPENDENCIES).flatMap(([type, allowed]) => [
+              // 先整体禁掉工作区包，再按表放行——策略按顺序取最后一条命中的
+              { from: { element: { type } }, disallow: { to: { module: { source: WORKSPACE_IMPORTS } } } },
+              ...(allowed.length === 0
+                ? []
+                : [{ from: { element: { type } }, allow: { to: { module: { source: allowed } } } }]),
+            ]),
+          ],
+        },
+      ],
+    },
   },
 
   {
