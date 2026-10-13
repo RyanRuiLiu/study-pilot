@@ -241,20 +241,11 @@ record('构建与探测产物已忽略', notIgnored.length === 0, notIgnored.joi
  * 这条规则不写在文档里靠人记：文档会在下一次重构后过期，而过期的规则
  * 比没有规则更坏事——照着它做会做错。这里直接判定。
  *
- * PENDING 是已知欠账，拆完就清空；清空之后这只清单本身也删掉。
- * 留着它的代价是「新超限文件仍需人发现」——所以它必须尽快变空。
  */
 console.log('');
 console.log('=== 文件长度 ===');
 
 const MAX_LINES = 300;
-/*
- * 已知欠账，拆完就清空；清空之后这只清单本身也删掉。
- * 留着它的代价是「新超限文件仍需人发现」——所以它必须尽快变空。
- */
-const PENDING = [
-  'apps/extension/entrypoints/options/main.ts',
-];
 
 /*
  * 只判源码，不判测试：测试按被测模块聚合，一个模块一个测试文件本身就是
@@ -266,15 +257,10 @@ for (const file of [...collect(join(ROOT, 'apps'), (n) => n.endsWith('.ts')), ..
   if (/\.config\.ts$|d\.ts$/.test(file)) continue;
   if (/[\\/]test[\\/]/.test(file)) continue;
   const count = readFileSync(file, 'utf8').split('\n').length;
-  if (count > MAX_LINES && !PENDING.includes(rel(file))) longFiles.push(`${rel(file)} ${count} 行`);
+  if (count > MAX_LINES) longFiles.push(`${rel(file)} ${count} 行`);
 }
 record(`源码文件都在 ${MAX_LINES} 行以内`, longFiles.length === 0, longFiles.slice(0, 4).join('  '));
 
-const staleEntries = PENDING.filter((p) => {
-  const full = join(ROOT, p);
-  return !existsSync(full) || readFileSync(full, 'utf8').split('\n').length <= MAX_LINES;
-});
-record('超限欠账清单已清空', staleEntries.length === 0, staleEntries.join('  '));
 
 // ---------- 8. 文档里的路径引用 ----------
 //
@@ -332,15 +318,6 @@ for (const file of [...collect(join(ROOT, 'apps'), (n) => n.endsWith('.ts')), ..
   }
 }
 record('唯一来源的符号没有第二处声明', misplaced.length === 0, misplaced.slice(0, 4).join('  '));
-
-// ---------- 10. 分层方向 ----------
-//
-// 依赖必须单向：core ← transport ← platform-mooc ← app，ai 与 transport 平级。
-// 「分层」写在文档里等于没有约束——反向依赖同样能编译、能跑，只是把
-// 两层的边界溶掉，之后谁也说不清哪一层能用什么。这里按包判定。
-
-console.log('');
-console.log('=== 分层方向 ===');
 
 const LAYER_RULES = [
   ['packages/core/', []],
