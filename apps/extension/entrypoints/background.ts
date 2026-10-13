@@ -5,7 +5,7 @@
  * 任务逻辑位于 `src/background/`，配置门禁由任务自身强制。
  *
  * 运行模型：每周指定日的首次浏览器启动时执行一次。判定与进度记录在
- * `src/background/scheduler.ts`，一次批次的完整流程在 `src/background/run-tasks.ts`。
+ * `src/background/scheduler.ts`，一轮的完整流程在 `src/background/run-tasks.ts`。
  */
 
 import { md5hex } from '@study-pilot/core';

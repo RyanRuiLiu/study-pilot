@@ -24,7 +24,7 @@ const STATE_KEY = 'study-pilot:task-state';
 /** 跨次运行保留的状态。 */
 export interface TaskState {
   /**
-   * 正在执行的批次开始时间。非 null 表示上次运行没有正常结束——
+   * 正在执行的一轮开始时间。非 null 表示上次运行没有正常结束——
    * 可能是正在跑，也可能是浏览器被强杀后留下的标记，两者要靠心跳区分。
    */
   runningSince: number | null;

@@ -160,7 +160,7 @@ export async function refreshCourses(client: MoocClient): Promise<
 }
 
 /**
- * 浏览器启动时判断是否该执行一次批次。
+ * 浏览器启动时判断是否该执行一轮。
  *
  * 启动瞬间后台线程仍在初始化，按配置延迟一小段时间再开始，
  * 避免与页面加载争抢网络与 CPU。

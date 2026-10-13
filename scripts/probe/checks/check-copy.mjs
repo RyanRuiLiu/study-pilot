@@ -12,35 +12,34 @@
  * 用法：node scripts/probe/checks/check-copy.mjs
  */
 
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** 项目根目录。本文件在 scripts/probe/checks/ 下，往上三层。 */
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-const FILES = [
-  'apps/extension/entrypoints/options/main.ts',
-  'apps/extension/entrypoints/popup/main.ts',
-  'apps/extension/src/background/task-plan.ts',
-  'apps/extension/src/background/execute.ts',
-  'apps/extension/src/background/reminder.ts',
-  'apps/extension/src/platform/messaging.ts',
-  'apps/extension/src/features/quiz-helper.ts',
-];
+/** 扫描时跳过的目录：产物与依赖里没有我们的文案。 */
+const SKIP = /node_modules|\.output|\.wxt|\.git$|\\test\\|\/test\//;
 
 /*
- * 先确认列出的文件都在。
+ * 扫哪些文件：**按目录取，不维护清单**。
  *
- * 删掉模块却忘了改这份清单时，直接抛 ENOENT 看不出是清单过期
- * 还是文件真的丢了——而这两种情况的处理方式完全不同。
+ * 先前这里是一份手写清单，模块改名或搬家之后它就过期了——而过期的表现
+ * 是「检查照常跑，只是漏掉了那些文件」，与 check-release 曾经的问题同源。
+ * 目录本身就是唯一来源，不必再同步。
  */
-const missing = FILES.filter((f) => !existsSync(join(ROOT, f)));
-if (missing.length > 0) {
-  console.error('清单里的文件不存在：' + missing.join(' '));
-  console.error('删掉模块之后要同步这份清单。');
-  process.exit(1);
+function collect(dir, out = []) {
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    if (SKIP.test(path)) continue;
+    if (statSync(path).isDirectory()) collect(path, out);
+    else if (/\.(ts|html)$/.test(name)) out.push(relative(ROOT, path).replace(/\\/g, '/'));
+  }
+  return out;
 }
+
+const FILES = collect(join(ROOT, 'apps/extension'));
 
 const results = [];
 const record = (name, ok, detail) => {
@@ -67,7 +66,20 @@ const sources = new Map();
  * 会看不出是清单过期还是文件真丢了。
  */
 for (const file of FILES) {
-  sources.set(file, readFileSync(join(ROOT, file), 'utf8'));
+  /*
+   * 注释不参与文案检查。
+   *
+   * 注释里常用反引号夹代码路径，而「两个反引号之间的中文」会被下面的提取规则
+   * 当成界面文案——先前就因此把一句注释误报成术语泄漏。界面文案只可能出现在
+   * 代码行里，因此按行剔除注释。
+   */
+  sources.set(
+    file,
+    readFileSync(join(ROOT, file), 'utf8')
+      .split('\n')
+      .filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line))
+      .join('\n'),
+  );
 }
 
 // ---------- 1. 内部术语 ----------
@@ -119,7 +131,13 @@ console.log('=== 与功能一致 ===');
  * 逐条罗列的写法天然会过时——每加一类任务就要记得改这一句。
  * 现在断言的是反面：它必须说的是「拉最新状态后执行」这件事本身。
  */
-const options = sources.get('apps/extension/entrypoints/options/main.ts');
+/*
+ * 设置页的文案分散在 options/ 下的多个文件里（main + sections/*）。
+ * 这里按目录取全部内容拼起来再匹配：写死某个文件会在切分之后失效。
+ */
+const options = FILES.filter((f) => f.startsWith('apps/extension/entrypoints/options/'))
+  .map((f) => sources.get(f) ?? '')
+  .join('\n');
 const runAllRow = options.match(/'立即执行',\s*'([^']+)'/);
 record(
   '「立即执行」说明不逐条罗列任务类别',
