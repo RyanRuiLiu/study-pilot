@@ -9,7 +9,7 @@
  */
 
 export { showQuizHelper, removeQuizHelper, type QuizHelperOptions } from './mooc/quiz';
-export { injectHomeworkAnswers, removeHomeworkAnswers } from './mooc/guidance';
+export { injectHomeworkAnswers, loadQuestions, removeHomeworkAnswers } from './mooc/guidance';
 export {
   detectQuizStage,
   probeQuizStage,

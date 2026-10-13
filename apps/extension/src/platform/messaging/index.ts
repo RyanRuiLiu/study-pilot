@@ -11,7 +11,12 @@
  * `mooc.ts` 放平台载荷；本文件只把请求与响应绑在一起，并对外导出。
  */
 
-import type { BankQuestion, CourseSummary, OpenQuizInfo } from '@study-pilot/platform-mooc';
+import type {
+  BankQuestion,
+  CourseSummary,
+  OpenQuizInfo,
+  PaperQuestion,
+} from '@study-pilot/platform-mooc';
 import type { MoocSession } from '../mooc/session';
 import type {
   DiagnoseReport,
@@ -58,6 +63,8 @@ export type BackgroundRequest =
    */
   | { type: 'QUIZ_BANK'; termId: number }
   | { type: 'QUIZ_INFO'; tid: number }
+  /** 得分指导要的题目（作业或考试） */
+  | { type: 'UNIT_QUESTIONS'; kind: 'homework' | 'exam'; tid: number }
   /*
    * 提交单元测验。前台点「提交答案」走这里，而不是自己调写接口：
    * 写入只从后台发出，理由同上，且写入不可逆。
@@ -81,6 +88,7 @@ export interface ResponseMap {
   NOTIFY_SAMPLE: { ok: true; hasContent: boolean };
   QUIZ_BANK: QueryOutcome<BankQuestion[]>;
   QUIZ_INFO: QueryOutcome<OpenQuizInfo>;
+  UNIT_QUESTIONS: QueryOutcome<PaperQuestion[]>;
   SUBMIT_QUIZ: { ok: true; matched: number } | { ok: false; message: string };
 }
 

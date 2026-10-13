@@ -19,13 +19,11 @@
  * 只观察 childList 会漏掉这次切换，面板就会一直停在「尚未开始测验」。
  */
 
-import { md5hex } from '@study-pilot/core';
-import { createMoocClient } from '@study-pilot/platform-mooc';
 import { getSettings, watchSettings, type Settings } from '../src/settings';
-import { readTokenFromDocument } from '../src/platform/mooc/session';
 import { parseMoocLocation } from '../src/platform/mooc/url';
 import {
   injectHomeworkAnswers,
+  loadQuestions,
   removeHomeworkAnswers,
   removeQuizHelper,
   showQuizHelper,
@@ -39,13 +37,13 @@ export default defineContentScript({
   runAt: 'document_idle',
 
   async main() {
-    const client = createMoocClient({
-      fetch: (input, init) => window.fetch(input, init),
-      // 内容脚本读的是 document.cookie，而不是 browser.cookies，
-      // 后者在此环境不可用。原因见 mooc-session.ts 的说明。
-      getToken: readTokenFromDocument,
-      md5: md5hex,
-    });
+    /*
+     * 这里不建客户端。
+     *
+     * 内容脚本要的平台数据一律经消息向后台取：两个上下文各建一个客户端时，
+     * 各自都有一个节流器而互不知情，并发发请求会撞上平台的并发限制。
+     * 现在全项目只有一个节流器，在后台那一个客户端里。
+     */
 
     let settings: Settings = await getSettings();
 
@@ -103,7 +101,7 @@ export default defineContentScript({
         location.contentId !== null
       ) {
         const kind = location.view === 'exam-subjective' ? 'exam' : 'homework';
-        void injectHomeworkAnswers(client, location.contentId, kind).catch(() => undefined);
+        void injectHomeworkAnswers(loadQuestions, location.contentId, kind).catch(() => undefined);
       } else {
         removeHomeworkAnswers();
       }

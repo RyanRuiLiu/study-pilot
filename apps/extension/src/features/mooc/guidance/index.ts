@@ -13,11 +13,28 @@
  * 块渲染见 `block.ts`，取卷见 `paper.ts`。
  */
 
-import type { MoocClient } from '@study-pilot/platform-mooc';
+import type { PaperQuestion } from '@study-pilot/platform-mooc';
+import { sendToBackground } from '../../../platform/messaging';
 import { buildAnswerBlock } from './block.ts';
 import { ANSWER_MARK_ATTRIBUTE, answerSource } from './markers.ts';
 import { anchorOf, matchQuestions, normalizeItem, normalizePage, questionItems } from './page.ts';
-import { loadExamQuestions, loadHomeworkQuestions } from './paper.ts';
+
+/**
+ * 取一份卷的题目。
+ *
+ * 作为端口注入而不是在模块里直接用客户端：内容脚本不建客户端，
+ * 取数集中在后台（那里的节流是唯一的）。测试注入假实现即可，不必 mock 浏览器。
+ */
+export type QuestionLoader = (
+  kind: 'homework' | 'exam',
+  tid: number,
+) => Promise<PaperQuestion[] | null>;
+
+/** 生产实现：让后台去取。取不到时返回 null，由调用方决定不注入。 */
+export const loadQuestions: QuestionLoader = async (kind, tid) => {
+  const outcome = await sendToBackground({ type: 'UNIT_QUESTIONS', kind, tid });
+  return outcome.status === 'ok' ? outcome.value : null;
+};
 
 // 注入标记是这一层的公开契约（调用方要靠它识别与清理注入块）
 export * from './markers.ts';
@@ -64,7 +81,7 @@ function isStale(request: InjectionRequest): boolean {
  * 因此注入逻辑共用一套。
  */
 export async function injectHomeworkAnswers(
-  client: MoocClient,
+  load: QuestionLoader,
   tid: number,
   kind: 'homework' | 'exam' = 'homework',
 ): Promise<void> {
@@ -77,8 +94,7 @@ export async function injectHomeworkAnswers(
 
   const request = beginRequest(source);
 
-  const questions =
-    kind === 'exam' ? await loadExamQuestions(client, tid) : await loadHomeworkQuestions(client, tid);
+  const questions = await load(kind, tid);
 
   // 取卷期间又换了单元，或页面被卸载：这次结果已经过时
   if (isStale(request)) return;
