@@ -12,7 +12,7 @@ import '../../src/ui/tokens.css';
 import './style.css';
 
 import { sendToBackground } from '../../src/platform/messaging';
-import { required } from '../../src/platform/dom';
+import { required } from '../../src/ui/dom';
 import { formatDateTime } from '../../src/features/format';
 import type { DashboardView } from '../../src/domain/task';
 import {

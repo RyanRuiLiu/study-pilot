@@ -22,6 +22,12 @@ export default tseslint.config(
       '**/.probe/**',
       '**/dist/**',
       '**/coverage/**',
+      // 调试与逆向产物：都在 .gitignore 里，且含有第三方压缩 bundle。
+      // 不过滤它们会把「解压出来的库」的语法错误当成我们的问题。
+      '**/.reverse/**',
+      '**/.dev-profile/**',
+      '**/.cdp-profile/**',
+      '**/.tmp-profile/**',
     ],
   },
 

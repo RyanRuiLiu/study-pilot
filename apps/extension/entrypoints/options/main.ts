@@ -24,7 +24,7 @@ import {
 import {
   sendToBackground,
 } from '../../src/platform/messaging';
-import { required } from '../../src/platform/dom';
+import { required } from '../../src/ui/dom';
 
 const app = required<HTMLElement>('#app');
 const toc = document.getElementById('toc');
