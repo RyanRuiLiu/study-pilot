@@ -395,6 +395,16 @@ for (const file of [
 }
 record('写接口只出现在后台', writeHits.length === 0, writeHits.slice(0, 4).join('  '));
 
+/*
+ * 内容脚本也不该建客户端：两个上下文各有一个节流器时互不知情，
+ * 并发发请求会撞平台的并发限制。数据一律经消息向后台取。
+ */
+const contentScripts = collect(join(ROOT, 'apps/extension/entrypoints'), (n) => n.endsWith('.content.ts'));
+const clientHits = contentScripts.filter((file) =>
+  readFileSync(file, 'utf8').includes('createMoocClient'),
+);
+record('内容脚本不建客户端', clientHits.length === 0, clientHits.map(rel).join('  '));
+
 // ---------- 汇总 ----------
 
 const failed = results.filter((r) => !r.ok);

@@ -40,6 +40,7 @@ import {
 } from '../runtime/scheduler';
 import { recoveryFailure, withSessionRecovery } from '../runtime/session-recovery';
 import { handleQuery } from './queries.ts';
+import { handleUnitQuestions } from './papers.ts';
 import { handleSubmitQuiz } from './quiz.ts';
 
 /** 回响应给前台。形状由 messaging 的 ResponseMap 约束，这里只要求可调用。 */
@@ -257,6 +258,12 @@ export function registerMessageHandler(deps: RouterDeps): void {
            * 否则写入会散到两个上下文，而它们的节流器互不知情。
            */
           sendResponse(await handleSubmitQuiz(deps, request.quizId, request.termId));
+          break;
+        }
+
+        case 'UNIT_QUESTIONS': {
+          // 得分指导要的题目：取数集中在后台，前台只拿结果
+          sendResponse(await handleUnitQuestions(deps, request.kind, request.tid));
           break;
         }
 
