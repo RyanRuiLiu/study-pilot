@@ -161,7 +161,7 @@ try {
    持久凭证（NTES_YD_PASSPORT / STUDY_PERSIST）时，`NTESSTUDYSI`、
    `STUDY_INFO`、`STUDY_SESS` 会被重新下发。续期是否发生可以用
    `STUDY_SESS` 的值是否变化来回答——这正是官网打开首页就能"自动登录"的
-   机制，扩展里对应的实现是 `apps/extension/src/platform/mooc-session.ts`
+   机制，扩展里对应的实现是 `apps/extension/src/platform/mooc/session.ts`
    的 `renewSession`。
 
 官网前端不靠 cookie 判断登录：`core.js` 中的 `_$isLogin` 读的是
@@ -511,7 +511,7 @@ return 2;                                            // 互评期
 
 ### 7.9 得分指导在哪些状态下注入
 
-`apps/extension/src/features/homework-answers.ts` 逐题判断页面自己有没有展示评分依据，
+`apps/extension/src/features/mooc/guidance/` 逐题判断页面自己有没有展示评分依据，
 判据是**站点自己的 `.j-answer` / `.j-evaluate` 里有没有出现「得分指导」这句话**：
 
 | 页面形态 | 站点自己的作答区/互评模块 | 插件 |
