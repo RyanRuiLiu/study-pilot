@@ -20,7 +20,7 @@
   "devDependencies": {
     "linkedom": "0.18.13",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2",
+    "vitest": "^5.0.4",
     "web-ext": "^10.7.0",
     "wxt": "^0.21.4"
   }
