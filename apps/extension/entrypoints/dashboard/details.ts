@@ -3,71 +3,60 @@
  *
  * 完整明细（平台的状态说法、互评进度、成绩公布）只有向平台读一次才有；
  * 看板的原则是「打开时不产生网络活动」，因此这里分两份：
- *   打开时    用本地快照的中立模型渲染，标注「来自本地快照（上次读取 …）」
+ *   打开时    用本地快照**原样**渲染，标注「来自本地快照（上次读取 …）」
  *   点按钮后  向平台读一次，换成完整明细，标注「平台最新（读取于 …）」
  * 两份都写清来源与时间——内容长得一样、可信度不同，不标出来用户无从分辨。
  *
  * 快照那一份只列测验、作业与考试：明细表回答的是「这门课我做到哪了」，
- * 与看板本体的任务列表分工不同。课件单元在平台上没有这样的状态可言。
+ * 与看板本体的清单分工不同。课件单元在平台上没有这样的状态可言。
  */
 
-import type { DashboardView, Task, TaskKind } from '../../src/domain/task';
+import { workPageUrl } from '@study-pilot/platform-mooc';
+import type { Snapshot, SnapshotCourse, SnapshotWork } from '../../src/background/mooc/snapshot';
 import { formatDateTime } from '../../src/features/format';
 import { sendToBackground } from '../../src/platform/messaging';
 import { button } from '../../src/ui';
-import {
-  detailSource,
-  detailTable,
-  type DetailGroup,
-  type DetailRow,
-} from '../../src/ui/details.ts';
+import { detailSource, detailTable, type DetailGroup, type DetailRow } from '../../src/ui/details.ts';
 import { unitGroups } from './unit-rows.ts';
-
-/** 快照那一份列出的类别，与平台那一份的范围一致：测验、作业、两种考试。 */
-const WORK_KINDS: TaskKind[] = ['quiz', 'homework', 'exam-objective', 'exam-subjective'];
 
 export interface DetailsView {
   element: HTMLElement;
   /** 用本地快照画一份。打开时与「重读快照」之后都走它。 */
-  renderSnapshot: (view: DashboardView) => void;
+  renderSnapshot: (snapshot: Snapshot | null) => void;
 }
 
-/** 中立模型里只有三种状态，说法也照它说，不假装知道平台的那套。 */
-function stateOf(task: Task): { text: string; tone: DetailRow['tone'] } {
-  if (task.state === 'done') return { text: '已完成', tone: 'ok' };
-  if (task.state === 'failed') return { text: '失败', tone: 'warn' };
-
-  const late = task.dueAt !== undefined && task.dueAt > 0 && task.dueAt < Date.now();
-  return { text: late ? '未完成，已过截止' : '未完成', tone: late ? 'warn' : 'active' };
+/**
+ * 快照里的状态只有「交了 / 没交」这两种事实，说法照它说，
+ * 不假装知道平台那套（未提交 / 互评阶段 / 成绩已公布…只有 UNIT_DETAILS 才有）。
+ */
+function stateOf(work: SnapshotWork): { text: string; tone: DetailRow['tone'] } {
+  if (work.submitted) return { text: '已提交', tone: 'ok' };
+  const late = work.deadline !== null && work.deadline > 0 && work.deadline < Date.now();
+  return { text: late ? '未提交，已过截止' : '未提交', tone: late ? 'warn' : 'active' };
 }
 
-function snapshotRow(task: Task): DetailRow {
-  const state = stateOf(task);
-  const scored = task.maxScore !== undefined;
+function snapshotRow(course: SnapshotCourse, work: SnapshotWork): DetailRow {
+  const state = stateOf(work);
+  const scored = work.totalScore !== null;
 
   return {
-    key: task.id,
-    name: task.title,
+    key: `work-${work.tid}`,
+    name: work.name,
     status: state.text,
     tone: state.tone,
-    statusTitle: '来自本地快照的中立状态，只有未完成、已完成与失败三种',
-    when: task.dueAt ? formatDateTime(task.dueAt) : '无',
-    score: scored ? `${task.score ?? '—'} / ${task.maxScore}` : undefined,
-    scoreTitle: scored ? `得分 ${task.score ?? '—'}，满分 ${task.maxScore}` : undefined,
-    href: task.link,
+    statusTitle: '来自本地快照：只有「已提交 / 未提交」这两个事实，平台的状态说法要点「读取最新明细」',
+    when: work.deadline !== null && work.deadline > 0 ? formatDateTime(work.deadline) : '无',
+    score: scored ? `${work.score ?? '—'} / ${work.totalScore}` : undefined,
+    scoreTitle: scored ? `得分 ${work.score ?? '—'}，满分 ${work.totalScore}` : undefined,
+    href: workPageUrl(course, work.type, work.tid, work.examId ?? undefined),
   };
 }
 
-/** 快照那一份：按课程分组，顺序沿用课程与任务的既有顺序。 */
-function snapshotGroups(view: DashboardView): DetailGroup[] {
-  const groups: DetailGroup[] = [];
-  for (const course of view.courses) {
-    const rows = view.tasks
-      .filter((task) => task.courseId === course.courseId && WORK_KINDS.includes(task.kind))
-      .map(snapshotRow);
-    if (rows.length > 0) groups.push({ course: course.name, rows });
-  }
-  return groups;
+/** 快照那一份：按课程分组，顺序沿用快照里课程与工作项的顺序。 */
+function snapshotGroups(snapshot: Snapshot): DetailGroup[] {
+  return snapshot.courses
+    .map((course) => ({ course: course.courseName, rows: course.works.map((work) => snapshotRow(course, work)) }))
+    .filter((group) => group.rows.length > 0);
 }
 
 function hint(text: string): HTMLElement {
@@ -84,7 +73,7 @@ function hint(text: string): HTMLElement {
  * 看板本体因此要重读一次，否则两块画面来自两个时刻。
  */
 export function detailsView(onRefreshed: () => void): DetailsView {
-  let current: DashboardView = { fetchedAt: 0, courses: [], tasks: [] };
+  let current: Snapshot | null = null;
 
   const source = detailSource('还没有读取过数据');
   const read = button({
@@ -106,10 +95,10 @@ export function detailsView(onRefreshed: () => void): DetailsView {
   element.append(bar, body);
 
   function paintSnapshot(): void {
-    source.textContent = current.fetchedAt
+    source.textContent = current !== null && current.fetchedAt
       ? `来自本地快照（上次读取 ${formatDateTime(current.fetchedAt)}）`
       : '还没有读取过数据';
-    body.replaceChildren(detailTable(snapshotGroups(current), '本地快照里还没有测验与作业。'));
+    body.replaceChildren(detailTable(current === null ? [] : snapshotGroups(current), '本地快照里还没有测验与作业。'));
   }
 
   /**
@@ -163,8 +152,8 @@ export function detailsView(onRefreshed: () => void): DetailsView {
 
   return {
     element,
-    renderSnapshot: (view) => {
-      current = view;
+    renderSnapshot: (snapshot) => {
+      current = snapshot;
       paintSnapshot();
     },
   };

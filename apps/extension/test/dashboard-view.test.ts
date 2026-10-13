@@ -1,245 +1,235 @@
 /*
- * 看板结构的 DOM 级核对。
+ * 看板与明细的 DOM 级核对。
  *
- * 验的是「这一屏里到底有哪几个东西、写的是什么字」：顶部计数、按课程分组与组内计数、
- * 任务行与做法标签、单元明细那张表（来源标注、按钮、明细行），以及筛选控件本身。
- * 不看截图，也不靠人眼。
- *
- * 为什么用 linkedom：仓库已有先例（guidance.test.ts、popup-view.test.ts），
- * 这里不需要布局与样式。为什么不加载真实 Shoelace 组件：同 popup-view.test.ts，
- * 把两个副作用模块换成空模块，验的是构造器输出的标签与文字。
+ * 夹具用**平台的快照原样字段**（SnapshotWork / CourseUnit）——看板不再经过中立模型，
+ * 因此这些断言同时钉住了「没有映射层」这件事。
+ * 真实 Shoelace 在 linkedom 下会崩（Lit 走 node 构建）；这里验的是构造器输出的标签与文字。
  */
 
-import { readFileSync } from 'node:fs';
 import { parseHTML } from 'linkedom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@shoelace-style/shoelace/dist/components/button/button.js', () => ({}));
 vi.mock('@shoelace-style/shoelace/dist/components/spinner/spinner.js', () => ({}));
 
-import type { DashboardView, Task } from '../src/domain/task';
-import { summarize } from '../src/domain/plan';
+import { UNIT_TYPE, type CourseUnit } from '@study-pilot/platform-mooc';
+import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/background/mooc/snapshot';
 import {
+  boardItems,
   DEFAULT_FILTERS,
-  filterTasks,
-  KIND_LABEL,
-  MODE_LABEL,
+  filterItems,
+  kindOptions,
+  orderItems,
   renderBoard,
-  STATE_FILTERS,
 } from '../entrypoints/dashboard/render';
 import { detailsView } from '../entrypoints/dashboard/details';
 
 const page = parseHTML('<!doctype html><html><body><div id="app"></div></body></html>');
 Object.assign(globalThis, { window: page.window, document: page.document });
 
-const DAY = 24 * 60 * 60 * 1000;
-const NOW = Date.now();
-
-function host(): HTMLElement {
-  return globalThis.document.getElementById('app')!;
-}
-
-/** 一件任务。只写关心的字段，其余给固定值。 */
-function task(fields: Partial<Task> & { id: string; courseId: number; title: string }): Task {
+function work(overrides: Partial<SnapshotWork> = {}): SnapshotWork {
   return {
-    platformId: 'mooc',
-    kind: 'quiz',
-    mode: 'auto',
-    state: 'todo',
-    ...fields,
+    tid: 900,
+    name: '第三单元作业',
+    chapterName: '第三章',
+    examId: null,
+    type: 'homework',
+    submitted: false,
+    deadline: 1_800_000_000_000,
+    evaluateStart: null,
+    evaluateEnd: null,
+    evaluateScoreRelease: null,
+    score: null,
+    totalScore: null,
+    reviewable: false,
+    evaluateDone: null,
+    evaluateTotal: null,
+    selfDone: null,
+    ...overrides,
   };
 }
 
-/*
- * 两门课、四件事：课件单元不算明细里的一行（它不是要交的东西），
- * 已完成的作业算（明细要回答「这门课我做到哪了」，包括做过什么）。
- */
-const TASKS: Task[] = [
-  task({
-    id: 'a',
-    courseId: 1,
-    title: '第一章测验',
-    dueAt: NOW + DAY,
-    link: 'https://x/quiz',
-  }),
-  task({ id: 'b', courseId: 1, kind: 'video', title: '第一章视频' }),
-  task({
-    id: 'c',
-    courseId: 2,
-    kind: 'homework',
-    mode: 'manual',
-    state: 'done',
-    title: '第二章作业',
-    dueAt: NOW,
-    score: 85,
-    maxScore: 100,
-  }),
-  task({
-    id: 'd',
-    courseId: 2,
-    kind: 'exam-objective',
-    mode: 'manual',
-    title: '期中考试',
-    dueAt: NOW + 2 * DAY,
-  }),
-];
-
-const VIEW: DashboardView = {
-  fetchedAt: NOW,
-  courses: [
-    { platformId: 'mooc', courseId: 1, name: '课程一' },
-    { platformId: 'mooc', courseId: 2, name: '课程二' },
-  ],
-  tasks: TASKS,
-};
-
-function textOf(root: HTMLElement, selector: string): string {
-  return root.querySelector(selector)?.textContent ?? '';
+function unit(overrides: Partial<CourseUnit> = {}): CourseUnit {
+  return {
+    unitId: 1000,
+    contentId: 2000,
+    termId: 1,
+    lessonId: 1,
+    lessonName: '1.1',
+    name: '1.1 二极管',
+    contentType: UNIT_TYPE.VIDEO,
+    durationInSeconds: 500,
+    completePercent: 0,
+    viewStatus: 0,
+    ...overrides,
+  };
 }
 
+function course(overrides: Partial<SnapshotCourse> = {}): SnapshotCourse {
+  return {
+    termId: 1,
+    courseId: 1001753142,
+    schoolShortName: 'NTU',
+    mode: 0,
+    courseName: '模拟电子技术',
+    works: [],
+    units: [],
+    ...overrides,
+  };
+}
+
+function snapshot(courses: SnapshotCourse[]): Snapshot {
+  return { version: 1, fetchedAt: 1_700_000_000_000, fetchedDate: '2026-10-14', courses };
+}
+
+let app: HTMLElement;
 beforeEach(() => {
-  host().replaceChildren();
+  app = page.document.createElement('div');
 });
 
-describe('看板结构', () => {
-  it('按课程分组，组内给出条数与未完成数', () => {
-    const root = host();
-    const visible = filterTasks(TASKS, DEFAULT_FILTERS);
-    renderBoard(root, VIEW, visible);
+describe('快照 → 行（直接用平台字段）', () => {
+  it('工作项：类别取平台 type；未提交的测验自动、作业需你做', () => {
+    const items = boardItems(
+      course({
+        works: [work({ tid: 1, type: 'quiz', name: '单元测验' }), work({ tid: 2, name: '单元作业' })],
+      }),
+    );
+    expect(items[0]).toMatchObject({ title: '单元测验', kind: '测验', mode: 'auto', state: 'todo' });
+    expect(items[1]).toMatchObject({ title: '单元作业', kind: '作业', mode: 'manual', state: 'todo' });
+  });
 
-    // 默认只看未完成与失败，因此已完成的作业不在这三行里
-    expect(visible.map((entry) => entry.id)).toEqual(['a', 'b', 'd']);
+  it('工作项：已提交即已完成，并带得分与互评进度', () => {
+    const items = boardItems(
+      course({
+        works: [
+          work({
+            submitted: true,
+            score: 88,
+            totalScore: 100,
+            reviewable: true,
+            evaluateDone: 2,
+            evaluateTotal: 5,
+            selfDone: false,
+          }),
+        ],
+      }),
+    );
+    expect(items[0]?.state).toBe('done');
+    expect(items[0]?.score).toEqual({ got: 88, max: 100 });
+    expect(items[0]?.review).toContain('互评 2/5');
+    expect(items[0]?.review).toContain('自评未做');
+  });
 
-    const groups = Array.from(root.querySelectorAll('.sp-group'));
-    expect(groups).toHaveLength(2);
-    expect(groups.map((group) => textOf(group as HTMLElement, '.sp-group-head'))).toEqual([
-      '课程一2 项，2 项未完成',
-      '课程二1 项，1 项未完成',
+  it('工作项：没交且过了截止 → 已过截止', () => {
+    expect(boardItems(course({ works: [work({ deadline: 1 })] }))[0]?.state).toBe('late');
+  });
+
+  it('课件单元：看满即完成；讨论需要你确认，其余自动', () => {
+    const items = boardItems(
+      course({
+        units: [
+          unit({ unitId: 1, name: '看过的视频', completePercent: 1 }),
+          unit({ unitId: 2, name: '讨论区', contentType: UNIT_TYPE.DISCUSS }),
+          unit({ unitId: 3, name: 'PPT', contentType: UNIT_TYPE.PDF }),
+        ],
+      }),
+    );
+    expect(items[0]).toMatchObject({ kind: '视频', state: 'done', mode: 'auto' });
+    expect(items[1]).toMatchObject({ kind: '讨论', mode: 'assisted' });
+    expect(items[2]).toMatchObject({ kind: '文档', mode: 'auto' });
+  });
+});
+
+describe('筛选与排序', () => {
+  const items = boardItems(
+    course({
+      works: [work({ tid: 1, type: 'quiz', name: '测验' }), work({ tid: 2, submitted: true, name: '交过的作业' })],
+      units: [unit({ unitId: 3, name: '视频' })],
+    }),
+  );
+
+  it('默认只看未完成（含已过截止）', () => {
+    expect(filterItems(items, { ...DEFAULT_FILTERS }).map((i) => i.title)).toEqual(['测验', '视频']);
+  });
+
+  it('按状态、类别、做法、课程筛', () => {
+    expect(filterItems(items, { ...DEFAULT_FILTERS, state: 'done' }).map((i) => i.title)).toEqual(['交过的作业']);
+    expect(filterItems(items, { ...DEFAULT_FILTERS, kind: '视频' }).map((i) => i.title)).toEqual(['视频']);
+    expect(filterItems(items, { ...DEFAULT_FILTERS, mode: 'auto' }).map((i) => i.title)).toEqual(['测验', '视频']);
+    expect(filterItems(items, { ...DEFAULT_FILTERS, courseId: '999' })).toHaveLength(0);
+  });
+
+  it('类别下拉只列数据里真的出现过的类别', () => {
+    expect(kindOptions(snapshot([course({ works: [work({ type: 'quiz' })], units: [unit()] })]))).toEqual([
+      '测验',
+      '视频',
     ]);
-    expect(root.querySelectorAll('.sp-task')).toHaveLength(3);
+    expect(kindOptions(null)).toEqual([]);
   });
 
-  it('计数就是 domain/plan.ts 的 summarize，不在页面里另数一遍', () => {
-    const root = host();
-    const visible = filterTasks(TASKS, DEFAULT_FILTERS);
-    renderBoard(root, VIEW, visible);
-
-    const summary = summarize(visible);
-    const parts = [
-      `可自动完成 ${summary.auto}`,
-      `需要确认 ${summary.assisted}`,
-      `需要你做 ${summary.manual}`,
-    ];
-    if (summary.failed > 0) parts.push(`失败 ${summary.failed}`);
-    if (summary.done > 0) parts.push(`已完成 ${summary.done}`);
-
-    expect(textOf(root, '.sp-summary')).toBe(parts.join(' · '));
-  });
-
-  it('任务行带状态与做法两个通道，标题是可达的链接', () => {
-    const root = host();
-    renderBoard(root, VIEW, filterTasks(TASKS, DEFAULT_FILTERS));
-
-    const first = root.querySelector('.sp-task')!;
-    expect(first.getAttribute('data-state')).toBe('todo');
-    expect(first.getAttribute('data-mode')).toBe('auto');
-    expect(textOf(first as HTMLElement, '.sp-task-title')).toBe('第一章测验');
-    expect(first.querySelector('.sp-task-title')?.getAttribute('href')).toBe('https://x/quiz');
-
-    // 类别、做法、状态三个标签：做法与状态各自带着自己的配色类
-    expect(
-      Array.from(first.querySelectorAll('.sp-chip')).map((chip) => chip.textContent),
-    ).toEqual([KIND_LABEL.quiz, MODE_LABEL.auto, '未完成']);
-
-    // 已完成的那一行带得分，且格式与明细里的一致
-    renderBoard(root, VIEW, filterTasks(TASKS, { ...DEFAULT_FILTERS, state: 'all' }));
-    const all = Array.from(root.querySelectorAll('.sp-task'));
-    expect(all).toHaveLength(4);
-    const done = all.find((row) => row.getAttribute('data-state') === 'done')!;
-    expect(textOf(done as HTMLElement, '.sp-task-title')).toBe('第二章作业');
-    expect(textOf(done as HTMLElement, '.sp-task-score')).toBe('得分 85 / 100');
-  });
-
-  it('筛选控件是四个带标签的下拉，默认状态是一个真实存在的选项', () => {
-    const shell = parseHTML(
-      readFileSync(new URL('../entrypoints/dashboard/index.html', import.meta.url), 'utf8'),
-    );
-
-    for (const [id, label] of [
-      ['course', '课程'],
-      ['kind', '类别'],
-      ['mode', '做法'],
-      ['state', '状态'],
-    ] as const) {
-      const select = shell.document.getElementById(id);
-      expect(select?.tagName).toBe('SELECT');
-      // 每个下拉外面套着一个带文字说明的 label，页面上才知道这个框筛的是什么
-      expect(select?.parentElement?.textContent).toContain(label);
-    }
-
-    // 固定项的来源：类别与做法来自各自唯一的标签表，状态来自 STATE_FILTERS
-    expect(Object.keys(KIND_LABEL)).toContain('exam-objective');
-    expect(Object.keys(MODE_LABEL)).toEqual(['auto', 'assisted', 'manual']);
-    expect(STATE_FILTERS.map((entry) => entry.value)).toContain(DEFAULT_FILTERS.state);
-
-    // 通知点击落到这个锚点上（见 background/wiring.ts），它必须在页面里存在
-    expect(shell.document.getElementById('unit-details')).not.toBeNull();
+  it('排序：未完成在前、已完成沉底、按截止升序、没有截止的排后', () => {
+    const ordered = orderItems([
+      boardItems(course({ works: [work({ tid: 1, submitted: true, name: '完成' })] }))[0]!,
+      boardItems(course({ units: [unit({ unitId: 2, name: '没截止' })] }))[0]!,
+      boardItems(course({ works: [work({ tid: 3, name: '晚', deadline: Date.now() + 900_000 })] }))[0]!,
+      boardItems(course({ works: [work({ tid: 4, name: '早', deadline: Date.now() + 100_000 })] }))[0]!,
+    ]);
+    expect(ordered.map((i) => i.title)).toEqual(['早', '晚', '没截止', '完成']);
   });
 });
 
-describe('看板上的单元明细', () => {
-  it('打开时用本地快照画一份，来源与时刻写在表上面', () => {
-    const view = detailsView(() => undefined);
-    view.renderSnapshot(VIEW);
+describe('看板渲染', () => {
+  it('顶部计数按「谁来做」分开数，并单独点出已过截止', () => {
+    const view = snapshot([
+      course({
+        works: [work({ tid: 1, type: 'quiz' }), work({ tid: 2 }), work({ tid: 3, deadline: 1 })],
+        units: [unit({ unitId: 4 })],
+      }),
+    ]);
+    renderBoard(app, view, filterItems(boardItems(view.courses[0]!), DEFAULT_FILTERS));
 
-    const source = textOf(view.element, '.sp-details-source');
-    expect(source).toContain('来自本地快照');
-    expect(source).toContain('上次读取');
-
-    // 快照那一份只列测验、作业与考试：视频这类课件单元不在明细里
-    const names = Array.from(view.element.querySelectorAll('.sp-details-name')).map(
-      (cell) => cell.textContent,
-    );
-    expect(names).toContain('测验与作业');
-    expect(names).toContain('第一章测验');
-    expect(names).toContain('第二章作业');
-    expect(names).not.toContain('第一章视频');
-
-    expect(view.element.querySelectorAll('.sp-details-row')).toHaveLength(3);
-    expect(
-      Array.from(view.element.querySelectorAll('.sp-details-course')).map((el) => el.textContent),
-    ).toEqual(['课程一', '课程二']);
+    const summary = app.querySelector('.sp-summary')?.textContent ?? '';
+    expect(summary).toContain('共 4 项');
+    expect(summary).toContain('会自动完成 2');
+    expect(summary).toContain('需要你做 1');
+    expect(summary).toContain('已过截止 1');
   });
 
-  it('明细行带上状态、截止与得分，整行可点', () => {
-    const view = detailsView(() => undefined);
-    view.renderSnapshot(VIEW);
+  it('按课程分组，组头写课程名与未完成数；行里有标题、类别、截止', () => {
+    const view = snapshot([course({ works: [work({ tid: 7, name: '第三单元作业' })] })]);
+    renderBoard(app, view, boardItems(view.courses[0]!));
 
-    const rows = Array.from(view.element.querySelectorAll('.sp-details-row'));
-    const quiz = rows.find((row) => row.id === 'unit-a')!;
-    expect(quiz.getAttribute('href')).toBe('https://x/quiz');
-    expect(textOf(quiz as HTMLElement, '.sp-details-status')).toBe('未完成');
-    expect(quiz.querySelector('.sp-details-status')?.classList.contains('is-active')).toBe(true);
-
-    const homework = rows.find((row) => row.id === 'unit-c')!;
-    expect(textOf(homework as HTMLElement, '.sp-details-status')).toBe('已完成');
-    expect(textOf(homework as HTMLElement, '.sp-details-score')).toBe('85 / 100');
+    expect(app.querySelector('.sp-group-head')?.textContent).toContain('模拟电子技术');
+    expect(app.querySelector('.sp-group-count')?.textContent).toBe('1 项，1 项未完成');
+    const row = app.querySelector('.sp-task');
+    expect(row?.querySelector('.sp-task-title')?.textContent).toBe('第三单元作业');
+    expect(row?.querySelector('.sp-chip')?.textContent).toBe('作业');
+    expect(row?.querySelector('.sp-task-due')).not.toBeNull();
   });
 
-  it('「读取最新明细」是唯一的取值入口，没点之前不发请求', () => {
-    const view = detailsView(() => undefined);
-    view.renderSnapshot(VIEW);
+  it('没有数据与筛完为空，各给一句说明', () => {
+    renderBoard(app, null, []);
+    expect(app.querySelector('.sp-empty')?.textContent).toContain('还没有数据');
 
-    const read = view.element.querySelector('sl-button');
-    expect(read?.textContent).toBe('读取最新明细');
-    // 按钮在明细区顶部，来源标注的右边
-    expect(textOf(view.element, '.sp-details-bar')).toContain('来自本地快照');
+    const view = snapshot([course({ works: [work({ submitted: true })] })]);
+    renderBoard(app, view, []);
+    expect(app.querySelector('.sp-empty')?.textContent).toBe('当前筛选下没有任务。');
+  });
+});
 
-    // 表头只出现一次，且四列与页面上的顺序一致
-    expect(
-      Array.from(view.element.querySelectorAll('.sp-details-head > span')).map(
-        (cell) => cell.textContent,
-      ),
-    ).toEqual(['测验与作业', '状态', '截止', '得分 / 满分']);
+describe('明细区', () => {
+  it('打开时用快照画一份，标注来源与时间', () => {
+    const details = detailsView(() => {});
+    details.renderSnapshot(snapshot([course({ works: [work({ tid: 9, name: '第三单元作业' })] })]));
+
+    expect(details.element.textContent).toContain('来自本地快照');
+    expect(details.element.textContent).toContain('第三单元作业');
+    expect(details.element.textContent).toContain('读取最新明细');
+  });
+
+  it('没有快照时说还没读过，而不是画一张空表', () => {
+    const details = detailsView(() => {});
+    details.renderSnapshot(null);
+    expect(details.element.textContent).toContain('还没有读取过数据');
   });
 });

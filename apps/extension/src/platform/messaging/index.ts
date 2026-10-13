@@ -17,7 +17,7 @@ import type {
   OpenQuizInfo,
   PaperQuestion,
 } from '@study-pilot/platform-mooc';
-import type { DashboardView } from '../../domain/task.ts';
+import type { Snapshot } from '../../background/mooc/snapshot';
 import type { MoocSession } from '../mooc/session';
 import type {
   DiagnoseReport,
@@ -92,7 +92,7 @@ export interface ResponseMap {
   QUIZ_BANK: QueryOutcome<BankQuestion[]>;
   QUIZ_INFO: QueryOutcome<OpenQuizInfo>;
   UNIT_QUESTIONS: QueryOutcome<PaperQuestion[]>;
-  DASHBOARD: QueryOutcome<DashboardView>;
+  DASHBOARD: QueryOutcome<Snapshot | null>;
   SUBMIT_QUIZ: { ok: true; matched: number } | { ok: false; message: string };
 }
 

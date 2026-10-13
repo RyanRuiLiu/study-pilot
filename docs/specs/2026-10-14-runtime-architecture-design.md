@@ -52,9 +52,8 @@ type TaskState = 'todo' | 'done' | 'failed';
 - **为什么 `mode` 不是能力数组**：三种取值对应的处理路径完全不同，`auto` 由后台独立完成、
   `assisted` 需要人看一眼或确认、`manual` 只能人工（前台把材料摆到眼前）。能力矩阵在这个规模下
   只会增加间接层。
-- **计数与排序只有一处**：`summarize` / `orderTasks` / `autoTasks` 在
-  [plan.ts](../../apps/extension/src/domain/plan.ts)。看板、弹窗、后台用同一份，才不会出现
-  「看板说 3 项待办、执行面只做了 2 项」这类两套算法。
+- **计数与排序各归其位**：排序与筛选在看板自己的 `orderItems` / `filterItems`；计数用**平台自己的汇总**
+  （慕课 `toPendingSummary` 已给 auto / manual / overdue）。**没有跨平台的通用汇总层**——那会让「谁来做」的口径在两处各算一遍。
 
 ## 4. 平台接口与注册表
 
@@ -67,8 +66,8 @@ interface PlatformAdapter {
 }
 ```
 
-平台模块在 app 侧（[platforms/mooc.ts](../../apps/extension/src/platforms/mooc.ts)），**核心包
-不 import 任何平台包**。它现在是"平台领域类型 → 中立模型"的映射，供看板统一渲染。
+平台模块在 app 侧（`apps/extension/src/platforms/`），**核心包
+不 import 任何平台包**。原先这里放的是「平台领域类型 → 中立模型」的映射与注册表，**已删除**（理由见下）。
 
 **已定的方向（正在做）**：不再用中立模型统一各平台——各网站协议与字段本来就不同，
 硬压成一种形状只会多出一层要维护的映射。改为：**每个平台模块自己管读、计划、执行、
@@ -90,7 +89,7 @@ interface PlatformAdapter {
 
 - **注入面板不是页面**：它按「页面挂载点」就地出现在慕课页的题目下方，不占三页之一。
 - 单元明细属于「还剩什么」，因此从设置页搬进看板；设置页不再重复一份。
-- 计数一律走 [plan.ts](../../apps/extension/src/domain/plan.ts) 的 `summarize`，各页不许自己算。
+- 计数用平台自己的汇总（慕课 `toPendingSummary` 的 auto / manual / overdue），各页不另算。
 
 ## 6. 组件层
 
@@ -150,8 +149,8 @@ interface PlatformAdapter {
 ## 10. 已落地
 
 - **三个平面与唯一写路径**：后台执行面持有全部写操作；内容脚本不再自建客户端，平台数据走消息。
-- **中立模型与注册表**：[task.ts](../../apps/extension/src/domain/task.ts) 定义模型与工厂，
-  `plan.ts` 定义计划语义，`platforms/` 是注册表与 mooc adapter，核心包不依赖任何平台包。
+- **映射层已删除**：`domain/task.ts`、`domain/plan.ts`、`platforms/mooc.ts` 与 `platforms/index.ts` 全部删掉。
+  看板直接消费平台快照，弹窗只看平台自己的待办汇总；跨平台只保留调度与页面外壳。
 - **只读看板**：新 entrypoint `dashboard`，数据来自本地快照与最近一次运行结果，不直接发请求，
   显示「上次读取」时间。
 - **组件层与三页接入**：Shoelace 接入 `src/ui/`，弹窗 CSS 从 384 行降到 30 行并配 DOM 级测试；
