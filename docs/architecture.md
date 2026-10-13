@@ -294,10 +294,22 @@ scripts/probe/                 探测与自检工具链，见其 README
 
 | 规则 | 由谁保证 |
 |---|---|
-| 一个文件一个职责，超过 300 行必须拆 | [`scripts/probe/checks/check-release.mjs`](../scripts/probe/checks/check-release.mjs) 的文件长度一节（附待清空的欠账清单） |
-| 界面文案、身份信息、遗留标记、文档链接、文档里的路径引用 | [`scripts/probe/checks/check-release.mjs`](../scripts/probe/checks/check-release.mjs) |
+| 一个文件一个职责，超过 300 行必须拆 | ESLint `max-lines`（[`eslint.config.mjs`](../eslint.config.mjs)） |
+| 代码卫生：any、类型检查豁免、调试输出、非空断言 | typescript-eslint 官方规则（同上） |
+| 术语只用一种写法 | ESLint `id-denylist`（同上） |
+| 包与包之间的依赖方向 | `eslint-plugin-boundaries`（同上） |
+| 界面文案、身份信息、遗留标记 | [`scripts/probe/checks/check-release.mjs`](../scripts/probe/checks/check-release.mjs) |
+| 文档链接与文档里引用的路径 | remark + remark-validate-links（[`scripts/verify/check-remark.mjs`](../scripts/verify/check-remark.mjs)） |
+| 版本号只有一个来源、跨包依赖版本一致 | syncpack + 结构断言（[`scripts/verify/check-syncpack.mjs`](../scripts/verify/check-syncpack.mjs)、[`scripts/verify/check-version-literal.mjs`](../scripts/verify/check-version-literal.mjs)） |
+| 没有多余的 export、文件与依赖 | knip（[`scripts/verify/check-knip.mjs`](../scripts/verify/check-knip.mjs)） |
 | 权限与隐私口径 | [`scripts/probe/checks/check-privacy.mjs`](../scripts/probe/checks/check-privacy.mjs) |
 | 唯一来源、端口注入、不兜底、测试即契约 | 代码结构本身 + 类型检查 + 测试（见第 4 节目录与各模块文件头） |
+
+规则本身写在配置或标准工具里，不自写正则。工具的报告由
+[`scripts/verify/`](../scripts/verify/) 下的薄适配脚本转成「通过/失败 名称」两行；
+全部门禁与其项数快照见 [`scripts/probe/checks/check-all.mjs`](../scripts/probe/checks/check-all.mjs)、
+[`scripts/probe/checks/expected-checks.json`](../scripts/probe/checks/expected-checks.json)——删门禁
+必须同时改快照，这一步在 diff 里看得见。
 
 文档只保留「为什么这么做」——即各模块文件头与第 3 节的设计决策；
 「怎么做」写在代码与门禁里。凡是两处都写的内容，以代码与门禁为准。
@@ -336,6 +348,10 @@ scripts/probe/                 探测与自检工具链，见其 README
 | `inspect/` | 探测：启动带扩展的浏览器、发单个接口调用、抓取、反编译 |
 | `run/` | 运行辅助：重载扩展、跑一次、截图、生成图标与商店素材 |
 | `maintain/` | 维护：清理身份字段、导出文案、审计时间字段 |
+
+标准工具的门禁适配脚本在 [`scripts/verify/`](../scripts/verify/)：ESLint、remark、
+syncpack、knip 各一个，唯一职责是把工具结果转成「通过/失败 名称」两行；规则本身仍
+写在 [`eslint.config.mjs`](../eslint.config.mjs) 与各工具的配置里。
 
 这类问题（两份 CSS 规则各自都「对」、但渲染出来不一致）靠读源码发现不了；
 自检脚本是唯一能发现它们的手段。
