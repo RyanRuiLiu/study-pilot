@@ -13,6 +13,7 @@
     "package": "node scripts/package.mjs",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
+    "mutation": "stryker run",
     "test": "pnpm -r test",
     "probe:launch": "node scripts/probe/inspect/launch.mjs",
     "probe:launch:ext": "node scripts/probe/inspect/launch.mjs --extension apps/extension/.output/chrome-mv3",
