@@ -29,7 +29,7 @@ import {
   ANSWER_MARK_ATTRIBUTE,
   injectHomeworkAnswers,
   removeHomeworkAnswers,
-} from '../src/features/mooc/homework-answers';
+} from '../src/features/mooc/guidance';
 
 const info = vi.mocked(getHomeworkInfo);
 const paper = vi.mocked(getHomeworkPaper);
