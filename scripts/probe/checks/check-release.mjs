@@ -299,6 +299,74 @@ for (const file of MD_FILES) {
 }
 record('文档里引用的文件都存在', staleRefs.length === 0, staleRefs.slice(0, 5).join('  '));
 
+// ---------- 9. 唯一来源 ----------
+//
+// 「同一知识只允许出现一次」是这套代码的主约束，但它靠自觉是守不住的：
+// 复制一份常量表、再抄一遍联合类型，是改动时最省事、也最难发现的做法。
+// 这里把「哪个符号归哪个文件」写成判定，别处再声明同名符号即失败。
+//
+// 注意只判声明（export const/type/interface/function），不判再导出——
+// 从归属文件导出到别处（export * 或 export { X } from）是正当用法。
+
+console.log('');
+console.log('=== 唯一来源 ===');
+
+const SINGLE_SOURCE = new Map([
+  ['UNIT_TYPE', 'packages/platform-mooc/src/types.ts'],
+  ['ENDPOINTS', 'packages/platform-mooc/src/endpoints.ts'],
+  ['DWR_ENDPOINTS', 'packages/platform-mooc/src/endpoints.ts'],
+  ['BEHAVIORS', 'packages/platform-mooc/src/courseware/index.ts'],
+  ['SNAPSHOT_VERSION', 'apps/extension/src/background/mooc/snapshot/types.ts'],
+  ['SETTINGS_VERSION', 'apps/extension/src/settings/schema/index.ts'],
+  ['AI_TASKS', 'apps/extension/src/ai/index.ts'],
+  ['GUIDANCE_LABEL', 'apps/extension/src/features/mooc/guidance/markers.ts'],
+  ['ANSWER_MARK_ATTRIBUTE', 'apps/extension/src/features/mooc/guidance/markers.ts'],
+  ['REJECTION_MESSAGES', 'apps/extension/src/platform/messaging/envelope.ts'],
+  ['WORK_STATUS', 'apps/extension/src/platform/messaging/mooc.ts'],
+  ['PendingKind', 'apps/extension/src/platform/messaging/mooc.ts'],
+]);
+
+const DECLARATION = /^export (?:const|type|interface|function|class) (\w+)/gm;
+const misplaced = [];
+for (const file of [...collect(join(ROOT, 'apps'), (n) => n.endsWith('.ts')), ...collect(join(ROOT, 'packages'), (n) => n.endsWith('.ts'))]) {
+  const here = rel(file);
+  for (const match of readFileSync(file, 'utf8').matchAll(DECLARATION)) {
+    const home = SINGLE_SOURCE.get(match[1]);
+    if (home && here !== home) misplaced.push(`${match[1]} 在 ${here}（应只在 ${home}）`);
+  }
+}
+record('唯一来源的符号没有第二处声明', misplaced.length === 0, misplaced.slice(0, 4).join('  '));
+
+// ---------- 10. 分层方向 ----------
+//
+// 依赖必须单向：core ← transport ← platform-mooc ← app，ai 与 transport 平级。
+// 「分层」写在文档里等于没有约束——反向依赖同样能编译、能跑，只是把
+// 两层的边界溶掉，之后谁也说不清哪一层能用什么。这里按包判定。
+
+console.log('');
+console.log('=== 分层方向 ===');
+
+const LAYER_RULES = [
+  ['packages/core/', []],
+  ['packages/transport/', ['@study-pilot/core']],
+  ['packages/ai/', ['@study-pilot/core']],
+  // platform-mooc 不认识 AI：模型能力由 app 侧以端口注入
+  ['packages/platform-mooc/', ['@study-pilot/core', '@study-pilot/transport']],
+];
+
+const PACKAGE_IMPORT = /from '(@study-pilot\/[a-z-]+)/g;
+const layerHits = [];
+for (const file of [...collect(join(ROOT, 'packages'), (n) => n.endsWith('.ts'))]) {
+  if (/[\\/]test[\\/]/.test(file)) continue;
+  const here = rel(file);
+  const rule = LAYER_RULES.find(([prefix]) => here.startsWith(prefix));
+  if (!rule) continue;
+  for (const match of readFileSync(file, 'utf8').matchAll(PACKAGE_IMPORT)) {
+    if (!rule[1].includes(match[1])) layerHits.push(`${here} → ${match[1]}`);
+  }
+}
+record('依赖方向没有反向', layerHits.length === 0, layerHits.slice(0, 4).join('  '));
+
 // ---------- 汇总 ----------
 
 const failed = results.filter((r) => !r.ok);
