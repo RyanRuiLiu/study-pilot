@@ -1,83 +1,33 @@
 /*
- * 执行：把计划里「能自动完成」的事项做掉。
+ * 作业、测验、考试上的自动项：答题、自评、互评。
  *
- * 本文件只负责写，不做「该不该做」的判断——那个判断在 task-plan.ts 里，
- * 依据是刚拉回来的快照。这样分开之后，写入的触发条件是显式的：
- * 只有 plan.auto 非空才会走到这里。
- *
- * 执行过程中仍有一些读取（题库、答卷、评测进度），但它们与判断用的读取
- * 性质不同：那些是完成这一件事所必需的，缺了就无法作答或评分。
- * 「为了决定要不要做而读」与「做的时候不得不读」是两回事，前者在 inspect。
- *
- * 逐项落盘
- * --------
- * 每完成一项就回调一次 onProgress，由调用方把结果写进状态。
- * 中途关掉浏览器时，已完成的不会重做。
+ * 三条路都返回 `ExecResult`，不抛异常；成败都如实写在 `detail` 里，
+ * 因为它会原样出现在通知中。
  */
 
 import {
-  buildAnswerIndex,
   buildAnswers,
   buildEvaluationItems,
-  completeUnit,
   currentEvaluatePhase,
   getEvaluationDetail,
   getHomeworkInfo,
   getHomeworkPaper,
-  getQuizBank,
   getQuizPaper,
   nextSubmission,
   saveDraft,
   submitEvaluation,
   submitQuiz,
-  type CoursewareContext,
   type MoocClient,
 } from '@study-pilot/platform-mooc';
-import type { AutoAction, CoursewareAutoAction, WorkAutoAction } from './task-plan';
+import type { WorkAutoAction } from '../task-plan';
+import type { BankCache } from './bank.ts';
+import type { ExecResult } from './types.ts';
 
 /** 单次执行中互评的循环上限。正常不会触及，仅用于防止接口异常导致死循环。 */
 const REVIEW_LOOP_LIMIT = 40;
 
-/**
- * 一项的执行结果。
- *
- * done    已自动完成
- * skipped 时机变了，这次不用做（比如自评已被完成）
- * failed  出错，需要人工看一眼
- */
-export interface ExecResult {
-  tid: number;
-  name: string;
-  kind: AutoAction['kind'];
-  status: 'done' | 'skipped' | 'failed';
-  /** 结果说明，会出现在通知里 */
-  detail: string;
-}
-
-/**
- * 题库缓存。
- *
- * 按 termId 缓存，一轮之内同一门课只请求一次。题库是整门课的题目加答案，
- * 卷子里每道题都要靠它比对，逐题去查会成倍放大请求量。
- */
-class BankCache {
-  private readonly loaded = new Map<number, Map<string, boolean>>();
-
-  async get(client: MoocClient, termId: number): Promise<Map<string, boolean> | null> {
-    const cached = this.loaded.get(termId);
-    if (cached) return cached;
-
-    const bank = await getQuizBank(client, termId);
-    if (!bank.ok) return null;
-
-    const index = buildAnswerIndex(bank.value);
-    this.loaded.set(termId, index);
-    return index;
-  }
-}
-
 /** 自动完成一个单元测验。 */
-async function runQuiz(
+export async function runQuiz(
   client: MoocClient,
   action: WorkAutoAction,
   bank: BankCache,
@@ -131,7 +81,7 @@ async function runQuiz(
  *
  * 分数按满分给：自评是给自己的作业打分，平台允许按自己的判断填写。
  */
-async function runSelf(
+export async function runSelf(
   client: MoocClient,
   action: WorkAutoAction,
   evaluatorId: number,
@@ -188,7 +138,7 @@ async function runSelf(
  * totalEvaluateCount 给出，页面上对应「请至少为 N 份作业进行评分」那句话。
  * 不做固定份数，否则会出现少评而影响成绩。
  */
-async function runReview(
+export async function runReview(
   client: MoocClient,
   action: WorkAutoAction,
   evaluatorId: number,
@@ -274,82 +224,4 @@ async function runReview(
     };
   }
   return { ...base, status: 'skipped', detail: '当前没有可评的答卷，下次会再试' };
-}
-
-/**
- * 完成一个课件单元。
- *
- * 一条请求就够（见 platform-mooc 的 `learn.ts`），失败只影响这一个单元。
- * 这里的 `done` 表示「已上报」而非「平台已记账」：视频、文档、文本、随堂测验
- * 立即记账，讨论是延迟记账，真实结果由下一轮快照确认。
- */
-async function runCourseware(
-  client: MoocClient,
-  action: CoursewareAutoAction,
-  courseware: CoursewareContext,
-): Promise<ExecResult> {
-  const base = { tid: action.unit.unitId, name: action.unit.name, kind: action.kind } as const;
-
-  const result = await completeUnit(client, action.unit, courseware);
-  if (!result.ok) {
-    return { ...base, status: 'failed', detail: `上报失败：${result.error.message}` };
-  }
-  return result.value === 'skipped'
-    ? { ...base, status: 'skipped', detail: '平台没给这个单元的时长，无法上报' }
-    : { ...base, status: 'done', detail: '已上报，平台记入学习进度' };
-}
-
-/**
- * 执行计划里全部可自动完成的事项。
- *
- * 逐项进行，每项完成后回调，由调用方落盘。单项失败不中断整轮——
- * 一门课的接口出错不该让别的课也做不成。
- */
-export async function executeActions(
-  client: MoocClient,
-  actions: AutoAction[],
-  evaluatorId: number,
-  comment: string,
-  onProgress?: (result: ExecResult) => Promise<void>,
-  /**
-   * 课件行为的上下文（AI 文本生成器）。
-   *
-   * 由调用方从设置构造：没有配置 AI 时是 undefined，讨论单元本来也不会进计划，
-   * 因此这里不必再判空——真出现时行为会如实返回失败。
-   */
-  courseware: CoursewareContext = {},
-): Promise<ExecResult[]> {
-  const bank = new BankCache();
-  const results: ExecResult[] = [];
-
-  for (const action of actions) {
-    let result: ExecResult;
-    try {
-      if (action.kind === 'courseware') {
-        result = await runCourseware(client, action, courseware);
-      } else if (action.kind === 'quiz') {
-        result = await runQuiz(client, action, bank);
-      } else if (action.kind === 'self') {
-        result = await runSelf(client, action, evaluatorId, comment);
-      } else {
-        result = await runReview(client, action, evaluatorId, comment);
-      }
-    } catch (error) {
-      const target =
-        action.kind === 'courseware'
-          ? { tid: action.unit.unitId, name: action.unit.name }
-          : { tid: action.work.tid, name: action.work.name };
-      result = {
-        ...target,
-        kind: action.kind,
-        status: 'failed',
-        detail: error instanceof Error ? error.message : String(error),
-      };
-    }
-
-    results.push(result);
-    if (onProgress) await onProgress(result);
-  }
-
-  return results;
 }
