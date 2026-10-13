@@ -13,7 +13,10 @@ export function parseDwrObjectVariables(raw: string): Record<string, string> {
   const fields: Record<string, string> = {};
 
   for (const match of raw.matchAll(/s\d+\.([A-Za-z_]\w*)\s*=\s*([^;\r\n]*)/g)) {
-    fields[match[1]] = match[2].trim();
+    const [, field, value] = match;
+    // 两个分组都是必配的，匹配成功即有值；判空只是收窄类型
+    if (field === undefined || value === undefined) continue;
+    fields[field] = value.trim();
   }
 
   return fields;
@@ -31,6 +34,8 @@ export function groupDwrObjects(raw: string): Map<string, Record<string, string>
 
   for (const match of raw.matchAll(/\b(s\d+)\.([A-Za-z_]\w*)=([^;\r\n]*)/g)) {
     const [, name, field, value] = match;
+    // 三个分组都是必配的，匹配成功即有值；判空只是收窄类型
+    if (name === undefined || field === undefined || value === undefined) continue;
     const fields = out.get(name) ?? {};
     fields[field] = value.trim();
     out.set(name, fields);

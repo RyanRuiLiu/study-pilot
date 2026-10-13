@@ -10,6 +10,7 @@
 
 import js from '@eslint/js';
 import globals from 'globals';
+import unusedImports from 'eslint-plugin-unused-imports';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -34,6 +35,7 @@ export default tseslint.config(
       noInlineConfig: true,
       reportUnusedDisableDirectives: 'error',
     },
+    plugins: { 'unused-imports': unusedImports },
     rules: {
       // TypeScript 已经负责「标识符是否定义」，这条在 TS 里重复且误报
       'no-undef': 'off',
@@ -63,6 +65,8 @@ export default tseslint.config(
         'questionBank',
       ],
 
+      // 未使用的 import 用带 fixer 的插件规则清（官方规则没有 fixer）
+      'unused-imports/no-unused-imports': 'error',
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },

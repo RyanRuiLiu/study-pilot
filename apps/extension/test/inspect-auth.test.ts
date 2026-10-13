@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { err, ok } from '@study-pilot/core';
+import { ok } from '@study-pilot/core';
 import type { TransportError } from '@study-pilot/transport';
 import type { CourseStructure } from '@study-pilot/platform-mooc';
 

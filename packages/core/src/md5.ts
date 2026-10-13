@@ -31,7 +31,18 @@ function ii(a: number, b: number, c: number, d: number, x: number, s: number, t:
   return cmn(c ^ (b | ~d), a, b, x, s, t);
 }
 
-function md5cycle(x: number[], k: number[]): void {
+/*
+ * 用元组而不是 `number[]`：算法里这些数组长度是固定的（状态 4 个字、分组 16 个字），
+ * 而 `number[]` 在 noUncheckedIndexedAccess 下每次索引都可能是 undefined。
+ * 元组把「长度固定」交给类型系统，运行时代码与之前完全一致。
+ */
+type State = [number, number, number, number];
+type Block = [
+  number, number, number, number, number, number, number, number,
+  number, number, number, number, number, number, number, number,
+];
+
+function md5cycle(x: State, k: Block): void {
   let [a, b, c, d] = x;
   a = ff(a, b, c, d, k[0], 7, -680876936); d = ff(d, a, b, c, k[1], 12, -389564586);
   c = ff(c, d, a, b, k[2], 17, 606105819); b = ff(b, c, d, a, k[3], 22, -1044525330);
@@ -69,8 +80,8 @@ function md5cycle(x: number[], k: number[]): void {
   x[2] = safeAdd(c, x[2]); x[3] = safeAdd(d, x[3]);
 }
 
-function md5blk(s: string): number[] {
-  const md5blks: number[] = [];
+function md5blk(s: string): Block {
+  const md5blks: Block = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   for (let i = 0; i < 64; i += 4) {
     md5blks[i >> 2] =
       s.charCodeAt(i) +
@@ -81,15 +92,24 @@ function md5blk(s: string): number[] {
   return md5blks;
 }
 
-function md51(s: string): number[] {
+function md51(s: string): State {
   const n = s.length;
-  const state = [1732584193, -271733879, -1732584194, 271733878];
+  const state: State = [1732584193, -271733879, -1732584194, 271733878];
   let i: number;
   for (i = 64; i <= n; i += 64) md5cycle(state, md5blk(s.substring(i - 64, i)));
   s = s.substring(i - 64);
-  const tail = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  for (i = 0; i < s.length; i++) tail[i >> 2] |= s.charCodeAt(i) << ((i % 4) << 3);
-  tail[i >> 2] |= 0x80 << ((i % 4) << 3);
+  const tail: Block = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  /*
+   * `i >> 2` 最大到 15：整块已被循环摘掉，这里的长度一定不足 64 字节，
+   * 因此元组里必定有这一项。`?? 0` 只是把类型上的「可能是 undefined」
+   * 补成确定的数；读取到的值本来也就是初始化时的 0，结果与原来完全一致。
+   */
+  for (i = 0; i < s.length; i++) {
+    const word = i >> 2;
+    tail[word] = (tail[word] ?? 0) | (s.charCodeAt(i) << ((i % 4) << 3));
+  }
+  const lastWord = i >> 2;
+  tail[lastWord] = (tail[lastWord] ?? 0) | (0x80 << ((i % 4) << 3));
   if (i > 55) {
     md5cycle(state, tail);
     for (i = 0; i < 16; i++) tail[i] = 0;

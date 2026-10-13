@@ -217,5 +217,5 @@ export function isDwrSuccess(raw: string): boolean {
  */
 export function extractDwrPayload(raw: string): string | null {
   const match = raw.match(/_remoteHandleCallback\('[^']*','[^']*',([\s\S]*?)\);/);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }

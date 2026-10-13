@@ -14,9 +14,7 @@
 import {
   COURSE_TYPE,
   getCourses,
-  getCoursesWithTrace,
   type CourseSummary,
-  type CourseType,
   type CoursewareContext,
   type MoocClient,
 } from '@study-pilot/platform-mooc';
@@ -24,18 +22,13 @@ import { getSettings, type Settings } from '../../settings';
 import { ensureSession, renewSession } from '../../platform/mooc/session';
 import type { BackgroundRequest } from '../../platform/messaging';
 import { executeActions } from '../mooc/execute';
-import { notifySample } from '../mooc/reminder';
-import { readSnapshot, type InspectCourse, type Snapshot } from '../mooc/snapshot';
+import { type InspectCourse, type Snapshot } from '../mooc/snapshot';
 import { derivePlan } from '../mooc/task-plan';
-import { toPendingSummary, toUnitDetails } from '../mooc/to-messages';
-import { listNetRules } from '../net-rules';
 import {
   beginRun,
   canStartRun,
   finishRun,
   getTaskState,
-  liveRunState,
-  resetState,
   touchRun,
 } from '../runtime/scheduler';
 import { recoveryFailure, withSessionRecovery } from '../runtime/session-recovery';

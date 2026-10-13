@@ -4,7 +4,6 @@
  * 从 options/main.ts 按原有分节整块搬出；控件只接收回调，不碰存储。
  */
 
-import type { UnitDetail } from '../../src/platform/messaging';
 
 
 // ---------- 基础控件 ----------

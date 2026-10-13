@@ -10,6 +10,8 @@
         "../../packages/platform-mooc/src/index.ts"
       ]
     },
-    "noUncheckedIndexedAccess": false
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true
   }
 }
