@@ -8,6 +8,7 @@
  * 这里的函数都是纯的：给定计划与快照，输出消息对象，不碰网络也不碰存储。
  */
 
+import { workPageUrl } from '@study-pilot/platform-mooc';
 import type { PendingEntry, PendingKind, PendingSummary, UnitDetail } from '../../platform/messaging';
 import { OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from './task-plan';
 import type { Snapshot, SnapshotCourse } from './snapshot';
@@ -112,6 +113,7 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
        */
       kind: AUTO_KIND[action.kind],
       handling: 'auto',
+      href: workPageUrl(course, work.type, work.tid, work.examId ?? undefined),
       overdue: false,
       testId: work.tid,
       courseName: course.courseName,
@@ -139,6 +141,7 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
       // 每一类原因对应一件具体的事，不再有一对多的兜底分支
       kind: MANUAL_KIND[reason],
       handling: 'manual',
+      href: workPageUrl(course, work.type, work.tid, work.examId ?? undefined),
       /*
        * 四种过了截止的情形都要标出来。
        * 它们共有的含义是「平台上已经做不了了」，界面据此改说法，
@@ -181,6 +184,7 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
   });
 
   return {
+    fetchedAt: now,
     auto: live.filter((e) => e.handling === 'auto').length,
     manual: live.filter((e) => e.handling === 'manual' && !e.overdue).length,
     overdue: live.filter((e) => e.overdue).length,

@@ -24,8 +24,6 @@
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 
-import type { PlanSummary } from '../domain/plan';
-import type { Task } from '../domain/task';
 import { formatClock, isUrgent, relativeDay } from '../features/format';
 
 /** 状态行的语气。`busy` 是「正在做事」，`error` 是需要人看一眼的失败。 */
@@ -95,19 +93,10 @@ export function button(options: ButtonOptions): HTMLElement {
 /**
  * 计数一行。
  *
- * 数字**不是这里数出来的**：调用方把 domain/plan.ts 的 summarize 结果交进来，
- * 这里只负责把它排成一句话。理由见 plan.ts 的文件头——两处各数一遍迟早对不上。
+ * 数字**不是这里数出来的**：各平台的数法不同（慕课按「会自动完成 / 需你处理 / 已过期」），
+ * 调用方把算好的分项文字交进来，这里只负责排成一句话。组件不认识任何平台的计数模型。
  */
-export function countLine(summary: PlanSummary): HTMLElement {
-  const open = summary.auto + summary.assisted + summary.manual + summary.failed;
-  const parts = [
-    `共 ${open} 项`,
-    `可自动完成 ${summary.auto}`,
-    `需要确认 ${summary.assisted}`,
-    `需要你做 ${summary.manual}`,
-  ];
-  if (summary.failed > 0) parts.push(`失败 ${summary.failed}`);
-
+export function countLine(parts: string[]): HTMLElement {
   const line = document.createElement('p');
   line.className = 'sp-count';
   line.textContent = parts.join(' · ');
@@ -123,13 +112,22 @@ function anchor(href: string): HTMLAnchorElement {
   return element;
 }
 
-/** 一条待办：标题 + 还剩多久。有可跳转的地址就整行可点。 */
-export function taskRow(task: Task): HTMLLIElement {
+/** 一条待办要渲染的最小信息。组件不认识任何平台的模型，只认这三项。 */
+export interface TaskRowItem {
+  title: string;
+  /** 截止时间（毫秒）；0 表示没有截止时间，此时不显示时间 */
+  due: number;
+  /** 可跳转地址；缺省时整行不可点 */
+  href?: string;
+}
+
+/** 一条待办：标题 + 还剩多久。有地址就整行可点。 */
+export function taskRow(row: TaskRowItem): HTMLLIElement {
   const item = document.createElement('li');
   item.className = 'sp-item';
 
   const body: HTMLElement =
-    task.link === undefined ? document.createElement('span') : anchor(task.link);
+    row.href === undefined ? document.createElement('span') : anchor(row.href);
   body.className = 'sp-item-body';
 
   const line = document.createElement('span');
@@ -137,15 +135,17 @@ export function taskRow(task: Task): HTMLLIElement {
 
   const title = document.createElement('span');
   title.className = 'sp-item-title';
-  title.textContent = task.title;
+  title.textContent = row.title;
+  line.append(title);
 
-  const due = task.dueAt ?? 0;
-  const when = document.createElement('span');
-  when.className = 'sp-item-when';
-  when.textContent = `${relativeDay(due)} ${formatClock(due)}`.trim();
-  if (isUrgent(due)) when.dataset.urgent = 'true';
+  if (row.due > 0) {
+    const when = document.createElement('span');
+    when.className = 'sp-item-when';
+    when.textContent = `${relativeDay(row.due)} ${formatClock(row.due)}`.trim();
+    if (isUrgent(row.due)) when.dataset.urgent = 'true';
+    line.append(when);
+  }
 
-  line.append(title, when);
   body.append(line);
   item.append(body);
   return item;

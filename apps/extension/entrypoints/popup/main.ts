@@ -17,8 +17,7 @@ import '../../src/ui/components.css';
 import './style.css';
 
 import { required } from '../../src/ui/dom';
-import type { Task } from '../../src/domain/task';
-import { sendToBackground, type TaskStatus } from '../../src/platform/messaging';
+import { sendToBackground, type PendingSummary, type TaskStatus } from '../../src/platform/messaging';
 import { getSettings, watchSettings } from '../../src/settings';
 import { renderLoading, renderPopup, type PopupData, type PopupView } from './view.ts';
 import { runNow } from './run.ts';
@@ -34,23 +33,21 @@ function reason(error: unknown): string {
 }
 
 /**
- * 取数：三个请求，各司其职，顺序不能颠倒。
+ * 取数：两个请求，各司其职。
  *
  *   TASK_STATE       后台此刻在不在跑。界面不自己拿字段猜（理由见 envelope.ts）
- *   PENDING_SUMMARY  让后台立刻去平台拉一次并更新快照。用户打开弹窗就是现在想看，
- *                    不该沿用上一次的快照；它同时带回「未登录 / 读取失败」——
- *                    这两种情况 DASHBOARD 报不出来（读不到快照一律回空值）
- *   DASHBOARD        读同一份快照，给出中立模型。清单与计数都基于它
+ *   PENDING_SUMMARY  让后台立刻去平台拉一次并更新快照，并带回这一屏要的一切：
+ *                    待办条目、计数、跳转地址、读取时刻，以及「未登录 / 读取失败」。
  *
- * 后两个读的是同一份快照，因此不会互相矛盾。
+ * 这里不再读 DASHBOARD：那是给看板的中立模型，而弹窗要的东西平台汇总里全都有。
+ * 读两份同一份快照的数据只会多一层要同步的东西。
  */
 async function load(): Promise<PopupData> {
   let live: TaskStatus['live'] = 'idle';
   let error: string | null = null;
   let notLoggedIn = false;
   let staleList = false;
-  let tasks: Task[] = [];
-  let fetchedAt = 0;
+  let summary: PendingSummary | null = null;
 
   try {
     live = (await sendToBackground({ type: 'TASK_STATE' })).live;
@@ -64,6 +61,7 @@ async function load(): Promise<PopupData> {
       if (pending.reason === 'NOT_LOGGED_IN') notLoggedIn = true;
       else error = pending.message;
     } else {
+      summary = pending.value;
       // 后台在执行期间不重新拉取时会带上这个标记，见 envelope.ts 的 QueryOutcome
       staleList = pending.running === true;
     }
@@ -71,19 +69,7 @@ async function load(): Promise<PopupData> {
     error = error ?? reason(cause);
   }
 
-  try {
-    const outcome = await sendToBackground({ type: 'DASHBOARD' });
-    if (outcome.status === 'ok') {
-      tasks = outcome.value.tasks;
-      fetchedAt = outcome.value.fetchedAt;
-    } else {
-      error = error ?? outcome.message;
-    }
-  } catch (cause) {
-    error = error ?? reason(cause);
-  }
-
-  return { live, tasks, fetchedAt, notLoggedIn, staleList, error };
+  return { live, summary, notLoggedIn, staleList, error };
 }
 
 /** 执行按钮的可按性。正在执行时点它只会被后台拒绝，直接禁掉更省事。 */
