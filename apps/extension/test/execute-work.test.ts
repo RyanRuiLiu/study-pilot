@@ -428,8 +428,9 @@ describe('runSelf：自动完成一份作业的自评', () => {
         }),
       ),
     );
+    // 两份列表都是 null：这样才走到 `?? []` 那一步（另一条用例专测「只有客观题」）
     vi.mocked(getHomeworkPaper).mockResolvedValue(
-      ok(homeworkPaper({ subjectiveQList: null, objectiveQList: [] })),
+      ok(homeworkPaper({ subjectiveQList: null, objectiveQList: null })),
     );
     vi.mocked(submitEvaluation).mockResolvedValue(ok(true));
 
@@ -606,8 +607,9 @@ describe('runReview：自动完成一份作业的互评', () => {
   it('没有可评题目：skipped，不取待评答卷', async () => {
     vi.mocked(getHomeworkInfo).mockResolvedValue(ok(homeworkInfo()));
     vi.mocked(getEvaluationDetail).mockResolvedValue(ok(progress({ required: 2, remaining: 2 })));
+    // 两份列表都是 null：这样才走到 `?? []` 那一步
     vi.mocked(getHomeworkPaper).mockResolvedValue(
-      ok(homeworkPaper({ subjectiveQList: null, objectiveQList: [] })),
+      ok(homeworkPaper({ subjectiveQList: null, objectiveQList: null })),
     );
 
     const result = await runReview(...args);
