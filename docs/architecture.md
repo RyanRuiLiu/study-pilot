@@ -5,6 +5,8 @@
 ```
 apps/extension          浏览器扩展：装配、页面内的功能、后台任务
         |
+        +--> packages/ai            模型调用层：OpenAI 兼容协议、超时、失败分类
+        |
         v
 packages/platform-mooc  平台领域层：接口、类型、业务规则
         |
@@ -12,10 +14,12 @@ packages/platform-mooc  平台领域层：接口、类型、业务规则
 packages/transport      HTTP 协议层：签名、csrfKey、节流、DWR、错误分类
         |
         v
-packages/core           纯函数：MD5、Result 类型
+packages/core           纯函数：MD5、Result、FetchLike
 ```
 
-依赖方向严格单向，下层不感知上层。
+依赖方向严格单向，下层不感知上层。`ai` 与 `transport` 平级、互不依赖：前者只认模型接口，
+后者只认平台接口；两者都只依赖 `core`。平台那份请求节流**不适用于模型调用**。
+详见 [docs/ai.md](ai.md)。
 
 ### core
 

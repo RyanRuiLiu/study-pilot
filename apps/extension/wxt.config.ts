@@ -150,6 +150,15 @@ export default defineConfig({
      * 并在这里说明新增的用途——商店审查会比对权限与说明是否一致。
      */
     host_permissions: ['*://*.icourse163.org/*'],
+    /*
+     * AI 接口的主机权限：可选，按需申请。
+     *
+     * 接口地址由用户在设置里填写，事先不知道是哪个域名，所以声明只能给通配。
+     * 「声明」不等于「拥有」：未获授权时这些域名的请求发不出去，实际申请时
+     * 也只申请用户填写的那个源（见 src/ai/permission.ts）。
+     * 不开启 AI 就一个第三方域名都没有。
+     */
+    optional_host_permissions: ['*://*/*'],
     options_ui: {
       page: 'options.html',
       open_in_tab: true,

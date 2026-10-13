@@ -23,6 +23,9 @@ import {
   updateSettings,
   type Settings,
 } from '../../src/settings';
+import { chatOrigin } from '@study-pilot/ai';
+import { testAiConnection } from '../../src/ai';
+import { ensureHostPermission } from '../../src/ai/permission';
 import {
   REJECTION_MESSAGES,
   sendToBackground,
@@ -733,6 +736,32 @@ async function toggleCourse(termId: number, enabled: boolean): Promise<void> {
 
 // ---------- 动作 ----------
 
+/**
+ * 申请 AI 接口所在域名的主机权限。
+ *
+ * 必须在点击事件里调用：浏览器的权限申请要求用户手势。
+ * 只申请当前填写的那个源；换地址后需要重新申请（旧权限不会顺延）。
+ */
+async function requestAiPermission(): Promise<void> {
+  const origin = chatOrigin(current.ai.baseUrl);
+  if (!origin) {
+    toast('先填写接口地址（以 http:// 或 https:// 开头）');
+    return;
+  }
+  toast(`正在申请 ${origin} 的权限…`);
+  const result = await ensureHostPermission(origin);
+  if (result === 'granted') toast(`已授权 ${origin}`);
+  else if (result === 'denied') toast('未授权：无法向你填写的地址发请求');
+  else toast('当前环境不支持申请权限，请在扩展页面里操作');
+}
+
+/** 用当前配置发一次最小请求，把结果如实回报。 */
+async function checkAiConnection(): Promise<void> {
+  toast('正在测试连接…');
+  const result = await testAiConnection(current);
+  toast(result.ok ? `可用：${result.text.slice(0, 24)}` : `失败：${result.reason}`);
+}
+
 function describeRejection(reason: string): string {
   return REJECTION_MESSAGES[reason as keyof typeof REJECTION_MESSAGES] ?? `执行失败：${reason}`;
 }
@@ -902,6 +931,7 @@ function courseList(): HTMLElement {
 function render(): void {
   app.replaceChildren();
   const mooc = current.mooc;
+  const ai = current.ai;
 
   app.append(
     section('account', '账号与课程', '先确认登录状态，再选择参与任务的课程。', [
@@ -1135,6 +1165,53 @@ function render(): void {
           }),
         ),
       ]),
+    ]),
+
+    section('ai', 'AI 能力', '需要 AI 的功能（目前是讨论区留言）由你提供接口地址、模型与密钥。密钥只存在本机，不参与同步、不上报。', [
+      prose([
+        {
+          term: '什么时候联网',
+          text: '只有开启并授权之后，扩展才会向你填写的地址发请求。发出去的内容只有该功能需要的材料（例如讨论题名），不含账号、学号与其它课程数据。',
+        },
+        {
+          term: '权限怎么来',
+          text: '主机权限按需申请：点「申请权限」时只申请你填的那个域名。不开启 AI 就一个第三方域名都不申请。',
+        },
+        {
+          term: '失败会怎样',
+          text: '生成失败会重试，仍失败就记为失败、不写任何内容到平台，留给人工处理——不会用固定文案顶替。',
+        },
+      ]),
+      row(
+        '启用 AI',
+        '关闭时依赖 AI 的功能不会自动执行，会显示为需要你自己处理',
+        toggle(ai.enabled, bindSetting<boolean>('ai.enabled')),
+      ),
+      row(
+        '接口地址',
+        'OpenAI 兼容的接口，例如 https://open.bigmodel.cn/api/paas/v4（带或不带 /v1 都可以）',
+        textInput(ai.baseUrl, bindSetting<string>('ai.baseUrl')),
+      ),
+      row('模型', '例如 glm-4-flash', textInput(ai.model, bindSetting<string>('ai.model'))),
+      row(
+        '密钥',
+        '只存本机，不进日志、不进导出',
+        textInput(ai.apiKey, bindSetting<string>('ai.apiKey')),
+      ),
+      row(
+        '主机权限',
+        '只申请上面填写的那个域名',
+        button('申请权限', () => {
+          void requestAiPermission();
+        }),
+      ),
+      row(
+        '连通性',
+        '用当前配置发一次最小请求，确认地址、模型与密钥可用',
+        button('测试连接', () => {
+          void checkAiConnection();
+        }),
+      ),
     ]),
 
     section('foreground', '前台功能', '打开对应页面时生效，不影响后台任务。做题助手需要你自己点提交，扩展不代点。', [
