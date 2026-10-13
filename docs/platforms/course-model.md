@@ -1,87 +1,106 @@
 # 课程模型
 
-这份文档整理课程的类型、层级与状态。扩展的所有判断都建立在这些取值之上，
-因此每一条都标注来源，便于平台改版后复核。
+课程的类型、层级与状态。扩展的所有判断都建立在这些取值之上，因此每条都标注来源。
 
-## 1. 课程类型（mode）
-
-取自 `core` bundle 的 `edu.u.CONST`：
-
-```js
-MODE_MOOC: 0,        // 普通 MOOC
-MODE_SPOC_SYNC: 10,  // SPOC 同步
-MODE_SPOC_ASYNC: 15, // SPOC 异步
-MODE_SPOC_ONLY: 20,  // SPOC 独立
-MODE_ROOC: 30,       // ROOC
-```
-
-`mode` 决定学习页地址前缀，两种前缀的页面结构一致但地址不同：
-
-| mode | 学习页前缀 |
+| 标记 | 含义 |
 |---|---|
-| 0 | `/learn/{course}` |
-| 10 / 15 / 20 / 30 | `/spoc/learn/{course}` |
+| [源码] | 从平台 bundle 静态读出，附行号（`core/index.js` 指反编译产物） |
+| [实测] | 本轮在真实账号上读过或调用过 |
+| [待核] | 尚未验证，不得作为实现依据 |
 
-实测该账号 6 门课的 mode 分布：MOOC 2 门（mode 0），SPOC 4 门（mode 10、15、15、20）。
-因此后台任务拼地址时必须读 `mode`，不能假定是 `/learn/`。
+## 1. 课程模式（mode）
 
-## 2. 课程层级
+[源码] `core/index.js:20171-20175`（`edu.u.CONST`）：
 
-```
-课程（termId）
-└── 章节 chapters[]
-    ├── units[]          视频、文档等学习单元
-    ├── quizs[]          单元测验
-    ├── homeworks[]      单元作业
-    └── exam             考试
+```js
+MODE_MOOC: 0, MODE_SPOC_SYNC: 10, MODE_SPOC_ASYNC: 15, MODE_SPOC_ONLY: 20, MODE_ROOC: 30
 ```
 
-三种子节点的结构一致，都带 `id`、`contentId`、`contentType`、`test`：
+`mode` 决定学习页地址前缀：
 
-| 字段 | 说明 |
+| mode | 前缀 | [实测] |
+|---|---|---|
+| 0 | `/learn/{school}-{courseId}` | 示例课程丁（9000000014） |
+| 10 / 15 / 20 / 30 | `/spoc/learn/{school}-{courseId}` | 示例课程子（9000000027，mode 15） |
+
+后台拼地址必须读 `mode`，不能假定 `/learn/`。
+
+## 2. 层级
+
+数据来自 `courseBean.getLastLearnedMocTermDto {termId}`，一次请求拿到整门课。
+
+```
+result.mocTermDto
+├── chapters[]                    章节
+│   ├── lessons[]                 课时
+│   │   └── units[]               课件单元（视频/文档/文本/随堂测验/讨论…）
+│   ├── quizs[]                   章节下的单元测验
+│   ├── homeworks[]               章节下的单元作业
+│   └── exam                      章节内的考试。实测恒为 null
+├── exams[]                       考试。真正的位置在顶层
+└── courseId / id / courseName / mode / startTime / endTime …
+```
+
+[源码] 与 [实测] 一致：`packages/platform-mooc/src/structure.ts` 的注释给出了同样的位置；
+本轮遍历 `chapters[].lessons[].units[]` 读到了全部课件单元。
+
+**课件单元挂在 lesson 下，不在 chapter 下**——这是最容易被写错的一处。
+考试在顶层 `exams[]`，每场考试拆成 `objectTest`（客观，`type: 2`）与
+`subjectTest`（主观，`type: 3`）两部分，各自有独立的 tid。
+
+## 3. 两套类型常量
+
+**它们不是一套。** 工作项的 `type` 与课件单元的 `contentType` 取值重叠而含义不同，
+混用会得出「PDF 是作业」这类结论。
+
+### 3.1 工作项类型 [源码] `core/index.js:20200-20202`
+
+```js
+LESSON_TYPE_NORMAL: 1, LESSON_TYPE_QUIZ: 2, LESSON_TYPE_HOMEWORK: 3
+```
+
+扩展把它们归一化为 `quiz` / `homework` / `exam-objective` / `exam-subjective`。
+
+### 3.2 课件单元类型 [源码] `core/index.js:20203-20215`
+
+```js
+LESSONUNIT_VIDEO: 1,                    LESSONUNIT_VIDEO_SRT: 2,
+LESSONUNIT_PDF: 3,                      LESSONUNIT_TEXT: 4,
+LESSONUNIT_QUESTION: 5,                 LESSONUNIT_DISCUSS: 6,
+LESSONUNIT_LIVE: 7,                     LESSONUNIT_COLUMN_CONTENT: 8,
+LESSONUNIT_RELATED_LIVE: 9,             LESSONUNIT_MUSIC_VIDEO: 10,
+LESSONUNIT_MUSIC_EXERCISE: 11,          LESSONUNIT_MUSIC_HOMEWORK: 12,
+LESSONUNIT_INTERACTIVE_COURSEWARE: 15
+```
+
+[实测] 账号 6 门课中只出现过 1、3、4、5、6；其余值 [待核]。
+
+## 4. 课件单元的完成度
+
+单元对象上的三个字段（[实测]）：
+
+| 字段 | 含义 |
 |---|---|
-| `contentType` | 1 视频、2 测验、3 作业 |
-| `contentId` | 对应测验或作业的 tid |
-| `test` | 该节点的业务信息，含 `id`、`name`、`type`、`deadline` 等 |
+| `completePercent` | 精确小数。视频 = 已学秒数 / 总时长；其余类型为 0 或 1 |
+| `viewStatus` | 0 未学；5 已学（部分学习也是 5） |
+| `learnTime` | 视频为已计入学时的「上报周期数」（565 秒 → 10）；文本/文档/讨论为 null |
+| `durationInSeconds` | 视频总时长（秒），上报时用作 `videoTime` |
 
-取 tid 用 `test.id`，它等于 `contentId`。
-
-## 3. 节点类型常量
-
-```js
-LESSON_TYPE_QUIZ: 2,       // 测验
-LESSON_TYPE_HOMEWORK: 3,   // 作业
-
-LESSONUNIT_VIDEO: 1,
-LESSONUNIT_VIDEO_SRT: 2,
-LESSONUNIT_PDF: 3,
-LESSONUNIT_TEXT: 4,
-LESSONUNIT_QUESTION: 5,
-LESSONUNIT_DISCUSS: 6,
-LESSONUNIT_LIVE: 7,
-LESSONUNIT_COLUMN_CONTENT: 8,
-LESSONUNIT_RELATED_LIVE: 9,
-```
-
-## 4. 发布状态（教师视角）
+课时圆点的判据 [源码] `index.js:1610-1617`：
 
 ```js
-CHAPTERSTATUS_CREATE: 0,     // 未发布
-CHAPTERSTATUS_PUBLISHED: 1,  // 已发布
-CHAPTERSTATUS_MODIFIED: 2,   // 已修改
-CHAPTERSTATUS_DELETED: -1,   // 已删除
+learned = units.filter(u => !!u.viewStatus).length;
+learned === units.length ? 'circle checked' : learned > 0 ? 'circle semichecked' : ''
 ```
 
-节点上的 `testDraftStatus` / `draftStatus` 取这些值。这是**教师端**的发布状态，
-与学生的完成情况无关，不要用它判断学生做没做。
+课时的 `viewStatus` [源码] `index.js:1799-1803`：0 未开始、3 部分完成、其它为已完成。
 
-## 5. 学生待办（扩展判断的依据）
+课程进度用另一个接口 [实测] `mocCourseV2RpcBean.getMemberLearningRate {termId}`
+→ `{lessonLearned, lessonsCount}`，按**课时**计数。
 
-**待办由课程结构派生，不另取接口。**
+## 5. 工作项（作业/测验/考试）的判定
 
-`courseBean.getLastLearnedMocTermDto(termId)` 一次返回该课程的全部章节，
-每章挂 `quizs` / `homeworks` / `exam`。每个单元项里的 `test` 对象带齐了
-判断所需的一切：
+由 `test` 对象直接判定，不需要额外请求：
 
 | 字段 | 用途 |
 |---|---|
@@ -93,34 +112,7 @@ CHAPTERSTATUS_DELETED: -1,   // 已删除
 | `userScore` / `totalScore` | 有没有分、满分多少 |
 | `enableEvaluation` / `evaluateJudgeType` | 是否带互评（2 互评、3 自评） |
 
-因此「该做什么、能不能自动做」只需每门课一个请求，不需要逐项去查。
-
-### 为什么不用 TermBean.getNewestItems
-
-平台上确实存在一个名字更像「待办」的接口：
-
-```js
-s._$getNewestItems = function (e) {
-  this._$postDWR({ url: 'TermBean.getNewestItems', param: [e] });
-};
-```
-
-它返回的 `upcoming` 以待办类型为键（`needSubmitQuiz` / `needSubmitHomework` /
-`needEvaluateHomework` / `needSubmitExam` / `needEvaluateExam`），
-每类最多一项，字段只有 `testId`、`name`、`chapterName` 与两个截止时间。
-
-**问题在于它没有 `submitted` 之类的完成标记。** 实测把已经提交过的测验
-也列在 `needSubmitQuiz` 下——照着它做待办，会得出「已经交过的还在待交」
-这种结论，而用户无从判断。
-
-它还有个更隐蔽的限制：每类只给最近一项。同一门课里有两个待提交作业时，
-只会返回截止更早的那个，另一个不会出现。
-
-**结论**：待办从课程结构派生。多花一个请求，换来的是判据完整。
-
-## 6. 单个单元的状态
-
-由 `test` 对象的字段直接判定，不需要额外请求：
+状态判定：
 
 | 状态 | 判据 |
 |---|---|
@@ -130,30 +122,35 @@ s._$getNewestItems = function (e) {
 | 等待互评完成 | 已提交，互评窗口已过，尚无分数 |
 | 成绩已公布 | `userScore != null` |
 
-**成绩是否公布看 `userScore`，不看阶段。** 测验没有互评流程，其阶段字段
-永远为空；若用阶段判断，测验拿到分数后仍会被显示成「已提交」，
-与作业的口径不一致。
+**成绩看 `userScore`，不看阶段**：测验没有互评流程，其阶段字段永远为空。
 
-作业所处阶段由 `$currentEvaluatePhase` 按时间计算，见 [mooc.md](mooc.md) 第 7.3 节：
+作业所处阶段由 `$currentEvaluatePhase` 按时间算（[源码] `review.ts` 的 `currentEvaluatePhase`）：
 
-```js
-now < deadline                     -> 1 提交期
-now >= evaluateScoreReleaseTime    -> 3 成绩期
-否则                                -> 2 互评期
+```
+now < deadline                   -> 1 提交期
+now >= evaluateScoreReleaseTime  -> 3 成绩期
+否则                              -> 2 互评期
 ```
 
-互评配额（还差几份）需要单独查询，见 [mooc.md](mooc.md) 的互评一节。
+互评配额（还差几份）需要单独查询，见 [mooc.md](mooc.md) 第 7.3 节。
 
+### 为什么不用 `TermBean.getNewestItems`
 
-## 7. 对扩展的含义
+它名字像「待办」，但返回项没有完成标记（实测把已提交的测验也列在 `needSubmitQuiz` 下），
+且每类只返回最近一项。待办一律从课程结构派生。
+
+## 6. 对扩展的含义
 
 | 功能 | 适用类型 | 依据 |
 |---|---|---|
+| 课件自动完成 | 单元 1 / 3 / 4 / 5（6 见 [courseware.md](courseware.md)） | `completePercent`、`viewStatus` |
 | 自动作答 | 仅单元测验 | 作业题为主观题，无可自动填写的答案 |
-| 自动互评 | 单元作业 | 处于互评期且本人未评完配额 |
-| 自动自评 | 单元作业 | 处于互评期且自评未提交 |
+| 自动互评 / 自评 | 单元作业 | 互评期 + 未完成的配额 |
 | 截止提醒 | 测验、作业、考试 | 提交截止与互评截止 |
-| 得分指导展示 | 单元作业 | `subjectiveQList[].judgeDtos[]` |
+| 得分指导展示 | 单元作业与主观题考试 | `subjectiveQList[].judgeDtos[].msg` |
 
-课程结构给出「有没有事要做、能不能自动做」，互评配额给出「还差几份」。
-两者合起来足以排出一轮要执行的全部事项，不需要第三处判断。
+## 7. 待核
+
+- 6 门课里只复核了 2 门（示例课程丁 mode 0、示例课程子 mode 15），其余 4 门的模式与单元类型分布未确认
+- 单元对象是否自带 `lessonId` 字段未确认；本轮的 `lessonId` 取自 `lessons[].id`
+- 类型 2、7、8、9、10、11、12、15 无实测
