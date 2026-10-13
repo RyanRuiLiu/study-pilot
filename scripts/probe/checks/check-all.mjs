@@ -34,6 +34,7 @@ const SCRIPTS = [
   '../../verify/check-remark.mjs',
   '../../verify/check-syncpack.mjs',
   '../../verify/check-version-literal.mjs',
+  '../../verify/check-doc-refs.mjs',
 ];
 
 const expected = JSON.parse(readFileSync(join(HERE, 'expected-checks.json'), 'utf8'));

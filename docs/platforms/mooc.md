@@ -1,649 +1,299 @@
-# 平台事实
-
-本文件记录平台**实际如何运作**，不是设计意图。每条结论都标注取证位置，
-可随时复核。凡是未经取证的推断，一律显式标注为「未验证」。
-
-- 记录时间：2026-09-26；2026-10-14 补充播放器与课件单元两处取证
-- 取证对象：
-  - `https://mc.stu.126.net/pub/s/core_210ab52d6feda6bfdd39c5f6c8b03fb4.js`（2.27 MB）
-  - `https://mc.stu.126.net/pub/s/tp_learn_index_desktop_modules_learn_3dcbc5398de9b2095438a16.b999d28c.js`（347 KB，学习页）
-  - `https://mc.stu.126.net/pub/s/tp_learn_index_desktop_modules_learn_content_*.js`（课件页：单元装配与学习上报）
-  - `https://mc.stu.126.net/pub/s/VIDEOPLAYER_a7718dbce0f38d36548068efb672bcf6.js`（播放器：取流、心跳）
-- 取证方式见 [探测工具](../../scripts/probe/README.md)，可完整复现
-
-**相关文档**
-
-| 文档 | 内容 |
-|---|---|
-| [course-model.md](course-model.md) | 课程层级、类型常量、单元完成度 |
-| [courseware.md](courseware.md) | 课件单元的完成：报文、取值来源、实测边界 |
-| [reverse.md](reverse.md) | 如何重新生成反编译产物 |
-
----
+# 平台实测记录（icourse163）
+平台**实际如何运作**与每条结论的取证位置。设计见 [architecture.md](../architecture.md)，改动纪律见
+[development.md](../development.md)；课程模型、课件完成、逆向取证三份记录已并入第 11～13 节。标记：
+[源码] 从 bundle 静态读出（附偏移）；[实测] 真实账号上读过或调用过；[待核] 未验证，不得作为实现依据。
+取证对象是 2026-09-26（2026-10-14 补播放器与课件单元）抓取的平台 bundle；复现方式见
+[scripts/probe/README.md](../../scripts/probe/README.md)——bundle 摘录可用 `probe:decompile` 重新生成，
+故下文只留结论与偏移。
 
 ## 1. 请求签名
-
-取证位置：`core.js` 偏移 166060；学习页 bundle 内存在同构副本。
-两处实现逐字一致，说明这是公共组件被复制进不同 bundle。
-
-原始代码：
-
-```js
-c.geneAuthHeaders = function (e) {
-  if (!window.md5) i._$md5js();
-  var t = function (e, t, n) {                  // e=data, t=timestamp, n=nonce
-    var i = t || +new Date;
-    var o = n || Math.floor(9e3 * Math.random()) + 1e3;
-    var a = "[Object Object]" === Object.prototype.toString.call(e) ? JSON.stringify(e) : e || "";
-    var r = a + o + i + "fu2s2kxcswgn5hqanx7asmlogyr5wu29";
-    var s = "";
-    try { s = (window.md5(r) || "").toLocaleUpperCase() } catch (c) { console.error("md5计算错误") }
-    return s
-  };
-  var n = +new Date, o = Math.floor(9e3 * Math.random()) + 1e3, a = "v1";
-  var r = e.data;
-  var s = t(r, n, o);
-  return {
-    Timestamp: "" + n,
-    "Auth-Signature": s,
-    Nonce: "" + o,
-    System: a,
-    "Content-Type": "application/json;charset=UTF-8"
-  }
-};
-```
-
-规格：
-
-| 项 | 值 |
-|---|---|
-| 拼接顺序 | `body + nonce + timestamp + SALT` |
-| SALT | `fu2s2kxcswgn5hqanx7asmlogyr5wu29` |
-| nonce | `Math.floor(9000 * Math.random()) + 1000`，区间 1000 至 9999 |
-| timestamp | 毫秒 |
-| 摘要 | MD5 十六进制转大写 |
-| 请求头 | `Timestamp`、`Auth-Signature`、`Nonce`、`System: v1`、`Content-Type` |
-
-实现位置：[`packages/transport/src/sign.ts`](../../packages/transport/src/sign.ts)，测试见 [`packages/transport/test/sign.test.ts`](../../packages/transport/test/sign.test.ts)。
-
-### 1.1 空请求体的边界
-
-页面使用的是 `typeof e === 'object' ? JSON.stringify(e) : (e || '')`。
-当 data 为 `undefined`、`null`、`0` 或空串时，参与签名的是**空串**，而不是 `"{}"`。
-上一代实现无条件 `JSON.stringify(body ?? {})`，在这种输入下会算出不同的签名。
-当前所有调用都传了对象，所以该差异尚未暴露。
-
-### 1.2 请求头中没有 edu-script-token
-
-`geneAuthHeaders` 的返回对象只有上表五个字段。
-`edu-script-token` 在源码中的位置是一个日志模块的配置（`index.web.js` 偏移 308308）：
-
-```js
-"base-logger": {
-  product: "ykt",
-  cookie: "STUDY_UUID",
-  sessionKey: "EDU-LOG-UTM",
-  domainRegex: /study\.163\.com/,
-  csrf_cookie: "edu-script-token",
-  targets: [{ url: "//log.study.163.com/__utm.gif", method: "get" }]
-}
-```
-
-它的域名匹配规则指向 `study.163.com`，与 `icourse163.org` 的 `.rpc` 请求无关。
-上一代实现把它当请求头附加，没有源码依据。
+[源码] `core/index.js` 偏移 166060（学习页 bundle 内有同构副本）：拼接顺序 `body + nonce + timestamp +
+SALT`，SALT 为 `fu2s2kxcswgn5hqanx7asmlogyr5wu29`，nonce 取 `Math.floor(9000 * Math.random()) + 1000`
+（1000～9999），timestamp 为毫秒，摘要取 MD5 十六进制转大写，请求头五个字段（`Timestamp`、
+`Auth-Signature`、`Nonce`、`System: v1`、`Content-Type`）。实现见
+[sign.ts](../../packages/transport/src/sign.ts)，正确性由
+[sign.test.ts](../../packages/transport/test/sign.test.ts) 与 `node:crypto` 交叉验证。两处边界：页面按
+`typeof data === 'object' ? JSON.stringify(data) : (data || '')` 取值，`undefined`、`null`、`0`、空串参与
+签名的是**空串**而非 `"{}"`（上一代无条件 `JSON.stringify(body ?? {})`，这些输入下签名不同，当前调用都
+传对象所以未暴露）；请求头里**没有 `edu-script-token`**——它在源码里是日志模块 `base-logger` 的
+`csrf_cookie`，域名规则指向 `study.163.com`，与 `icourse163.org` 的 `.rpc` 无关，上一代把它当请求头附加
+没有依据。
 
 ## 2. csrfKey 与条件签名
-
-取证位置：`index.web.js` 偏移 195839
-
-```js
-if (/\.rpc$/.test(t)) {
-  var r = document.cookie.split(";").reduce(function (e, t, n) {
-    t = t.trim();
-    if (t) { var i = t.split("="); e[i[0]] = i[1] }
-    return e
-  }, {});
-  t += "?csrfKey=" + r["NTESSTUDYSI"]
-}
-n.url = t;
-try {
-  if (n.isNeedAuth) n.headers = Object.assign({}, n.headers, this.geneAuthHeaders(n))
-} catch (d) { console.error(e, "接口签名出错") }
-```
-
-两点结论：
-
-1. `csrfKey` 仅在 URL 以 `.rpc` 结尾时追加，取 `NTESSTUDYSI` 的原始值（页面未做 URL 编码）。
-2. **签名是条件性的**，由各接口配置中的 `isNeedAuth` 决定。
-   当前实现对全部请求签名。已实测带签名的只读请求均返回 `code: 0`，
-   服务端不会因多签名而拒绝；但「哪些接口必须签名」尚未逐接口核对。
+[源码] `index.web.js` 偏移 195839：`csrfKey` 仅在 URL 以 `.rpc` 结尾时追加，取 `NTESSTUDYSI` 的原始值，
+页面未做 URL 编码。**签名是条件性的**，由各接口的 `isNeedAuth` 决定；当前实现对全部请求签名，实测带
+签名的只读请求均返回 `code: 0`，但「哪些接口必须签名」尚未逐接口核对（第 10 节）。
 
 ## 3. 凭证
-
 | cookie | 域名 | 下发时机 | httpOnly | 有效期 |
 |---|---|---|---|---|
-| `NTESSTUDYSI` | `.icourse163.org` | **未登录时即下发**（32 位匿名会话） | false | 会话级（`expires: -1`） |
+| `NTESSTUDYSI` | `.icourse163.org` | **未登录时即下发**（32 位匿名会话） | false | 会话级 |
 | `EDUWEBDEVICE` | `.icourse163.org` | 首次访问 | false | 长期 |
-| `STUDY_INFO` | `.icourse163.org` | 登录后 | 未核对 | 未核对（格式为 `邮箱\|8\|userId\|时间戳`） |
+| `STUDY_INFO` | `.icourse163.org` | 登录后 | 未核对 | 值形如 `邮箱\|8\|userId\|时间戳` |
 | `STUDY_SESS` | `.icourse163.org` | 登录后 | 未核对 | 未核对 |
 
-三条需要注意的事实：
+**`NTESSTUDYSI` 不能用于判断登录**（访客状态同样存在，实测匿名会话调只读接口仍 200）；**它不是
+httpOnly**，登录后也不是，内容脚本可直接读 `document.cookie`——上一代「内容脚本读不到令牌、必须经
+background 中转」的前提不成立；`STUDY_INFO` 第三段是用户 id，已由 `getQuizInfo` 的 `answererId` 交叉
+验证。
 
-1. **`NTESSTUDYSI` 不能用于判断登录状态。** 访客状态下它同样存在。
-   实测以匿名会话调用 `indexBeanV3.getTopAndLowerRightCornerBar` 返回 HTTP 200。
-2. **它不是 httpOnly。** 上一代架构文档称「内容脚本无法读取 httpOnly 令牌，
-   必须经 background 中转」，该前提不成立。
-   登录后同样不是 httpOnly，内容脚本可直接读取 `document.cookie`。
-3. `STUDY_INFO` 的值是管道分隔的 `邮箱|8|userId|时间戳`，第三段是用户 id。
-   该格式已由 `getQuizInfo` 响应中的 `answererId` 交叉验证（两处一致）。
-
-### 3.1 未登录形态与会话续期（实测 2026-10-03）
-
-以匿名会话与伪造的失效会话（`STUDY_SESS` 为服务端不认识的随机值）各调一次
-只读接口，两个用例的响应**完全一致**：
-
-| 端点 | 失效会话下的响应 |
-|---|---|
-| `learnerCourseRpcBean.getMyLearnedCoursePanelList` | HTTP 200，`code: 0`，`result: { pagination, result: null }` |
-| `courseBean.getLastLearnedMocTermDto` | HTTP 200，`code: 0`，`result: null` |
-
-由此得出四条事实：
-
-1. **平台对失效会话不报错**：没有非 2xx、没有错误码、没有重定向、不清理
-   cookie。区别只在「内层 result 是 `null` 还是数组/对象」——已登录账号
-   即使一门课都没有，列表的内层 result 也是空数组而不是 null。
-2. **失效会话与匿名会话不可区分**（就响应而言），因此代码里只能报
-   「未登录」，不能细分。
-3. **会话级 cookie 可以活过服务端会话**：浏览器长期驻留（Edge 的启动加速、
-   后台运行）与「打开上次的页面」的会话恢复都会把会话 cookie 留在盘上。
-   「本地有 cookie」因此不是「服务端还认得你」的证据，两者要分开验证。
-4. **带凭据 GET 首页即可续期**（沿用本文件早前的实测结论）：服务端接受
-   持久凭证（NTES_YD_PASSPORT / STUDY_PERSIST）时，`NTESSTUDYSI`、
-   `STUDY_INFO`、`STUDY_SESS` 会被重新下发。续期是否发生可以用
-   `STUDY_SESS` 的值是否变化来回答——这正是官网打开首页就能"自动登录"的
-   机制，扩展里对应的实现是 [`apps/extension/src/platform/mooc/session.ts`](../../apps/extension/src/platform/mooc/session.ts)
-   的 `renewSession`。
-
-官网前端不靠 cookie 判断登录：`core.js` 中的 `_$isLogin` 读的是
-`window.webUser.loginId`，而 `webUser` 由服务端渲染进页面——判断权在
-服务端，这是客户端实现应当效仿的形态。
+### 3.1 未登录形态与会话续期（[实测] 2026-10-03）
+匿名会话与伪造的失效会话（`STUDY_SESS` 为服务端不认识的随机值）各调一次只读接口，响应**完全一致**：
+`courseBean.getLastLearnedMocTermDto` 与 `learnerCourseRpcBean.getMyLearnedCoursePanelList` 都是 HTTP
+200、`code: 0`，`result` 为 `null`（列表外层仍有 `pagination`）。由此：平台**对失效会话不报错**，区别只在
+「内层 result 是 `null` 还是数组/对象」——已登录账号即使没有课，列表内层也是空数组；失效会话与匿名会话
+**不可区分**，代码里只能报「未登录」；**会话级 cookie 能活过服务端会话**（浏览器长期驻留、恢复上次页面
+都会把它留在盘上），「本地有 cookie」不是「服务端还认得你」的证据；**带凭据 GET 首页即可续期**，服务端
+接受持久凭证时三个 cookie 会被重新下发，看 `STUDY_SESS` 变没变即可判断——这就是官网「打开首页自动登录」
+的机制，实现见 [session.ts](../../apps/extension/src/platform/mooc/session.ts)。官网前端判断登录不看
+cookie（`_$isLogin` 读服务端渲染的 `window.webUser.loginId`），判断权在服务端。
 
 ## 4. DWR（互评通道）
-
-互评接口不走 `.rpc`，走 DWR 的纯文本调用：
-
-```
-POST {origin}/dwr/call/plaincall/{Bean}.{method}.dwr
-Content-Type: text/plain
-
-callCount=1
-scriptSessionId=${scriptSessionId}190
-httpSessionId={NTESSTUDYSI}
-c0-scriptName={Bean}
-c0-methodName={method}
-c0-id=0
-c0-e1=string:123
-c0-param0=Object_Object:{evaluateId:reference:c0-e1}
-batchId={毫秒时间戳}
-```
-
-可信度说明：报文骨架、`scriptSessionId` 使用字面量模板、`httpSessionId` 取
-`NTESSTUDYSI`、以及参数编码形式，均来自上一代实现所依据的真实抓包，
-该实现曾跑通完整互评流程。这些细节沿用当时的抓包结论，未再次复现。
-
-成功判据不是 HTTP 状态码（DWR 业务失败同样返回 200），而是响应文本中是否出现：
-
-```
-dwr.engine._remoteHandleCallback('<batchId>','0',true)
-```
-
-实现位置：[`packages/transport/src/dwr.ts`](../../packages/transport/src/dwr.ts)。
-
-涉及的两个端点：
-
-| 端点 | 作用 | 副作用 |
-|---|---|---|
-| `MocEvaluateBean.startOneSubmissionEvaluate` | 取下一份待评答卷 | **有**。服务端会把某份答卷分配给当前用户 |
-| `MocEvaluateBean.submitSubmissionEvaluate` | 提交评分 | 写操作 |
+互评不走 `.rpc`，走 DWR 纯文本调用：`POST {origin}/dwr/call/plaincall/{Bean}.{method}.dwr`，
+`Content-Type: text/plain`，报文含 `scriptSessionId`（字面量模板 + `190`）、`httpSessionId`（取
+`NTESSTUDYSI`）、`c0-scriptName` / `c0-methodName` / `c0-id=0` / `c0-param0`、`batchId`；成功判据不是
+HTTP 状态码（业务失败同样 200），而是响应含
+`dwr.engine._remoteHandleCallback('<batchId>','0',true)`。报文骨架与参数编码来自上一代实现依据的真实抓包
+（曾跑通完整互评流程），未再次复现；实现见 [dwr.ts](../../packages/transport/src/dwr.ts)。端点：
+`startOneSubmissionEvaluate`（取下一份待评答卷，**有副作用**）、`submitSubmissionEvaluate`（提交评分）。
 
 ## 5. 保存与提交
-
-请求体的形态以页面源码为准。出处是 `core.js` 里的 `COM_Cache_TestBaseCache` 模块，
-用 `pnpm probe:decompile` 还原后可读到：
-
-```js
-r._$saveDraftAnswers = function (t, n, i) {
-  e._$request({
-    url: '/web/j/mocQuizRpcBean.saveDraftAnswers.rpc',
-    method: 'post',
-    data: JSON.stringify({ paperDto: t, preview: n }),
-    isNeedAuth: !0,
-    notShowLoading: !i,
-  });
-};
-
-r._$submitAnswers = function (t, n) {
-  try {
-    t.answers.forEach(function (e) {
-      e.content.content = e.content.content.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '');
-    });
-  } catch (i) {}
-  e._$request({
-    url: '/web/j/mocQuizRpcBean.submitAnswers.rpc',
-    method: 'post',
-    data: JSON.stringify({ paperDto: t, preview: n }),
-    isNeedAuth: !0,
-  });
-};
-```
-
-由此确定两件事：
-
-1. **请求体形如 `{paperDto, preview}`，`preview` 字段不可省略。** 只传 `paperDto` 时服务端返回
-   `code: 0` 却不落库，这个现象曾被误判为「服务端保存机制有问题」。
-2. **提交时 `answers` 原样保留**，页面只做了一次 emoji 清理，并不清空它。
-
-提交前页面会把 `submitType` 置为 `NORMAL`，其值为 1
-（同一 bundle 内 `var u = { NORMAL: 1, AUTO: 2, CHEAT: 3 }`）。
-
-早期文档依据旧样本得出「提交请求不携带答案、`answers` 为 null」，该结论与源码冲突，已作废。
+[源码] `core/index.js` 的 `COM_Cache_TestBaseCache`：**请求体形如 `{paperDto, preview}`，`preview` 不可
+省略**——只传 `paperDto` 时服务端返回 `code: 0` 却不落库，这个现象曾被误判为「服务端保存机制有问题」；
+**提交时 `answers` 原样保留**，页面只对 `content` 做一次 emoji 清理（早期文档「提交不携带答案、`answers`
+为 null」与源码冲突，已作废）；提交前页面把 `submitType` 置为 `NORMAL`，值为 1。
 
 ## 6. 答卷 id（aid）
-
-读写一份作答都要求正确的 aid，取错会写到另一份答卷上。三个候选来源的实测结果：
-
-| 来源 | 结果 |
-|---|---|
-| `getOpenQuizInfo` 响应顶层的 `aid` | **正确**。页面就是这么取的 |
-| `targetAnswerform.aid` | 错误。它是最近一次**已提交**的记录 |
-| `getOpenQuizPaperDto` 传 `aid = 0` | 错误。服务端返回的未必是页面正在用的那一份 |
-
-页面源码（学习页 bundle 的 `QuizDoingUI`）取 aid 的方式：
-
-```js
-_.__onToggleDoing = function () {
-  var t = !e.isPreview ? this.__quizInfo.aid : null;
-  this.__quizCache._$getOpenQuizPaperList(this.__testId, t, !1, e.appId);
-};
-```
-
-其中 `__quizInfo` 就是 `getOpenQuizInfo` 的响应，因此顶层 `aid` 才是当前答卷。
-
-答卷结束后 `aid` 变为 `0`。此时再调用取卷接口会返回「找不到对应的答题记录【-1】」，
-且无法重新开始——过期测验一旦结束就不能再作答。
+读写一份作答都要求正确的 aid，取错会写到另一份答卷上：`getOpenQuizInfo` 响应顶层的 `aid` **正确**（页面
+就是这么取的）；`targetAnswerform.aid` 错误（它是最近一次**已提交**的记录）；`getOpenQuizPaperDto` 传
+`aid = 0` 也错误（服务端返回的未必是页面正在用的那份）。答卷结束后 `aid` 变为 `0`，再取卷返回「找不到
+对应的答题记录【-1】」且无法重新开始——过期测验一旦结束就不能再作答；复现提交流程要用还没做的单元。
 
 ### 6.1 草稿保存的适用边界
-
-`saveDraftAnswers` 的行为取决于该测验所处状态，这一点很容易被误判成「接口不可用」。
-
-| 测验状态 | 页面点击触发的草稿保存 | 说明 |
-|---|---|---|
-| 未过期，尚未提交 | **生效**。刷新页面后作答仍在 | 第 4 章实测：12 题全部保留 |
-| 已过期 | **不生效**。返回 `code: 0`、`result: true`，但草稿条数不变 | 第 1 章实测：新增的判断题始终进不去，已有答案仍可修改 |
-
-因此**任何依赖草稿的实现都不可靠**，包括「保存草稿后刷新页面显示作答」这条路径。
-
-可靠的路径是让**提交本身携带答案**：`submitAnswers` 的请求体形如
-`{paperDto, preview}`，其中 `paperDto.answers` 就是完整作答（见第 5 节源码）。
-实测在第 3 章与第 4 章各提交一次，分别得到 26/26 与 24/24。
-
-由此确定前后台的分工：
-
-- **前台**（src/features/quiz-helper.ts）在用户在场时工作，填充走**页面点击**，
-  用户能看见并核对；提交走接口，且在提交前**当场从题库重新构造答案**，不读草稿。
-- **后台**（src/background/auto-quiz.ts）无人值守，填充与提交都走接口，
-  两种方式都会写入草稿，也都在提交体里携带答案。
+未过期、未提交时页面点击触发的草稿保存**生效**（实测刷新后 12 题作答仍在）；已过期时**不生效**——返回
+`code: 0`、`result: true`，草稿条数不变。因此**任何依赖草稿的实现都不可靠**，可靠路径是提交本身携带
+答案（第 5 节；实测两次提交得 26/26、24/24）。分工由此确定：前台在用户在场时工作，填充走页面点击、提交
+前当场从题库重构答案；后台无人值守，填充与提交都走接口，两者都在提交体里带答案。
 
 ### 6.2 提交不需要二次确认
-
-页面自己在提交时会弹出 `CommonDialog`（源码中 `QuizDoingUI.__onSubmitHandle`
-调用 `_$showCommonDialog`）。那是页面交互层的确认，后台直接构造请求时不存在这一步，
-前台面板也不需要复制它：提交按钮本身即用户的确认动作。
+页面提交时弹的 `CommonDialog` 是交互层确认；后台构造请求时没有这一步，前台面板也不必复制：提交按钮
+本身即用户的确认动作。
 
 ## 7. 页面结构契约
-
-提取自学习页 bundle 中的 9 处 `_$addHtmlTemplate(...)` 调用。
-
-### 7.1 课程列表与课程类型
-
-课程列表走 `learnerCourseRpcBean.getMyLearnedCoursePanelList`，请求参数：
-
-```json
-{ "type": 30, "p": 1, "psize": 100, "courseType": 1 }
-```
-
-`courseType` 决定取哪一类课程，取值实测如下：
-
-| courseType | 含义 | 该账号实测结果 |
-|---|---|---|
-| 1 | MOOC | 2 门 |
-| 2 | SPOC | 4 门 |
-
-响应是两层结构：外层 `{result, pagination}`，内层 `result` 才是课程数组。
-只取一层会得到空列表且不报错。
-
-课程对象的字段：
-
-| 字段 | 说明 |
-|---|---|
-| `id` | courseId |
-| `name` | 课程名 |
-| `termPanel.id` | termId，后续所有接口都以它为单位 |
-| `mode` | 0 MOOC、10 SPOC 同步、15 SPOC 异步、20 SPOC 独立 |
-| `schoolPanel.name` | 学校名 |
-
-`mode` 决定学习页地址前缀：MOOC 走 `/learn/`，SPOC 走 `/spoc/learn/`。
-两种页面结构一致，但地址不同，后台任务需要按 `mode` 拼地址。
+[源码] 提取自学习页 bundle 的 `_$addHtmlTemplate(...)`；[实测] 来自真实页面采集。选择器在代码里的落点见
+[selectors.ts](../../apps/extension/src/features/mooc/selectors.ts) 与
+[quiz-stage.ts](../../apps/extension/src/features/mooc/quiz-stage.ts)。
 
 ### 7.2 单元作业的得分指导
-
-作业题的评分依据是 `getOpenHomeworkPaperDto` 响应中的
-`subjectiveQList[].judgeDtos[]`：
-
-| 字段 | 说明 |
-|---|---|
-| `msg` | 得分指导正文，富文本，可能含图片 |
-| `maxScore` | 该评分点的满分 |
-| `details` | 分档选项，形如 `[{msg, score}]`，互评打分时使用 |
-
-作业题没有 `stdAnswer`（实测恒为 null）。`withStdAnswerAndAnalyse` 取 true
-或 false 都不影响 `judgeDtos` 的返回，该参数与作业答案无关。
-
-界面文案取自页面语言包，实现时沿用这些原词，不自创：
-
-| key | 文案 |
-|---|---|
-| `KEY_LEARN_SCORING_GUIDANCE` | 得分指导： |
-| `KEY_LEARN_PLEASE_RATE` | 请给予评分： |
-| `KEY_LEARN_FULL_MARKS` | 满分 |
-| `KEY_LEARN_SCORE_POINTS` | 分 |
-| `KEY_LEARN_SCORE_QUESTION` | 该题得分： |
-| `KEY_LEARN_ANSWER` | 回答： |
-| `KEY_LEARN_CORRECT_ANSWER` | 正确答案： |
-| `KEY_LEARN_PEER_MODULE` | 互评模块 |
-
-网站的互评界面（learn_homework bundle 的 `EvaluateItemUI`）用
-`.u-point > .breif > p.f-fc3` 承载标题、`.f-richEditorText` 承载 `msg`，
-`.detail > .s` 承载分档单选。
-
-插件侧把 `msg` **整段渲染**（保留行内图片），不把图片与文字拆开取：
-评分依据里的公式就是行内小图（实测 18×22 上下），拆开会把符号从句子中间
-抽走——示例课程丁第5章作业里「因为〔R_i〕很大，〔C_1〕示例片段乙〔f_L〕下限截止
-频率影响不大」曾渲染成「因为很大，示例片段乙示例片段丙」，
-五张小图单独堆成一列。一题有多个评分点时，每点单独成块并用分隔线隔开
-（同一份作业一题 3～4 个评分点，每点满分 3～9 分，首尾相接时读不出哪句属于
-哪一点）。
+`getOpenHomeworkPaperDto` 响应的 `subjectiveQList[].judgeDtos[]`：`msg` 是得分指导正文（富文本，可能
+含图）、`maxScore` 是该评分点满分、`details` 是分档 `[{msg, score}]`；作业题没有 `stdAnswer`（实测恒为
+null），`withStdAnswerAndAnalyse` 取 true/false 都不影响 `judgeDtos`。[实测] `msg` 必须**整段渲染**
+（保留行内图片）：评分依据里的公式就是行内小图（约 18×22），拆开取会把符号从句子中间抽走——示例课程丁第 5 章
+作业曾渲染成「因为很大，示例片段乙示例片段丙」，五张小图单独堆成一列。文案取自页面语言包
+（`KEY_LEARN_SCORING_GUIDANCE` 等），见
+[markers.ts](../../apps/extension/src/features/mooc/guidance/markers.ts)。
 
 ### 7.3 互评数据
+`getEvaluateDetail` 返回 `mocTest`（含截止与互评窗口、成绩发布时间）、`completedEvaluates[]`、
+`startedEvaluate`、`selfEvaluate`、`maxEvaluateCount`、`totalEvaluateCount`、`enoughAnswer`、`trained`；
+`status`：1 进行中、2 已完成；`evaluateJudgeType`：1 教师评、2 学生互评、3 自评。作业阶段由
+`_$currentEvaluatePhase` 按时间算：`now < deadline` → 1 提交期；`evaluateScoreReleaseTime > 0 且
+now >= 它` → 3 成绩期；否则 2 互评期（实现见
+[review.ts](../../packages/platform-mooc/src/review.ts)）。
 
-进入作业页时页面会调 `MocEvaluateBean.getEvaluateStatus` 与
-`MocEvaluateBean.getEvaluateDetail`，后者返回当前用户的互评进度：
+### 7.4 做题容器
+提交按钮是 `<a ... j-submitBtn>`，**不是 `<button>`**。
 
-```js
-{
-  mocTest: { id, name, termId, deadline, evaluateStart, evaluateEnd, evaluateScoreReleaseTime },
-  completedEvaluates: [ { answerformId, evaluateId, evaluateJudgeType, origScore, status } ],
-  startedEvaluate:    { answerformId, evaluateId, evaluateJudgeType, origScore, status },
-  selfEvaluate:       { answerformId, evaluateId, evaluateJudgeType, status },
-  maxEvaluateCount: 30,  totalEvaluateCount: 5,  enoughAnswer: true,  trained: false
-}
-```
+### 7.5 选择题
+题干文本在 `.j-richTxt`；选项容器 `.j-choicebox` 由脚本填充，**选项文本在 `.optionCnt` 里**（取
+`label.textContent` 会带上 `.optionPos` 的「A.」前缀）；选项 input 的 id 形如
+`op_<题id>_<选项id><后缀>`，是选项匹配的唯一依据（第 8 节）；**判断题的选项没有文本**（页面只有「A.」
+「B.」，`.optionCnt` 为空，题库里却是「正确」「错误」）；直接 `input.click()` 即可让页面接受选择（上一代
+「脚本 click 不会更新页面内部状态」的说法不成立）。
 
-`status`：1 进行中，2 已完成。`evaluateJudgeType`：1 教师评，2 学生互评，3 自评。
+### 7.6 填空题
+根节点 `div.m-FillBlank.examMode.u-questionItem`，输入区 `.j-input`，得分 `.j-score`。
 
-取待评答卷与提交评分走 DWR（`MocEvaluateBean.startOneSubmissionEvaluate` 与
-`MocEvaluateBean.submitSubmissionEvaluate`），协议细节见第 4 节。
-
-作业所处阶段由 `edu.u._$currentEvaluatePhase` 计算，实现位于
-[`packages/platform-mooc/src/review.ts`](../../packages/platform-mooc/src/review.ts)：
-
-```js
-if (now < deadline) return 1;                        // 提交期
-if (releaseTime > 0 && now >= releaseTime) return 3; // 成绩期
-return 2;                                            // 互评期
-```
-
-### 7.4 做题容器（偏移 249616）
-
-```html
-<div class="m-quizDoing">
-  <div class="j-warnTip warnTip f-dn"></div>
-  <div class="j-description"></div>
-  <div class="timeBox f-pf u-btn u-btn-orange j-timeNode">
-    <span class="f-icon u-icon-clock"></span><span class="j-timeTxt"></span>
-  </div>
-  <div class="j-quizPool quizPool"></div>
-  <a class="u-btn u-btn-default j-submitBtn">提交答案</a>
-</div>
-```
-
-提交按钮是 `<a>` 元素，不是 `<button>`。
-
-### 7.5 选择题（偏移 230493）
-
-```html
-<div class="m-choiceQuestion u-questionItem">
-  <div class="j-title title f-cb">
-    <div class="position f-fl"></div>
-    <div class="qaDescription f-fl f-cb">
-      <div class="qaIndex j-qaindex f-fl f-dn"></div>
-      <div class="qaCate j-qacate f-fl"></div>
-      <div class="f-richEditorText j-richTxt"></div>
-      <div class="qaMark j-qamark f-fr f-dn"></div>
-      <div class="j-aiQuery aiQuery f-dn"></div>
-    </div>
-    <label class="scoreLabel f-fr f-dn j-scoreLabel"></label>
-  </div>
-  <div class="j-choicebox"></div>
-</div>
-```
-
-题干文本位于 `.j-richTxt`，不是 `.j-title` 的直接文本。
-选项容器是 `.j-choicebox`，其内容由脚本填充。渲染后的真实结构如下
-（在已进入做题状态的测验页实测取得）：
-
-```html
-<ul class="choices f-cb">
-  <li class="f-cb">
-    <input class="u-tbi"
-           id="op_3388085475_1134548875896911790361689154"
-           type="radio"
-           name="op_33880854751790361689154">
-    <label class="u-tbl f-pr f-cb" for="op_3388085475_1134548875896911790361689154">
-      <div class="f-fl optionPos">A.</div>
-      <div class="f-fl f-richEditorText optionCnt f-thide">
-        <p><span style="font-size:16px">输入信号为零时，输出处于零电位</span></p>
-      </div>
-    </label>
-  </li>
-  <!-- 其余选项同构 -->
-</ul>
-```
-
-要点：
-
-1. **选项文本在 `.optionCnt` 里**。取 `label.textContent` 会带上 `.optionPos` 的
-   「A.」前缀，不能直接使用。
-2. **选项 id 是 id 匹配的唯一依据**，格式为 `op_<题id>_<选项id><后缀>`，
-   详见第 8 节。
-3. **判断题的选项没有文本**。页面上只渲染「A.」「B.」两项，`.optionCnt` 为空，
-   而题库里的选项是「正确」「错误」。任何基于文本的匹配对判断题都会失效。
-4. 直接调用 `input.click()` 即可让页面接受选择。实测点击之后页面会自行发起
-   `mocQuizRpcBean.saveDraftAnswers.rpc`，说明内部状态已更新。
-   上一代文档中「脚本 click 不会更新页面内部状态」的说法不成立。
-
-### 7.6 填空题（偏移 237559）
-
-根节点 `div.m-FillBlank.examMode.u-questionItem`，
-输入区 `.j-input`，得分 `.j-score`，解析 `.j-analysis`。
-
-### 7.7 开考前页面（偏移 220524、310596）
-
-`.m-beforeTest`，包含 `.j-agree`（同意复选框）与 `.j-startBtn`（开始按钮）。
-点击开始按钮之后才会加载包含选项组件的懒加载 chunk。
+### 7.7 开考前页面
+`.m-beforeTest`（含 `.j-agree`、`.j-startBtn`）；点开始后才加载含选项组件的懒加载 chunk。
 
 ### 7.8 作业页
-
-实测采集（已提交的作业页）得到：
-
-```html
-<div class="u-questionItem u-analysisQuestion analysisMode">
-  <div class="j-title f-cb title questionDes">
-    <div class="position f-fl">1</div>
-    <div class="qaDescription f-fl f-cb">
-      <div class="qaIndex j-qaindex f-fl f-dn"></div>
-      <div class="qaCate j-qacate f-fl"> ( 30分 ) </div>
-      <div class="f-richEditorText j-richTxt f-fl ql-editor">…题干富文本…</div>
-      <div class="qaMark j-qamark f-fr f-dn"></div>
-    </div>
-  </div>
-  <div class="j-answer answer">
-    <div class="j-richOrText text f-f0 f-richEditorText"><span class="tit">回答：</span>…</div>
-    <div class="j-attachment attachment f-cb">…</div>
-    <div class="j-evaluate">
-      <div class="u-evaluateItem resultMode">…</div>
-    </div>
-  </div>
-</div>
-```
-
-即：已提交的作业页带有 `analysisMode` 类，且每题下方已有 `.j-evaluate` 互评模块。
+已提交的作业页整卷带 `analysisMode`、每题下方有 `.j-evaluate` 互评模块——两者都只是「这份作业已提交」的
+标志，不代表页面给出了评分依据（见 7.9）。
 
 ### 7.9 得分指导在哪些状态下注入
-
-`apps/extension/src/features/mooc/guidance/` 逐题判断页面自己有没有展示评分依据，
-判据是**站点自己的 `.j-answer` / `.j-evaluate` 里有没有出现「得分指导」这句话**：
-
-| 页面形态 | 站点自己的作答区/互评模块 | 插件 |
-|---|---|---|
-| 未提交（作答页） | 没有评分依据 | 注入 |
-| 已提交（含成绩公布） | 只有进度、分数与评语；成绩公布页经核对确实没有评分依据 | 注入 |
-| 给别人打分、自评 | 逐点列出「得分指导：」与打分控件 | 不注入：重复，且评分时要专注 |
-
-判据逐题生效：站点自己列了评分依据的题目不会被重复注入，同一页上其余题目照常注入。
-
-**不能按类名判断。** 先前用的是「整卷带 `analysisMode`」或「页面存在 `.u-evaluateItem`」，
-而 §7.8 的实测说明这两样都只是「这份作业已提交」的标志：成绩公布的页面上站点并不给评分依据，
-按类名判断会把用户真正需要它的那些页面一起挡掉。
-
-2026-10 在一门 SPOC 课程上逐状态核对（Chrome for Testing 151，真实账号）：
-
-| 页面 | 页面事实 | 插件 |
-|---|---|---|
-| 第一至三单元作业（已出分） | 整卷 `analysisMode`，每题一个 `.u-evaluateItem.resultMode`，`.j-answer` 里没有「得分指导」 | 注入 |
-| 第四单元作业（互评期，未开始评分） | 列表态：有 `.listtable`、没有 `.u-questionItem`，入口是「开始评分」 | 不做任何事（页面上还没有题） |
-| 第五单元作业（未提交，作答页） | 3 道题，无 `analysisMode`、无互评模块 | 注入，评分依据含图片 |
-
-在页面内连续切单元（第一单元 → 第二单元 → 第五单元）后，注入块的来源始终等于当前单元，
-没有上一单元的残留。
+判据是**站点自己的作答区或互评模块里有没有出现「得分指导」这句话**，逐题生效：未提交的作答页（站点
+没有评分依据）注入；已提交（含成绩公布，站点只有进度、分数与评语）注入；给别人打分或自评的页面（站点
+已逐点列出「得分指导：」与打分控件）不注入——重复，且评分时要专注。**不能按类名判断**：`analysisMode`
+或 `.u-evaluateItem` 都只标志「已提交」，成绩公布页上站点并不给评分依据，按类名会把真正需要它的页面
+一起挡掉。2026-10 在一门 SPOC 课程上逐状态核对（Chrome for Testing 151，真实账号）：已出分的三个单元
+作业注入；互评期未开始评分的单元页只有列表态（页面上还没有题），不做任何事；未提交的作答页注入，评分
+依据含图片；页面内连续切单元后，注入块来源始终等于当前单元，无残留。
 
 ### 7.10 题目与评分依据怎么对上
+**只在两边都读得到题号时按题号对**：接口 `position` 从 0 开始、页面 `.position` 从 1 开始，相差 1。页面
+异步渲染，题号可能还没写进去；此时拿数组下标顶替（`positionOf(item) ?? index + 1`）会变成一半按题号、
+一半按顺序——物理第七单元（两题）出现过「得分指导的题号和题目对不上」，刷新后题号齐全才恢复。因此读
+不到题号的题这一轮不注入，等题号渲染出来由下一次评估补上；只有两边都完全没有编号时才退回按顺序对，并
+按接口的 `position` 排序。同理，题干（`.j-title`）与作答区（`.j-answer`）都没渲染出来时，找不到锚点就
+等下一次，不插到题目之外。逐题核对（可复用）：页面第 N 题的题干图片与接口 `position = N-1` 那道题的
+`title` 图片比对，每个评分点的图片与 `judgeDtos[].msg` 的图片逐张比对，再加上「题面分数 = 依据标题里的
+本题分数 = 各评分点满分之和」；2026-10 用这套办法核过物理第七单元（2 题）与示例课程丁第 3、4、5、6 章
+（4/5/6/3 题，每题 2～4 个评分点），全部对得上。仍未核对：点「开始评分」之后的打分界面——那一步会写
+平台状态（取一份待评答卷），探测纪律不允许。
 
-**只在两边都读得到题号时按题号对**：接口的 `position` 从 0 开始，页面 `.position`
-从 1 开始，相差 1。
-
-页面是异步渲染的，题号可能还没写进去。此时若拿数组下标顶替（
-`positionOf(item) ?? index + 1`），就会变成一半按题号、一半按顺序：物理课程第七单元
-（两题）出现过「得分指导的题号和题目对不上」，两道题都落到第二题的依据上，刷新后
-题号齐全才恢复正常。因此读不到题号的题目这一轮不注入，等题号渲染出来由下一次评估
-补上；只有两边都完全没有编号时才退回按顺序对，并按接口自己的 `position` 排序。
-
-同理，题干（`.j-title`）与作答区（`.j-answer`）都还没渲染出来时，锚点会退化成
-「题目节点本身」，块被插到两道题之间、看起来属于下一题——所以找不到锚点就等下一次，
-不插到题目之外。
-
-逐题核对的做法（可复用）：页面第 N 题的**题干图片**与接口 `position = N-1` 那道题的
-`title` 图片比对，页面该题每个评分点的图片与接口 `judgeDtos[].msg` 的图片逐张比对，
-再加上「题面分数 = 依据标题里的本题分数 = 各评分点满分之和」。2026-10 用这套办法核过
-物理第七单元（2 题）与示例课程丁第 3、4、5、6 章（4/5/6/3 题，含每题 2～4 个评分点），
-全部对得上。
-
-仍未核对：点「开始评分」之后的打分界面。那一步会写平台状态（取一份待评答卷），
-探测纪律不允许；它的判据目前仍只有 §7.2 的模板取证。
-
-## 8. 三个 id 空间的关系
-
-这一组事实决定匹配方案能否成立，是本项目最需要先搞清楚的部分。
-
+## 8. 三个 id 空间
 | 标识 | 全局唯一 | 跨空间可比 | 实测依据 |
 |---|---|---|---|
-| 题库选项 id | 是 | 与试卷选项 id 同一空间 | 题库 1040 个选项无重复；试卷 36 个选项全部能在题库中找到 |
-| 试卷选项 id | 是 | 同上 | 同上 |
+| 题库选项 id / 试卷选项 id | 是 | 两者同一空间 | 题库 1040 个选项无重复；试卷 36 个选项全部能在题库中找到 |
 | 页面 input id | 是 | 内含试卷选项 id | 格式为 `op_<题id>_<选项id><后缀>` |
 | 题目 id | 否 | **不同空间** | 同一道题在试卷里是 `3388085475`，在题库里是 `1388158249` |
 
-由此得到三条结论：
+**匹配必须建立在选项 id 上，不能建立在题目 id 上**，也不需要按题干匹配题目：选项 id 全局唯一，直接从
+题库建「选项 id 到是否正确」的索引即可。页面 input id 中选项 id 之后的尾串是**页面加载时的时间戳**，每
+次刷新都变（实测同一选项两次加载的 id 差值与加载间隔一致），用同题选项 `name` 与 `id` 的差异剥掉它。
+试卷（`getOpenQuizPaperDto`）**仅在该测验已提交时**返回 `optionDtos[].answer`，题库
+（`getQuestionListByTermId`）任何状态下都返回——实测未提交的测验传 `withStdAnswerAndAnalyse: true`，
+`answer` 全部为 `null`，因此扩展以**题库**为答案来源，它不依赖提交状态。
 
-1. **匹配必须建立在选项 id 上，不能建立在题目 id 上。**
-2. **不需要按题干匹配题目。** 选项 id 全局唯一，直接从题库建立
-   「选项 id 到是否正确」的全局索引即可，题目匹配这一步是多余的。
-3. 页面 input id 中 <选项id> 之后的尾串是**页面加载时的时间戳**，每次刷新都会变。
-   实测同一道题的同一个选项，两次加载得到的 id 分别是
-   `op_3388098941_3227274084055711790364535529` 与
-   `op_3388098941_3227274084055711790364778644`，
-   差值与两次加载的时间间隔一致。它不参与答案的标识，提取选项 id 时
-   通过同题选项的 `name` 与 `id` 的差异把它剥掉即可，不必假设它的长度。
-
-### 8.1 标准答案的来源
-
-两个来源，适用条件不同：
-
-| 来源 | 接口 | 何时返回标准答案 |
-|---|---|---|
-| 试卷 | `getOpenQuizPaperDto` | 仅在测验**已提交**时返回 |
-| 题库 | `getQuestionListByTermId` | 任何状态下都返回，与提交状态无关 |
-
-实测：对已提交的测验传 `withStdAnswerAndAnalyse: true`，试卷的
-`optionDtos[].answer` 有值；对未提交的测验（`submitStatus` 为 1）
-同样传 true，`answer` 全部为 `null`。
-
-因此扩展以**题库**作为答案来源，它不依赖提交状态；试卷答案可用于人工核对。
-
-### 8.2 为什么不用文本匹配
-
-选项 id 已经能唯一确定选项，文本匹配没有存在价值，而且会直接失效：
-
-- **判断题在页面上没有任何选项文本**，只有 A、B 两项，题库里却是「正确」「错误」；
-- 富文本带来标签、实体、零宽字符等噪声；
-- 选项顺序可能被打乱。
-
-本项目曾实现过一版文本匹配，在真实数据上对判断题全部失败，
-随后被整体替换为 id 匹配。
+### 8.1 为什么不用文本匹配
+选项 id 已能唯一确定选项，文本匹配没有存在价值，而且会直接失效：判断题页面上没有选项文本；富文本带来
+标签、实体、零宽字符等噪声；选项顺序可能被打乱。本项目曾实现过一版文本匹配，在真实数据上对判断题全部
+失败，随后被整体替换为 id 匹配。
 
 ## 9. 已被证伪的旧假设
-
 | 旧假设 | 实际情况 |
 |---|---|
-| 选项 input 的 id 形如 `op_<题id>_<选项id>`，该前缀不存在 | 前缀**存在**，格式为 `op_<题id>_<选项id><后缀>`。首次检索时只查了首页 bundle，而做题页的代码位于懒加载 chunk，因此误判为不存在 |
-| `.j-submitBtn` 不存在 | 该选择器**存在**，位于学习页 bundle 偏移 250103。同上，误判源于只检查了首页 bundle |
-| 内容脚本无法读取令牌 | `NTESSTUDYSI` 的 httpOnly 为 false，登录后同样如此，内容脚本可直接读 `document.cookie` |
-| 静态提取即可得到完整接口清单 | `getMyLearnedCoursePanelList` 不在静态提取的 168 个端点中，但真实可用。存在动态拼接的接口名 |
-| 脚本点击选项不会更新页面内部状态 | 直接 `input.click()` 即可生效，页面随后会发起 `saveDraftAnswers` |
-| 题库题目的 id 与试卷题目的 id 可以对应 | 两者属于**不同空间**，无法对应。可对应的是**选项 id** |
+| 选项 input id 形如 `op_<题id>_<选项id>`，没有后缀 | 前缀**存在**，格式为 `op_<题id>_<选项id><后缀>`；首次只查了首页 bundle，而做题页代码在懒加载 chunk |
+| `.j-submitBtn` 不存在 | 该选择器**存在**（学习页 bundle 偏移 250103）；同上，误判源于只查了首页 bundle |
+| 内容脚本无法读取令牌 | `NTESSTUDYSI` 的 httpOnly 为 false，登录后同样如此 |
+| 静态提取即可得到完整接口清单 | `getMyLearnedCoursePanelList` 不在静态提取的 168 个端点中，但真实可用——存在动态拼接的接口名 |
+| 脚本点击选项不会更新页面内部状态 | 直接 `input.click()` 即生效，页面随后发起 `saveDraftAnswers` |
+| 题库题目 id 与试卷题目 id 可以对应 | 两者属于**不同空间**，可对应的是**选项 id** |
 
-前两条的更正过程值得记录：**只检查单个 bundle 就得出「某标识不存在」的结论并不成立。**
-这个错误结论污染了基于它写下的代码，也导致后续一轮工作方向错误。
-改动平台相关代码前，务必用探测工具在真实页面上确认。
+**只检查单个 bundle 就得出「某标识不存在」的结论并不成立**——这个错误结论污染了后续代码与工作方向；改动平台相关代码前，务必用探测工具在真实页面上确认。
 
-## 10. 尚未取证的部分
+## 10. 尚未取证与取证纪律
+未取证：互评页面的 DOM 结构（需进入互评流程采集）；`isNeedAuth` 的逐接口归属（目前对全部请求签名）；
+全局限流的确切阈值（当前取 200ms 间隔，依据见 12.3）。已取证并从此处移除：选项节点结构（7.5）、登录后
+`NTESSTUDYSI` 的 httpOnly 状态（第 3 节）、标准答案来源的适用条件（8）、作业页注入的实际渲染效果
+（7.9）。纪律：结论要写明取证位置（文件偏移、请求 URL 或样本文件名）；静态提取与运行时观测冲突时以
+运行时为准，并把冲突写进本文件；只检查单一来源不足以否定某个事实（第 9 节）；先摸清数据之间的关系再选
+方案——选项 id 与题目 id 的关系就是例子，没搞清之前用了文本匹配，方向从一开始就是错的；抓下来的样本
+不入库、用完即清；平台改版后先重跑探测，再改代码。
 
-| 项目 | 说明 |
+## 11. 课程模型
+### 11.1 课程模式（mode）
+[源码] `core/index.js:20171-20175`：`MODE_MOOC: 0`、`MODE_SPOC_SYNC: 10`、`MODE_SPOC_ASYNC: 15`、
+`MODE_SPOC_ONLY: 20`、`MODE_ROOC: 30`。mode 0 的学习页前缀是 `/learn/{school}-{courseId}`（[实测] 示例课程丁
+9000000014），10/15/20/30 是 `/spoc/learn/{school}-{courseId}`（[实测] 示例课程子 9000000027，mode 15）。
+后台拼地址必须读 `mode`，不能假定 `/learn/`；两种页面结构一致，只有地址不同。
+
+### 11.2 层级
+`courseBean.getLastLearnedMocTermDto {termId}` 一次请求拿到整门课：`result.mocTermDto` → `chapters[]`
+（下含 `lessons[].units[]` 课件单元、`quizs[]` 单元测验、`homeworks[]` 单元作业、`exam` 章节内考试
+〔实测恒为 null〕）、`exams[]`（考试，真正的位置在顶层）。**课件单元挂在 lesson 下，不在 chapter 下**
+——这是最容易被写错的一处。每场考试拆成 `objectTest`（客观，`type: 2`）与 `subjectTest`（主观，
+`type: 3`），各自有独立的 tid。
+
+### 11.3 两套类型常量
+**它们不是一套**：工作项的 `type` 与课件单元的 `contentType` 取值重叠而含义不同，混用会得出「PDF 是作业」
+这类结论。工作项类型是 1 普通、2 测验、3 作业，扩展归一化为 `quiz` / `homework` / `exam-objective` /
+`exam-subjective`；课件单元类型是视频 1、字幕 2、PDF 3、文本 4、随堂测验 5、讨论 6、直播 7、专栏 8、相关
+直播 9、音乐视频 10、音乐练习 11、音乐作业 12、互动课件 15（取值与来源见
+[types.ts](../../packages/platform-mooc/src/types.ts)）。[实测] 账号 6 门课中只出现过 1、3、4、5、6。
+
+### 11.4 课件单元的完成度
+单元字段（[实测]）：`completePercent`（视频为已学秒数/总时长，其余类型 0 或 1）、`viewStatus`（0 未学、
+5 已学，部分学习也是 5）、`learnTime`（视频为已计入的学习上报周期数，565 秒 → 10；文本/文档/讨论为
+null）、`durationInSeconds`（视频总时长，上报时用作 `videoTime`）。[源码] 课时圆点判据
+（`index.js:1610-1617`）是比较该课时下 `viewStatus` 非 0 的单元数与总数；课时自身的 `viewStatus`
+（`index.js:1799-1803`）0 未开始、3 部分完成、其它已完成。课程进度走 [实测]
+`mocCourseV2RpcBean.getMemberLearningRate {termId}` → `{lessonLearned, lessonsCount}`，按**课时**计数。
+
+### 11.5 工作项（作业/测验/考试）的判定
+由 `test` 对象直接判定，不需要额外请求：`id` / `name`（标识）、`deadline`（截止）、`evaluateStart` /
+`evaluateEnd`（互评窗口）、`evaluateScoreReleaseTime`（成绩发布）、`usedTryCount`（大于 0 即已提交）、
+`userScore` / `totalScore`（得分与满分）、`enableEvaluation` / `evaluateJudgeType`（2 互评、3 自评）。
+状态：未提交 = `usedTryCount === 0` 且 `userScore == null`；已过截止未提交 = 同上且 `deadline < now`；
+互评阶段 = 已提交且 `evaluateStart <= now <= evaluateEnd`；等待互评完成 = 已提交、窗口已过、尚无分数；
+成绩已公布 = `userScore != null`。**成绩看 `userScore`，不看阶段**：测验没有互评流程，其阶段字段永远为
+空。互评配额（还差几份）需单独查询，见 7.3。
+
+### 11.6 待核与不用 `TermBean.getNewestItems`
+`TermBean.getNewestItems` 名字像「待办」，但返回项没有完成标记——实测把已提交的测验也列在
+`needSubmitQuiz` 下，且每类只返回最近一项，故待办一律从课程结构派生。其余待核：6 门课里只复核了 2 门
+（示例课程丁 mode 0、示例课程子 mode 15）；单元对象是否自带 `lessonId` 未确认（本轮取自 `lessons[].id`）；类型
+2、7、8、9、10、11、12、15 无实测。
+
+## 12. 课件单元的完成（纯接口）
+把课件里的视频、文档、文本、随堂测验标记为「已学」，**不需要打开页面**，一条请求完成一个单元。目标不是
+「把标记刷成完成」，而是**留下与真人一致的记录**：认证成绩页上各类型显示的东西不同（视频「观看时长」、
+文档「浏览时长」、随堂测验作答、讨论「回复数」），做法因此也不同。
+
+### 12.1 两次请求与字段来源
+① `courseBean.getLastLearnedMocTermDto {termId}` 读结构 → `chapters[].lessons[].units[]`；
+② `courseRpcBean.saveMocContentLearn {dto}` 上报。**不自造任何取值**：
+
+| 字段 | 来源 | 取法 |
+|---|---|---|
+| `unitId` / `contentId` / `videoId` / `contentType` | 结构接口 | `units[]` 的同名字段 |
+| `lessonId` / `courseId` / `termId` | 结构接口 | `lessons[].id` / `mocTermDto.courseId` / `.id` |
+| `videoTime`、`learnedVideoTimeCount` | 结构接口 | `units[].durationInSeconds` |
+| `duration` | 配置接口 | `1000 × learnTimeUploadPeriod`，见下 |
+| `userId` | [待核] | 客户端用页面注入的 `window.webUser.id`；纯接口路径下的来源待定 |
+| `index` / `action` / `finished` | [源码] | 首个上报 `1`；`LEARN_TIME_COUNT`；播完 `true`（课件页 `index.js:10486/10851/10878`） |
+
+**上报周期也是接口给的**（[实测]）：`POST /web/j/commonBean.obtain.rpc`（body
+`key=mobile_config_web_server_config`）→ `{"learnTimeUploadPeriod": 60, "videoHeartBeatPeriod": 60}`；课件
+页从 `localStorage` 读它（默认 180 秒）当上报周期，因此 `duration` 必须取自接口，不能用常量。
+
+### 12.2 各类型的行为
+| 类型 | 真人在页面上做的事（[源码]） | 我们做的事 | 平台记录 | 状态 |
+|---|---|---|---|---|
+| 视频 1 | 播放，每 60 秒上报位置＋本次学时，播完报 `finished` | 一条上报：位置＝时长，学时＝时长 | 观看时长、完成 | [实测] 立即完成，时长＝整段 |
+| 文档 3 | 阅读器逐页翻，每次翻页上报页码＋停留秒数 | 逐页上报，每页声明 30 秒 | 浏览时长、进度＝页码/页数 | [实测] 7 页 PPT：pct 1/7→7/7，记 4 分钟（真实 20 秒） |
+| 文本 4 | 打开即完成 | 一条完成上报 | 仅完成 | [实测] 立即完成 |
+| 随堂测验 5 | 打开即完成；点提交把答案填进 `paperDto` 调 `submitAnswers` | 取卷＋题库组答案 → 提交 → 补完成上报 | 完成＋作答记录 | [已接线，待实测] |
+| 讨论 6 | 打开即完成；发一条回复（DWR `MocForumBean.addReply`） | 发一条回复 → 完成上报 | 完成＋回复数 | [实测] `replyCount` 0→1，单元同时完成 |
+
+**没有前奏**：曾经以为必须先调 DWR `CourseBean.getLessonUnitLearnVo` 建立会话，[实测] 不必要——不做任何
+前奏、只发一条上报，全新视频单元在 4 秒内 `completePercent` 变 1；该 DWR 只在**文档**里用于取总页数
+（`textPages`，`.rpc` 侧没有等价字段）。讨论回复的第二个参数不能省（只发 `c0-param0` 时服务端回
+`IllegalArgumentException: Missing method or missing parameter converters`），`c0-param1=Array:[]` 是无图
+时的编辑器图片附件；文档每页的报文含 `finished`（当前页==总页数）、`index`（页序-1）、`pageNum`、
+`lastLearnTime`、`learnedVideoTimeCount`（每页声明秒数）——时长是**平台信任的声明值**，不是真实间隔。
+
+### 12.3 复核与限流
+写平台之后必须复核，不能只信 `code`：重读 ① 的结构，该单元 `completePercent === 1` 且 `viewStatus` 为 5
+才算完成。[实测] `code: 0` 且 `result: true` 不保证状态已变——讨论单元会先返回 0、稍后才记账。平台限制
+**全站统一**（读写共享一条配额），因此所有出站请求走同一个节流器
+（[throttle.ts](../../packages/transport/src/throttle.ts)：串行 + 默认 200ms 间隔）；依据是本项目实测——
+间隔 0ms 时 5 次成功 2 次，200ms 时 5/5，更早沿用的 1000ms 来自上一代笔记、没有实测依据。命中并发限制时
+RPC 层自动退避重试（响应形如 `{"code": -2, "result": null, "message": "并发限制，请稍后再试"}`）。**业务
+代码里不写等待**：课件行为一律经 `client.rpc.call` / `client.dwr.call`，节流与重试都在那一层。
+
+### 12.4 已知边界
+| 事项 | 现状 |
 |---|---|
-| 互评页面的 DOM 结构 | 需要进入互评流程采集 |
-| 作业页答案注入的实际渲染效果 | 选择器已取证，注入结果尚未在浏览器中目视确认 |
-| `isNeedAuth` 的逐接口归属 | 决定签名范围，目前对全部请求签名 |
-| 全局限流的确切阈值 | 当前取 1000ms，来源为早期实测笔记，未再次复现 |
+| 时长是否需要真实等待 | [实测] 不需要：平台记的是上报声明的秒数，真实需要的只是请求间隔，而间隔由共享节流器负责 |
+| 时长可否重复叠加 | [实测] 可以，平台是累加式的（真人重看也一样），超过视频本身长度属平台自身口径 |
+| 讨论单元 | [实测] 发回复后 `replyCount` 0→1 且单元完成；另有只上报的案例是延迟入账（约 12～20 分钟后仍未入账），**延迟时长与是否稳定未知** |
+| 视频单条上限 | [实测] 无上限：1141 秒的视频一条 `learnedVideoTimeCount = 1141` 直接记满，更长的未测 |
+| `duration` 字段语义 | [实测] 按接口给的 60 秒发送时被接受，其它取值未测 |
+| 随堂测验作答 | [源码] 与单元测验同一套提交接口；已接线并有测试，**尚未在真实账号上跑过** |
 
-已取证并因此从本表移除的部分：选项节点结构（第 6.2 节）、
-登录后 `NTESSTUDYSI` 的 httpOnly 状态（第 3 节）、
-标准答案来源的适用条件（第 7.1 节）。
-
-## 11. 取证纪律
-
-1. 任何结论都要写明取证位置：文件偏移、请求 URL 或样本文件名。
-2. 静态提取与运行时观测冲突时，以运行时为准，并把这个冲突写进本文件。
-3. 只检查单一来源不足以否定某个事实，参见第 9 节。
-4. 先摸清数据之间的关系，再选择方案。选项 id 与题目 id 的关系就是一个例子：
-   在没搞清之前用了文本匹配，方向从一开始就是错的。
-5. 抓下来的样本不入库，用完即清。仓库里只保留结论，见本文各节的取证等级标注。
-6. 平台改版后先重跑探测，再修改代码。
+## 13. 逆向取证工作流
+**先知道两件事**：sourcemap 是空的（bundle 末尾声明 `./s/core.js.map`，取回来是空占位，`sources: []`、
+`mappings: ""`，无法还原原始工程）；压缩没有混淆（只去掉空白并缩短局部变量名，模块内的函数名、属性名、
+接口名、DOM 类名全部保留原样，格式化后足以支撑阅读与开发——`pnpm probe:decompile` 做的就是这件事）。
+**定位一段功能**：从网络记录里找接口名（`probe:collect` 的 `network.jsonl`，或 `probe:watch` 实时看）；用
+`pnpm probe:decompile --capture <采集目录> --out .reverse` 生成 `INDEX.md`、格式化后的 `<bundle>/index.js`、
+模块索引 `modules.json`（hash、偏移、符号）与按 EDU 模块切开的 `modules/<hash>.js`；再从接口名或符号
+（如 `COM_Cache_QuizCache`）定位模块直接读——模块 hash 随平台发版变化，不要记 hash，重新生成索引即可。
+**读 NEJ 代码的要点**：模块声明是 `EDU("<hash>", function(e, t, i){...}, "<依赖 hash>", ...)`；类通过
+`NEJ.C()` 创建、`_$extend` 继承，原型方法写作 `d.__method = function(){}`；私有方法前缀 `__`、公开方法
+前缀 `_$`；请求统一走 `t._$request({url, method, data, isNeedAuth, onload})`；DOM 模板以字符串存在
+`_$addHtmlTemplate` 里，选择器可直接从模板读出。**纪律**：连续调用同一接口会被并发限制挡回
+（`code: -2` 且响应不含数据），这很容易被误读成「接口不返回该字段」，看到可疑的空结果先确认响应码；工具
+链完整清单见 [scripts/probe/README.md](../../scripts/probe/README.md)。
