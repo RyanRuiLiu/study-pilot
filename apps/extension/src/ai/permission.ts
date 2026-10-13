@@ -29,9 +29,3 @@ export async function ensureHostPermission(origin: string): Promise<HostPermissi
   const granted = await browser.permissions.request({ origins: [pattern] });
   return granted ? 'granted' : 'denied';
 }
-
-/** 当前是否已经拥有该源的权限（不触发申请）。 */
-export async function hasHostPermission(origin: string): Promise<boolean> {
-  if (typeof browser === 'undefined' || !browser.permissions) return false;
-  return await browser.permissions.contains({ origins: [`${origin}/*`] });
-}

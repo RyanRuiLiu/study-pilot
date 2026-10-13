@@ -56,7 +56,7 @@ function stripInvisible(node: Node): void {
  * 只做三件事：去掉可执行的节点与事件属性、把图片限制在块宽之内、
  * 清掉夹带的零宽字符。结构保持原样，因此段落的相对位置与站点一致。
  */
-export function renderRichText(html: string): HTMLElement {
+function renderRichText(html: string): HTMLElement {
   const container = document.createElement('div');
   container.innerHTML = html;
 

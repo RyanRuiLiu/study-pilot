@@ -17,7 +17,7 @@
  *    该格式由 `getQuizInfo` 返回的 `answererId` 交叉验证过（两处一致）。
  */
 
-export const MOOC_ORIGIN = 'https://www.icourse163.org';
+const MOOC_ORIGIN = 'https://www.icourse163.org';
 
 export interface MoocSession {
   /** 是否处于登录态 */
@@ -38,13 +38,13 @@ async function readCookie(name: string): Promise<string> {
 }
 
 /** 解析 STUDY_INFO 得到用户 id。格式不符时返回 0。 */
-export function parseUserId(studyInfo: string): number {
+function parseUserId(studyInfo: string): number {
   const parts = decodeURIComponent(studyInfo).split('|');
   const id = Number(parts[2]);
   return Number.isFinite(id) && id > 0 ? id : 0;
 }
 
-export async function readSession(): Promise<MoocSession> {
+async function readSession(): Promise<MoocSession> {
   const [token, studyInfo] = await Promise.all([
     readCookie('NTESSTUDYSI'),
     readCookie('STUDY_INFO'),

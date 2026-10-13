@@ -42,6 +42,9 @@
     "依赖方向没有反向",
     "ESLint 其余规则无报错"
   ],
+  "check-knip.mjs": [
+    "没有未使用的导出、文件与依赖（knip）"
+  ],
   "check-remark.mjs": [
     "文档链接与引用的路径都有效（remark）"
   ],

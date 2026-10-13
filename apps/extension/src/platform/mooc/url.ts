@@ -18,7 +18,7 @@
  * eid 不解析：取卷不需要它。
  */
 
-export type MoocView = 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective' | 'other';
+type MoocView = 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective' | 'other';
 
 export interface MoocLocation {
   /** 课程学期 id，来自查询串的 tid */

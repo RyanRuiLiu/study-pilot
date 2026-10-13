@@ -21,6 +21,3 @@ export const SELECTORS = {
   /** 互评模块。出现在已提交的作业页与互评页 */
   evaluateModule: '.j-evaluate',
 } as const;
-
-/** 批改模式的标记类。带有它的题目说明该卷已批改，页面上已展示答案 */
-export const CLASS_ANALYSIS_MODE = 'analysisMode';

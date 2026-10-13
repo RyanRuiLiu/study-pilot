@@ -31,17 +31,17 @@ import type { PendingSummary, UnitDetail } from './mooc.ts';
 // ---------- 请求 ----------
 
 /** 查询当前登录态。 */
-export interface SessionRequest {
+interface SessionRequest {
   type: 'SESSION';
 }
 
 /** 读取已保存的课程列表。 */
-export interface CoursesRequest {
+interface CoursesRequest {
   type: 'COURSES';
 }
 
 /** 从平台重新拉取课程列表并写回配置。 */
-export interface RefreshCoursesRequest {
+interface RefreshCoursesRequest {
   type: 'REFRESH_COURSES';
 }
 
@@ -95,8 +95,6 @@ export interface ResponseMap {
   DASHBOARD: QueryOutcome<DashboardView>;
   SUBMIT_QUIZ: { ok: true; matched: number } | { ok: false; message: string };
 }
-
-export type BackgroundResponse<K extends keyof ResponseMap> = ResponseMap[K];
 
 // 对外只留这一个入口，调用方不必知道内部如何分文件
 export * from './envelope.ts';

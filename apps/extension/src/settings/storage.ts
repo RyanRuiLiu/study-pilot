@@ -24,7 +24,7 @@ export async function getSettings(): Promise<Settings> {
 }
 
 /** 整体写入（写入前会先规范化）。 */
-export async function saveSettings(next: Settings): Promise<Settings> {
+async function saveSettings(next: Settings): Promise<Settings> {
   const normalized = normalize(next);
   await item.setValue(normalized);
   return normalized;

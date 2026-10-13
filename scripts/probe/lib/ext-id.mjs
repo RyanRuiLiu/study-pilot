@@ -27,7 +27,7 @@ function idOf(url) {
 }
 
 /** 取扩展 id；没有加载扩展时返回 null。 */
-export async function findExtensionId() {
+async function findExtensionId() {
   const targets = await listTargets();
 
   const worker = targets.find(

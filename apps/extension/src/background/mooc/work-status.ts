@@ -14,9 +14,6 @@
 import { WORK_STATUS, type WorkStatus } from '../../platform/messaging';
 import type { SnapshotWork } from './snapshot';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-
 /**
  * 一个单元此刻的状态。
  *
@@ -55,14 +52,6 @@ export function describeWorkStatus(work: SnapshotWork, now: number = Date.now())
   }
 
   return WORK_STATUS.WAITING;
-}
-
-/**
- * 距离截止还有几天。已过截止返回负数。
- */
-export function daysLeft(deadline: number | null, now: number = Date.now()): number | null {
-  if (deadline === null) return null;
-  return Math.ceil((deadline - now) / DAY_MS);
 }
 
 /**

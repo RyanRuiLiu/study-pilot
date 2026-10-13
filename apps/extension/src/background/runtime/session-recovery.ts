@@ -63,7 +63,7 @@ function describe(error: unknown): string {
 }
 
 /** 确认救不回来时给用户的统一说法。四个调用点共用，不许各写一份。 */
-export const LOGIN_RECOVERY_FAILED_MESSAGE = '登录已失效，且自动恢复没有成功，请重新登录慕课平台';
+const LOGIN_RECOVERY_FAILED_MESSAGE = '登录已失效，且自动恢复没有成功，请重新登录慕课平台';
 
 /** 恢复失败时前台消息的失败形状。 */
 export interface RecoveryFailure {
