@@ -76,7 +76,10 @@ export interface PendingEntry {
    * 保留在列表中是为了让用户知道漏了什么，而不是让他去点。
    */
   overdue: boolean;
-  /** 测验或作业的 id，用于拼跳转地址 */
+  /** 跳转地址；由平台在产出这条汇总时自己拼好，外壳不拼 URL */
+  href: string;
+
+  /** 测验或作业的 id */
   testId: number;
   /** 课程名 */
   courseName: string;
@@ -126,6 +129,8 @@ export interface PendingEntry {
 
 /** 待办汇总：计数用于概览，明细用于列表。 */
 export interface PendingSummary {
+  /** 这份汇总的读取时刻（毫秒）；弹窗用它回答「上次读取」 */
+  fetchedAt: number;
   /** 能自动完成的条数 */
   auto: number;
   /** 只能人工完成的条数 */

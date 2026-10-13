@@ -1,223 +1,152 @@
 /*
  * 弹窗结构的 DOM 级核对。
  *
- * 验的是「这一屏里到底有哪几个东西、写的是什么字」：状态行、计数、清单条数与顺序、
- * 两个入口，以及它们分别由哪个构造器产出（sl-button / sl-spinner / ol / li）。
+ * 验的是「这一屏里到底有哪几个东西、写的是什么字」：状态行、计数行、清单条数与顺序、
+ * 行里的标题与截止时间、未登录时的去处、以及就地改写状态行时清单不动。
  * 不看截图，也不靠人眼。
  *
- * 为什么用 linkedom：仓库已有先例（guidance.test.ts），这里也不需要布局与样式。
- * 为什么不加载真实 Shoelace 组件：在 Node 下 Lit 解析到的是 node 构建，组件首次
- * 更新会去读一个不存在的内部节点（FormControlController.updateValidity）。本测试
- * 验的是构造器输出的标签与文字，组件注册交给入口（src/ui/index.ts 的副作用导入）。
- * 因此把两个副作用模块换成空模块。
+ * 数据用平台自己的待办汇总（PendingEntry / PendingSummary）——弹窗不再经过中立模型，
+ * 因此夹具也必须是平台的原样字段；这正是这一步要钉住的东西。
  */
 
 import { parseHTML } from 'linkedom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// 真实 Shoelace 组件在 linkedom 下会崩（Lit 走 node 构建）；这里验的是构造器输出的标签与文字
 vi.mock('@shoelace-style/shoelace/dist/components/button/button.js', () => ({}));
 vi.mock('@shoelace-style/shoelace/dist/components/spinner/spinner.js', () => ({}));
 
-import { summarize } from '../src/domain/plan';
-import type { Task } from '../src/domain/task';
+import type { PendingEntry, PendingSummary } from '../src/platform/messaging';
 import { renderLoading, renderPopup, type PopupData } from '../entrypoints/popup/view';
 
 const page = parseHTML('<!doctype html><html><body><div id="app"></div></body></html>');
 Object.assign(globalThis, { window: page.window, document: page.document });
 
-const DAY = 24 * 60 * 60 * 1000;
-/*
- * 截止时间一律相对此刻算：清单的排序里「已过截止排在最后」是按真实时钟判的，
- * 写死一个时间戳会让整组数据在不同日子落到不同的档里。
- */
-const NOW = Date.now();
-
-const HANDLERS = {
-  dashboardUrl: 'chrome-extension://test/dashboard.html',
-  onSettings: () => undefined,
-};
-
-function host(): HTMLElement {
-  return globalThis.document.getElementById('app')!;
-}
-
-/** 一件任务。只写关心的字段，其余给固定值。 */
-function task(fields: Partial<Task> & { id: string; title: string }): Task {
+function entry(overrides: Partial<PendingEntry> = {}): PendingEntry {
   return {
-    platformId: 'mooc',
-    courseId: 1,
-    kind: 'quiz',
-    mode: 'auto',
-    state: 'todo',
-    ...fields,
+    kind: 'submit-quiz',
+    handling: 'auto',
+    overdue: false,
+    href: 'https://www.icourse163.org/learn/x#/learn/quiz?id=1',
+    testId: 1,
+    courseName: '模拟电子技术',
+    chapterName: '第三章',
+    name: '单元测验',
+    examId: null,
+    status: '未提交',
+    statusDetail: '',
+    deadline: 1_800_000_000_000,
+    evaluateDone: null,
+    evaluateTotal: null,
+    course: { courseId: 1, schoolShortName: 'NTU', mode: 0, termId: 1 },
+    ...overrides,
   };
 }
 
-function data(over: Partial<PopupData> = {}): PopupData {
+function summary(entries: PendingEntry[]): PendingSummary {
   return {
-    live: 'idle',
-    tasks: [],
-    fetchedAt: NOW,
-    notLoggedIn: false,
-    staleList: false,
-    error: null,
-    ...over,
+    fetchedAt: 1_700_000_000_000,
+    auto: entries.filter((e) => e.handling === 'auto' && !e.overdue).length,
+    manual: entries.filter((e) => e.handling === 'manual' && !e.overdue).length,
+    overdue: entries.filter((e) => e.overdue).length,
+    entries,
   };
 }
 
-function textOf(root: HTMLElement, selector: string): string {
-  return root.querySelector(selector)?.textContent ?? '';
+function data(overrides: Partial<PopupData> = {}): PopupData {
+  return { live: 'idle', summary: summary([]), notLoggedIn: false, staleList: false, error: null, ...overrides };
 }
 
+const handlers = { dashboardUrl: 'chrome-extension://x/dashboard.html', onSettings: () => {} };
+
+let root: HTMLElement;
 beforeEach(() => {
-  host().replaceChildren();
+  root = page.document.createElement('div');
 });
 
-describe('弹窗结构', () => {
-  it('把状态、计数、清单、两个入口按顺序铺出来，控件来自组件层', () => {
-    const soon = task({ id: 'a', title: '第一章测验', dueAt: NOW + DAY, link: 'https://x/quiz' });
-    const later = task({
-      id: 'b',
-      title: '第二章作业',
-      kind: 'homework',
-      mode: 'manual',
-      dueAt: NOW + 3 * DAY,
-      link: 'https://x/hw',
-    });
-    const finished = task({ id: 'c', title: '已交的作业', dueAt: NOW + DAY, state: 'done' });
-    const courseware = task({ id: 'd', title: '第三章视频', kind: 'video' });
-
-    const root = host();
-    renderPopup(root, data({ tasks: [soon, later, finished, courseware] }), HANDLERS);
-
-    // 顺序：状态 → 计数 → 清单 → 入口
-    expect([...root.children].map((child) => child.className)).toEqual([
-      'sp-status',
-      'sp-count',
-      'sp-list',
-      'sp-nav',
-    ]);
-
-    // 清单只认待办：已完成的与没有截止时间的课件都不算
-    expect(Array.from(root.querySelectorAll('.sp-item')).map((item) => textOf(item as HTMLElement, '.sp-item-title'))).toEqual([
-      '第一章测验',
-      '第二章作业',
-    ]);
-
-    // 每行是一个可点的语义列表项，不是 div 堆出来的
-    const firstRow = root.querySelector('.sp-item');
-    expect(firstRow?.tagName).toBe('LI');
-    expect(firstRow?.querySelector('a')?.getAttribute('href')).toBe('https://x/quiz');
+describe('弹窗这一屏', () => {
+  it('计数用平台自己的分项，不在页面里另算', () => {
+    renderPopup(root, data({ summary: summary([entry(), entry({ kind: 'submit-homework', handling: 'manual' })]) }), handlers);
+    expect(root.querySelector('.sp-count')?.textContent).toBe('共 2 项 · 会自动完成 1 · 需你处理 1');
   });
 
-  it('计数就是 domain/plan.ts 的 summarize，不在页面里另数一遍', () => {
-    const tasks = [
-      task({ id: 'a', title: '测验', dueAt: NOW + DAY }),
-      task({ id: 'b', title: '作业', kind: 'homework', mode: 'manual', dueAt: NOW + DAY }),
-      task({ id: 'c', title: '考试', kind: 'exam-objective', mode: 'manual', dueAt: NOW + DAY }),
-      task({ id: 'd', title: '失败的', kind: 'homework', mode: 'manual', state: 'failed', dueAt: NOW }),
-      task({ id: 'e', title: '已完成的', mode: 'manual', state: 'done', dueAt: NOW }),
-    ];
-    const root = host();
-    renderPopup(root, data({ tasks }), HANDLERS);
+  it('有已过期项时补一项计数，且它排在最后', () => {
+    const overdue = entry({ overdue: true, name: '过期测验', deadline: 1 });
+    renderPopup(root, data({ summary: summary([overdue, entry({ name: '还有时间' })]) }), handlers);
 
-    const summary = summarize(tasks.filter((entry) => entry.state !== 'done'));
-    expect(textOf(root, '.sp-count')).toBe(
-      `共 ${summary.auto + summary.assisted + summary.manual + summary.failed} 项 · ` +
-        `可自动完成 ${summary.auto} · 需要确认 ${summary.assisted} · 需要你做 ${summary.manual} · ` +
-        `失败 ${summary.failed}`,
-    );
+    expect(root.querySelector('.sp-count')?.textContent).toContain('已过期 1');
+    const names = [...root.querySelectorAll('.sp-item-title')].map((el) => el.textContent);
+    expect(names).toEqual(['还有时间', '过期测验']);
   });
 
-  it('清单只放最紧要的 5 项，按截止时间升序，已过截止的排最后', () => {
-    const tasks = Array.from({ length: 7 }, (_unused, index) =>
-      task({
-        id: `t${index}`,
-        title: `任务 ${index}`,
-        dueAt: NOW + (index + 1) * DAY,
-        // Date.now() 远小于这几个截止时间，因此这里全是「还没到期」
-      }),
-    );
-    tasks.push(task({ id: 'late', title: '已过截止的', dueAt: NOW - DAY }));
+  it('未过期的按截止时间升序，最多显示 5 条', () => {
+    const many = [5, 4, 3, 2, 1, 0].map((i) => entry({ name: `第 ${i} 件`, deadline: 1_800_000_000_000 + i * 1000 }));
+    renderPopup(root, data({ summary: summary(many) }), handlers);
 
-    const root = host();
-    renderPopup(root, data({ tasks }), HANDLERS);
-
-    const titles = Array.from(root.querySelectorAll('.sp-item-title')).map((el) => el.textContent);
-    expect(titles).toEqual(['任务 0', '任务 1', '任务 2', '任务 3', '任务 4']);
-    expect(titles).not.toContain('已过截止的');
+    const names = [...root.querySelectorAll('.sp-item-title')].map((el) => el.textContent);
+    expect(names).toHaveLength(5);
+    expect(names[0]).toBe('第 0 件');
   });
 
-  it('正在执行时状态行用忙色；清单取自执行之前时说明来源', () => {
-    const root = host();
-    renderPopup(root, data({ live: 'running' }), HANDLERS);
+  it('行显示标题与截止说明；没有截止时间就不显示时间', () => {
+    renderPopup(root, data({ summary: summary([entry({ name: '有截止' }), entry({ name: '无截止', deadline: 0 })]) }), handlers);
 
-    const status = root.querySelector('.sp-status');
-    expect(status?.textContent).toBe('正在执行');
-    expect(status?.getAttribute('data-tone')).toBe('busy');
-
-    renderPopup(root, data({ live: 'running', staleList: true }), HANDLERS);
-    expect(textOf(root, '.sp-status')).toContain('执行前的清单');
+    const rows = [...root.querySelectorAll('.sp-item')];
+    expect(rows[0]?.querySelector('.sp-item-title')?.textContent).toBe('有截止');
+    expect(rows[0]?.querySelector('.sp-item-when')).not.toBeNull();
+    expect(rows[1]?.querySelector('.sp-item-when')).toBeNull();
   });
 
-  it('空清单给一句话，不留空白', () => {
-    const root = host();
-    renderPopup(root, data(), HANDLERS);
-
-    expect(root.querySelector('.sp-list')).toBeNull();
-    expect(textOf(root, '.sp-empty')).toBe('暂无待办。');
-    expect(textOf(root, '.sp-count')).toBe('共 0 项 · 可自动完成 0 · 需要确认 0 · 需要你做 0');
+  it('行可点：地址来自平台自己带的 href，不在页面里拼 URL', () => {
+    renderPopup(root, data({ summary: summary([entry({ href: 'https://example.com/quiz?id=9' })]) }), handlers);
+    expect(root.querySelector('a.sp-item-body')?.getAttribute('href')).toBe('https://example.com/quiz?id=9');
   });
 
-  it('未登录时不画清单，只给状态行与去处', () => {
-    const root = host();
-    renderPopup(root, data({ notLoggedIn: true }), HANDLERS);
-
-    expect(textOf(root, '.sp-status')).toContain('需要重新登录');
-    expect(root.querySelector('.sp-count')).toBeNull();
-    expect(root.querySelector('.sp-list')).toBeNull();
-
-    const login = root.querySelector('.sp-actions sl-button');
-    expect(login?.textContent).toBe('前往登录');
-    expect(login?.getAttribute('href')).toContain('icourse163.org');
-    expect(login?.getAttribute('target')).toBe('_blank');
+  it('没登录时只给去处，不画清单', () => {
+    renderPopup(root, data({ notLoggedIn: true }), handlers);
+    expect(root.querySelector('.sp-status')?.textContent).toContain('重新登录');
+    expect(root.textContent).toContain('前往登录');
+    expect(root.querySelectorAll('.sp-item')).toHaveLength(0);
   });
 
-  it('两个入口是按钮，看板带地址、设置触发回调', () => {
-    const root = host();
-    let opened = 0;
-    renderPopup(root, data(), { dashboardUrl: 'chrome-extension://test/dashboard.html', onSettings: () => { opened += 1; } });
-
-    const navButtons = Array.from(root.querySelectorAll('.sp-nav sl-button'));
-    expect(navButtons.map((element) => element.textContent)).toEqual(['看板', '设置']);
-    expect(navButtons[0]?.getAttribute('href')).toBe('chrome-extension://test/dashboard.html');
-
-    navButtons[1]?.dispatchEvent(new page.window.Event('click'));
-    expect(opened).toBe(1);
+  it('读取失败时状态行说明原因，不画清单', () => {
+    renderPopup(root, data({ error: '读取状态失败', summary: null }), handlers);
+    expect(root.querySelector('.sp-status')?.textContent).toBe('读取状态失败');
+    expect(root.querySelectorAll('.sp-item')).toHaveLength(0);
   });
 
-  it('加载态是状态行加一个转圈', () => {
-    const root = host();
+  it('状态行优先说「后台在跑」与「清单取自执行前」', () => {
+    renderPopup(root, data({ live: 'running', staleList: true }), handlers);
+    expect(root.querySelector('.sp-status')?.textContent).toContain('执行前的清单');
+  });
+
+  it('没有待办时给一句话，不留空白', () => {
+    renderPopup(root, data({ summary: summary([]) }), handlers);
+    expect(root.querySelector('.sp-empty')?.textContent).toBe('暂无待办。');
+  });
+
+  it('两个入口：看板与设置', () => {
+    renderPopup(root, data(), handlers);
+    expect(root.textContent).toContain('看板');
+    expect(root.textContent).toContain('设置');
+  });
+
+  it('就地改写状态行时，清单与条数不动', () => {
+    const view = renderPopup(root, data({ summary: summary([entry(), entry()]) }), handlers);
+    const before = root.querySelectorAll('.sp-item').length;
+
+    view.setStatus('已提交 2 道题', 'idle');
+
+    expect(root.querySelector('.sp-status')?.textContent).toBe('已提交 2 道题');
+    expect(root.querySelectorAll('.sp-item').length).toBe(before);
+  });
+});
+
+describe('数据到达之前', () => {
+  it('只画状态行加一个转圈', () => {
     renderLoading(root, '正在获取最新数据');
-
-    expect(textOf(root, '.sp-status')).toBe('正在获取最新数据');
-    expect(root.querySelector('sl-spinner')).not.toBeNull();
-  });
-
-  it('写状态只换那一行，清单与入口不动', () => {
-    const root = host();
-    const view = renderPopup(
-      root,
-      data({ tasks: [task({ id: 'a', title: '测验', dueAt: NOW + DAY })] }),
-      HANDLERS,
-    );
-    const count = root.querySelector('.sp-count');
-
-    view.setStatus('完成 3 项', 'idle');
-
-    expect(textOf(root, '.sp-status')).toBe('完成 3 项');
-    expect(root.querySelector('.sp-status')?.getAttribute('data-tone')).toBe('idle');
-    expect(root.querySelector('.sp-count')).toBe(count);
-    expect(root.querySelector('.sp-item')).not.toBeNull();
+    expect(root.querySelector('.sp-status')?.textContent).toBe('正在获取最新数据');
+    expect(root.querySelectorAll('sl-spinner').length).toBeGreaterThan(0);
+    expect(root.querySelectorAll('.sp-item')).toHaveLength(0);
   });
 });

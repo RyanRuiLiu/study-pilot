@@ -5,13 +5,12 @@
  * （Shoelace 组件 + tokens.css 的取值）在 src/ui/。取数与事件由 main.ts 传进来，
  * 因此这里不碰 browser 全局，测试可以在 linkedom 里直接把 DOM 建出来核对。
  *
- * 计数不在这里数：条数一律来自 domain/plan.ts 的 summarize（唯一来源）。
+ * 数据全部来自平台自己的待办汇总（PENDING_SUMMARY）：条目、计数、跳转地址都在里面。
+ * 这里不认识"中立模型"——各平台的字段本来就不同，硬压成一种形状只会多出一层要维护的映射。
  */
 
 import { MOOC_ORIGIN } from '@study-pilot/platform-mooc';
-import { summarize } from '../../src/domain/plan';
-import type { Task } from '../../src/domain/task';
-import type { TaskStatus } from '../../src/platform/messaging';
+import type { PendingEntry, PendingSummary, TaskStatus } from '../../src/platform/messaging';
 import { formatDateTime } from '../../src/features/format';
 import { actionRow, button, countLine, navBar, statusLine, taskList, taskRow, type Tone } from '../../src/ui';
 
@@ -21,10 +20,8 @@ const TOP_COUNT = 5;
 export interface PopupData {
   /** 后台此刻的运行状态，由后台的 TASK_STATE 判定，界面不自己猜 */
   live: TaskStatus['live'];
-  /** 中立模型里的全部任务，来自读本地快照的 DASHBOARD */
-  tasks: Task[];
-  /** 快照的读取时刻；0 表示还没读过 */
-  fetchedAt: number;
+  /** 平台自己的待办汇总；未登录或读取失败时为 null（状态行已说明原因） */
+  summary: PendingSummary | null;
   /** 需要重新登录。与一般失败分开：这里给的是去处，不是原因 */
   notLoggedIn: boolean;
   /**
@@ -50,28 +47,25 @@ export interface PopupView {
 }
 
 /**
- * 待办 = 未完成、且有截止时间的任务。
- *
- * 课件单元（视频、文档、随堂测验）没有截止时间，后台一件件做掉即可，
- * 不算用户要交的东西；把它们算进来会让计数与清单都被它们撑满。
- */
-function pending(tasks: Task[]): Task[] {
-  return tasks.filter((task) => task.state !== 'done' && task.dueAt !== undefined);
-}
-
-/**
- * 谁最紧要：按截止时间升序，已过截止的排在最后。
+ * 谁最紧要：已过截止的排在最后，其余按截止时间升序，没有截止的排在有截止的后面。
  *
  * 过期项排在最后不是藏起来，是别占住第一行：平台上已经做不了了，
  * 而用户打开弹窗是要看「现在还能做什么」。它们仍然在清单里，
  * 加上日期本身就是提醒（见 format.ts 的相对说法）。
  */
-function byUrgency(tasks: Task[], now: number): Task[] {
-  return [...tasks].sort((left, right) => {
-    const leftLate = (left.dueAt ?? 0) < now;
-    const rightLate = (right.dueAt ?? 0) < now;
-    if (leftLate !== rightLate) return leftLate ? 1 : -1;
-    return (left.dueAt ?? 0) - (right.dueAt ?? 0);
+function byUrgency(entries: PendingEntry[], now: number): PendingEntry[] {
+  const rank = (entry: PendingEntry): [number, number] => {
+    if (entry.overdue) return [2, 0];
+    if (entry.deadline > 0 && entry.deadline < now) return [2, 0];
+    if (entry.deadline > 0) return [0, entry.deadline];
+    return [1, 0];
+  };
+
+  return [...entries].sort((left, right) => {
+    const [leftBucket, leftAt] = rank(left);
+    const [rightBucket, rightAt] = rank(right);
+    if (leftBucket !== rightBucket) return leftBucket - rightBucket;
+    return leftAt - rightAt;
   });
 }
 
@@ -83,12 +77,20 @@ function statusText(data: PopupData): string {
   }
   if (data.live === 'interrupted') return '上次运行未结束，下次检查时接着做';
   if (data.live === 'awaiting-login') return '等待登录，登录后接着完成';
-  return data.fetchedAt > 0 ? `上次读取：${formatDateTime(data.fetchedAt)}` : '还没有读取过数据';
+  const fetchedAt = data.summary?.fetchedAt ?? 0;
+  return fetchedAt > 0 ? `上次读取：${formatDateTime(fetchedAt)}` : '还没有读取过数据';
 }
 
 function statusTone(data: PopupData): Tone {
   if (data.error !== null || data.notLoggedIn) return 'error';
   return data.live === 'running' ? 'busy' : 'idle';
+}
+
+/** 计数：用平台自己的分项（会自动完成 / 需你处理 / 已过期），外壳不另算一遍。 */
+function countParts(summary: PendingSummary): string[] {
+  const parts = [`共 ${summary.entries.length} 项`, `会自动完成 ${summary.auto}`, `需你处理 ${summary.manual}`];
+  if (summary.overdue > 0) parts.push(`已过期 ${summary.overdue}`);
+  return parts;
 }
 
 /** 画整屏。取数失败或需要登录时不画清单：状态行已经说明了原因，清单谁都不信。 */
@@ -109,14 +111,14 @@ export function renderPopup(
         }),
       ]),
     );
-  } else if (data.error === null) {
-    const open = pending(data.tasks);
-    parts.push(countLine(summarize(open)));
+  } else if (data.error === null && data.summary !== null) {
+    const entries = byUrgency(data.summary.entries, Date.now());
+    parts.push(countLine(countParts(data.summary)));
     parts.push(
       taskList(
-        byUrgency(open, Date.now())
-          .slice(0, TOP_COUNT)
-          .map((task) => taskRow(task)),
+        entries.slice(0, TOP_COUNT).map((entry) =>
+          taskRow({ title: entry.name, due: entry.deadline, href: entry.href }),
+        ),
         '暂无待办。',
       ),
     );
