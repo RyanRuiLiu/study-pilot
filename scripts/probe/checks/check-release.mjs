@@ -443,6 +443,43 @@ for (const file of [
 }
 record('同一概念没有第二种写法', termHits.length === 0, termHits.slice(0, 4).join('  '));
 
+// ---------- 14. 版本号 ----------
+//
+// 版本号散在 6 个 package.json 与 wxt.config.ts 里，靠"记得都改"是守不住的：
+// 漏掉一个，扩展商店里的版本与包版本就会不一致，而这种不一致不会报错。
+// 这里直接比：全部相同才算通过，并复述当前版本，避免"改了几处"要靠数。
+
+console.log('');
+console.log('=== 版本号 ===');
+
+const VERSION_FILES = [
+  'package.json',
+  'apps/extension/package.json',
+  'packages/ai/package.json',
+  'packages/core/package.json',
+  'packages/platform-mooc/package.json',
+  'packages/transport/package.json',
+];
+
+const versions = VERSION_FILES.map((file) => ({
+  file,
+  version: JSON.parse(readFileSync(join(ROOT, file), 'utf8')).version,
+}));
+const manifestVersion = /version:\s*'([^']+)'/.exec(
+  readFileSync(join(ROOT, 'apps/extension/wxt.config.ts'), 'utf8'),
+)?.[1];
+versions.push({ file: 'apps/extension/wxt.config.ts', version: manifestVersion });
+
+const distinct = [...new Set(versions.map((entry) => entry.version))];
+record(
+  `版本号处处一致（当前 ${distinct.join(' / ')}）`,
+  distinct.length === 1 && typeof manifestVersion === 'string',
+  versions
+    .filter((entry) => entry.version !== manifestVersion)
+    .map((entry) => `${entry.file} 是 ${entry.version}`)
+    .join('  '),
+);
+
 // ---------- 汇总 ----------
 
 const failed = results.filter((r) => !r.ok);
