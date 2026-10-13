@@ -21,168 +21,12 @@ import {
   type TransportError,
 } from '@study-pilot/transport';
 import type { MoocClient } from './client.ts';
-import { DWR_ENDPOINTS, ENDPOINTS } from './endpoints.ts';
-import type { HomeworkInfo, HomeworkPaper, PaperQuestion } from './types.ts';
+import { DWR_ENDPOINTS } from './endpoints.ts';
+// 本文件仍要用到移出后的这三样：解析 DWR、判断评测类型、构造提交体
+import { EVALUATE_JUDGE_TYPE, groupDwrObjects, parseDwrObjectVariables } from './dwr-parse.ts';
+import type { EvaluationItem } from './evaluation-items.ts';
 
 // ---------- 取数 ----------
-
-/** 作业所处的阶段。取值与源码 `edu.u.CONST` 一致。 */
-export const HOMEWORK_PHASE = {
-  /** 尚未截止，可以作答与提交 */
-  SUBMIT: 1,
-  /** 截止后、成绩发布前，处于互评期 */
-  EVALUATION: 2,
-  /** 成绩已发布 */
-  SCORE: 3,
-  /** 教师批改 */
-  TEACHER: 4,
-} as const;
-
-export type HomeworkPhase = (typeof HOMEWORK_PHASE)[keyof typeof HOMEWORK_PHASE];
-
-/**
- * 计算作业当前所处的阶段。
- *
- * 与源码 `edu.u._$currentEvaluatePhase` 的判定一致：
- *
- *   o._$currentEvaluatePhase = function (e) {
- *     var t = o._$getCurServerTime(), n = e.deadline, i = e.evaluateScoreReleaseTime;
- *     if (t < n) a = o.CONST.HW_PHASE_SUBMIT;
- *     else if (t >= i) a = o.CONST.HW_PHASE_SCORE;
- *     else a = o.CONST.HW_PHASE_EVALUATION;
- *     return a;
- *   };
- *
- * 源码取的是服务端时间（`timeRpcBean.currentTime`）。实测服务端与本机相差
- * 数百毫秒，而作业的截止与发布时间以天为单位，直接使用本机时间不影响判定。
- */
-export function currentEvaluatePhase(
-  input: { deadline?: number | null; evaluateScoreReleaseTime?: number | null },
-  now: number = Date.now(),
-): HomeworkPhase {
-  const deadline = input.deadline ?? 0;
-  const releaseTime = input.evaluateScoreReleaseTime ?? 0;
-
-  if (now < deadline) return HOMEWORK_PHASE.SUBMIT;
-  if (releaseTime > 0 && now >= releaseTime) return HOMEWORK_PHASE.SCORE;
-  return HOMEWORK_PHASE.EVALUATION;
-}
-
-export async function getHomeworkInfo(
-  client: MoocClient,
-  tid: number,
-): Promise<Result<HomeworkInfo, TransportError>> {
-  return client.rpc.call<HomeworkInfo>(
-    ENDPOINTS.homeworkInfo.bean,
-    ENDPOINTS.homeworkInfo.method,
-    { tid, isDraft: false },
-  );
-}
-
-/**
- * 取作业答卷。
- *
- * 参考答案位于 `subjectiveQList[].judgeDtos[].msg`，是含图片与评分标准的富文本。
- * 它与 `withStdAnswerAndAnalyse` 无关：实测该参数取 true 或 false，
- * `judgeDtos` 都会返回，而 `stdAnswer` 与 `sampleAnswerJson` 始终为 null
- * ——主观题本就没有单一标准答案，评分依据就是 `judgeDtos`。
- *
- * 请求字段与顺序来自源码 `COM_Cache_HomeworkCache._$getOpenHomeworkPaper`
- * （core bundle 的 9404c040 模块）：{tid, evaluateId, withStdAnswerAndAnalyse, phase, aid, appId}。
- */
-export async function getHomeworkPaper(
-  client: MoocClient,
-  tid: number,
-  options: {
-    aid?: number;
-    evaluateId?: number | null;
-    /** 阶段。省略时按当前时间计算 */
-    phase?: HomeworkPhase;
-    /** 计算阶段所需的时间字段，来自 getHomeworkInfo */
-    timing?: { deadline?: number | null; evaluateScoreReleaseTime?: number | null };
-  } = {},
-): Promise<Result<HomeworkPaper, TransportError>> {
-  const phase = options.phase ?? currentEvaluatePhase(options.timing ?? {});
-
-  return client.rpc.call<HomeworkPaper>(
-    ENDPOINTS.homeworkPaper.bean,
-    ENDPOINTS.homeworkPaper.method,
-    {
-      tid,
-      evaluateId: options.evaluateId ?? null,
-      withStdAnswerAndAnalyse: true,
-      phase,
-      aid: options.aid,
-    },
-  );
-}
-
-// ---------- 互评评分项 ----------
-
-/** 单个评分项。字段名与 DWR 报文一致，不要改名。 */
-export interface EvaluationItem {
-  /** 题目 id */
-  qid: number;
-  /** 评分点 id。来自该题的 `judgeDtos[].id` */
-  jid: string;
-  /** 题目满分 */
-  qscore: number;
-  /** 实际给分 */
-  jscore: number;
-  /** 评语 */
-  comment: string;
-  /** 是否允许答题者查看评语 */
-  answerCanViewComment: boolean;
-}
-
-/**
- * 由作业答卷构造评分项，每题给满分并附统一评语。
- *
- * 一题可能有多个评分点（`judgeDtos`），此时逐个展开，每个评分点单独给分。
- * 题目没有评分点时 `jid` 取空串，表示该题按整体评分，这也是一种正常的形态，
- * 作业里存在只有整体分、没有细分评分点的题目。
- */
-export function buildEvaluationItems(
-  paper: Pick<HomeworkPaper, 'subjectiveQList' | 'objectiveQList'>,
-  comment: string,
-  options: { answerCanViewComment?: boolean } = {},
-): EvaluationItem[] {
-  const questions: PaperQuestion[] = paper.subjectiveQList ?? paper.objectiveQList ?? [];
-  const viewComment = options.answerCanViewComment ?? true;
-  const items: EvaluationItem[] = [];
-
-  for (const question of questions) {
-    const qscore = question.score ?? 0;
-    const judges = question.judgeDtos ?? [];
-
-    if (judges.length === 0) {
-      items.push({
-        qid: question.id,
-        jid: '',
-        qscore,
-        jscore: qscore,
-        comment,
-        answerCanViewComment: viewComment,
-      });
-      continue;
-    }
-
-    for (const judge of judges) {
-      items.push({
-        qid: question.id,
-        jid: String(judge.id ?? ''),
-        qscore,
-        jscore: judge.maxScore ?? qscore,
-        comment,
-        answerCanViewComment: viewComment,
-      });
-    }
-  }
-
-  return items;
-}
-
-// ---------- DWR 调用 ----------
 
 /** 服务端分配的待评答卷。 */
 export interface NextSubmission {
@@ -321,53 +165,6 @@ export async function getEvaluationDetail(
   });
 }
 
-/** 从 DWR 响应文本中解析 `s0.field=value;` 形式的对象。 */
-
-export function parseDwrObjectVariables(raw: string): Record<string, string> {
-  const fields: Record<string, string> = {};
-
-  for (const match of raw.matchAll(/s\d+\.([A-Za-z_]\w*)\s*=\s*([^;\r\n]*)/g)) {
-    fields[match[1]] = match[2].trim();
-  }
-
-  return fields;
-}
-
-/**
- * 按对象名分组解析 `sN.field=value`。
- *
- * 与上面的压平版本不同：这里保留「哪些字段属于同一个对象」。
- * 互评详情里每个待评答卷各是一个对象，需要逐个看它们的
- * evaluateJudgeType 才能分清自评与互评——压平之后就分不出来了。
- */
-export function groupDwrObjects(raw: string): Map<string, Record<string, string>> {
-  const out = new Map<string, Record<string, string>>();
-
-  for (const match of raw.matchAll(/\b(s\d+)\.([A-Za-z_]\w*)=([^;\r\n]*)/g)) {
-    const [, name, field, value] = match;
-    const fields = out.get(name) ?? {};
-    fields[field] = value.trim();
-    out.set(name, fields);
-  }
-
-  return out;
-}
-
-/**
- * 评测类型。取自接口的 evaluateJudgeType 字段。
- *
- * 实测（第三单元 单元作业，6 个评测对象）：
- *   互评 5 个  evaluateJudgeType=2
- *   自评 1 个  evaluateJudgeType=3
- * 自评那个的 origScore 为 0（自己还没得分），互评那些为 100。
- */
-export const EVALUATE_JUDGE_TYPE = {
-  /** 互评：为其他同学的作业评分 */
-  PEER: 2,
-  /** 自评：为自己的作业评分 */
-  SELF: 3,
-} as const;
-
 /**
  * 取下一份待评答卷。
  *
@@ -484,3 +281,8 @@ export async function submitEvaluation(
 
   return ok(isDwrSuccess(response.value.raw));
 }
+
+// 读取、评分项与 DWR 解析已按域移出，这里保持唯一出口，导入方不受影响
+export * from './homework-read.ts';
+export * from './evaluation-items.ts';
+export * from './dwr-parse.ts';
