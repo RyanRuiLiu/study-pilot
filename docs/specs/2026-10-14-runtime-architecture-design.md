@@ -152,16 +152,23 @@ interface PlatformAdapter {
 | `background/mooc/execute.ts` | 355 | `execute/work.ts` ＋ `execute/courseware.ts` ＋ `execute/shared.ts` |
 | `background/mooc/task-plan.ts` | 355 | `plan/auto.ts` ＋ `plan/manual.ts` ＋ `plan/order.ts` |
 
-**同时清理（已核实的不优雅之处）**
+**同时清理**
 
-| 问题 | 事实 | 处理 |
+初稿这里列了「kind 标签映射三处」「时间格式化三处」，**核实后是我写错了**，实际都不算重复：
+
+| 初稿的说法 | 核实结果 |
+|---|---|
+| kind → 标签映射三处 | ❌ 不成立。`popup/KIND_TEXT`（待办类别→用户文案）与 `reminder/KIND_LABEL`（执行结果类别→通知短词）是两个键空间、两种语域；`AUTO_KIND`/`MANUAL_KIND`（内部动作→待办类别）本来只有一处。强行合并只会更绕 |
+| 时间格式化三处 | ❌ 不成立。`daysBetween`/`relativeDay`（「今天/3 天后」相对说法）与 `formatDateTime`/`formatDate`（绝对日期）是不同知识；`dateKey` 是调度用的日期键 |
+
+真正要处理的：
+
+| 问题 | 状态 | 处理 |
 |---|---|---|
-| kind → 标签/种类 映射三处 | `popup/main.ts` 的 `KIND_TEXT`、`to-messages.ts` 的 `AUTO_KIND`/`MANUAL_KIND`、`messaging.ts` 的 `PendingKind` | 收敛到中立模型一处，其余引用 |
-| 时间格式化三处 | `popup` 的 `daysBetween`/`relativeDay`、`features/format.ts`、`scheduler.ts` 的 `dateKey` | 统一到 `features/format.ts`；`dateKey` 属于调度语义，保留但改名以免与展示格式混淆 |
-| 两个 client / 两个节流器 | `background.ts:186` 与 `mooc.content.ts:42` 各建一个 | 内容脚本不再建 client，只读数据经消息取自后台 |
-| 探测脚本 19 个、职责重叠 | `selfcheck*` 三个、`check-copy` 与 `check-release` 覆盖重叠 | 合并为按主题的少量脚本 |
-| `startupDelayMinutes` 设置项 | 与「检查后立即执行」语义重复 | 删除该设置 |
-| 遗留 `??`/`||` 默认值 | 8 个文件共 20 处 | 逐个判定唯一来源；属于归一化的保留并注明，属于兜底的删除 |
+| 两个 client / 两个节流器 | 已核实：`background.ts:186`、`mooc.content.ts:42` | 内容脚本不再自建 client，只读数据经消息取自后台 |
+| 遗留 `??`/`\|` 默认值 | 已核实：8 个文件 20 处 | 逐个判定唯一来源：归一化保留并注明，兜底删除 |
+| 探测脚本 19 个、职责重叠 | 已核实：`selfcheck*` 三个、`check-copy` 与 `check-release` 重叠 | 合并为按主题的少量脚本 |
+| `startupDelayMinutes` | 待核实 | 核实后决定删除或保留 |
 
 ## 10. 阶段二：中立模型 + 看板
 
