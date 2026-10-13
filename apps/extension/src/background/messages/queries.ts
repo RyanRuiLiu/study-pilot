@@ -8,19 +8,16 @@
  */
 
 import {
-  COURSE_TYPE,
   getCoursesWithTrace,
   getOpenQuizInfo,
   getQuizBank,
   type CourseType,
-  type CoursewareContext,
-  type MoocClient,
 } from '@study-pilot/platform-mooc';
-import { getSettings, type Settings } from '../../settings';
+import { getSettings } from '../../settings';
 import { ensureSession } from '../../platform/mooc/session';
 import type { BackgroundRequest } from '../../platform/messaging';
 import { notifySample } from '../mooc/reminder';
-import { readSnapshot, type InspectCourse, type Snapshot } from '../mooc/snapshot';
+import { readSnapshot } from '../mooc/snapshot';
 import { derivePlan } from '../mooc/task-plan';
 import { toPendingSummary, toUnitDetails } from '../mooc/to-messages';
 import { listNetRules } from '../net-rules';

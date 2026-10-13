@@ -7,7 +7,7 @@
  */
 
 import { clearAlarm, ensureAlarm, isCheckAlarm } from './runtime/alarms';
-import { getSettings, watchSettings } from '../settings';
+import { watchSettings } from '../settings';
 import { getTaskState } from './runtime/scheduler';
 import { NOTIFICATION_PREFIX } from './mooc/reminder';
 import { autoRun, type RunDeps } from './run-tasks.ts';
@@ -17,7 +17,6 @@ const LOGIN_COOKIE = 'NTESSTUDYSI';
 export interface WiringDeps extends RunDeps {}
 
 export function registerBackgroundWiring(deps: WiringDeps): void {
-  const { client, renew, refreshCourses, loadSnapshot, selectedCourses, coursewareContext } = deps;
   /*
    * 周期检查：安装时建一次。
    *

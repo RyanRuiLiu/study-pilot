@@ -4,8 +4,8 @@
  * 从 options/main.ts 按原有分节搬出。
  */
 
-import { getSettings, updateSettings, type Settings } from '../../src/settings';
-import { current, render, setCurrent, toast } from './state.ts';
+import { getSettings, updateSettings } from '../../src/settings';
+import { current, setCurrent } from './state.ts';
 
 
 // ---------- 落盘 ----------
@@ -47,14 +47,26 @@ export function writePatch(patch: unknown): Promise<void> {
 /** 按路径就地改内存。界面靠它做即时反馈，落盘见 bindSetting。 */
 export function setPath(target: unknown, path: string, value: unknown): void {
   const parts = path.split('.');
+  /*
+   * `split` 对任何字符串都至少返回一项，所以下面两处判空在运行时永不命中。
+   * 它们只是把「下标可能越界」这个类型上的可能说明白，取值方式一字未改。
+   */
+  const leaf = parts[parts.length - 1];
+  if (leaf === undefined) return;
   let node = target as Record<string, unknown>;
-  for (let i = 0; i < parts.length - 1; i++) node = node[parts[i]] as Record<string, unknown>;
-  node[parts[parts.length - 1]] = value;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const key = parts[i];
+    if (key === undefined) return;
+    node = node[key] as Record<string, unknown>;
+  }
+  node[leaf] = value;
 }
 
 /** 把一条路径展开成 patch 对象。 */
 export function patchAt(path: string, value: unknown): Record<string, unknown> {
   const parts = path.split('.');
+  const leaf = parts[parts.length - 1];
+  if (leaf === undefined) return {};
   const root: Record<string, unknown> = {};
   let node = root;
   for (const key of parts.slice(0, -1)) {
@@ -62,7 +74,7 @@ export function patchAt(path: string, value: unknown): Record<string, unknown> {
     node[key] = child;
     node = child;
   }
-  node[parts[parts.length - 1]] = value;
+  node[leaf] = value;
   return root;
 }
 

@@ -39,7 +39,7 @@ import {
   markAwaitingLogin,
   touchRun,
 } from './runtime/scheduler';
-import { recoveryFailure, withSessionRecovery } from './runtime/session-recovery';
+import { withSessionRecovery } from './runtime/session-recovery';
 
 export interface RunDeps {
   client: MoocClient;
@@ -84,7 +84,6 @@ export async function autoRun(deps: RunDeps, reason: 'startup' | 'alarm' | 'logi
     }
 
     const now = Date.now();
-    const advanceDays = settings.mooc.background.deadlineReminder.advanceDays;
 
     // 读快照。读不出来就当作没有，会走拉取分支
     let snapshot: Snapshot | null = null;

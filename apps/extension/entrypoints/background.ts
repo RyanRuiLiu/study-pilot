@@ -8,68 +8,27 @@
  * `src/background/scheduler.ts`，一轮的完整流程在 `src/background/run-tasks.ts`。
  */
 
-import { md5hex } from '@study-pilot/core';
 import {
-  COURSE_TYPE,
-  createMoocClient,
-  type CourseType,
   type CoursewareContext,
-  currentEvaluatePhase,
-  deriveStatus,
-  getCourseStructure,
-  getCourses,
-  getCoursesWithTrace,
-  getEvaluationDetail,
-  type CourseSummary,
 } from '@study-pilot/platform-mooc';
 import { createTextGenerator } from '../src/ai';
+
+
+import { type Settings } from '../src/settings';
+
+
+import { ensureAlarm } from '../src/background/runtime/alarms';
+import { whenNetRulesReady } from '../src/background/net-rules';
+
+
 import {
-  ensureSession,
-  readToken,
-  renewSession,
-  SessionExpiredError,
-} from '../src/platform/mooc/session';
-import { getSettings, updateSettings, watchSettings, type Settings } from '../src/settings';
-import {
-  NOTIFICATION_PREFIX,
-  composeNotice,
-  noticeSettingsOf,
-  notify,
-  notifySample,
-} from '../src/background/mooc/reminder';
-import { executeActions } from '../src/background/mooc/execute';
-import { mergeCourses } from '../src/background/mooc/course-selection';
-import { clearAlarm, ensureAlarm, isCheckAlarm } from '../src/background/runtime/alarms';
-import { listNetRules, whenNetRulesReady } from '../src/background/net-rules';
-import {
-  beginRun,
-  canStartRun,
-  clearAwaitingLogin,
-  finishRun,
-  getTaskState,
-  liveRunState,
-  markAwaitingLogin,
-  resetState,
-  touchRun,
-} from '../src/background/runtime/scheduler';
-import {
-  fetchedToday,
-  inspect,
-  readSnapshot,
-  writeSnapshot,
   type InspectCourse,
-  type Snapshot,
 } from '../src/background/mooc/snapshot';
-import { derivePlan, shouldRefresh } from '../src/background/mooc/task-plan';
 import { registerMessageHandler } from '../src/background/messages/router';
 import { registerBackgroundWiring } from '../src/background/wiring';
 import { createPlatformClient, loadSnapshot, refreshCourses } from '../src/background/platform-sync';
-import {
-  recoveryFailure,
-  withSessionRecovery,
-} from '../src/background/runtime/session-recovery';
-import { toPendingSummary, toUnitDetails } from '../src/background/mooc/to-messages';
-import type { BackgroundRequest } from '../src/platform/messaging';
+
+
 
 
 /**

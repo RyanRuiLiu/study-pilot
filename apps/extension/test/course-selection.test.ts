@@ -63,7 +63,7 @@ describe('新出现的课程一律不勾', () => {
       [],
       [summary({ startTime: TERM_START, endTime: TERM_END })],
     );
-    expect(merged[0].enabled).toBe(false);
+    expect(merged[0]!.enabled).toBe(false);
   });
 
   it('首次读到多门在上的课程，一门都不勾', () => {
@@ -88,7 +88,7 @@ describe('新出现的课程一律不勾', () => {
 describe('用户自己做过的选择原样保留', () => {
   it('勾过的课程保持勾选', () => {
     const merged = mergeCourses([selected({ termId: 7, enabled: true })], [summary({ termId: 7 })]);
-    expect(merged[0].enabled).toBe(true);
+    expect(merged[0]!.enabled).toBe(true);
   });
 
   it('取消过的课程不会被重新勾上', () => {
@@ -96,7 +96,7 @@ describe('用户自己做过的选择原样保留', () => {
       [selected({ termId: 7, enabled: false })],
       [summary({ termId: 7, startTime: TERM_START, endTime: TERM_END })],
     );
-    expect(merged[0].enabled).toBe(false);
+    expect(merged[0]!.enabled).toBe(false);
   });
 
   it('只有第一次见到的那些课程走默认值，已记录的照旧', () => {

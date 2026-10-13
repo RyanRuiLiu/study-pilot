@@ -20,23 +20,11 @@ import './style.css';
 import {
   getSettings,
   resetSettings,
-  updateSettings,
   type Settings,
 } from '../../src/settings';
-import { chatOrigin } from '@study-pilot/ai';
-import { testAiConnection } from '../../src/ai';
-import { ensureHostPermission } from '../../src/ai/permission';
 import {
-  REJECTION_MESSAGES,
   sendToBackground,
-  WORK_STATUS,
-  type JobRejection,
-  type UnitDetail,
 } from '../../src/platform/messaging';
-import { describeRunState } from '../../src/background/runtime/scheduler';
-import { coursePageUrl, describeCourseMode, workPageUrl } from '@study-pilot/platform-mooc';
-import type { SelectedCourse } from '../../src/settings';
-import { formatDateTime, formatTermRange } from '../../src/features/format';
 
 const app = document.getElementById('app')!;
 const toc = document.getElementById('toc');
@@ -58,7 +46,7 @@ const versionEl = document.getElementById('version');
 if (versionEl) versionEl.textContent = `v${browser.runtime.getManifest().version}`;
 
 
-import { current, setCurrent, setRender, setToast } from './state.ts';
+import { setCurrent, setRender, setToast } from './state.ts';
 import { accountSection } from './sections/account.ts';
 import { detailsSection } from './sections/details.ts';
 import { scheduleSection } from './sections/schedule.ts';
@@ -66,13 +54,6 @@ import { tasksSection } from './sections/tasks.ts';
 import { aiSection } from './sections/ai.ts';
 import { foregroundSection } from './sections/foreground.ts';
 import { executionSection } from './sections/execution.ts';
-import { courseList } from './course-list.ts';
-import { progressView, resetProgress, runAll } from './run-views.ts';
-import { row, toggle, numberInput, textInput, note, button, platform, prose, section } from './ui.ts';
-import { lastRunHint, readSessionInto, sessionBadge } from './session-row.ts';
-import { loadUnitDetails, reloadUnitDetails, statusClass, unitDetailsView, signalContentReady } from './unit-details.ts';
-import { writePatch, setPath, patchAt, bindSetting, toggleCourse } from './settings-write.ts';
-import { requestAiPermission, checkAiConnection, describeRejection, refreshCourses } from './actions.ts';
 
 // ---------- 渲染 ----------
 
@@ -90,8 +71,6 @@ import { requestAiPermission, checkAiConnection, describeRejection, refreshCours
 
 function render(): void {
   app.replaceChildren();
-  const mooc = current.mooc;
-  const ai = current.ai;
 
   app.append(
     accountSection(),

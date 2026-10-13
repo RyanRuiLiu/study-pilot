@@ -9,8 +9,8 @@
  */
 
 import type { PendingEntry, PendingKind, PendingSummary, UnitDetail } from '../../platform/messaging';
-import { isExam, OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from './task-plan';
-import type { Snapshot, SnapshotCourse, SnapshotWork } from './snapshot';
+import { OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from './task-plan';
+import type { Snapshot, SnapshotCourse } from './snapshot';
 import { describeStatusDetail, describeWorkStatus } from './work-status';
 
 /**

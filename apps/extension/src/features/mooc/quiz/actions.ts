@@ -62,8 +62,8 @@ export async function fill(panel: ActivePanel): Promise<void> {
     const unresolved: number[] = [];
     const total = questions.length;
 
-    for (let i = 0; i < questions.length; i++) {
-      const inputs = questions[i].inputs;
+    for (const [i, question] of questions.entries()) {
+      const inputs = question.inputs;
 
       const correct: HTMLInputElement[] = [];
       let recognized = false;

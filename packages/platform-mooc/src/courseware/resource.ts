@@ -43,8 +43,11 @@ export interface UnitResource {
 function dwrString(raw: string, field: string): string | null {
   const matched = raw.match(new RegExp(`s\\d+\\.${field}=("(?:[^"\\\\]|\\\\.)*")`));
   if (!matched) return null;
+  // 上面这个正则只有一个分组，匹配成功时它必定有值；这里只把类型收窄
+  const encoded = matched[1];
+  if (encoded === undefined) return null;
   try {
-    const value = JSON.parse(matched[1]) as unknown;
+    const value = JSON.parse(encoded) as unknown;
     return typeof value === 'string' ? value : null;
   } catch {
     return null;

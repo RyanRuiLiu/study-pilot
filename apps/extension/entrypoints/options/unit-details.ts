@@ -5,9 +5,7 @@
  */
 
 import { workPageUrl } from '@study-pilot/platform-mooc';
-import { getSettings } from '../../src/settings';
 import { sendToBackground, type UnitDetail, WORK_STATUS } from '../../src/platform/messaging';
-import { describeRunState } from '../../src/background/runtime/scheduler';
 import { formatDateTime } from '../../src/features/format';
 
 
