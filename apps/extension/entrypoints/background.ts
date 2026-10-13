@@ -13,6 +13,7 @@ import {
   COURSE_TYPE,
   createMoocClient,
   type CourseType,
+  type CoursewareContext,
   currentEvaluatePhase,
   deriveStatus,
   getCourseStructure,
@@ -21,6 +22,7 @@ import {
   getEvaluationDetail,
   type CourseSummary,
 } from '@study-pilot/platform-mooc';
+import { createTextGenerator } from '../src/ai';
 import {
   ensureSession,
   readToken,
@@ -68,6 +70,17 @@ import type { BackgroundRequest } from '../src/platform/messaging';
 
 /** 平台的登录凭证 cookie。出现即表示登录成功。 */
 const LOGIN_COOKIE = 'NTESSTUDYSI';
+
+/**
+ * 课件行为的上下文。
+ *
+ * 只有一处来源：设置里的 AI 配置。没配齐时 `generateText` 为 undefined，
+ * 而讨论单元本来就不会进计划（`isCompletable` 的 `needs:'text'`），
+ * 所以这里不做任何替代——真到了执行层而没有生成器，行为会如实返回失败。
+ */
+function coursewareContext(settings: Settings): CoursewareContext {
+  return { generateText: createTextGenerator(settings) };
+}
 
 /**
  * 当前勾选参与任务的课程。
@@ -448,6 +461,7 @@ export default defineBackground(() => {
                 // 每完成一项刷一次心跳：一轮里可能有好几项，中间任何一项卡住
                 // 都会让心跳过期，界面于是把「正在跑」读成「上次没结束」
                 () => touchRun(),
+                coursewareContext(settings),
               )
             : [];
 
@@ -725,6 +739,7 @@ export default defineBackground(() => {
               manualSession.userId,
               manualSettings.mooc.background.autoReview.comment,
               () => touchRun(),
+              coursewareContext(manualSettings),
             );
 
             const done = results.filter((r) => r.status === 'done').length;

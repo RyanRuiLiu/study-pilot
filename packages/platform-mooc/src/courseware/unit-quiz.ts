@@ -14,7 +14,8 @@
  * 而平台会据此留下一条低分记录。此时仍照常标记完成（完成本就与作答无关）。
  */
 
-import { ok } from '@study-pilot/core';
+import { err, ok } from '@study-pilot/core';
+import { apiError } from '@study-pilot/transport';
 import {
   buildAnswerIndex,
   buildAnswers,
@@ -36,11 +37,25 @@ export const unitQuizBehavior: UnitBehavior = {
     const bank = await getQuizBank(client, unit.termId);
     if (!bank.ok) return bank;
 
+    /*
+     * 只有一条路径：取卷 → 组答案 → 交卷 → 报完成。
+     *
+     * 因此答案组不齐时**返回失败**，不退化成「只标完成」——那样会留下
+     * 一条没有作答记录的「已学」，与真人的痕迹对不上，而界面上看不出来。
+     * 失败会在下一轮重试，仍不齐就交人工。
+     */
     const built = buildAnswers(paper.value, buildAnswerIndex(bank.value));
-    if (built.total > 0 && built.unresolved.length === 0) {
-      const submitted = await submitQuiz(client, paper.value);
-      if (!submitted.ok) return submitted;
+    if (built.total === 0) {
+      return err(apiError(-1, '这份随堂测验没有客观题，无法按唯一路径作答'));
     }
+    if (built.unresolved.length > 0) {
+      return err(
+        apiError(-1, `${built.unresolved.length} 道题在题库中找不到答案，未作答以免留下残缺记录`),
+      );
+    }
+
+    const submitted = await submitQuiz(client, paper.value);
+    if (!submitted.ok) return submitted;
 
     const result = await postLearnInfo(client, completionDto(unit));
     return result.ok ? ok('reported') : result;

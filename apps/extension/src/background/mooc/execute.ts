@@ -30,6 +30,7 @@ import {
   saveDraft,
   submitEvaluation,
   submitQuiz,
+  type CoursewareContext,
   type MoocClient,
 } from '@study-pilot/platform-mooc';
 import type { AutoAction, CoursewareAutoAction, WorkAutoAction } from './task-plan';
@@ -285,10 +286,11 @@ async function runReview(
 async function runCourseware(
   client: MoocClient,
   action: CoursewareAutoAction,
+  courseware: CoursewareContext,
 ): Promise<ExecResult> {
   const base = { tid: action.unit.unitId, name: action.unit.name, kind: action.kind } as const;
 
-  const result = await completeUnit(client, action.unit);
+  const result = await completeUnit(client, action.unit, courseware);
   if (!result.ok) {
     return { ...base, status: 'failed', detail: `上报失败：${result.error.message}` };
   }
@@ -309,6 +311,13 @@ export async function executeActions(
   evaluatorId: number,
   comment: string,
   onProgress?: (result: ExecResult) => Promise<void>,
+  /**
+   * 课件行为的上下文（AI 文本生成器）。
+   *
+   * 由调用方从设置构造：没有配置 AI 时是 undefined，讨论单元本来也不会进计划，
+   * 因此这里不必再判空——真出现时行为会如实返回失败。
+   */
+  courseware: CoursewareContext = {},
 ): Promise<ExecResult[]> {
   const bank = new BankCache();
   const results: ExecResult[] = [];
@@ -317,7 +326,7 @@ export async function executeActions(
     let result: ExecResult;
     try {
       if (action.kind === 'courseware') {
-        result = await runCourseware(client, action);
+        result = await runCourseware(client, action, courseware);
       } else if (action.kind === 'quiz') {
         result = await runQuiz(client, action, bank);
       } else if (action.kind === 'self') {

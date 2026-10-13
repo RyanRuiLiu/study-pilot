@@ -31,6 +31,7 @@ function settingsWith(switches: {
 }): Settings {
   return {
     enabled: true,
+    ai: { enabled: false, baseUrl: '', model: '', apiKey: '' },
     mooc: {
       background: {
         autoCourseware: { enabled: switches.courseware ?? false },
@@ -83,7 +84,7 @@ function snapshot(works: SnapshotWork[], units: CourseUnit[] = []): Snapshot {
     works,
     units,
   };
-  return { fetchedAt: NOW, fetchedDate: '2026-09-26', courses: [course] };
+  return { version: 1, fetchedAt: NOW, fetchedDate: '2026-09-26', courses: [course] };
 }
 
 /** 计划的简写，便于在表格里写期望值。 */
