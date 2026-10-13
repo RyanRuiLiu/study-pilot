@@ -126,14 +126,6 @@ interface CompletionNoticeSettings {
  */
 interface ScheduleSettings {
   /**
-   * 启动后延迟多久开始检查，单位分钟。
-   *
-   * 平台在收到带凭据的请求时就会恢复会话，因此不需要靠延迟来等登录状态。
-   * 留着这一项是为了让用户能在机器较慢时错开启动高峰。
-   */
-  startupDelayMinutes: number;
-
-  /**
    * 运行期间的检查间隔，单位分钟。
    *
    * 这只是「多久去看一眼本地数据」，不是「多久发一次请求」——
@@ -257,14 +249,6 @@ export const DEFAULT_MOOC: MoocSettings = {
       enabled: true,
     },
     schedule: {
-      /*
-       * 默认不延迟。
-       *
-       * 平台在收到一次带凭据的请求时就会恢复会话，因此启动后立即执行
-       * 不会因为没有登录凭证而失败。等到用户手动打开一次网页才开始，
-       * 只会让人以为扩展没工作。
-       */
-      startupDelayMinutes: 0,
       /*
        * 运行期间的检查间隔，默认 30 分钟。
        *

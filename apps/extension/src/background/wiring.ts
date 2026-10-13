@@ -47,7 +47,7 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
 
   browser.runtime.onStartup.addListener(() => {
     void ensureAlarm();
-    void autoRun(deps, 'startup').catch((error: unknown) => {
+    void autoRun(deps).catch((error: unknown) => {
       void browser.storage.local.set({
         backgroundError: error instanceof Error ? error.message : String(error),
       });
@@ -66,7 +66,7 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
    */
   browser.alarms.onAlarm.addListener((alarm) => {
     if (!isCheckAlarm(alarm)) return;
-    void autoRun(deps, 'alarm').catch(() => undefined);
+    void autoRun(deps).catch(() => undefined);
   });
 
   /**
@@ -83,7 +83,7 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
       if (change.removed) return;
       const state = await getTaskState();
       if (!state.awaitingLogin) return;
-      await autoRun(deps, 'login');
+      await autoRun(deps);
     })();
   });
 

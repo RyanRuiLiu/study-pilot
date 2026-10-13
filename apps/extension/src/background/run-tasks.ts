@@ -53,7 +53,7 @@ export interface RunDeps {
   coursewareContext: (settings: Settings) => CoursewareContext;
 }
 
-export async function autoRun(deps: RunDeps, reason: 'startup' | 'alarm' | 'login'): Promise<void> {
+export async function autoRun(deps: RunDeps): Promise<void> {
   const { client, renew, refreshCourses, loadSnapshot, selectedCourses, coursewareContext } = deps;
     const settings = await getSettings();
     if (!settings.enabled) return;
@@ -72,16 +72,13 @@ export async function autoRun(deps: RunDeps, reason: 'startup' | 'alarm' | 'logi
     if (courses.length === 0) return;
 
     /*
-     * 启动延迟。
+     * 立即开始，不等待。
      *
-     * 只对浏览器启动生效：它存在的意义是错开启动时的资源争抢。
-     * alarm 触发时浏览器早已启动完毕，登录后的补偿执行更是已经晚了一步，
-     * 这两种情况下再等只会让它更晚。
+     * 此前这里有一项「启动延迟」（sleep 几分钟）供用户错开启动高峰，已经删掉：
+     * 它对中断恢复没有任何作用——「接着做」与否由 scheduler 的 runningSince
+     * 与心跳判定，与等待无关；而睡在 setTimeout 里时 MV3 可以把 worker 回收掉，
+     * 那一次启动检查就丢了，静默地少跑一轮。
      */
-    if (reason === 'startup') {
-      const delayMs = Math.max(0, settings.mooc.background.schedule.startupDelayMinutes) * 60_000;
-      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
 
     const now = Date.now();
 
