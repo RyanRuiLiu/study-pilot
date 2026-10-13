@@ -39,8 +39,7 @@ const sleep = (ms: number): Promise<void> =>
 /** 按题库答案逐题点击页面选项，每次点击之间留出安全间隔。 */
 export async function fill(panel: ActivePanel): Promise<void> {
   if (panel.busy) return;
-  const { client, termId } = panel.options;
-
+  const { termId } = panel.options;
   if (termId === null) {
     panel.handle.setStatus('未取得课程信息，无法读取题库');
     return;
@@ -56,7 +55,7 @@ export async function fill(panel: ActivePanel): Promise<void> {
   panel.handle.setStatus('正在读取题库');
 
   try {
-    const index = await loadAnswerIndex(client, termId);
+    const index = await loadAnswerIndex(termId);
 
     let clicked = 0;
     let unrecognized = 0;

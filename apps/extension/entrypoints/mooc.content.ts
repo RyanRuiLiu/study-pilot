@@ -77,7 +77,6 @@ export default defineContentScript({
         location.contentId !== null
       ) {
         showQuizHelper({
-          client,
           termId: location.termId,
           quizId: location.contentId,
         });

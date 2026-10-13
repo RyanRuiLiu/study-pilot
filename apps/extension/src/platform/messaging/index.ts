@@ -11,7 +11,7 @@
  * `mooc.ts` 放平台载荷；本文件只把请求与响应绑在一起，并对外导出。
  */
 
-import type { CourseSummary } from '@study-pilot/platform-mooc';
+import type { BankQuestion, CourseSummary, OpenQuizInfo } from '@study-pilot/platform-mooc';
 import type { MoocSession } from '../mooc/session';
 import type {
   DiagnoseReport,
@@ -51,8 +51,16 @@ export type BackgroundRequest =
   | { type: 'UNIT_DETAILS' }
   | { type: 'NOTIFY_SAMPLE' }
   /*
+   * 前台要用的平台数据一律经这里取。
+   *
+   * 内容脚本不建自己的客户端：两个上下文各有一个节流器时互不知情，
+   * 并发发请求会撞上平台的并发限制。
+   */
+  | { type: 'QUIZ_BANK'; termId: number }
+  | { type: 'QUIZ_INFO'; tid: number }
+  /*
    * 提交单元测验。前台点「提交答案」走这里，而不是自己调写接口：
-   * 内容脚本与后台是两个上下文，各自建节流器时互不知情，并发写会撞限流。
+   * 写入只从后台发出，理由同上，且写入不可逆。
    */
   | { type: 'SUBMIT_QUIZ'; quizId: number; termId: number };
 
@@ -71,6 +79,8 @@ export interface ResponseMap {
   DIAGNOSE: DiagnoseReport;
   UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
   NOTIFY_SAMPLE: { ok: true; hasContent: boolean };
+  QUIZ_BANK: QueryOutcome<BankQuestion[]>;
+  QUIZ_INFO: QueryOutcome<OpenQuizInfo>;
   SUBMIT_QUIZ: { ok: true; matched: number } | { ok: false; message: string };
 }
 
