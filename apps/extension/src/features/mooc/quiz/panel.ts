@@ -9,7 +9,6 @@ import type { OpenQuizInfo } from '@study-pilot/platform-mooc';
 import { createPanel, panelButton, panelInfo, type PanelHandle } from '../../panel';
 import { STAGE_DESCRIPTIONS, type QuizStage } from '../quiz-stage';
 import { loadQuizInfo } from './data.ts';
-import type { MoocClient } from '@study-pilot/platform-mooc';
 
 export const PANEL_ID = 'study-pilot-quiz-panel';
 
@@ -24,7 +23,6 @@ export const PANEL_ID = 'study-pilot-quiz-panel';
 const LABEL_TOTAL_SCORE = '总分：';
 
 export interface QuizHelperOptions {
-  client: MoocClient;
   /** 课程学期 id。为 null 时无法读取题库 */
   termId: number | null;
   /** 当前测验的 tid */
@@ -108,7 +106,7 @@ export async function loadPanelInfo(panel: ActivePanel): Promise<void> {
   panel.infoLoaded = true;
 
   try {
-    const info = await loadQuizInfo(panel.options.client, panel.options.quizId);
+    const info = await loadQuizInfo(panel.options.quizId);
     if (!info) return;
     if (!document.getElementById(PANEL_ID)) return;
 

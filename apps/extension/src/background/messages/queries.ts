@@ -10,6 +10,8 @@
 import {
   COURSE_TYPE,
   getCoursesWithTrace,
+  getOpenQuizInfo,
+  getQuizBank,
   type CourseType,
   type CoursewareContext,
   type MoocClient,
@@ -257,6 +259,27 @@ export async function handleQuery(
           await resetState();
           sendResponse({ ok: true });
           break;
+    case 'QUIZ_BANK': {
+      // 题库：前台按它填充选项，因此只回数据，索引由前台构造（纯函数）
+      const bank = await getQuizBank(deps.client, request.termId);
+      sendResponse(
+        bank.ok
+          ? { status: 'ok', value: bank.value }
+          : { status: 'error', message: bank.error.message },
+      );
+      break;
+    }
+
+    case 'QUIZ_INFO': {
+      const info = await getOpenQuizInfo(deps.client, request.tid);
+      sendResponse(
+        info.ok
+          ? { status: 'ok', value: info.value }
+          : { status: 'error', message: info.error.message },
+      );
+      break;
+    }
+
     default:
       return false;
   }
