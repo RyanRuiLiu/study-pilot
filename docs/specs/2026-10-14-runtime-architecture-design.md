@@ -95,7 +95,7 @@ interface PlatformAdapter {
   `--sl-*` 变量写在 [theme.css](../../apps/extension/src/ui/theme.css)；组件的构造与排版在
   [index.ts](../../apps/extension/src/ui/index.ts) 与 [components.css](../../apps/extension/src/ui/components.css)，
   只用类选择器，供 shadow DOM 复用。
-- **页面 CSS 只留布局**：页面不再自带控件样式。弹窗已从 384 行降到 30 行；设置页与看板在收尾。
+- **页面 CSS 只留布局**：页面不再自带控件样式。弹窗 384 → 30 行、设置页 751 → 224 行、看板 152 → 76 行。
 - **体积代价已接受**：Shoelace 让生产包增加约 80 kB，换来三页一致的成品视觉与隔离，值得。
 
 ## 7. 产品立场：默认是助手，代做是显式开启的高级功能
@@ -133,6 +133,7 @@ interface PlatformAdapter {
 | [check-knip.mjs](../../scripts/verify/check-knip.mjs) | 没有未使用的导出、文件与依赖 |
 | [check-remark.mjs](../../scripts/verify/check-remark.mjs) | markdown 里的链接、锚点与引用定义 |
 | [check-doc-refs.mjs](../../scripts/verify/check-doc-refs.mjs) | 源码注释里引用的文档路径与节号真实存在（remark 只看链接、knip 不看注释，这中间的缝由它补） |
+| [check-anchors.mjs](../../scripts/verify/check-anchors.mjs) | 源码里跳转用的锚点在目标页面里存在（remark 与 knip 都覆盖不到） |
 | [check-syncpack.mjs](../../scripts/verify/check-syncpack.mjs) | 同一依赖在各包版本一致 |
 | [check-version-literal.mjs](../../scripts/verify/check-version-literal.mjs) | 版本号只有一个来源（package.json） |
 
@@ -157,7 +158,8 @@ interface PlatformAdapter {
 
 ## 11. 未完成
 
-1. **看板组件化收尾**：看板接入组件层、页面 CSS 只留布局，并为看板补 DOM 级测试。设置页已接入，
+1. **变异测试暂不作门禁**：Stryker 能跑、能出报告，但实测 survivor 里约 18% 是假存活（报告 `testsCompleted=0`，手工强制激活同一变异体后测试确实失败），因此分数不可信。先修 runner 兼容问题（`vitest@5.0.2 × vitest-runner@10`），再考虑接入。
+2. **`background/mooc/execute/work.ts` 零测试覆盖**：全量变异跑（219 个变异体、0 killed）暴露——没有测试 import 它。
    弹窗是样板。
 2. **注入面板 shadow DOM 化**：组件层已按「不依赖全局样式」写，面板本身仍按老方式注入宿主页面，
    需要迁到自定义元素里。
