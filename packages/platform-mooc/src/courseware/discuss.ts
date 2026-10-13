@@ -12,6 +12,10 @@
  * 回复文案由调用方注入的生成器（AI）写出，**没有固定文案兜底**：
  * 生成失败时先由上层重试，仍失败就如实返回错误——这一步不完成，
  * 留给用户手动处理，不写一条假装学过的留言。
+ *
+ * **题目来源**：不是单元名。单元名往往只是「讨论3.4」这种编号，把它喂给模型，
+ * 模型只能围着编号编（实测发生过）。真正的题目在讨论帖的正文里，见 `resource.ts`。
+ * 拿不到正文、或正文只有编号时**直接失败**，不生成。
  */
 
 import { err, ok, type Result } from '@study-pilot/core';
@@ -21,8 +25,38 @@ import { DWR_ENDPOINTS } from '../endpoints.ts';
 import { UNIT_TYPE } from '../types.ts';
 import type { UnitBehavior } from './behavior.ts';
 import { completionDto, postLearnInfo } from './reports.ts';
+import { getUnitResource, type UnitPost } from './resource.ts';
 
-/** 生成器返回的文本不能直接发出去：这段校验是「模型生成的内容」与平台之间的最后一道闸。 */
+/** 富文本转纯文本：标签、常见实体与多余空白都去掉。 */
+function plain(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * 只有编号、没有题目的形态：「3.4 讨论题」「讨论 3.4」「第5章 讨论」。
+ *
+ * 这类正文能通过长度检查，却给不出任何可回答的内容——放过去就是让模型编。
+ */
+const BARE_LABEL = /^[\s\d、.．:：;；,，章节课时讨论题思考练习第个（）()【】\-—]+$/;
+
+/**
+ * 从讨论帖取出题目正文。取不到返回 `null`（调用方据此失败）。
+ */
+export function discussionQuestion(post: UnitPost): string | null {
+  const content = plain(post.content);
+  if (content.length < 6) return null;
+  if (BARE_LABEL.test(content)) return null;
+  return content;
+}
+
+/** 生成的内容发出去之前过一遍：这段校验是模型与平台之间的最后一道闸。 */
 function sanitize(generated: string): string | null {
   const text = generated
     .replace(/```[\s\S]*?```/g, ' ') // 代码块：讨论区不适合放代码
@@ -95,10 +129,27 @@ export const discussBehavior: UnitBehavior = {
     }
 
     /*
+     * 题目取自讨论帖正文。拿不到、或正文只有编号时直接失败——
+     * 这两种情况下模型给不出贴题的留言，与其污染帖子，不如交人工。
+     */
+    const resource = await getUnitResource(client, unit);
+    if (!resource.ok) return resource;
+    if (!resource.value.post) {
+      return err(apiError(-1, '平台没有返回讨论帖内容，无法确定讨论题'));
+    }
+    const question = discussionQuestion(resource.value.post);
+    if (!question) {
+      return err(apiError(-1, '讨论帖正文为空或只有编号，无法生成贴题的留言'));
+    }
+
+    /*
      * 生成失败直接返回错误：上层会重试，仍失败就记为失败交人处理。
      * 这里**不写替代文案**——一条假装学过的留言比一条失败记录更糟。
      */
-    const generated = await context.generateText({ task: 'discuss-reply', input: unit.name });
+    const generated = await context.generateText({
+      task: 'discuss-reply',
+      input: `讨论题：${question}\n所在课时：${unit.lessonName}`,
+    });
     if (!generated.ok) {
       return err(apiError(-1, `AI 生成讨论回复失败：${generated.reason}`));
     }
