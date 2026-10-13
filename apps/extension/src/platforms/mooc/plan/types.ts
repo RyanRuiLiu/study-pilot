@@ -6,7 +6,7 @@
  */
 
 import type { CourseUnit } from '@study-pilot/platform-mooc';
-import type { SnapshotCourse, SnapshotWork } from '../snapshot';
+import type { SnapshotCourse, SnapshotWork } from '../read';
 
 /**
  * 一件能自动完成的事。

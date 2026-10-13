@@ -5,7 +5,7 @@
  * 通知与设置页按它决定说法。
  */
 
-import type { AutoAction } from '../task-plan';
+import type { AutoAction } from '../plan';
 
 /**
  * done    已自动完成

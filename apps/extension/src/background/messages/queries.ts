@@ -16,10 +16,10 @@ import {
 import { getSettings } from '../../settings';
 import { ensureSession } from '../../platform/mooc/session';
 import type { BackgroundRequest } from '../../platform/messaging';
-import { notifySample } from '../mooc/reminder';
-import { readSnapshot } from '../mooc/snapshot';
-import { derivePlan } from '../mooc/task-plan';
-import { toPendingSummary, toUnitDetails } from '../mooc/to-messages';
+import { notifySample } from '../../platforms/mooc/reminder';
+import { readSnapshot } from '../../platforms/mooc/read';
+import { derivePlan } from '../../platforms/mooc/plan';
+import { toPendingSummary, toUnitDetails } from '../../platforms/mooc/to-messages';
 import { listNetRules } from '../net-rules';
 import { getTaskState, liveRunState, resetState } from '../runtime/scheduler';
 import { recoveryFailure, withSessionRecovery } from '../runtime/session-recovery';

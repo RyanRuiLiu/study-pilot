@@ -21,9 +21,9 @@ import {
 import { getSettings, type Settings } from '../../settings';
 import { ensureSession, renewSession } from '../../platform/mooc/session';
 import type { BackgroundRequest } from '../../platform/messaging';
-import { executeActions } from '../mooc/execute';
-import { type InspectCourse, type Snapshot } from '../mooc/snapshot';
-import { derivePlan } from '../mooc/task-plan';
+import { executeActions } from '../../platforms/mooc/execute';
+import { type InspectCourse, type Snapshot } from '../../platforms/mooc/read';
+import { derivePlan } from '../../platforms/mooc/plan';
 import {
   beginRun,
   canStartRun,

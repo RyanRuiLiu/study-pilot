@@ -7,7 +7,7 @@
  */
 
 import { storage } from 'wxt/utils/storage';
-import { dateKey } from '../../runtime/scheduler';
+import { dateKey } from '../../../features/format';
 import { SNAPSHOT_VERSION, type Snapshot } from './types.ts';
 
 const item = storage.defineItem<Snapshot | null>('local:study-pilot-snapshot', {

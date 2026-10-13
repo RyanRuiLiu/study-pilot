@@ -7,7 +7,7 @@
  */
 
 import { completeUnit, type CoursewareContext, type MoocClient } from '@study-pilot/platform-mooc';
-import type { CoursewareAutoAction } from '../task-plan';
+import type { CoursewareAutoAction } from '../plan';
 import type { ExecResult } from './types.ts';
 
 export async function runCourseware(

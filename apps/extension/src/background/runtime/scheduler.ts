@@ -18,6 +18,8 @@
  * 判定逻辑写成纯函数以便测试。
  */
 
+import { dateKey } from '../../features/format';
+
 /** 存储键。集中在此，避免各处硬编码字符串。 */
 const STATE_KEY = 'study-pilot:task-state';
 
@@ -83,15 +85,6 @@ export function liveRunState(state: TaskState, now: number = Date.now()): LiveRu
 
   const beat = state.heartbeatAt ?? state.runningSince;
   return now - beat <= HEARTBEAT_TIMEOUT_MS ? 'running' : 'interrupted';
-}
-
-/** 本地日期键，格式 YYYY-MM-DD。按本地时区计算，跨时区不适用。 */
-export function dateKey(now: number = Date.now()): string {
-  const date = new Date(now);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 /** 把执行状态描述成可读文本，用于设置页。 */

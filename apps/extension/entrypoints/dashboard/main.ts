@@ -15,7 +15,7 @@ import '../../src/ui/theme.css';
 import '../../src/ui/components.css';
 import './style.css';
 
-import type { Snapshot } from '../../src/background/mooc/snapshot';
+import type { Snapshot } from '../../src/platforms/mooc/read';
 import { sendToBackground } from '../../src/platform/messaging';
 import { required } from '../../src/ui/dom';
 import { formatDateTime } from '../../src/features/format';

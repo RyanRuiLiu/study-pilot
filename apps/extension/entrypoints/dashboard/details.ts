@@ -12,7 +12,7 @@
  */
 
 import { workPageUrl } from '@study-pilot/platform-mooc';
-import type { Snapshot, SnapshotCourse, SnapshotWork } from '../../src/background/mooc/snapshot';
+import type { Snapshot, SnapshotCourse, SnapshotWork } from '../../src/platforms/mooc/read';
 import { formatDateTime } from '../../src/features/format';
 import { sendToBackground } from '../../src/platform/messaging';
 import { button } from '../../src/ui';

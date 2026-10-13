@@ -17,7 +17,7 @@ import type {
   OpenQuizInfo,
   PaperQuestion,
 } from '@study-pilot/platform-mooc';
-import type { Snapshot } from '../../background/mooc/snapshot';
+import type { Snapshot } from '../../platforms/mooc/read';
 import type { MoocSession } from '../mooc/session';
 import type {
   DiagnoseReport,

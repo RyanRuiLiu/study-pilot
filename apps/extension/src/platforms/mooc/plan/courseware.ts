@@ -7,7 +7,7 @@
  */
 
 import { isCompletable, isUnitComplete } from '@study-pilot/platform-mooc';
-import type { SnapshotCourse } from '../snapshot';
+import type { SnapshotCourse } from '../read';
 import type { CoursewareAutoAction } from './types.ts';
 
 /**

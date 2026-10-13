@@ -29,8 +29,8 @@ import type {
   QuizPaper,
   SubmissionProgress,
 } from '@study-pilot/platform-mooc';
-import type { SnapshotCourse, SnapshotWork } from '../src/background/mooc/snapshot';
-import type { WorkAutoAction } from '../src/background/mooc/task-plan';
+import type { SnapshotCourse, SnapshotWork } from '../src/platforms/mooc/read';
+import type { WorkAutoAction } from '../src/platforms/mooc/plan';
 
 vi.mock('@study-pilot/platform-mooc', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -57,8 +57,8 @@ import {
   submitEvaluation,
   submitQuiz,
 } from '@study-pilot/platform-mooc';
-import { BankCache } from '../src/background/mooc/execute/bank';
-import { runQuiz, runReview, runSelf } from '../src/background/mooc/execute/work';
+import { BankCache } from '../src/platforms/mooc/execute/bank';
+import { runQuiz, runReview, runSelf } from '../src/platforms/mooc/execute/work';
 
 const DAY = 24 * 60 * 60 * 1000;
 /*

@@ -9,7 +9,7 @@
  */
 
 import type { CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
-import type { InspectCourse, Snapshot } from './mooc/snapshot';
+import type { InspectCourse, Snapshot } from '../platforms/mooc/read';
 import type { Settings } from '../settings';
 /**
  * 本地已有快照是否算「今天拉过」。
@@ -26,10 +26,10 @@ async function snapshotIsFresh(now: number): Promise<boolean> {
 }
 import { getSettings } from '../settings';
 import { ensureSession } from '../platform/mooc/session';
-import { executeActions } from './mooc/execute';
-import { composeNotice, noticeSettingsOf, notify } from './mooc/reminder';
-import { fetchedToday, readSnapshot } from './mooc/snapshot';
-import { derivePlan, shouldRefresh } from './mooc/task-plan';
+import { executeActions } from '../platforms/mooc/execute';
+import { composeNotice, noticeSettingsOf, notify } from '../platforms/mooc/reminder';
+import { fetchedToday, readSnapshot } from '../platforms/mooc/read';
+import { derivePlan, shouldRefresh } from '../platforms/mooc/plan';
 import {
   beginRun,
   canStartRun,
