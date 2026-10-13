@@ -42,7 +42,29 @@ for (const host of hosts) {
   console.log((ok ? '通过  ' : '失败  ') + host + (ok ? '' : '  隐私政策里没有出现 ' + domain));
 }
 
-const total = permissions.length + hosts.length;
+console.log('');
+console.log('=== 可选主机权限 ===');
+/*
+ * 可选主机权限是「声明了但未获授权」的：只有用户填写的 AI 接口地址会被真正申请。
+ * 这里判两件事：
+ *   1. 隐私政策必须说明它会向用户填写的地址发请求（措辞里要出现 AI 与可选）；
+ *   2. 声明只能是通配——若是固定域名，说明代码里塞了厂商预设，与「不内置厂商」相悖。
+ */
+const optionalHosts = manifest.optional_host_permissions ?? [];
+for (const host of optionalHosts) {
+  const wildcard = host === '*://*/*';
+  const described =
+    /AI/.test(privacy) && /可选|按需|用户填写/.test(privacy);
+  if (!wildcard || !described) failed++;
+  console.log(
+    (wildcard && described ? '通过  ' : '失败  ') +
+      host +
+      (wildcard ? '' : '  声明必须是通配，固定域名意味着内置了厂商') +
+      (described ? '' : '  隐私政策没有说明「按需申请、发给用户填写的地址」'),
+  );
+}
+
+const total = permissions.length + hosts.length + optionalHosts.length;
 console.log('');
 console.log(`共 ${total} 项，失败 ${failed} 项。`);
 process.exit(failed === 0 ? 0 : 1);
