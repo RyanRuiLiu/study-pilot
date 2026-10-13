@@ -30,10 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@material/material-color-utilities": "^0.3.0",
     "@shoelace-style/shoelace": "^2.20.1",
-    "@stryker-mutator/core": "^10.0.0",
-    "@stryker-mutator/vitest-runner": "^10.0.0",
     "eslint": "^9.39.4",
     "eslint-plugin-boundaries": "^7.2.0",
     "eslint-plugin-unused-imports": "^4.4.1",
