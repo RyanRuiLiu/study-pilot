@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { withSessionRecovery } from '../src/background/runtime/session-recovery';
+import { withSessionRecovery } from '../src/platforms/mooc/recovery.ts';
 import { SessionExpiredError } from '../src/platform/mooc/session';
 
 describe('withSessionRecovery', () => {

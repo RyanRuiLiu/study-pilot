@@ -22,7 +22,7 @@ import { derivePlan } from '../../platforms/mooc/plan';
 import { toPendingSummary, toUnitDetails } from '../../platforms/mooc/to-messages';
 import { listNetRules } from '../net-rules';
 import { getTaskState, liveRunState, resetState } from '../runtime/scheduler';
-import { recoveryFailure, withSessionRecovery } from '../runtime/session-recovery';
+import { recoveryFailure, withSessionRecovery } from '../../platforms/mooc/recovery.ts';
 import type { RouterDeps, SendResponse } from './router.ts';
 
 export async function handleQuery(

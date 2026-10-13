@@ -31,7 +31,7 @@ import {
   getTaskState,
   touchRun,
 } from '../runtime/scheduler';
-import { recoveryFailure, withSessionRecovery } from '../runtime/session-recovery';
+import { recoveryFailure, withSessionRecovery } from '../../platforms/mooc/recovery.ts';
 import { handleQuery } from './queries.ts';
 import { handleUnitQuestions } from './papers.ts';
 import { handleDashboard } from './overview.ts';
