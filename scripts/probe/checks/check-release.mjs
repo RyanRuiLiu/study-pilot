@@ -11,6 +11,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
+import { createChecker } from '../../verify/report.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..', '..');
@@ -24,11 +25,7 @@ const ROOT = join(HERE, '..', '..', '..');
  */
 const SKIP_DIRS = /node_modules|\.git$|\.wxt|\.output|^dist$|\.probe|\.dev-profile|\.cdp-profile|\.tmp-profile/;
 
-const results = [];
-const record = (name, ok, detail) => {
-  results.push({ name, ok, detail });
-  console.log(`${ok ? '通过' : '失败'}  ${name}${detail ? `  ${detail}` : ''}`);
-};
+const { record, finish } = createChecker();
 
 function collect(dir, filter, out = []) {
   for (const name of readdirSync(dir)) {
@@ -445,40 +442,11 @@ record('同一概念没有第二种写法', termHits.length === 0, termHits.slic
 
 // ---------- 14. 版本号 ----------
 //
-// 版本号散在 6 个 package.json 与 wxt.config.ts 里，靠"记得都改"是守不住的：
-// 漏掉一个，扩展商店里的版本与包版本就会不一致，而这种不一致不会报错。
-// 这里直接比：全部相同才算通过，并复述当前版本，避免"改了几处"要靠数。
-
-console.log('');
-console.log('=== 版本号 ===');
-
-const VERSION_FILES = [
-  'package.json',
-  'apps/extension/package.json',
-  'packages/ai/package.json',
-  'packages/core/package.json',
-  'packages/platform-mooc/package.json',
-  'packages/transport/package.json',
-];
-
-const versions = VERSION_FILES.map((file) => ({
-  file,
-  version: JSON.parse(readFileSync(join(ROOT, file), 'utf8')).version,
-}));
-const manifestVersion = /version:\s*'([^']+)'/.exec(
-  readFileSync(join(ROOT, 'apps/extension/wxt.config.ts'), 'utf8'),
-)?.[1];
-versions.push({ file: 'apps/extension/wxt.config.ts', version: manifestVersion });
-
-const distinct = [...new Set(versions.map((entry) => entry.version))];
-record(
-  `版本号处处一致（当前 ${distinct.join(' / ')}）`,
-  distinct.length === 1 && typeof manifestVersion === 'string',
-  versions
-    .filter((entry) => entry.version !== manifestVersion)
-    .map((entry) => `${entry.file} 是 ${entry.version}`)
-    .join('  '),
-);
+// 原先这里读 7 处版本再比较。它覆盖不到真正的风险（同一依赖在不同包里被写成
+// 不同版本），而自己那条 /version:\s*'...'/ 还会误命中 minimum_chrome_version。
+// 现在分成两半，都在 scripts/verify/ 下、都由标准工具负责：
+//   - 依赖版本一致 → syncpack（check-syncpack.mjs）
+//   - 版本字面量只剩一个来源 → 结构断言（check-version-literal.mjs）
 
 // ---------- 15. 代做默认关闭 ----------
 //
@@ -506,13 +474,8 @@ if (!/enabled:\s*false/.test(aiSchema)) writesOn.push('ai.enabled');
 record('代你写平台的功能默认关闭', writesOn.length === 0, writesOn.join(' '));
 
 // ---------- 汇总 ----------
+//
+// 输出格式与汇总由 scripts/verify/report.mjs 统一提供：
+// check-all.mjs 按「通过/失败 <名称>」逐行解析，格式只能有一处定义。
 
-const failed = results.filter((r) => !r.ok);
-console.log('');
-console.log(`共 ${results.length} 项，通过 ${results.length - failed.length} 项，失败 ${failed.length} 项。`);
-if (failed.length > 0) {
-  console.log('');
-  console.log('失败项：');
-  for (const f of failed) console.log(`  ${f.name}  ${f.detail ?? ''}`);
-}
-process.exit(failed.length === 0 ? 0 : 1);
+finish();

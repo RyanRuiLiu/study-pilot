@@ -22,7 +22,6 @@
     "写接口只出现在后台",
     "内容脚本不建客户端",
     "同一概念没有第二种写法",
-    "版本号处处一致（当前 0.3.4）",
     "代你写平台的功能默认关闭"
   ],
   "check-copy.mjs": [
@@ -41,5 +40,11 @@
     "declarativeNetRequestWithHostAccess",
     "*://*.icourse163.org/*",
     "*://*/*"
+  ],
+  "check-syncpack.mjs": [
+    "同一依赖在各包版本一致（syncpack）"
+  ],
+  "check-version-literal.mjs": [
+    "版本号只有一个来源（package.json）"
   ]
 }
