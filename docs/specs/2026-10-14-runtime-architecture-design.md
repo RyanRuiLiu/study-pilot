@@ -158,15 +158,34 @@ interface PlatformAdapter {
 
 ## 11. 未完成
 
-1. **变异测试暂不作门禁**：Stryker 能跑、能出报告，但实测 survivor 里约 18% 是假存活（报告 `testsCompleted=0`，手工强制激活同一变异体后测试确实失败），因此分数不可信。已升到 vitest 5.0.4 复测，**假存活依旧**（同样 4 个 testsCompleted=0），因此不是版本落后导致的，要查 Stryker 的 perTest 覆盖映射为什么对这些行选不到测试；查清前不接入。
+1. **变异测试已接门禁（只跑变更文件，report-only）**：根因查清并修好——上游
+   `@stryker-mutator/vitest-runner@10` 把「describe 与 it 用空格拼起来的全名」当
+   `testNamePattern`，而 vitest 5 只按**叶子测试名**匹配，于是该测试文件被收集但所有
+   测试都被 skip，`run()` 交出 0 个测试结果，变异体被记成 Survived（报告字段
+   `testsCompleted=0`）。22 个变异体里 4 个假存活，分数 72.73%（偏低的假象）。
+   修法是 `scripts/verify/stryker-vitest-runner.mjs` 这层包装：清空 `testIds`，
+   不再按测试名挑测试。修后同一条命令 20/22 killed、**90.91%**，假存活 0
+   （剩下 2 个是真存活：`SIGN_SALT` 与 `JSON_CONTENT_TYPE`，测试用同一个常量算期望值、
+   或干脆不断言该字段）。门禁项是 `变异测试（变更文件，stryker）`：只跑相对 HEAD
+   变更的生产代码，无变更则跳过，全量仍用 `pnpm mutation`。
+   两条必须一起记住的坑：
+   - `testRunner: 'command'` 曾给出 **22/22、100%** 的**假结果**：命令里含 pnpm，
+     沙箱里每次变异体运行都触发 `pnpm install` 且失败，杀掉变异体的是安装失败而不是
+     测试。此路不可用，100% 不可信。
+   - 沙箱的 `node_modules` 是 `symlinkNodeModules` 建的 junction（指回真实仓库），
+     **绝不能**在沙箱里跑 pnpm/npm：本次实际发生——真实 `node_modules` 的链接被
+     改写成指向已删除的沙箱目录，`check-all` 红三条、`pnpm test` 触发失败的 install，
+     修法是在仓库根重跑 `CI=true pnpm install`。把 `symlinkNodeModules` 设为 `false`
+     也不可用：沙箱里没有 node_modules，依赖解析不到，dry run 只跑到 78 个测试
+     （健康时 319 个），漏跑的测试会让变异体再次假存活。
 2. **`background/mooc/execute/work.ts` 零测试覆盖**：全量变异跑（219 个变异体、0 killed）暴露——没有测试 import 它。
    弹窗是样板。
-2. **注入面板 shadow DOM 化**：组件层已按「不依赖全局样式」写，面板本身仍按老方式注入宿主页面，
+3. **注入面板 shadow DOM 化**：组件层已按「不依赖全局样式」写，面板本身仍按老方式注入宿主页面，
    需要迁到自定义元素里。
-3. **设置页窄屏**：两栏布局在 720px 以下会挤，需要一档单栏断点。
-4. **第二个平台**：命名与归属约定已定（见 [architecture.md](../architecture.md) 第 3.5 节），
+4. **设置页窄屏**：两栏布局在 720px 以下会挤，需要一档单栏断点。
+5. **第二个平台**：命名与归属约定已定（见 [architecture.md](../architecture.md) 第 3.5 节），
    等真实需求出现再落包。
-5. **看板刷新入口**：数据陈旧时目前只显示上次读取时间，是否给一个手动刷新按钮待定。
+6. **看板刷新入口**：数据陈旧时目前只显示上次读取时间，是否给一个手动刷新按钮待定。
 
 ## 12. 验收标准
 
