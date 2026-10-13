@@ -231,33 +231,10 @@ const notIgnored = JUNK.filter((p) => !gitignore.includes(p.split('/').pop()));
 record('构建与探测产物已忽略', notIgnored.length === 0, notIgnored.join('  '));
 
 // ---------- 7. 文件长度 ----------
-
-/*
- * 一个文件一个职责，超过 300 行必须拆。
- *
- * 这条规则不写在文档里靠人记：文档会在下一次重构后过期，而过期的规则
- * 比没有规则更坏事——照着它做会做错。这里直接判定。
- *
- */
-console.log('');
-console.log('=== 文件长度 ===');
-
-const MAX_LINES = 300;
-
-/*
- * 只判源码，不判测试：测试按被测模块聚合，一个模块一个测试文件本身就是
- * 「一个职责」，按用例数再拆只会把同一件事散到多处。测试文件也确实是长文，
- * 但它改动少、且读到哪一条只取决于失败的用例名。
- */
-const longFiles = [];
-for (const file of [...collect(join(ROOT, 'apps'), (n) => n.endsWith('.ts')), ...collect(join(ROOT, 'packages'), (n) => n.endsWith('.ts'))]) {
-  if (/\.config\.ts$|d\.ts$/.test(file)) continue;
-  if (/[\\/]test[\\/]/.test(file)) continue;
-  const count = readFileSync(file, 'utf8').split('\n').length;
-  if (count > MAX_LINES) longFiles.push(`${rel(file)} ${count} 行`);
-}
-record(`源码文件都在 ${MAX_LINES} 行以内`, longFiles.length === 0, longFiles.slice(0, 4).join('  '));
-
+//
+// 原先这里自写「读每个文件数行数、超过 300 行即失败」。规则与豁免（测试、
+// *.config.ts、*.d.ts）现在都在 eslint.config.mjs 的 max-lines 里，
+// 由 scripts/verify/check-eslint.mjs 映射成门禁项。
 
 // ---------- 8. 文档里的路径引用 ----------
 //

@@ -55,7 +55,7 @@ export default tseslint.config(
       ],
       'no-console': 'error',
 
-      // ---- 替代手写的「文件长度」检查（测试豁免见下） ----
+      // ---- 替代手写的「文件长度」检查（豁免见下） ----
       'max-lines': ['error', { max: 300 }],
 
       // ---- 替代手写的「术语表」检查 ----
@@ -90,6 +90,16 @@ export default tseslint.config(
       '@typescript-eslint/no-non-null-assertion': 'off',
       'max-lines': 'off',
     },
+  },
+
+  {
+    /*
+     * 构建配置与类型声明也不是「一个文件的职责」的载体：配置要按工具的
+     * schema 写在一处，声明文件要么来自外部、要么由工具生成。
+     * 原先自写的长度检查同样豁免这两类，这里对齐。
+     */
+    files: ['**/*.config.ts', '**/*.d.ts'],
+    rules: { 'max-lines': 'off' },
   },
 
   {
