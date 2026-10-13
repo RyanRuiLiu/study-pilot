@@ -40,6 +40,7 @@ import {
 } from '../runtime/scheduler';
 import { recoveryFailure, withSessionRecovery } from '../runtime/session-recovery';
 import { handleQuery } from './queries.ts';
+import { handleSubmitQuiz } from './quiz.ts';
 
 /** 回响应给前台。形状由 messaging 的 ResponseMap 约束，这里只要求可调用。 */
 export type SendResponse = (response?: unknown) => void;
@@ -247,6 +248,15 @@ export function registerMessageHandler(deps: RouterDeps): void {
           } finally {
             await finishRun();
           }
+          break;
+        }
+
+        case 'SUBMIT_QUIZ': {
+          /*
+           * 提交单元测验。前台点「提交答案」也走这里——内容脚本不持有写接口，
+           * 否则写入会散到两个上下文，而它们的节流器互不知情。
+           */
+          sendResponse(await handleSubmitQuiz(deps, request.quizId, request.termId));
           break;
         }
 

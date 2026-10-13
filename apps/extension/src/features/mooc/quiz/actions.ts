@@ -16,8 +16,8 @@
  * 两者都必须由用户主动点击触发，扩展不做任何自动执行。约束见 docs/development.md。
  */
 
-import { buildAnswers, getQuizPaper, submitQuiz } from '@study-pilot/platform-mooc';
-import { loadAnswerIndex, resolveActiveAid } from './data.ts';
+import { sendToBackground } from '../../../platform/messaging';
+import { loadAnswerIndex } from './data.ts';
 import { collectQuestions, optionIdOf } from './options.ts';
 import { setBusy, type ActivePanel } from './panel.ts';
 
@@ -118,7 +118,7 @@ export async function fill(panel: ActivePanel): Promise<void> {
 export async function submit(panel: ActivePanel): Promise<void> {
   if (panel.busy) return;
 
-  const { client, termId, quizId } = panel.options;
+  const { termId, quizId } = panel.options;
   if (termId === null) {
     panel.handle.setStatus('未取得课程信息，无法读取题库');
     return;
@@ -128,40 +128,17 @@ export async function submit(panel: ActivePanel): Promise<void> {
   panel.handle.setStatus('正在构造答案');
 
   try {
-    const index = await loadAnswerIndex(client, termId);
-
-    const aid = await resolveActiveAid(client, quizId);
-    if (aid === null) {
-      panel.handle.setStatus('未找到进行中的答卷');
-      return;
-    }
-
-    const paper = await getQuizPaper(client, quizId, aid);
-    if (!paper.ok) {
-      panel.handle.setStatus(`取卷失败：${paper.error.message}`);
-      return;
-    }
-
-    const built = buildAnswers(paper.value, index);
-    if (built.total === 0) {
-      panel.handle.setStatus('这份答卷没有客观题，无法自动作答');
-      return;
-    }
-    if (built.unresolved.length > 0) {
-      panel.handle.setStatus(
-        `异常：${built.unresolved.length} 道题未能在题库中找到答案，已中止提交。请重跑探测核对`,
-      );
-      return;
-    }
-
-    panel.handle.setStatus(`正在提交 ${built.matched} 道题`);
-    const result = await submitQuiz(client, paper.value);
+    /*
+     * 提交由后台执行：写入只从后台发出（内容脚本与后台各有节流器，
+     * 写散到两边就可能并发触发平台的并发限制）。答案也在后台当场构造。
+     */
+    const result = await sendToBackground({ type: 'SUBMIT_QUIZ', quizId, termId });
     if (!result.ok) {
-      panel.handle.setStatus(`提交失败：${result.error.message}`);
+      panel.handle.setStatus(result.message);
       return;
     }
 
-    panel.handle.setStatus(`已提交 ${built.matched} 道题，正在刷新页面查看结果`);
+    panel.handle.setStatus(`已提交 ${result.matched} 道题，正在刷新页面查看结果`);
     window.location.reload();
   } catch (error) {
     panel.handle.setStatus(`提交失败：${error instanceof Error ? error.message : String(error)}`);

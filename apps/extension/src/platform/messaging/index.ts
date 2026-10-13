@@ -49,7 +49,12 @@ export type BackgroundRequest =
   | { type: 'PENDING_SUMMARY' }
   | { type: 'DIAGNOSE' }
   | { type: 'UNIT_DETAILS' }
-  | { type: 'NOTIFY_SAMPLE' };
+  | { type: 'NOTIFY_SAMPLE' }
+  /*
+   * 提交单元测验。前台点「提交答案」走这里，而不是自己调写接口：
+   * 内容脚本与后台是两个上下文，各自建节流器时互不知情，并发写会撞限流。
+   */
+  | { type: 'SUBMIT_QUIZ'; quizId: number; termId: number };
 
 // ---------- 响应 ----------
 
@@ -66,6 +71,7 @@ export interface ResponseMap {
   DIAGNOSE: DiagnoseReport;
   UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
   NOTIFY_SAMPLE: { ok: true; hasContent: boolean };
+  SUBMIT_QUIZ: { ok: true; matched: number } | { ok: false; message: string };
 }
 
 export type BackgroundResponse<K extends keyof ResponseMap> = ResponseMap[K];
