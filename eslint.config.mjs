@@ -56,6 +56,12 @@ export default tseslint.config(
       '**/.dev-profile/**',
       '**/.cdp-profile/**',
       '**/.tmp-profile/**',
+      /*
+       * 变异测试的沙箱（整份仓库副本，位置见 stryker.config.mjs 的 tempDirName）。
+       * eslint 不看 .gitignore，沙箱存在期间它里面的 test 文件会被当成项目文件
+       * 解析——门禁不能因为「另一个进程正在跑测试」变红。
+       */
+      '**/.stryker-tmp/**',
     ],
   },
 

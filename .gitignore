@@ -33,3 +33,9 @@ dist/
 
 # 临时文件
 .msg.txt
+
+# 变异测试（pnpm mutation）：报告是每次跑出来的结果，不是项目内容，不入库。
+# 沙箱默认放在 node_modules/.cache/stryker（node_modules 已整体忽略），
+# 这里再兜一层 Stryker 的旧默认目录名。
+reports/
+.stryker-tmp/
