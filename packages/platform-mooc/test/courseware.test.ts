@@ -227,21 +227,34 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
     expect(calls).toHaveLength(0);
   });
 
-  it('回复走 DWR MocForumBean.addReply，内容由生成器给出', async () => {
-    const { client, dwrCalls, rpcCalls } = clientStub();
+  it('题目取自讨论帖正文，不是单元名', async () => {
+    /*
+     * 单元名是「讨论3.4」这种编号，正文才是题目。这条测试钉住的就是这件事——
+     * 曾经把单元名当题目喂给模型，结果是留言围着编号编（实测发生过）。
+     * 同时用 \uXXXX 转义写法，确保解析按 JSON 字符串解码（DWR 就是这样发的）。
+     */
+    const escaped =
+      's0.title="3.4 \\u8BA8\\u8BBA\\u9898";' +
+      's0.content="<p>\\u5982\\u4F55\\u7406\\u89E3\\u76F4\\u6D41\\u901A\\u8DEF\\u548C\\u4EA4\\u6D41\\u901A\\u8DEF\\u7684\\u6982\\u5FF5\\uFF1F</p>";';
+    const { client, dwrCalls, rpcCalls } = clientStub({ getLessonUnitLearnVo: escaped });
     const seen: Array<{ task: string; input: string }> = [];
+
     await completeUnit(
       client,
-      unitOf({ contentType: UNIT_TYPE.DISCUSS, contentId: 6006, name: '讨论：静态工作点的稳定性问题' }),
+      unitOf({ contentType: UNIT_TYPE.DISCUSS, contentId: 6006, name: '讨论3.4' }),
       {
         generateText: async (request) => {
           seen.push(request);
-          return { ok: true, text: '关于静态工作点的稳定性，我理解关键在于偏置电路的负反馈。' };
+          return { ok: true, text: '我理解直流通路是静态分析时的通路，交流通路只看交流信号。' };
         },
       },
     );
 
-    expect(seen).toEqual([{ task: 'discuss-reply', input: '讨论：静态工作点的稳定性问题' }]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.task).toBe('discuss-reply');
+    expect(seen[0]?.input).toContain('如何理解直流通路和交流通路的概念？');
+    expect(seen[0]?.input).not.toContain('讨论3.4');
+
     const replies = dwrCalls('addReply');
     expect(replies).toHaveLength(1);
     const body = String((replies[0]?.body as { __raw?: string }).__raw ?? '');
@@ -257,8 +270,39 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
     expect(body).toContain('c0-e2=string:%3Cp%3E');
     // 第二个参数（图片附件）不能省：少了它服务端报缺参数
     expect(body).toContain('c0-param1=Array:[]');
-    expect(decodeURIComponent(body)).toContain('我理解关键在于偏置电路的负反馈');
+    expect(decodeURIComponent(body)).toContain('交流通路只看交流信号');
     expect(rpcCalls('saveMocContentLearn')).toHaveLength(1);
+  });
+
+  it('拿不到帖子正文或正文只有编号时返回失败：不生成、不留言', async () => {
+    const raws = [
+      // 平台没给标题/正文
+      's0.name="讨论3.4";',
+      // 正文只有编号，给不出可回答的内容
+      's0.title="3.4 讨论题";s0.content="<p>3.4 讨论题</p>";',
+      // 正文为空
+      's0.title="3.4 讨论题";s0.content="<p> </p>";',
+    ];
+
+    for (const raw of raws) {
+      const { client, dwrCalls, rpcCalls } = clientStub({ getLessonUnitLearnVo: raw });
+      const generated: string[] = [];
+      const result = await completeUnit(
+        client,
+        unitOf({ contentType: UNIT_TYPE.DISCUSS }),
+        {
+          generateText: async (request) => {
+            generated.push(request.input);
+            return { ok: true, text: '不该被用到' };
+          },
+        },
+      );
+
+      expect(result.ok).toBe(false);
+      expect(generated).toHaveLength(0);
+      expect(dwrCalls('addReply')).toHaveLength(0);
+      expect(rpcCalls('saveMocContentLearn')).toHaveLength(0);
+    }
   });
 
   it('生成失败或不合规时返回失败：不留言、也不报完成', async () => {
@@ -269,7 +313,9 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
     ];
 
     for (const value of variants) {
-      const { client, dwrCalls, rpcCalls } = clientStub();
+      const { client, dwrCalls, rpcCalls } = clientStub({
+        getLessonUnitLearnVo: 's0.title="3.4 讨论题";s0.content="<p>如何理解直流通路和交流通路的概念？</p>";',
+      });
       const result = await completeUnit(
         client,
         unitOf({ contentType: UNIT_TYPE.DISCUSS }),
@@ -283,7 +329,9 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
   });
 
   it('生成内容里的链接被去掉，句子本身保留', async () => {
-    const { client, dwrCalls } = clientStub();
+    const { client, dwrCalls } = clientStub({
+      getLessonUnitLearnVo: 's0.title="3.4 讨论题";s0.content="<p>如何理解直流通路和交流通路的概念？</p>";',
+    });
     const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.DISCUSS }), {
       generateText: async () => ({ ok: true, text: '看这里 https://example.com/answer 有详解' }),
     });
