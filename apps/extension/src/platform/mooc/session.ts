@@ -135,23 +135,3 @@ export async function renewSession(): Promise<{ renewed: boolean; session: MoocS
 export function readToken(): Promise<string> {
   return readCookie('NTESSTUDYSI');
 }
-
-// ---------- 内容脚本的读取方式 ----------
-//
-// browser.cookies 在内容脚本中不可用，该 API 只在后台与弹窗页面可用。
-// 而 NTESSTUDYSI 的 httpOnly 为 false，实测在已登录状态下同样可被页面脚本读取，
-// 因此内容脚本直接读 document.cookie 即可，不需要经后台中转。
-//
-// 这条路径已经取代了上一代的「统一经 background 获取令牌」设计，
-// 那个设计建立在一个不成立的前提上（见 docs/platforms/mooc.md 第 3 节）。
-
-function readCookieFromDocument(name: string): string {
-  const pattern = new RegExp(`(?:^|;\\s*)${name}=([^;]*)`);
-  const match = document.cookie.match(pattern);
-  return match ? decodeURIComponent(match[1]) : '';
-}
-
-/** 从 document.cookie 读取 NTESSTUDYSI。 */
-export function readTokenFromDocument(): string {
-  return readCookieFromDocument('NTESSTUDYSI');
-}
