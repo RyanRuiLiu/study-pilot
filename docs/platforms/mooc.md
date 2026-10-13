@@ -3,11 +3,21 @@
 本文件记录平台**实际如何运作**，不是设计意图。每条结论都标注取证位置，
 可随时复核。凡是未经取证的推断，一律显式标注为「未验证」。
 
-- 记录时间：2026-09-26
+- 记录时间：2026-09-26；2026-10-14 补充播放器与课件单元两处取证
 - 取证对象：
   - `https://mc.stu.126.net/pub/s/core_210ab52d6feda6bfdd39c5f6c8b03fb4.js`（2.27 MB）
   - `https://mc.stu.126.net/pub/s/tp_learn_index_desktop_modules_learn_3dcbc5398de9b2095438a16.b999d28c.js`（347 KB，学习页）
+  - `https://mc.stu.126.net/pub/s/tp_learn_index_desktop_modules_learn_content_*.js`（课件页：单元装配与学习上报）
+  - `https://mc.stu.126.net/pub/s/VIDEOPLAYER_a7718dbce0f38d36548068efb672bcf6.js`（播放器：取流、心跳）
 - 取证方式见 [探测工具](../../scripts/probe/README.md)，可完整复现
+
+**相关文档**
+
+| 文档 | 内容 |
+|---|---|
+| [course-model.md](course-model.md) | 课程层级、类型常量、单元完成度 |
+| [courseware.md](courseware.md) | 课件单元的完成：报文、取值来源、实测边界 |
+| [reverse.md](reverse.md) | 如何重新生成反编译产物 |
 
 ---
 

@@ -186,6 +186,21 @@ Web Crypto 不提供 MD5，而签名需要它。因此 `core` 里有一份自实
 用 `0` 作初值会导致首个请求平白等待一整个间隔。
 这个缺陷是测试发现的，而非人工复查发现的。
 
+### 3.9 多平台的落地约定
+
+第二个平台出现之前不写通用抽象（3.6），但**命名与归属必须先定**，
+否则后加的代码会顺手放进通用目录，等第二个平台到来时已经分不开。
+
+| 位置 | 约定 |
+|---|---|
+| `packages/platform-<name>/` | 一个平台一个包。包内只放该平台的端点、类型、规则 |
+| `apps/extension/entrypoints/<name>.content.ts` | 一个平台一个内容脚本入口，按 URL 匹配注入 |
+| `apps/extension/src/platform/<name>/` | 该平台的宿主适配（凭证、地址解析）。与平台无关的放上一级 |
+| `apps/extension/src/features/<name>/` | 该平台的页面内功能。通用件留在 `features/` 顶层 |
+| 配置 | 平台作为顶层键（`settings.<name>`），平台内再分前台与后台 |
+
+判据很简单：**一处代码里出现第二个平台的名字，它就该待在 `<name>` 目录里。**
+
 ## 4. 目录结构
 
 ```
@@ -197,29 +212,36 @@ apps/extension/
     popup/                     弹窗
   src/
     background/
-      scheduler.ts             运行状态：中断标记、挂起标记
-      snapshot.ts              本地快照的结构与存取
-      inspect.ts               读取：拉最新数据生成快照
-      task-plan.ts             派生：由快照算出该做什么（纯函数）
-      execute.ts               执行：只写不判断
-      reminder.ts              通知：组织内容与发出
-      work-status.ts           由快照字段推出展示状态
-      to-messages.ts           内部结构转消息格式
-      net-rules.ts             出站请求头规则
-    features/                  页面内功能
-      panel.ts                 浮动面板
-      quiz-helper.ts           做题助手
-      homework-panel.ts        作业面板
-      homework-answers.ts      得分指导注入
-      deadline.ts              截止时间文案
-      quiz-stage.ts            作答页阶段判定
-      format.ts                格式化
+      runtime/                  与平台无关的运行时
+        scheduler.ts            运行状态：中断标记、挂起标记
+        alarms.ts               定时唤醒
+        session-recovery.ts     会话失效后的续期重读
+      mooc/                     MOOC 的后台任务
+        snapshot.ts             本地快照的结构、存取与拉取（inspect）
+        task-plan.ts            派生：由快照算出该做什么（纯函数）
+        execute.ts              执行：只写不判断
+        reminder.ts             通知：组织内容与发出
+        work-status.ts          由快照字段推出展示状态
+        to-messages.ts          内部结构转消息格式
+        course-selection.ts     参与任务的课程选取
+      net-rules.ts              出站请求头规则
+    features/                   页面内功能
+      index.ts                  装配入口
+      panel.ts                  浮动面板
+      format.ts                 格式化
+      mooc/
+        quiz-helper.ts          做题助手
+        quiz-stage.ts           作答页阶段判定
+        homework-answers.ts     得分指导注入
+        selectors.ts            页面选择器
     platform/
-      mooc-session.ts          凭证读取与会话恢复
-      mooc-url.ts              路由解析
-      messaging.ts             消息类型
-    settings/                  配置结构与存储
-  public/icon/                 扩展图标
+      messaging.ts              消息类型
+      mooc/
+        session.ts              凭证读取与会话恢复
+        url.ts                  路由解析
+    settings/                   配置结构、默认值与存储
+    ui/tokens.css               设计令牌
+  public/icon/                  扩展图标
 
 packages/core/
   src/md5.ts                   MD5 实现
@@ -266,17 +288,18 @@ scripts/probe/                 探测与自检工具链，见其 README
 
 样本已脱敏：身份字段替换为固定占位值，保留结构 id。
 
-### 5.3 界面自检
+### 5.3 界面与打包自检
 
-`scripts/probe/` 下有若干自检脚本，验证的是**实际渲染结果**而非源码：
+`scripts/probe/` 下有一批自检脚本，验证的是**实际渲染结果与打包产物**，而非源码。
+完整清单与用法见 [scripts/probe/README.md](../scripts/probe/README.md)：
 
-| 脚本 | 验证 |
+| 目录 | 用途 |
 |---|---|
-| `check-classes.mjs` | 用到的类名是否都有样式 |
-| `check-copy.mjs` | 文案是否与功能一致 |
-| `check-toc.mjs` | 左侧导航与分区是否对应 |
-| `check-control-styles.mjs` | 同类控件的实际尺寸是否一致 |
-| `check-detail-links.mjs` | 明细链接的每一段是否正确 |
-| `selfcheck.mjs` | 后台接口返回与界面渲染是否一致 |
+| `checks/` | 界面与产物自检：类名是否有样式、文案是否与功能一致、导航与分区是否对应、同类控件尺寸是否一致、明细链接每一段是否正确、后台数据与渲染是否一致、隐私与发布门禁、打包产物校验 |
+| `inspect/` | 探测：启动带扩展的浏览器、发单个接口调用、抓取、反编译 |
+| `run/` | 运行辅助：重载扩展、跑一次、截图、生成图标与商店素材 |
+| `maintain/` | 维护：清理身份字段、导出文案、审计时间字段 |
 
-这类问题（两份 CSS 规则各自都"对"、但渲染出来不一致）靠读源码发现不了。
+这类问题（两份 CSS 规则各自都「对」、但渲染出来不一致）靠读源码发现不了；
+自检脚本是唯一能发现它们的手段。
+
