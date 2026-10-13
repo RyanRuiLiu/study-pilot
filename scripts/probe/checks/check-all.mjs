@@ -13,18 +13,32 @@
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-/** 全部门禁脚本。加一个就多一行，同时同步快照。 */
-const SCRIPTS = ['check-release.mjs', 'check-copy.mjs', 'check-privacy.mjs'];
+/*
+ * 全部门禁脚本。加一个就多一行，同时同步快照。
+ *
+ * 适配脚本在 scripts/verify/ 下，用相对路径写：它们的唯一职责是把标准工具
+ * （eslint / syncpack / remark / knip…）的结果转成「通过/失败 <名称>」。
+ * 快照的键用文件名，与放在哪个目录无关。
+ */
+const SCRIPTS = [
+  'check-release.mjs',
+  'check-copy.mjs',
+  'check-privacy.mjs',
+  '../../verify/check-syncpack.mjs',
+  '../../verify/check-version-literal.mjs',
+];
 
 const expected = JSON.parse(readFileSync(join(HERE, 'expected-checks.json'), 'utf8'));
 const problems = [];
 
 for (const name of SCRIPTS) {
+  /* 快照的键是文件名，脚本放在 checks/ 还是 verify/ 不影响它。 */
+  const key = basename(name);
   /*
    * 捕获输出而不是 stdio: 'inherit'：门禁自己打印的分项要原样透传（不在这里
    * 二次加工），同时需要解析出「哪些项真的跑过了」——只有运行结果说得准，
@@ -34,7 +48,7 @@ for (const name of SCRIPTS) {
   process.stdout.write(run.stdout ?? '');
   process.stderr.write(run.stderr ?? '');
 
-  if (run.status !== 0) problems.push(`${name} 未通过`);
+  if (run.status !== 0) problems.push(`${key} 未通过`);
 
   const actual = ((run.stdout ?? '') + (run.stderr ?? ''))
     .split('\n')
@@ -42,12 +56,12 @@ for (const name of SCRIPTS) {
     .filter(Boolean)
     .map((match) => match[2].replace(/\s{2,}.*$/, '').trim());
 
-  const want = expected[name] ?? [];
+  const want = expected[key] ?? [];
   const missing = want.filter((label) => !actual.includes(label));
   const added = actual.filter((label) => !want.includes(label));
 
-  if (missing.length > 0) problems.push(`${name} 少了检查项：${missing.join(' / ')}`);
-  if (added.length > 0) problems.push(`${name} 多了检查项（需同步快照）：${added.join(' / ')}`);
+  if (missing.length > 0) problems.push(`${key} 少了检查项：${missing.join(' / ')}`);
+  if (added.length > 0) problems.push(`${key} 多了检查项（需同步快照）：${added.join(' / ')}`);
 
   console.log('');
 }
@@ -58,5 +72,5 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-const total = SCRIPTS.reduce((sum, name) => sum + (expected[name]?.length ?? 0), 0);
+const total = SCRIPTS.reduce((sum, name) => sum + (expected[basename(name)]?.length ?? 0), 0);
 console.log(`全部门禁通过：${SCRIPTS.length} 个脚本、${total} 项，且检查项与快照一致。`);
