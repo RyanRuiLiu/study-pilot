@@ -180,7 +180,7 @@ export interface MoocSettings {
     /** 做题页助手：填充答案与提交 */
     quizHelper: ToggleSettings;
     /** 作业页得分指导注入 */
-    homeworkAnswers: ToggleSettings;
+    guidance: ToggleSettings;
   };
   background: {
     autoCourseware: AutoCoursewareSettings;
@@ -207,7 +207,7 @@ export const DEFAULT_MOOC: MoocSettings = {
    */
   foreground: {
     quizHelper: { enabled: true },
-    homeworkAnswers: { enabled: true },
+    guidance: { enabled: true },
   },
   background: {
     /*

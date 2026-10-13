@@ -21,7 +21,7 @@ export function foregroundSection(): HTMLElement {
         row(
           '作业得分指导',
           '在单元作业页把每题的得分说明插到题目下方，不显示面板',
-          toggle(mooc.foreground.homeworkAnswers.enabled, bindSetting<boolean>('mooc.foreground.homeworkAnswers.enabled')),
+          toggle(mooc.foreground.guidance.enabled, bindSetting<boolean>('mooc.foreground.guidance.enabled')),
         ),
       ]),
     ]);

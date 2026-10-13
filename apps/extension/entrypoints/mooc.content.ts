@@ -22,9 +22,9 @@
 import { getSettings, watchSettings, type Settings } from '../src/settings';
 import { parseMoocLocation } from '../src/platform/mooc/url';
 import {
-  injectHomeworkAnswers,
+  injectGuidance,
   loadQuestions,
-  removeHomeworkAnswers,
+  removeGuidance,
   removeQuizHelper,
   showQuizHelper,
 } from '../src/features';
@@ -96,14 +96,14 @@ export default defineContentScript({
 
       if (
         enabled &&
-        foreground.homeworkAnswers.enabled &&
+        foreground.guidance.enabled &&
         isSubjective &&
         location.contentId !== null
       ) {
         const kind = location.view === 'exam-subjective' ? 'exam' : 'homework';
-        void injectHomeworkAnswers(loadQuestions, location.contentId, kind).catch(() => undefined);
+        void injectGuidance(loadQuestions, location.contentId, kind).catch(() => undefined);
       } else {
-        removeHomeworkAnswers();
+        removeGuidance();
       }
     }
 

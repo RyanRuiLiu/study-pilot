@@ -37,7 +37,7 @@ export interface Settings {
  *
  * 现在只有 1，所以没有迁移分支：不为还没发生的事写一个永不执行的判断。
  */
-export const SETTINGS_VERSION = 1;
+export const SETTINGS_VERSION = 2;
 
 export const DEFAULT_SETTINGS: Settings = {
   version: SETTINGS_VERSION,
@@ -53,6 +53,34 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 type Json = unknown;
+
+/**
+ * 版本 1 → 2 的迁移：得分指导的设置键由 `homeworkAnswers` 改名为 `guidance`。
+ *
+ * 为什么必须搬旧值：不搬的话，新键取默认值（开启），而用户此前可能明确关过它——
+ * 于是界面文案会自己冒出来。这是**改平台数据的开关**的近亲，静默改掉比报错更糟。
+ *
+ * 只做一次：迁移之后旧键不再出现在代码里，这段也只对带旧键的存量数据生效。
+ * 这里保留旧键的字面量，是因为它正是要被读出来的那个东西。
+ */
+function migrateGuidanceKey(raw: Json): Json {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+  const source = raw as Record<string, unknown>;
+  const mooc = source.mooc;
+  if (mooc === null || typeof mooc !== 'object' || Array.isArray(mooc)) return raw;
+
+  const moocRecord = mooc as Record<string, unknown>;
+  const foreground = moocRecord.foreground;
+  if (foreground === null || typeof foreground !== 'object' || Array.isArray(foreground)) {
+    return raw;
+  }
+
+  const foregroundRecord = foreground as Record<string, unknown>;
+  if (!('homeworkAnswers' in foregroundRecord) || 'guidance' in foregroundRecord) return raw;
+
+  const { homeworkAnswers, ...rest } = foregroundRecord;
+  return { ...source, mooc: { ...moocRecord, foreground: { ...rest, guidance: homeworkAnswers } } };
+}
 
 /**
  * 以 `base` 为骨架合并 `patch`。
@@ -94,7 +122,7 @@ export function mergeWithBase<T>(base: T, patch: Json): T {
  * 一句「提交失败」。这里留空退回默认评语，设置页也标注了这一条。
  */
 export function normalize(raw: Json): Settings {
-  const merged = mergeWithBase(DEFAULT_SETTINGS, raw);
+  const merged = mergeWithBase(DEFAULT_SETTINGS, migrateGuidanceKey(raw));
   const review = merged.mooc.background.autoReview;
 
   return {

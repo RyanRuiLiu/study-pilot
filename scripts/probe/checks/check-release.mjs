@@ -411,12 +411,13 @@ record('内容脚本不建客户端', clientHits.length === 0, clientHits.map(re
 // 起个近义词（selfReview、learnUnit），于是同一件事出现两套词，之后每次改动
 // 都要先猜用哪个。这里把唯一写法与已绝迹的别名都写下来——别名一旦回来即失败。
 //
-// 两处**有意保留**的分裂，不要照下面的表去"修"：
+// 两处命名边界，不要照下面的表去"修"：
 //   - 互评：平台接口层是它的叫法（MocEvaluateBean / getEvaluateDetail /
 //     submitEvaluation），我们自己的概念用 review（AutoReviewSettings / reviewable）。
-//   - 得分指导：模块叫 guidance，设置键叫 homeworkAnswers（键是持久化的公开结构，
-//     改名要迁移），界面文案是「作业得分指导」。三者指向同一功能。
-// 前者是分层命名（平台叫法只在平台层），后者待命名决定后再统一。
+//     这是分层命名，不是分裂。
+//   - 得分指导统一到 guidance（模块、设置键、函数名都是）；设置键原为
+//     homeworkAnswers，改名时用 SETTINGS_VERSION 1 → 2 的迁移搬走了旧值，
+//     因此 normalize 里还留着一处旧键的字面量——那是有意的，不是漏改。
 
 console.log('');
 console.log('=== 术语 ===');

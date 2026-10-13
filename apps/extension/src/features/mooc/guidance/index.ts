@@ -80,7 +80,7 @@ function isStale(request: InjectionRequest): boolean {
  * 作业与考试的取卷接口不同，但返回的题目结构相同（都带 judgeDtos），
  * 因此注入逻辑共用一套。
  */
-export async function injectHomeworkAnswers(
+export async function injectGuidance(
   load: QuestionLoader,
   tid: number,
   kind: 'homework' | 'exam' = 'homework',
@@ -113,7 +113,7 @@ export async function injectHomeworkAnswers(
 }
 
 /** 移除已注入的得分指导块。 */
-export function removeHomeworkAnswers(): void {
+export function removeGuidance(): void {
   // 在途的取卷请求一并作废：否则它回来时会把刚清掉的块又插回去
   requestedSource = null;
   unmountCount++;

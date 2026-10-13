@@ -27,8 +27,8 @@ import { getHomeworkInfo, getHomeworkPaper } from '@study-pilot/platform-mooc';
 import type { HomeworkInfo, HomeworkPaper, MoocClient } from '@study-pilot/platform-mooc';
 import {
   ANSWER_MARK_ATTRIBUTE,
-  injectHomeworkAnswers,
-  removeHomeworkAnswers,
+  injectGuidance,
+  removeGuidance,
   type QuestionLoader,
 } from '../src/features/mooc/guidance';
 
@@ -211,14 +211,14 @@ describe('换单元', () => {
     // 第一次进入：100 单元，正常注入
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
     expect(injectedTexts().join('')).toContain('A 单元评分标准');
 
     // 切到 200 单元：站点只更新了自己渲染的那部分文本，注入块留在原地
     currentDocument().querySelector('.j-richTxt')!.textContent = '题干 B';
     info.mockResolvedValue(ok(homeworkInfo(200)));
     paper.mockResolvedValue(ok(homeworkPaper(200, 'B 单元评分标准')));
-    await injectHomeworkAnswers(load, 200, 'homework');
+    await injectGuidance(load, 200, 'homework');
 
     expect(injectedTexts()).toHaveLength(1);
     expect(injectedTexts()[0]).toContain('B 单元评分标准');
@@ -231,8 +231,8 @@ describe('换单元', () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockImplementation((_client, tid) => (tid === 100 ? first.promise : second.promise));
 
-    const pendingA = injectHomeworkAnswers(load, 100, 'homework');
-    const pendingB = injectHomeworkAnswers(load, 200, 'homework');
+    const pendingA = injectGuidance(load, 100, 'homework');
+    const pendingB = injectGuidance(load, 200, 'homework');
 
     // 旧单元的响应先回来——它晚于切换发生，但它带的仍是旧卷
     first.resolve(ok(homeworkPaper(100, 'A 单元评分标准')));
@@ -248,14 +248,14 @@ describe('换单元', () => {
   it('站点替换题目节点时，新单元照常注入', async () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
     expect(injectedTexts()).toHaveLength(1);
 
     // 站点重建了整个题目区，注入块随之消失
     mountHomeworkPage();
     info.mockResolvedValue(ok(homeworkInfo(200)));
     paper.mockResolvedValue(ok(homeworkPaper(200, 'B 单元评分标准')));
-    await injectHomeworkAnswers(load, 200, 'homework');
+    await injectGuidance(load, 200, 'homework');
 
     expect(injectedTexts()).toHaveLength(1);
     expect(injectedTexts()[0]).toContain('B 单元评分标准');
@@ -267,9 +267,9 @@ describe('幂等与卸载', () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
 
-    await injectHomeworkAnswers(load, 100, 'homework');
-    await injectHomeworkAnswers(load, 100, 'homework');
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
 
     expect(injectedTexts()).toHaveLength(1);
   });
@@ -282,8 +282,8 @@ describe('幂等与卸载', () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
 
-    const pendingFirst = injectHomeworkAnswers(load, 100, 'homework');
-    const pendingSecond = injectHomeworkAnswers(load, 100, 'homework');
+    const pendingFirst = injectGuidance(load, 100, 'homework');
+    const pendingSecond = injectGuidance(load, 100, 'homework');
 
     first.resolve(ok(homeworkPaper(100, 'A 单元评分标准')));
     await pendingFirst;
@@ -299,9 +299,9 @@ describe('幂等与卸载', () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockReturnValue(pending.promise);
 
-    const injecting = injectHomeworkAnswers(load, 100, 'homework');
+    const injecting = injectGuidance(load, 100, 'homework');
     // 页面切到不注入的状态，内容脚本会调卸载
-    removeHomeworkAnswers();
+    removeGuidance();
 
     pending.resolve(ok(homeworkPaper(100, 'A 单元评分标准')));
     await injecting;
@@ -315,7 +315,7 @@ describe('评分依据的排版', () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockResolvedValue(ok(multiPointPaper(100)));
 
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
 
     const block = currentDocument().querySelector(ANSWER_BLOCK)!;
     const images = Array.from(block.querySelectorAll('img'));
@@ -336,7 +336,7 @@ describe('评分依据的排版', () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockResolvedValue(ok(multiPointPaper(100)));
 
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
 
     const block = currentDocument().querySelector(ANSWER_BLOCK)!;
     const text = block.textContent ?? '';
@@ -356,7 +356,7 @@ describe('页面自己是否已在展示评分依据', () => {
   it('互评打分页自己列出了评分标准：不重复注入，并清掉已有注入', async () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
     expect(injectedTexts()).toHaveLength(1);
 
     // 页面切到给别人打分：站点自己在互评模块里列出了评分标准
@@ -366,7 +366,7 @@ describe('页面自己是否已在展示评分依据', () => {
         '<div class="f-richEditorText">站点自己的评分标准</div></div></div>' +
         '</div></div>',
     );
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
 
     expect(injectedTexts()).toHaveLength(0);
   });
@@ -384,7 +384,7 @@ describe('页面自己是否已在展示评分依据', () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));
 
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
 
     expect(injectedTexts()).toHaveLength(1);
     expect(injectedTexts()[0]).toContain('A 单元评分标准');
@@ -401,7 +401,7 @@ describe('题号与题目的对应', () => {
     setPosition(0, '2');
     setPosition(1, '');
 
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
 
     const items = Array.from(currentDocument().querySelectorAll('.u-questionItem'));
     // 有题号的那道按题号对上
@@ -411,7 +411,7 @@ describe('题号与题目的对应', () => {
 
     // 题号渲染出来（它其实是第 1 题）
     setPosition(1, '1');
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
 
     expect(blockCountOf(items[1] as Element)).toBe(1);
     expect(blockTextOf(items[1] as Element)).toContain('第一题依据');
@@ -424,7 +424,7 @@ describe('题号与题目的对应', () => {
     mountHomeworkPage(1);
     stripAnchor(0);
 
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
 
     // 没有锚点就这一轮不插：插在题目节点之后会看起来属于下一题
     expect(injectedTexts()).toHaveLength(0);
@@ -436,7 +436,7 @@ describe('题号与题目的对应', () => {
       '<div class="f-richEditorText j-richTxt">题干</div></div>' +
       '<div class="j-answer"></div>';
 
-    await injectHomeworkAnswers(load, 100, 'homework');
+    await injectGuidance(load, 100, 'homework');
 
     expect(blockCountOf(item)).toBe(1);
     expect(blockTextOf(item)).toContain('A 单元评分标准');
