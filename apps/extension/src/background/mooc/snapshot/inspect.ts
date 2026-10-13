@@ -1,5 +1,5 @@
 /*
- * 课程快照。
+ * 从平台拉取填充快照。
  *
  * 上一次从平台读到的东西，原样存下来。它的唯一用途是：**在没有发任何请求的
  * 前提下，判断「现在值不值得去拉一次最新的」**。
@@ -11,140 +11,18 @@
  *   - 它说「没事」→ 可以不去拉（省请求）
  *   - 它说「有事」→ 必须拉回来确认
  *   - 它从不直接用于通知，通知只报确认过的事实
- *
- * 存什么、不存什么
- * ----------------
- * 只存判断所需的字段：做没做、截止时间、互评进度。不存题干、不存答案、
- * 不存得分明细——那些对判断没有用，存了只是扩大泄漏面。
- *
- * 与用户配置分开存放
- * ----------------
- * 配置是用户的意图，快照是运行时的观测结果。混在一起会让「恢复默认设置」
- * 把观测数据也一起清掉，也会让配置的迁移逻辑被无关字段拖累。
- *
- * 这个文件做三件事：定义结构、从平台拉取填充、读写到本地。
- * 三者是同一件事的三段——结构决定拉什么，拉取产出结构，读写负责存取。
- * 拆开的话，加一个字段要改三个文件，而漏改任何一个都不会有编译错误。
  */
 
-import { storage } from 'wxt/utils/storage';
 import {
   currentEvaluatePhase,
   deriveStatus,
   getCourseStructure,
   getEvaluationDetail,
-  type CourseUnit,
   type MoocClient,
 } from '@study-pilot/platform-mooc';
-import { SessionExpiredError } from '../../platform/mooc/session';
-import { dateKey } from '../runtime/scheduler';
-
-/** 一个单元项在快照里的样子。 */
-export interface SnapshotWork {
-  tid: number;
-  name: string;
-  chapterName: string;
-  /**
-   * 考试自身的 id，仅考试有。
-   *
-   * 答卷页地址需要它，而它不属于任何单元，只能随快照一起存下来。
-   */
-  examId: number | null;
-  type: 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective';
-  /** 做没做。测验看 usedTryCount，作业看是否交过 */
-  submitted: boolean;
-  /** 提交截止 */
-  deadline: number | null;
-  /** 互评窗口起点 */
-  evaluateStart: number | null;
-  /** 互评截止 */
-  evaluateEnd: number | null;
-  /** 成绩发布时间 */
-  evaluateScoreRelease: number | null;
-  score: number | null;
-  totalScore: number | null;
-  /** 这份作业是否带互评环节 */
-  reviewable: boolean;
-  /** 互评已完成的份数；未查过为 null */
-  evaluateDone: number | null;
-  /** 互评配额；未查过为 null */
-  evaluateTotal: number | null;
-  /** 自评是否已完成；未查过为 null */
-  selfDone: boolean | null;
-}
-
-export interface SnapshotCourse {
-  termId: number;
-  /** 拼跳转地址用 */
-  courseId: number;
-  schoolShortName: string;
-  mode: number;
-  courseName: string;
-  works: SnapshotWork[];
-  /**
-   * 课件单元。
-   *
-   * 与 works 是两套东西：works 是「要交的作业/测验/考试」，units 是「要看的内容」。
-   * 这里原样存结构里的单元——字段本来就少，而「能不能上报完成」由
-   * `isCompletable` 判断，快照不重复那套规则。
-   */
-  units: CourseUnit[];
-}
-
-export interface Snapshot {
-  /**
-   * 快照结构版本。
-   *
-   * 形状变了就递增：读到的版本对不上时**整份丢弃**（下次刷新会重写），
-   * 而不是给旧数据补字段。补字段就是兼容层——它会让「旧数据」与「新数据」
-   * 同时存在于代码的假设里，而两者本该只有一种。
-   */
-  version: number;
-  /** 拉到这份数据的时刻 */
-  fetchedAt: number;
-  /** 拉取那天的本地日期键，用于判断「今天全量拉过没有」 */
-  fetchedDate: string;
-  courses: SnapshotCourse[];
-}
-
-/** 当前的快照结构版本。字段含义变化时递增。 */
-export const SNAPSHOT_VERSION = 1;
-
-const item = storage.defineItem<Snapshot | null>('local:study-pilot-snapshot', {
-  fallback: null,
-});
-
-/**
- * 读快照。
- *
- * 返回 null 表示「确实还没存过快照」（首次安装），这与「读不出来」是两件事，
- * 所以不在这里吞掉存储异常——它抛出来由调用方处理。
- * 把两者合并成一个 null，排查时就说不出到底发生过什么。
- */
-export async function readSnapshot(): Promise<Snapshot | null> {
-  const snapshot = await item.getValue();
-  if (!snapshot) return null;
-  // 结构版本对不上：这份缓存不可用，丢弃即可——下次读取会重写一份
-  return snapshot.version === SNAPSHOT_VERSION ? snapshot : null;
-}
-
-export async function writeSnapshot(snapshot: Snapshot): Promise<void> {
-  await item.setValue(snapshot);
-}
-
-/** 用当前时间构造一份快照的元信息。 */
-export function snapshotStamp(now: number = Date.now()): {
-  version: number;
-  fetchedAt: number;
-  fetchedDate: string;
-} {
-  return { version: SNAPSHOT_VERSION, fetchedAt: now, fetchedDate: dateKey(now) };
-}
-
-/** 今天是否已经全量拉取过。 */
-export function fetchedToday(snapshot: Snapshot | null, now: number = Date.now()): boolean {
-  return snapshot !== null && snapshot.fetchedDate === dateKey(now);
-}
+import { SessionExpiredError } from '../../../platform/mooc/session';
+import { snapshotStamp } from './storage.ts';
+import type { InspectCourse, Snapshot, SnapshotCourse, SnapshotWork } from './types.ts';
 
 /**
  * 平台返回的数值字段可能是 null、也可能是别的类型，还有可能是缺失的。
@@ -166,24 +44,6 @@ function asNumber(value: unknown): number | null {
 function positive(value: unknown): number | null {
   const parsed = asNumber(value);
   return parsed !== null && parsed > 0 ? parsed : null;
-}
-
-/**
- * 拉取时需要的课程信息。
- *
- * 只列真正用到的字段，而不是要求一个完整的 CourseSummary。理由是调用方
- * 持有的是用户配置里的课程（只有 termId、课程名与定位信息），
- * 为了凑齐接口类型去编造 schoolName、coverUrl 之类的字段，
- * 等于在代码里写下不存在的事实。
- */
-export interface InspectCourse {
-  termId: number;
-  courseId: number;
-  schoolShortName: string;
-  /** 课程模式。缺失时为 null，快照里记 -1 表示未知 */
-  mode: number | null;
-  /** 课程名。为空时回退到平台返回的名字 */
-  name: string;
 }
 
 /**
