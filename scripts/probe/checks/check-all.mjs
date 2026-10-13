@@ -1,38 +1,62 @@
 /*
- * 一条命令跑完全部门禁。
+ * 一条命令跑完全部门禁，并核对「门禁项有没有被悄悄删掉」。
  *
- * 为什么需要它：门禁是分开的三个脚本，此前我只跑 check-release 就以为
- * 「全绿」——而 check-copy 当时已经因为文件清单过期跑不起来了。
- * 分开的脚本各自正确，但**没人负责把它们都跑一遍**，漏跑不会报错。
+ * 为什么需要跑全：门禁是分开的三个脚本，此前我只跑 check-release 就以为
+ * 「全绿」——而 check-copy 当时已经因为文件清单过期跑不起来。脚本各自正确，
+ * 但没人负责把它们都跑一遍，漏跑不会报错。
  *
- * 用法：node scripts/probe/checks/check-all.mjs
+ * 为什么需要快照：脚本被改动时少一项、或改个名字，不会有人注意。本会话就
+ * 发生过一次——清理代码时误删了两整段检查，是我自己数项数才发现的。因此把
+ * 「该有哪些检查项」写进 expected-checks.json：运行结果与它不一致即失败。
+ * 要删门禁，就得同时改快照，而这一步在 diff 里看得见——这就是它存在的意义。
  */
 
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-/** 全部门禁脚本。加一个就多一行，别的地方不用改。 */
-const CHECKS = ['check-release.mjs', 'check-copy.mjs', 'check-privacy.mjs'];
+/** 全部门禁脚本。加一个就多一行，同时同步快照。 */
+const SCRIPTS = ['check-release.mjs', 'check-copy.mjs', 'check-privacy.mjs'];
 
-const failed = [];
+const expected = JSON.parse(readFileSync(join(HERE, 'expected-checks.json'), 'utf8'));
+const problems = [];
 
-for (const name of CHECKS) {
+for (const name of SCRIPTS) {
   /*
-   * stdio: 'inherit' 而不是捕获输出：门禁自己会打印「通过/失败」的分项，
-   * 由它们直接写到终端，不在这里二次加工——加工一次就多一处可能失真。
-   * 父进程只用退出码判断成败。
+   * 捕获输出而不是 stdio: 'inherit'：门禁自己打印的分项要原样透传（不在这里
+   * 二次加工），同时需要解析出「哪些项真的跑过了」——只有运行结果说得准，
+   * 解析源码会漏掉循环生成的检查项。
    */
-  const result = spawnSync(process.execPath, [join(HERE, name)], { stdio: 'inherit' });
-  if (result.status !== 0) failed.push(name);
+  const run = spawnSync(process.execPath, [join(HERE, name)], { encoding: 'utf8' });
+  process.stdout.write(run.stdout ?? '');
+  process.stderr.write(run.stderr ?? '');
+
+  if (run.status !== 0) problems.push(`${name} 未通过`);
+
+  const actual = ((run.stdout ?? '') + (run.stderr ?? ''))
+    .split('\n')
+    .map((line) => /^(通过|失败)\s+(.+)$/.exec(line.trim()))
+    .filter(Boolean)
+    .map((match) => match[2].replace(/\s{2,}.*$/, '').trim());
+
+  const want = expected[name] ?? [];
+  const missing = want.filter((label) => !actual.includes(label));
+  const added = actual.filter((label) => !want.includes(label));
+
+  if (missing.length > 0) problems.push(`${name} 少了检查项：${missing.join(' / ')}`);
+  if (added.length > 0) problems.push(`${name} 多了检查项（需同步快照）：${added.join(' / ')}`);
+
   console.log('');
 }
 
-if (failed.length > 0) {
-  console.error(`门禁未通过：${failed.join(' ')}`);
+if (problems.length > 0) {
+  console.error('门禁未通过：');
+  for (const problem of problems) console.error('  - ' + problem);
   process.exit(1);
 }
 
-console.log(`全部门禁通过（${CHECKS.length} 个脚本）。`);
+const total = SCRIPTS.reduce((sum, name) => sum + (expected[name]?.length ?? 0), 0);
+console.log(`全部门禁通过：${SCRIPTS.length} 个脚本、${total} 项，且检查项与快照一致。`);
