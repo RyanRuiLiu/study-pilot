@@ -8,7 +8,7 @@
         "scripts/probe/inspect/*.mjs",
         "scripts/probe/maintain/*.mjs",
         "scripts/probe/run/*.mjs",
-        "scripts/verify/check-*.mjs"
+        "scripts/verify/*.mjs"
       ]
     }
   },

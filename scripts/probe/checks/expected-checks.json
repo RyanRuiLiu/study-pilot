@@ -59,5 +59,8 @@
   ],
   "check-anchors.mjs": [
     "源码里的页面锚点都指向存在的 id（anchors）"
+  ],
+  "check-mutation.mjs": [
+    "变异测试（变更文件，stryker）"
   ]
 }

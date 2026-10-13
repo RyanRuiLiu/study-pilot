@@ -85,32 +85,31 @@ if (since && mutate.length === 0) {
  * 那里只有 core 自己的依赖（api / util / instrumenter），vitest-runner 是根
  * 项目的开发依赖，不在其中，于是启动时报
  *   Cannot find TestRunner plugin "vitest". In fact, no TestRunner plugins were loaded.
- * import.meta.resolve 从本配置文件所在目录（仓库根）解析 pnpm 的软链，路径随仓库走，
- * 不写死机器相关的绝对路径。
+ * 这里指向本仓库的包装插件（scripts/verify/stryker-vitest-runner.mjs），它再
+ * 引用上游 runner。不用 import.meta.resolve 直连上游，是因为包装插件要修一个
+ * 上游 bug，见该文件头部的说明与最小复现。
+ *
+ * 写相对路径而不是 file:// URL：Stryker 对 `.`/绝对路径的插件会自己
+ * `pathToFileURL(path.resolve(...))`；而 `new URL(..., import.meta.url)` 那种写法
+ * 会被 knip 当成一个解析不到的 import 报出来（实测），多一条无意义的门禁红。
  */
-const vitestRunner = import.meta.resolve('@stryker-mutator/vitest-runner');
+const vitestRunner = './scripts/verify/stryker-vitest-runner.mjs';
 
 const config = {
   testRunner: 'vitest',
   plugins: [vitestRunner],
   /*
-   * 这两项一起关掉 vitest runner 的两层「挑测试」优化，是被实测逼出来的：
+   * `coverageAnalysis: 'off'` + `vitest.related: false`：都关掉，理由如下。
    *
-   * - `vitest.related: false`：默认的 related 模式在这个 monorepo 里找不到关联
-   *   测试。实测 dry run 直接报
-   *     VitestTestRunner Vitest failed to find test files related to mutated files
-   *     DryRunExecutor No tests were found
-   *   而更早（沙箱还在 `.stryker-tmp` 时）它不报错，却让部分变异体的运行
-   *   **一个测试都没跑**（报告里 testsCompleted=0）→ 全部被记成 Survived。
-   *   这是假存活：手工把该变异体强制激活后跑同一个测试是失败的（见报告）。
-   *
-   * - `coverageAnalysis: 'off'`：perTest 的覆盖归属在本仓库不可信——同一个
-   *   变异体被归到根本不 import 它的测试文件上（sign.ts 的变异体归到
-   *   courseware 的测试）。归属一错，按 coverage 挑出来的测试就挑错，
-   *   变异体照样假存活。关掉之后每个变异体跑全量测试，慢但结果可信。
+   * - related 模式在这个 monorepo 里找不到关联测试（实测 dry run 直接
+   *   `Vitest failed to find test files related to mutated files` + `No tests were found`）。
+   * - 覆盖归属（perTest）本身不可信：同一个变异体被归到根本不 import 它的测试
+   *   文件上（sign.ts 的变异体归到 courseware 的测试）。归属错 → 按它挑测试就
+   *   挑错 → 假存活。真正的修法在包装插件里：直接不按测试名挑测试，
+   *   `coverageAnalysis` 设成什么都不会再影响死活判定。
    *
    * 代价：每个变异体跑一遍全部测试（只对变更文件跑时仍可接受，见报告耗时），
-   * 且不会有 NoCoverage 分类、不能用 ignoreStatic。
+   * 且不会有可用的 NoCoverage 分类、不能用 ignoreStatic。
    */
   coverageAnalysis: 'off',
   vitest: { related: false },
@@ -130,6 +129,19 @@ const config = {
    *   1. `cleanTempDir: 'always'`：成功失败都删，跑完不留副本；
    *   2. `eslint.config.mjs` 的 ignores 里加 `.stryker-tmp` 的忽略模式
    *      （remark 适配脚本的忽略表同样要加）。
+   *
+   * **绝不要在沙箱里跑 pnpm/npm 命令**（血泪教训，2026-10-14 实际发生）：
+   * `symlinkNodeModules` 默认为 true，沙箱里的 node_modules 是**指回真实仓库的
+   * junction**。在沙箱里跑 `pnpm install` / `pnpm exec` / `pnpm -r test` 时，包管理器
+   * 会通过 junction 改写**真实** node_modules：当时全仓的依赖软链被改成指向
+   * `.stryker-tmp/sandbox-XXXX/...`，沙箱一删，真实树就断了（`check-all` 红三条、
+   * `pnpm test` 触发失败的 install）。修法：删掉沙箱，在仓库根重跑
+   * `CI=true pnpm install`。所以 `testRunner: 'command'` 配 pnpm 命令这条路线是
+   * 不可用的——它每次变异体运行都会触发 install，失败一次就记成「变异体被杀」。
+   *
+   * 另一个看起来能隔离的方案 `symlinkNodeModules: false` 实测**不可用**：关掉之后
+   * 沙箱里没有 node_modules，依赖解析不到，dry run 只跑到 78 个测试（健康时 319 个），
+   * 漏跑的测试会让变异体假存活——正是这次要修的那类问题。
    */
   tempDirName: '.stryker-tmp',
   cleanTempDir: 'always',
