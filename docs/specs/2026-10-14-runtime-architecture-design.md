@@ -158,7 +158,7 @@ interface PlatformAdapter {
 
 ## 11. 未完成
 
-1. **变异测试暂不作门禁**：Stryker 能跑、能出报告，但实测 survivor 里约 18% 是假存活（报告 `testsCompleted=0`，手工强制激活同一变异体后测试确实失败），因此分数不可信。先修 runner 兼容问题（`vitest@5.0.2 × vitest-runner@10`），再考虑接入。
+1. **变异测试暂不作门禁**：Stryker 能跑、能出报告，但实测 survivor 里约 18% 是假存活（报告 `testsCompleted=0`，手工强制激活同一变异体后测试确实失败），因此分数不可信。已升到 vitest 5.0.4 复测，**假存活依旧**（同样 4 个 testsCompleted=0），因此不是版本落后导致的，要查 Stryker 的 perTest 覆盖映射为什么对这些行选不到测试；查清前不接入。
 2. **`background/mooc/execute/work.ts` 零测试覆盖**：全量变异跑（219 个变异体、0 killed）暴露——没有测试 import 它。
    弹窗是样板。
 2. **注入面板 shadow DOM 化**：组件层已按「不依赖全局样式」写，面板本身仍按老方式注入宿主页面，
