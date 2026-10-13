@@ -405,6 +405,43 @@ const clientHits = contentScripts.filter((file) =>
 );
 record('内容脚本不建客户端', clientHits.length === 0, clientHits.map(rel).join('  '));
 
+// ---------- 13. 术语 ----------
+//
+// 「同一概念只用一种写法」。AI 改动最容易在这里漂移：新加一个模块时顺手
+// 起个近义词（selfReview、learnUnit），于是同一件事出现两套词，之后每次改动
+// 都要先猜用哪个。这里把唯一写法与已绝迹的别名都写下来——别名一旦回来即失败。
+//
+// 两处**有意保留**的分裂，不要照下面的表去"修"：
+//   - 互评：平台接口层是它的叫法（MocEvaluateBean / getEvaluateDetail /
+//     submitEvaluation），我们自己的概念用 review（AutoReviewSettings / reviewable）。
+//   - 得分指导：模块叫 guidance，设置键叫 homeworkAnswers（键是持久化的公开结构，
+//     改名要迁移），界面文案是「作业得分指导」。三者指向同一功能。
+// 前者是分层命名（平台叫法只在平台层），后者待命名决定后再统一。
+
+console.log('');
+console.log('=== 术语 ===');
+
+const TERMS = [
+  ['自评', 'selfEvaluate', /\bself(?:Review|Evaluation|Judge)\b/],
+  ['课件单元', 'unit / CourseUnit', /\b(?:learn|lesson)Unit\b/],
+  ['工作项', 'work / CourseWork', /\bworkItem\b/],
+  ['待办（协议）', 'Pending*', /\b(?:todo|pending)List\b/],
+  ['得分指导', 'guidance', /\b(?:referenceAnswer|answerKey)\b/],
+  ['题库', 'Bank*（getQuizBank）', /\b(?:bankList|questionBank)\b/],
+];
+
+const termHits = [];
+for (const file of [
+  ...collect(join(ROOT, 'apps'), (n) => n.endsWith('.ts')),
+  ...collect(join(ROOT, 'packages'), (n) => n.endsWith('.ts')),
+]) {
+  const text = readFileSync(file, 'utf8');
+  for (const [concept, canonical, alias] of TERMS) {
+    if (alias.test(text)) termHits.push(`${rel(file)} 用了「${concept}」的别名（应写 ${canonical}）`);
+  }
+}
+record('同一概念没有第二种写法', termHits.length === 0, termHits.slice(0, 4).join('  '));
+
 // ---------- 汇总 ----------
 
 const failed = results.filter((r) => !r.ok);
