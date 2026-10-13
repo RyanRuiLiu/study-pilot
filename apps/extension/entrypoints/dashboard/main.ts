@@ -6,6 +6,7 @@
  * 单元明细是唯一的例外，它由用户按「读取最新明细」显式触发，见 details.ts。
  * 快照有多旧由页面上那行「上次读取」如实说明。
  *
+ * 快照是**平台的原样数据**（慕课的字段），看板直接按它渲染，中间没有中立模型。
  * 装配与生命周期在这里，展示逻辑在同目录的 render.ts（看板本体）与 details.ts（明细）。
  */
 
@@ -14,16 +15,18 @@ import '../../src/ui/theme.css';
 import '../../src/ui/components.css';
 import './style.css';
 
+import type { Snapshot } from '../../src/background/mooc/snapshot';
 import { sendToBackground } from '../../src/platform/messaging';
 import { required } from '../../src/ui/dom';
 import { formatDateTime } from '../../src/features/format';
-import type { DashboardView } from '../../src/domain/task';
 import {
+  boardItems,
   DEFAULT_FILTERS,
-  filterTasks,
-  KIND_LABEL,
+  filterItems,
+  kindOptions,
   MODE_LABEL,
   STATE_FILTERS,
+  type BoardItem,
   type Filters,
 } from './render.ts';
 import { renderBoard } from './render.ts';
@@ -38,7 +41,7 @@ const stateEl = required<HTMLSelectElement>('#state');
 const reloadEl = required<HTMLElement>('#reload');
 const detailsSlot = required<HTMLElement>('#details-app');
 
-let view: DashboardView = { fetchedAt: 0, courses: [], tasks: [] };
+let view: Snapshot | null = null;
 let filters: Filters = { ...DEFAULT_FILTERS };
 
 /*
@@ -57,15 +60,15 @@ function option(value: string, label: string): HTMLOptionElement {
   return element;
 }
 
-/** 按当前数据重建下拉项：课程随快照变，类别、做法与状态是固定集合。 */
+/** 按当前数据重建下拉项：课程与类别跟着快照走，做法与状态是固定集合。 */
 function fillOptions(): void {
   courseEl.replaceChildren(
     option('all', '全部课程'),
-    ...view.courses.map((course) => option(String(course.courseId), course.name)),
+    ...(view?.courses ?? []).map((course) => option(String(course.courseId), course.courseName)),
   );
   kindEl.replaceChildren(
     option('all', '全部类别'),
-    ...Object.entries(KIND_LABEL).map(([value, label]) => option(value, label)),
+    ...kindOptions(view).map((kind) => option(kind, kind)),
   );
   modeEl.replaceChildren(
     option('all', '全部做法'),
@@ -79,6 +82,10 @@ function fillOptions(): void {
   stateEl.value = filters.state;
 }
 
+function allItems(): BoardItem[] {
+  return (view?.courses ?? []).flatMap(boardItems);
+}
+
 /**
  * 画看板本体。
  *
@@ -86,10 +93,10 @@ function fillOptions(): void {
  * 每次筛选都把它拉回快照那一份，用户刚点出来的最新明细就白读了。
  */
 function paintBoard(): void {
-  fetchedEl.textContent = view.fetchedAt
+  fetchedEl.textContent = view !== null && view.fetchedAt
     ? `上次读取：${formatDateTime(view.fetchedAt)}`
     : '还没有读取过数据';
-  renderBoard(app, view, filterTasks(view.tasks, filters));
+  renderBoard(app, view, filterItems(allItems(), filters));
 }
 
 /**
