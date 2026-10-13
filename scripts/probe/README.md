@@ -74,11 +74,16 @@ node scripts/probe/checks/check-all.mjs
 
 | 文件 | 验证什么 |
 |---|---|
-| `check-release.mjs` | 发布前必过项：文件长度、依赖方向、唯一来源、术语、代码卫生、文档引用、版本号一致、写路径只在后台、内容脚本不持客户端、交付文件齐备 |
+| `check-release.mjs` | 发布前必过项：交付文件齐备、无身份信息、界面文案与术语、写路径只在后台、内容脚本不持客户端、代做类默认关闭 |
 | `check-copy.mjs` | 文案：内部术语、口语化、与功能是否一致、标点是否统一 |
 | `check-privacy.mjs` | 隐私政策是否覆盖申请的全部权限 |
-| `check-all.mjs` | 依次跑上面三个，任一失败即退出 1 |
+| `check-all.mjs` | 依次跑全部门禁（本目录 3 个 + `scripts/verify/` 下 6 个适配脚本），任一失败即退出 1，并核对项数快照 |
 | `verify-package.mjs` | 打包产物能否被加载、页面能否打开（发布前跑） |
+
+「文件长度、依赖方向、唯一来源、术语、代码卫生」这类规则不再由自写脚本判定，而是各自交给标准工具
+（ESLint / knip / syncpack / remark 等），`scripts/verify/` 下的适配脚本只做一件事：把工具结果转成
+「通过/失败 名称」两行。规则本身写在 [eslint.config.mjs](../../eslint.config.mjs) 与各工具配置里；
+`expected-checks.json` 记「该有哪些检查项」，运行结果与它不一致即失败——删门禁必须同时改快照。
 
 其余自检脚本（锚点定位、顶栏稳定、图标居中、控件尺寸、左侧导航、明细链接、
 `selfcheck*`、`dryrun-tasks`、会话恢复）在结论确认后**已删除**：它们的判断

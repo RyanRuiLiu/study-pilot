@@ -13,11 +13,11 @@ apps/extension ──► packages/ai ──► packages/core
 
 | 层 | 知道什么 | 不知道什么 |
 |---|---|---|
-| `packages/ai` | 怎么把一段对话发出去（OpenAI 兼容 `/chat/completions`）、超时、失败分类 | 业务：不认识课件、讨论、题目；不读设置 |
-| `apps/extension/src/ai` | 任务表（提示词、输出解析）、重试策略、权限、把设置变成端口 | 平台协议 |
-| `packages/platform-mooc` | 「讨论单元要有一条回复」这一事实，依赖注入的 `TextGenerator` 端口 | 任何厂商、任何提示词、任何密钥 |
+| [packages/ai](../packages/ai/) | 怎么把一段对话发出去（OpenAI 兼容 `/chat/completions`）、超时、失败分类 | 业务：不认识课件、讨论、题目；不读设置 |
+| [apps/extension/src/ai](../apps/extension/src/ai/) | 任务表（提示词、输出解析）、重试策略、权限、把设置变成端口 | 平台协议 |
+| [packages/platform-mooc](../packages/platform-mooc/) | 「讨论单元要有一条回复」这一事实，依赖注入的 `TextGenerator` 端口 | 任何厂商、任何提示词、任何密钥 |
 
-`packages/ai` 与 `transport` 平级、只依赖 `core`。**平台那份请求节流不适用于模型调用**：两者是不同服务，互不影响。
+[packages/ai](../packages/ai/) 与 `transport` 平级、只依赖 `core`。**平台那份请求节流不适用于模型调用**：两者是不同服务，互不影响。
 
 ## 2. 设置
 

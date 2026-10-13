@@ -37,7 +37,11 @@
 
 **整理待办** — 把所选课程下未完成的单元测验、作业、考试、互评汇到一处，
 标明每一项的截止时间与当前状态，点击直达对应页面。
-已过截止的单独列出，保留三天后不再显示（历史可在设置页的单元明细查看）。
+已过截止的单独列出，保留三天后不再显示。
+
+**看板** — 一个只读页面，按课程列出进度、待办与失败项，可展开看每个任务的状态、
+截止与得分，并支持按课程、类别、做法与状态筛选。数据来自本地快照，
+**打开看板不会向平台发请求**，页面上会写明「上次读取」时间。
 
 **桌面提醒** — 分两类，各自可以关闭：
 
@@ -151,16 +155,16 @@ node scripts/probe/checks/verify-package.mjs   # 打包产物能被浏览器加�
 |---|---|
 | [PRIVACY.md](PRIVACY.md) | 隐私政策：接触哪些数据、权限用途、数据存哪 |
 | [development.md](docs/development.md) | 项目现状、改动纪律、调试环境限制。**动手前先读** |
-| [architecture.md](docs/architecture.md) | 分层、运行模型、关键设计决策 |
-| [mooc.md](docs/platforms/mooc.md) | 平台接口、签名协议、路由模型 |
-| [course-model.md](docs/platforms/course-model.md) | 课程与单元的数据模型 |
-| [reverse.md](docs/platforms/reverse.md) | 逆向取证的方法与产物位置 |
+| [architecture.md](docs/architecture.md) | 分层、运行模型、关键设计决策（只写为什么） |
+| [platforms/mooc.md](docs/platforms/mooc.md) | 平台实测记录：签名、凭证、页面结构、课程模型、课件完成、逆向取证 |
+| [ai.md](docs/ai.md) | 唯一 AI 用途（讨论留言）的接入、权限与失败语义 |
+| [运行架构设计](docs/specs/2026-10-14-runtime-architecture-design.md) | 三页职责、组件层、门禁清单与未完成项 |
 
 工具链的完整说明见 [scripts/probe/README.md](scripts/probe/README.md)。
 
-文档里的结论标注取证等级：`[已实测]` 在真实账号上跑过、
-`[有样本]` 曾抓到过真实响应但未再次复现、`[仅静态]` 只从线上代码读出。
-抓取到的样本不入库，取证等级记录的是验证方式，不是文件。
+文档里的结论标注取证等级：`[源码]` 从平台 bundle 静态读出（附偏移）、
+`[实测]` 在真实账号上跑过、`[待核]` 尚未验证。抓取到的样本不入库，
+取证等级记录的是验证方式，不是文件。
 
 ## 许可
 

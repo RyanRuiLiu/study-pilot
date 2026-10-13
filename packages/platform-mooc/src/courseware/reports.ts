@@ -7,7 +7,7 @@
  * 「平台不记账」——界面上看不出是哪一处写的。
  *
  * 字段取值一律来自课程结构或平台下发的配置，本模块不自造数据。
- * 报文与实测见 docs/platforms/courseware.md。
+ * 报文与实测见 docs/platforms/mooc.md。
  */
 
 import { ok, type Result } from '@study-pilot/core';

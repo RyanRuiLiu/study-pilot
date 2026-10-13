@@ -53,5 +53,8 @@
   ],
   "check-version-literal.mjs": [
     "版本号只有一个来源（package.json）"
+  ],
+  "check-doc-refs.mjs": [
+    "源码注释引用的文档与节号都存在（doc-refs）"
   ]
 }

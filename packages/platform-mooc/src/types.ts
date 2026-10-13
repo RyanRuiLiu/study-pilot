@@ -110,7 +110,7 @@ export interface CourseWork {
 }
 
 /**
- * 课件单元类型。取值与含义见 docs/platforms/course-model.md 第 3 节，
+ * 课件单元类型。取值与含义见 docs/platforms/mooc.md 第 11.3 节，
  * 出处 `core/index.js:20203-20215`（`edu.u.CONST`）。
  *
  * 这是全项目唯一的类型编号来源：结构解析、行为注册、设置文案都引用它，
@@ -139,7 +139,7 @@ export const UNIT_TYPE = {
  * 课件单元是「要看的内容」——视频、文档、文本、随堂测验、讨论。
  * 两者的取值重叠而含义不同（单元 3 是文档，工作项 3 是作业），不能混用。
  *
- * 位置：`chapters[].lessons[].units[]`，见 docs/platforms/course-model.md 第 2 节。
+ * 位置：`chapters[].lessons[].units[]`，见 docs/platforms/mooc.md 第 11.2 节。
  */
 export interface CourseUnit {
   /** 单元 id。上报时报作 `unitId` */
