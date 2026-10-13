@@ -427,6 +427,7 @@ function unitOf(overrides: Partial<CourseUnit> = {}): CourseUnit {
   return {
     unitId: 900,
     contentId: 901,
+    termId: 1,
     lessonId: 902,
     lessonName: '1.1 课时',
     name: '示例视频',

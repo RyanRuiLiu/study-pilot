@@ -221,6 +221,29 @@ export interface CourseWork {
 }
 
 /**
+ * 课件单元类型。取值与含义见 docs/platforms/course-model.md 第 3 节，
+ * 出处 `core/index.js:20203-20215`（`edu.u.CONST`）。
+ *
+ * 这是全项目唯一的类型编号来源：结构解析、行为注册、设置文案都引用它，
+ * 不允许在别处再抄一份数字。
+ */
+export const UNIT_TYPE = {
+  VIDEO: 1,
+  VIDEO_SRT: 2,
+  PDF: 3,
+  TEXT: 4,
+  QUESTION: 5,
+  DISCUSS: 6,
+  LIVE: 7,
+  COLUMN_CONTENT: 8,
+  RELATED_LIVE: 9,
+  MUSIC_VIDEO: 10,
+  MUSIC_EXERCISE: 11,
+  MUSIC_HOMEWORK: 12,
+  INTERACTIVE_COURSEWARE: 15,
+} as const;
+
+/**
  * 课件单元。
  *
  * 与 `CourseWork` 是两套东西：工作项是「要交的作业/测验/考试」，
@@ -232,13 +255,15 @@ export interface CourseWork {
 export interface CourseUnit {
   /** 单元 id。上报时报作 `unitId` */
   unitId: number;
-  /** 资源 id。视频是视频 id，文档是文档 id，上报时按类型报成 `videoId` 或不报 */
+  /** 资源 id。视频是视频 id，文档是文档 id */
   contentId: number;
-  /** 所属课时 id。上报必须带 */
+  /** 所属学期。取题库等按学期维度的数据要用它 */
+  termId: number;
+  /** 所属课时 id */
   lessonId: number;
   lessonName: string;
   name: string;
-  /** `LESSONUNIT_*` 取值，见 docs/platforms/course-model.md 第 3 节 */
+  /** `UNIT_TYPE` 的取值 */
   contentType: number;
   /** 视频总时长（秒）。其它类型为 null */
   durationInSeconds: number | null;

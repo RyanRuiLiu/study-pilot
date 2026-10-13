@@ -61,6 +61,7 @@ interface RawUnit {
   id?: number;
   contentId?: number;
   contentType?: number;
+  termId?: number;
   name?: string | null;
   durationInSeconds?: number | null;
   completePercent?: number | null;
@@ -207,7 +208,7 @@ export async function getCourseStructure(
     for (const lesson of chapter.lessons ?? []) {
       const lessonId = Number(lesson.id ?? 0);
       for (const node of lesson.units ?? []) {
-        const unit = toUnit(node, lesson, lessonId);
+        const unit = toUnit(node, lesson, lessonId, Number(dto.id ?? termId));
         if (unit) units.push(unit);
       }
     }
@@ -240,13 +241,20 @@ export async function getCourseStructure(
  * `completePercent` / `viewStatus` 缺失时按 0 处理——缺失表示平台没报，
  * 而不是「已完成」，按 0 走会重新检查一次，代价只是一个请求。
  */
-function toUnit(node: RawUnit, lesson: RawLesson, lessonId: number): CourseUnit | null {
+function toUnit(
+  node: RawUnit,
+  lesson: RawLesson,
+  lessonId: number,
+  termId: number,
+): CourseUnit | null {
   const unitId = Number(node.id ?? 0);
   if (!unitId) return null;
 
   return {
     unitId,
     contentId: Number(node.contentId ?? 0),
+    // 单元自带 termId；缺失时用学期 id 兜底，两者本应相同
+    termId: Number(node.termId ?? termId),
     lessonId,
     lessonName: String(lesson.name ?? ''),
     name: String(node.name ?? ''),

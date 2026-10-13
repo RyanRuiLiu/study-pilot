@@ -81,6 +81,15 @@ export const DWR_ENDPOINTS = {
   /** 互评进度。参数 (testId, evaluatorId) */
   evaluateDetail: { bean: 'MocEvaluateBean', method: 'getEvaluateDetail' },
 
+  /**
+   * 单元的资源信息。参数 (contentId, contentType, isPreview, unitId)。
+   * 文档的总页数 `textPages` 只在这里，`.rpc` 侧没有等价字段
+   */
+  unitResource: { bean: 'CourseBean', method: 'getLessonUnitLearnVo' }, // [实测]
+
+  /** [写操作] 在讨论帖下发表回复。参数 (回复体, 编辑器附件)。页面点「发表回复」走的就是它 */
+  addReply: { bean: 'MocForumBean', method: 'addReply' }, // [实测]
+
   /*
    * TermBean.getNewestItems 曾经在这里，现已移除。
    *
