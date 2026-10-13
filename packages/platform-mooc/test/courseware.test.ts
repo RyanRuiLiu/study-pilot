@@ -160,15 +160,12 @@ describe('文档：逐页上报，进度按页码推进', () => {
     }
   });
 
-  it('拿不到页数时退回一次完成上报，不猜页数', async () => {
+  it('拿不到页数时返回失败：不发任何上报，交人工', async () => {
     const { client, rpcCalls } = clientStub({ getLessonUnitLearnVo: 's0.textUrl="x";\n' });
-    await completeUnit(client, unitOf({ contentType: UNIT_TYPE.PDF }));
+    const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.PDF }));
 
-    const pages = rpcCalls('saveMocContentLearn');
-    expect(pages).toHaveLength(1);
-    expect(pages[0]?.body).toEqual({
-      dto: { unitId: 1001, contentType: UNIT_TYPE.PDF, finished: true },
-    });
+    expect(result.ok).toBe(false);
+    expect(rpcCalls('saveMocContentLearn')).toHaveLength(0);
   });
 });
 
@@ -202,7 +199,7 @@ describe('随堂测验：像真人一样交一份答卷', () => {
     expect(rpcCalls('saveMocContentLearn')).toHaveLength(1);
   });
 
-  it('题库缺答案时不提交——只写一半交上去会留下低分记录', async () => {
+  it('题库缺答案时返回失败：不交残缺答卷，也不报完成', async () => {
     const { client, rpcCalls } = clientStub({
       getOpenQuizPaperDto: { code: 0, message: '', result: paper },
       getQuestionListByTermId: {
@@ -211,11 +208,11 @@ describe('随堂测验：像真人一样交一份答卷', () => {
         result: [{ id: 9001, optionDtos: [{ id: 101, answer: true }] }],
       },
     });
-    await completeUnit(client, unitOf({ contentType: UNIT_TYPE.QUESTION }));
+    const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.QUESTION }));
 
+    expect(result.ok).toBe(false);
     expect(rpcCalls('submitAnswers')).toHaveLength(0);
-    // 完成上报照发：完成与作答本来就是两件事
-    expect(rpcCalls('saveMocContentLearn')).toHaveLength(1);
+    expect(rpcCalls('saveMocContentLearn')).toHaveLength(0);
   });
 });
 

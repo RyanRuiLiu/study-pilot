@@ -15,10 +15,11 @@
  * 请求间隔不由本模块管：`postLearnInfo` 走共享节流器，`-2` 由 RPC 层退避重试。
  */
 
-import { ok } from '@study-pilot/core';
+import { err, ok } from '@study-pilot/core';
+import { apiError } from '@study-pilot/transport';
 import { UNIT_TYPE } from '../types.ts';
 import type { UnitBehavior } from './behavior.ts';
-import { baseDto, completionDto, postLearnInfo } from './reports.ts';
+import { baseDto, postLearnInfo } from './reports.ts';
 import { getUnitResource } from './resource.ts';
 
 /**
@@ -33,16 +34,17 @@ export const documentBehavior: UnitBehavior = {
   type: UNIT_TYPE.PDF,
   ready: () => true,
   async run(client, unit) {
-    const resource = await getUnitResource(client, unit);
-    const pages = resource.ok ? resource.value.textPages : null;
-
     /*
-     * 拿不到页数时退回「打开即完成」——真人打开单页文档也只需一次上报。
-     * 不猜页数：编一个数字会让进度与平台上的页数对不上。
+     * 唯一路径：取页数 → 逐页上报（末页 finished）。
+     *
+     * 页数拿不到时返回失败，不退化成「一条完成上报」——那样进度会与平台上的
+     * 页数对不上，而用户看到的是「已完成」。宁可失败让他手动处理。
      */
-    if (pages === null || pages <= 1) {
-      const result = await postLearnInfo(client, completionDto(unit));
-      return result.ok ? ok('reported') : result;
+    const resource = await getUnitResource(client, unit);
+    if (!resource.ok) return resource;
+    const pages = resource.value.textPages;
+    if (pages === null) {
+      return err(apiError(-1, '平台没有给出这份文档的总页数，无法按页上报'));
     }
 
     for (let page = 1; page <= pages; page += 1) {

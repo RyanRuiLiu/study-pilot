@@ -18,8 +18,10 @@ export type AiErrorKind =
 export interface AiError {
   kind: AiErrorKind;
   message: string;
+  /** 仅 `http` 类有：HTTP 状态码。调用方据此决定要不要重试（5xx/429 值得） */
+  status?: number;
 }
 
-export function aiError(kind: AiErrorKind, message: string): AiError {
-  return { kind, message };
+export function aiError(kind: AiErrorKind, message: string, status?: number): AiError {
+  return status === undefined ? { kind, message } : { kind, message, status };
 }

@@ -92,12 +92,23 @@ export interface SnapshotCourse {
 }
 
 export interface Snapshot {
+  /**
+   * 快照结构版本。
+   *
+   * 形状变了就递增：读到的版本对不上时**整份丢弃**（下次刷新会重写），
+   * 而不是给旧数据补字段。补字段就是兼容层——它会让「旧数据」与「新数据」
+   * 同时存在于代码的假设里，而两者本该只有一种。
+   */
+  version: number;
   /** 拉到这份数据的时刻 */
   fetchedAt: number;
   /** 拉取那天的本地日期键，用于判断「今天全量拉过没有」 */
   fetchedDate: string;
   courses: SnapshotCourse[];
 }
+
+/** 当前的快照结构版本。字段含义变化时递增。 */
+export const SNAPSHOT_VERSION = 1;
 
 const item = storage.defineItem<Snapshot | null>('local:study-pilot-snapshot', {
   fallback: null,
@@ -113,15 +124,8 @@ const item = storage.defineItem<Snapshot | null>('local:study-pilot-snapshot', {
 export async function readSnapshot(): Promise<Snapshot | null> {
   const snapshot = await item.getValue();
   if (!snapshot) return null;
-  /*
-   * 旧版本的快照没有 units 字段（课件单元是后加的）。
-   * 读的时候补成空数组，调用方只需处理一种形状——否则每处用到 units 的地方
-   * 都要写一次 `?? []`，漏掉一处就是崩溃。
-   */
-  return {
-    ...snapshot,
-    courses: snapshot.courses.map((course) => ({ ...course, units: course.units ?? [] })),
-  };
+  // 结构版本对不上：这份缓存不可用，丢弃即可——下次读取会重写一份
+  return snapshot.version === SNAPSHOT_VERSION ? snapshot : null;
 }
 
 export async function writeSnapshot(snapshot: Snapshot): Promise<void> {
@@ -130,10 +134,11 @@ export async function writeSnapshot(snapshot: Snapshot): Promise<void> {
 
 /** 用当前时间构造一份快照的元信息。 */
 export function snapshotStamp(now: number = Date.now()): {
+  version: number;
   fetchedAt: number;
   fetchedDate: string;
 } {
-  return { fetchedAt: now, fetchedDate: dateKey(now) };
+  return { version: SNAPSHOT_VERSION, fetchedAt: now, fetchedDate: dateKey(now) };
 }
 
 /** 今天是否已经全量拉取过。 */

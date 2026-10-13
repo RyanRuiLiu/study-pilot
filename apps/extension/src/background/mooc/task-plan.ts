@@ -15,6 +15,7 @@
  */
 
 import { isCompletable, isUnitComplete, type CourseUnit } from '@study-pilot/platform-mooc';
+import { hasTextGenerator } from '../../ai';
 import type { Settings } from '../../settings';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from './snapshot';
 
@@ -285,8 +286,13 @@ export function derivePlan(
      * 不进计划，否则它们会每轮重现、永远做不掉。
      */
     if (on.courseware) {
+      /*
+       * 能力来自设置：讨论需要 AI 生成回复，没配置就**不进计划**——
+       * 否则那会是一条每轮都失败的自动项。
+       */
+      const capabilities = { text: hasTextGenerator(settings) };
       for (const unit of course.units) {
-        if (!isUnitComplete(unit) && isCompletable(unit)) {
+        if (!isUnitComplete(unit) && isCompletable(unit, capabilities)) {
           auto.push({ kind: 'courseware', course, unit });
         }
       }

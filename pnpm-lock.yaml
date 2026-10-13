@@ -17,6 +17,9 @@ importers:
 
   apps/extension:
     dependencies:
+      '@study-pilot/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@study-pilot/core':
         specifier: workspace:*
         version: link:../../packages/core

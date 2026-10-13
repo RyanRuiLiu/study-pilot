@@ -104,7 +104,13 @@ export function createChatClient(options: ChatClientOptions): ChatClient {
         } catch {
           snippet = '';
         }
-        return err(aiError('http', `接口返回 ${response.status}${snippet ? `：${snippet}` : ''}`));
+        return err(
+          aiError(
+            'http',
+            `接口返回 ${response.status}${snippet ? `：${snippet}` : ''}`,
+            response.status,
+          ),
+        );
       }
 
       let text: string;
