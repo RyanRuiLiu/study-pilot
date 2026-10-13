@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseMoocLocation } from '../src/platform/mooc-url';
+import { parseMoocLocation } from '../src/platform/mooc/url';
 
 const LEARN_BASE = 'https://www.icourse163.org/learn/NTU-1001753142';
 

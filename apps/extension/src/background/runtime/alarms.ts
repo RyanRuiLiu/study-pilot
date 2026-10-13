@@ -12,7 +12,7 @@
  * 检查一次，把落下的补上。
  */
 
-import { getSettings } from '../settings';
+import { getSettings } from '../../settings';
 
 /** alarm 名称。固定值，重复创建时先按名字清掉，保证幂等。 */
 const ALARM_NAME = 'study-pilot-check';

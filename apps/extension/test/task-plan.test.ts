@@ -15,8 +15,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { derivePlan, shouldRefresh, type Plan } from '../src/background/task-plan';
-import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/background/snapshot';
+import { derivePlan, shouldRefresh, type Plan } from '../src/background/mooc/task-plan';
+import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/background/mooc/snapshot';
 import type { Settings } from '../src/settings';
 
 const DAY = 24 * 60 * 60 * 1000;

@@ -9,7 +9,7 @@
  */
 
 import type { CourseSummary } from '@study-pilot/platform-mooc';
-import type { MoocSession } from './mooc-session';
+import type { MoocSession } from './mooc/session';
 
 // ---------- 请求 ----------
 
@@ -42,7 +42,7 @@ export type BackgroundRequest =
   | { type: 'UNIT_DETAILS' }
   | { type: 'NOTIFY_SAMPLE' };
 
-import type { LiveRunState, TaskState } from '../background/scheduler';
+import type { LiveRunState, TaskState } from '../background/runtime/scheduler';
 
 /** 诊断报告，一次性给出后台的关键状态。 */
 export interface DiagnoseReport {

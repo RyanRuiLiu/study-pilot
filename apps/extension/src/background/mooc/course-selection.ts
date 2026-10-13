@@ -9,7 +9,7 @@
  */
 
 import type { CourseSummary } from '@study-pilot/platform-mooc';
-import type { SelectedCourse } from '../settings';
+import type { SelectedCourse } from '../../settings';
 
 /**
  * 把平台返回的课程合并成配置里的课程列表。

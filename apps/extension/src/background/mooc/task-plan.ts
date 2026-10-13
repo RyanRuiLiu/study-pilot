@@ -14,7 +14,7 @@
  * 却不知道这一条到底会不会被自动处理，因为答案取决于今天是不是执行日。
  */
 
-import type { Settings } from '../settings';
+import type { Settings } from '../../settings';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from './snapshot';
 
 const DAY_MS = 24 * 60 * 60 * 1000;

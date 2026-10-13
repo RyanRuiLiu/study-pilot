@@ -16,10 +16,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { composeNotice, type NoticeSettings } from '../src/background/reminder';
-import type { Plan, ManualItem, AutoAction } from '../src/background/task-plan';
-import type { ExecResult } from '../src/background/execute';
-import type { SnapshotCourse, SnapshotWork } from '../src/background/snapshot';
+import { composeNotice, type NoticeSettings } from '../src/background/mooc/reminder';
+import type { Plan, ManualItem, AutoAction } from '../src/background/mooc/task-plan';
+import type { ExecResult } from '../src/background/mooc/execute';
+import type { SnapshotCourse, SnapshotWork } from '../src/background/mooc/snapshot';
 
 const NOW = new Date(2026, 8, 26, 10, 0, 0).getTime();
 const DAY = 24 * 60 * 60 * 1000;

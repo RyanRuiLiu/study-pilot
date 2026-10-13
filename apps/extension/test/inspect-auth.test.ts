@@ -61,8 +61,8 @@ function course(termId: number) {
 
 describe('inspect 的会话失效记账', () => {
   it('全部课程都是未登录形态：抛 SessionExpiredError，而不是交出空快照', async () => {
-    const { inspect } = await import('../src/background/snapshot');
-    const { SessionExpiredError } = await import('../src/platform/mooc-session');
+    const { inspect } = await import('../src/background/mooc/snapshot');
+    const { SessionExpiredError } = await import('../src/platform/mooc/session');
     structureResults.set(1, authError);
     structureResults.set(2, authError);
 
@@ -72,7 +72,7 @@ describe('inspect 的会话失效记账', () => {
   });
 
   it('只有个别课程是未登录形态：其余课程照常进快照', async () => {
-    const { inspect } = await import('../src/background/snapshot');
+    const { inspect } = await import('../src/background/mooc/snapshot');
     structureResults.set(1, authError);
     structureResults.set(2, emptyStructure(2));
 
@@ -81,7 +81,7 @@ describe('inspect 的会话失效记账', () => {
   });
 
   it('全部是普通失败：报原来的错误，不误判成登录问题', async () => {
-    const { inspect } = await import('../src/background/snapshot');
+    const { inspect } = await import('../src/background/mooc/snapshot');
     structureResults.set(1, failWith('http', 'HTTP 502'));
     structureResults.set(2, failWith('network', '断网'));
 
@@ -91,7 +91,7 @@ describe('inspect 的会话失效记账', () => {
   });
 
   it('全部成功：返回完整快照，不抛任何东西', async () => {
-    const { inspect } = await import('../src/background/snapshot');
+    const { inspect } = await import('../src/background/mooc/snapshot');
     structureResults.set(1, emptyStructure(1));
     structureResults.set(2, emptyStructure(2));
 

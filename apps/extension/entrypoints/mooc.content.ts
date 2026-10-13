@@ -22,8 +22,8 @@
 import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '@study-pilot/platform-mooc';
 import { getSettings, watchSettings, type Settings } from '../src/settings';
-import { readTokenFromDocument } from '../src/platform/mooc-session';
-import { parseMoocLocation } from '../src/platform/mooc-url';
+import { readTokenFromDocument } from '../src/platform/mooc/session';
+import { parseMoocLocation } from '../src/platform/mooc/url';
 import {
   injectHomeworkAnswers,
   removeHomeworkAnswers,
