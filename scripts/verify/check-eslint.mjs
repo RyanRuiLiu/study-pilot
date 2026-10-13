@@ -77,6 +77,12 @@ const ITEMS = [
       (message.ruleId === null && /noInlineConfig/.test(message.message)),
     detail: (message) => `${message.file}:${message.line} ${message.message}`,
   },
+  {
+    /* 原先是一张自写 TERMS 表 + 别名正则；现在别名都在 eslint.config.mjs 的禁词表里。 */
+    name: '同一概念没有第二种写法',
+    takes: (message) => message.ruleId === 'id-denylist',
+    detail: (message) => `${message.file}:${message.line} ${message.message}`,
+  },
 ];
 
 for (const item of ITEMS) {

@@ -360,41 +360,16 @@ record('内容脚本不建客户端', clientHits.length === 0, clientHits.map(re
 
 // ---------- 13. 术语 ----------
 //
-// 「同一概念只用一种写法」。AI 改动最容易在这里漂移：新加一个模块时顺手
-// 起个近义词（selfReview、learnUnit），于是同一件事出现两套词，之后每次改动
-// 都要先猜用哪个。这里把唯一写法与已绝迹的别名都写下来——别名一旦回来即失败。
+// 「同一概念只用一种写法」。原先这里是一张自写 TERMS 表（概念 → 唯一写法 →
+// 别名正则），别名散落各处时靠正则扫全文。现在换成 eslint 的 id-denylist：
+// 别名都写在 eslint.config.mjs 的禁词表里，由 scripts/verify/check-eslint.mjs
+// 映射成门禁项。
 //
-// 两处命名边界，不要照下面的表去"修"：
-//   - 互评：平台接口层是它的叫法（MocEvaluateBean / getEvaluateDetail /
-//     submitEvaluation），我们自己的概念用 review（AutoReviewSettings / reviewable）。
-//     这是分层命名，不是分裂。
-//   - 得分指导统一到 guidance（模块、设置键、函数名都是）；设置键原为
-//     homeworkAnswers，改名时用 SETTINGS_VERSION 1 → 2 的迁移搬走了旧值，
-//     因此 normalize 里还留着一处旧键的字面量——那是有意的，不是漏改。
+// 两处命名边界已随注释迁到 eslint.config.mjs（互评层的 evaluate/review 分工、
+// 得分指导统一到 guidance 与 SETTINGS_VERSION 1 → 2 的迁移），信息没丢。
 
-console.log('');
 console.log('=== 术语 ===');
-
-const TERMS = [
-  ['自评', 'selfEvaluate', /\bself(?:Review|Evaluation|Judge)\b/],
-  ['课件单元', 'unit / CourseUnit', /\b(?:learn|lesson)Unit\b/],
-  ['工作项', 'work / CourseWork', /\bworkItem\b/],
-  ['待办（协议）', 'Pending*', /\b(?:todo|pending)List\b/],
-  ['得分指导', 'guidance', /\b(?:referenceAnswer|answerKey)\b/],
-  ['题库', 'Bank*（getQuizBank）', /\b(?:bankList|questionBank)\b/],
-];
-
-const termHits = [];
-for (const file of [
-  ...collect(join(ROOT, 'apps'), (n) => n.endsWith('.ts')),
-  ...collect(join(ROOT, 'packages'), (n) => n.endsWith('.ts')),
-]) {
-  const text = readFileSync(file, 'utf8');
-  for (const [concept, canonical, alias] of TERMS) {
-    if (alias.test(text)) termHits.push(`${rel(file)} 用了「${concept}」的别名（应写 ${canonical}）`);
-  }
-}
-record('同一概念没有第二种写法', termHits.length === 0, termHits.slice(0, 4).join('  '));
+console.log('（由 eslint 的 id-denylist 负责，见 scripts/verify/check-eslint.mjs）');
 
 // ---------- 14. 版本号 ----------
 //
