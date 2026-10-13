@@ -253,7 +253,6 @@ const MAX_LINES = 300;
  * 留着它的代价是「新超限文件仍需人发现」——所以它必须尽快变空。
  */
 const PENDING = [
-  'apps/extension/entrypoints/background.ts',
   'apps/extension/entrypoints/options/main.ts',
 ];
 
