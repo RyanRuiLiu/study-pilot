@@ -138,11 +138,18 @@ console.log('=== 与功能一致 ===');
 const options = FILES.filter((f) => f.startsWith('apps/extension/entrypoints/options/'))
   .map((f) => sources.get(f) ?? '')
   .join('\n');
-const runAllRow = options.match(/'立即执行',\s*'([^']+)'/);
+/*
+ * 设置页不再放「立即执行」（动作只留在弹窗与看板），因此断言跟着搬到弹窗的按钮上。
+ *
+ * 要求不变：说明必须讲「拉最新状态后执行」这件事本身，不得罗列任务类别——
+ * 逐条罗列会随功能增加而过时，这里出过两次错。
+ */
+const popupBar = sources.get('apps/extension/entrypoints/popup/index.html') ?? '';
+const runNow = popupBar.match(/title="(立即执行[^"]*)"/);
 record(
   '「立即执行」说明不逐条罗列任务类别',
-  !!runAllRow && !/(自动答题|自动互评|自动自评)/.test(runAllRow[1]),
-  runAllRow ? runAllRow[1] : '(未找到)',
+  !!runNow && !/(自动答题|自动互评|自动自评|自动完成课件|自动完成测验)/.test(runNow[1]),
+  runNow ? runNow[1] : '(未找到)',
 );
 
 /*
