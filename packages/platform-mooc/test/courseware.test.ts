@@ -219,11 +219,32 @@ describe('随堂测验：像真人一样交一份答卷', () => {
   });
 });
 
-describe('讨论：发一条回复，再报完成', () => {
-  it('回复走 DWR MocForumBean.addReply，内容带 postId', async () => {
-    const { client, dwrCalls, rpcCalls } = clientStub();
-    await completeUnit(client, unitOf({ contentType: UNIT_TYPE.DISCUSS, contentId: 6006 }));
+describe('讨论：AI 写回复，写不出来就失败（没有固定文案）', () => {
+  it('没有 AI 时不进计划，硬执行也返回失败且不发请求', async () => {
+    expect(isCompletable(unitOf({ contentType: UNIT_TYPE.DISCUSS }))).toBe(false);
+    expect(isCompletable(unitOf({ contentType: UNIT_TYPE.DISCUSS }), { text: true })).toBe(true);
 
+    const { client, calls } = clientStub();
+    const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.DISCUSS }));
+    expect(result.ok).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('回复走 DWR MocForumBean.addReply，内容由生成器给出', async () => {
+    const { client, dwrCalls, rpcCalls } = clientStub();
+    const seen: Array<{ task: string; input: string }> = [];
+    await completeUnit(
+      client,
+      unitOf({ contentType: UNIT_TYPE.DISCUSS, contentId: 6006, name: '讨论：静态工作点的稳定性问题' }),
+      {
+        generateText: async (request) => {
+          seen.push(request);
+          return { ok: true, text: '关于静态工作点的稳定性，我理解关键在于偏置电路的负反馈。' };
+        },
+      },
+    );
+
+    expect(seen).toEqual([{ task: 'discuss-reply', input: '讨论：静态工作点的稳定性问题' }]);
     const replies = dwrCalls('addReply');
     expect(replies).toHaveLength(1);
     const body = String((replies[0]?.body as { __raw?: string }).__raw ?? '');
@@ -231,14 +252,51 @@ describe('讨论：发一条回复，再报完成', () => {
     expect(body).toContain('c0-methodName=addReply');
     // 顶层对象内联、字段用引用：与抓到的真实报文一致
     expect(body).toContain('c0-e1=number:6006');
-    expect(body).toContain('c0-e2=string:<p>已学习本节内容。</p>');
     expect(body).toContain('c0-e3=number:0');
     expect(body).toContain(
       'c0-param0=Object_Object:{postId:reference:c0-e1,content:reference:c0-e2,anonymous:reference:c0-e3}',
     );
+    // 字符串值按百分号编码：真实抓包里就是 %3Cp%3E… 的形式
+    expect(body).toContain('c0-e2=string:%3Cp%3E');
     // 第二个参数（图片附件）不能省：少了它服务端报缺参数
     expect(body).toContain('c0-param1=Array:[]');
+    expect(decodeURIComponent(body)).toContain('我理解关键在于偏置电路的负反馈');
     expect(rpcCalls('saveMocContentLearn')).toHaveLength(1);
+  });
+
+  it('生成失败或不合规时返回失败：不留言、也不报完成', async () => {
+    const variants = [
+      { ok: false as const, reason: '超时' },
+      { ok: true as const, text: '好' + '很'.repeat(300) },
+      { ok: true as const, text: '   ' },
+    ];
+
+    for (const value of variants) {
+      const { client, dwrCalls, rpcCalls } = clientStub();
+      const result = await completeUnit(
+        client,
+        unitOf({ contentType: UNIT_TYPE.DISCUSS }),
+        { generateText: async () => value },
+      );
+
+      expect(result.ok).toBe(false);
+      expect(dwrCalls('addReply')).toHaveLength(0);
+      expect(rpcCalls('saveMocContentLearn')).toHaveLength(0);
+    }
+  });
+
+  it('生成内容里的链接被去掉，句子本身保留', async () => {
+    const { client, dwrCalls } = clientStub();
+    const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.DISCUSS }), {
+      generateText: async () => ({ ok: true, text: '看这里 https://example.com/answer 有详解' }),
+    });
+
+    expect(result.ok).toBe(true);
+    const body = decodeURIComponent(
+      String((dwrCalls('addReply')[0]?.body as { __raw?: string }).__raw ?? ''),
+    );
+    expect(body).toContain('看这里');
+    expect(body).not.toContain('example.com');
   });
 });
 

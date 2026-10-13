@@ -7,3 +7,4 @@
 
 export { md5hex, type Md5HexFn } from './md5.ts';
 export { ok, err, unwrap, type Ok, type Err, type Result } from './result.ts';
+export type { FetchLike } from './fetch.ts';

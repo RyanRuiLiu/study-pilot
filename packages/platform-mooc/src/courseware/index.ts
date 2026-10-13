@@ -25,7 +25,7 @@ import { ok, type Result } from '@study-pilot/core';
 import type { TransportError } from '@study-pilot/transport';
 import type { MoocClient } from '../client.ts';
 import type { CourseUnit } from '../types.ts';
-import type { BehaviorOutcome, UnitBehavior } from './behavior.ts';
+import type { BehaviorOutcome, CoursewareCapabilities, CoursewareContext, UnitBehavior } from './behavior.ts';
 import { discussBehavior } from './discuss.ts';
 import { documentBehavior } from './document.ts';
 import { textBehavior } from './text.ts';
@@ -48,10 +48,21 @@ export function isUnitComplete(unit: CourseUnit): boolean {
   return unit.completePercent >= 1;
 }
 
-/** 这个单元此刻能不能执行：注册表里有它，且结构里的数据够。 */
-export function isCompletable(unit: CourseUnit): boolean {
+/**
+ * 这个单元此刻能不能执行。
+ *
+ * 两个条件：注册表里有它，且**行为需要的能力当前具备**。
+ * 例如讨论需要 AI 生成回复，没有配置 AI 时它就进不了计划——
+ * 这样用户看到的是「未完成、需要自己处理」，而不是一条每轮都失败的自动项。
+ */
+export function isCompletable(
+  unit: CourseUnit,
+  capabilities: CoursewareCapabilities = { text: false },
+): boolean {
   const behavior = BY_TYPE.get(unit.contentType);
-  return behavior !== undefined && behavior.ready(unit);
+  if (!behavior || !behavior.ready(unit)) return false;
+  if (behavior.needs === 'text') return capabilities.text;
+  return true;
 }
 
 /**
@@ -59,14 +70,24 @@ export function isCompletable(unit: CourseUnit): boolean {
  *
  * 没有登记的类型的单元返回 `skipped`，不发任何请求——平台对这种类型怎么记账
  * 没有实测过，宁可不做也不猜。
+ *
+ * `context` 里可以注入文本生成器（AI）；不注入时各行为用固定文案，
+ * 因此「没装 AI」不会影响课件完成。
  */
 export async function completeUnit(
   client: MoocClient,
   unit: CourseUnit,
+  context: CoursewareContext = {},
 ): Promise<Result<BehaviorOutcome, TransportError>> {
   const behavior = BY_TYPE.get(unit.contentType);
   if (!behavior || !behavior.ready(unit)) return ok('skipped');
-  return behavior.run(client, unit);
+  return behavior.run(client, unit, context);
 }
 
-export type { BehaviorOutcome, UnitBehavior } from './behavior.ts';
+export type {
+  BehaviorOutcome,
+  CoursewareCapabilities,
+  CoursewareContext,
+  TextGenerator,
+  UnitBehavior,
+} from './behavior.ts';
