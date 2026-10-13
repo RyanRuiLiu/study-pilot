@@ -18,11 +18,6 @@ export function scheduleSection(): HTMLElement {
           '浏览器开着时每隔多少分钟检查一次。检查只读本地数据、不发请求，调小它不会增加网络负担。可设 5 到 360 分钟',
           numberInput(mooc.background.schedule.checkIntervalMinutes, 5, 360, '分钟', bindSetting<number>('mooc.background.schedule.checkIntervalMinutes')),
         ),
-        row(
-          '启动延迟',
-          '启动后等待多少分钟再开始检查，0 表示立即开始，可设 0 到 30 分钟。运行期间的定时检查不受它影响',
-          numberInput(mooc.background.schedule.startupDelayMinutes, 0, 30, '分钟', bindSetting<number>('mooc.background.schedule.startupDelayMinutes')),
-        ),
         row('上次运行', '最近一次运行的时间。这一轮无事可做时也计入', lastRunHint()),
       ]),
       platform('过期事项', '', [

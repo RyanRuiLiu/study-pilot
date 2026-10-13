@@ -39,7 +39,6 @@ function settingsWith(switches: {
         autoReview: { enabled: switches.review ?? false, comment: 'x' },
         autoSelfEvaluate: { enabled: switches.self ?? false },
         deadlineReminder: { enabled: true, advanceDays: 1 },
-        schedule: { startupDelayMinutes: 0 },
         courses: [],
       },
       foreground: {},
