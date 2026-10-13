@@ -45,6 +45,19 @@ export const ENDPOINTS = {
   /** 作业基础信息（含 aid）。参数 {tid, isDraft:false} */
   homeworkInfo: { bean: 'mocQuizRpcBean', method: 'getOpenHomeworkInfo' }, // [仅静态]
 
+  /**
+   * 学习相关配置。参数 {key:'mobile_config_web_server_config'}。
+   * 返回的 `result` 是一个 JSON 字符串，含 `learnTimeUploadPeriod`
+   * （上报周期，秒）与 `videoHeartBeatPeriod`。见 docs/platforms/courseware.md 第 2 节
+   */
+  commonConfig: { bean: 'commonBean', method: 'obtain' }, // [实测]
+
+  /**
+   * [写操作] 把一个课件单元标记为已学。参数 {dto}，dto 的形状按单元类型而定。
+   * 报文、取值来源与实测结果见 docs/platforms/courseware.md
+   */
+  completeUnit: { bean: 'courseRpcBean', method: 'saveMocContentLearn' }, // [实测]
+
   /** 取作业答卷（含参考答案）。参数 {tid, aid, evaluateId, withStdAnswerAndAnalyse, phase} */
   homeworkPaper: { bean: 'mocQuizRpcBean', method: 'getOpenHomeworkPaperDto' }, // [有样本]
 

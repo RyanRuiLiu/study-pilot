@@ -68,6 +68,7 @@ const now = Date.now();
 
 console.log('=== 开关 ===');
 console.log(`总开关        ${settings.enabled ? '开' : '关'}`);
+console.log(`自动完成课件  ${bg.autoCourseware.enabled ? '开' : '关'}`);
 console.log(`自动答题      ${bg.autoQuiz.enabled ? '开' : '关'}`);
 console.log(`自动互评      ${bg.autoReview.enabled ? '开' : '关'}`);
 console.log(`自动自评      ${bg.autoSelfEvaluate.enabled ? '开' : '关'}`);

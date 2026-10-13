@@ -17,7 +17,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { composeNotice, type NoticeSettings } from '../src/background/mooc/reminder';
-import type { Plan, ManualItem, AutoAction } from '../src/background/mooc/task-plan';
+import type { Plan, ManualItem, WorkAutoAction } from '../src/background/mooc/task-plan';
 import type { ExecResult } from '../src/background/mooc/execute';
 import type { SnapshotCourse, SnapshotWork } from '../src/background/mooc/snapshot';
 
@@ -72,7 +72,7 @@ function manual(
   return { course, work: work(name, deadline), deadline, reason };
 }
 
-function auto(kind: AutoAction['kind'], name = '第4章 单元测验'): AutoAction {
+function auto(kind: WorkAutoAction['kind'], name = '第4章 单元测验'): WorkAutoAction {
   return { kind, course, work: work(name), remaining: 0 };
 }
 

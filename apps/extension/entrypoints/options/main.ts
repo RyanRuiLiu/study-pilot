@@ -155,18 +155,6 @@ function textInput(value: string, onChange: (next: string) => void): HTMLInputEl
   return input;
 }
 
-/**
- * 次要按钮。用 base.css 的 button.quiet，与弹窗的次要按钮同款。
- */
-function quietButton(text: string, onClick: () => void): HTMLButtonElement {
-  const el = document.createElement('button');
-  el.type = 'button';
-  el.className = 'quiet';
-  el.textContent = text;
-  el.addEventListener('click', onClick);
-  return el;
-}
-
 /** 主按钮。用 base.css 的 button 默认样式。 */
 /**
  * 一段静态说明，用作没有控件的设置项右侧。
@@ -187,39 +175,6 @@ function button(text: string, onClick: () => void): HTMLButtonElement {
   el.textContent = text;
   el.addEventListener('click', onClick);
   return el;
-}
-
-/** 星期的显示名。索引与 Date.getDay() 一致，0 是周日。 */
-const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
-
-/** 星期多选。返回一组复选框，与后台调度用的 weekdays 数组对应。 */
-function weekdayPicker(value: number[], onChange: (next: number[]) => void): HTMLElement {
-  const box = document.createElement('div');
-  box.className = 'weekdays';
-
-  for (let day = 0; day < 7; day++) {
-    const label = document.createElement('label');
-    label.className = 'weekday';
-
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.checked = value.includes(day);
-
-    const text = document.createElement('span');
-    text.textContent = WEEKDAY_LABELS[day];
-
-    input.addEventListener('change', () => {
-      const next = new Set(value);
-      if (input.checked) next.add(day);
-      else next.delete(day);
-      onChange([...next].sort((a, b) => a - b));
-    });
-
-    label.append(input, text);
-    box.append(label);
-  }
-
-  return box;
 }
 
 /**
@@ -778,13 +733,6 @@ async function toggleCourse(termId: number, enabled: boolean): Promise<void> {
 
 // ---------- 动作 ----------
 
-/** 已勾选课程的 termId 列表。 */
-function selectedTermIds(): number[] {
-  return current.mooc.background.courses
-    .filter((course) => course.enabled)
-    .map((course) => course.termId);
-}
-
 function describeRejection(reason: string): string {
   return REJECTION_MESSAGES[reason as keyof typeof REJECTION_MESSAGES] ?? `执行失败：${reason}`;
 }
@@ -1125,6 +1073,11 @@ function render(): void {
 
     section('tasks', '自动任务', '开启后这些事会在检查时自动完成。做不了的仍然需要你自己处理，并在有结果时收到桌面通知。', [
       platform('慕课平台', 'icourse163.org', [
+        row(
+          '自动完成课件',
+          '对尚未完成的课件单元（视频、文档、文本、随堂测验、讨论）上报为已学。视频按平台给的时长记满',
+          toggle(mooc.background.autoCourseware.enabled, bindSetting<boolean>('mooc.background.autoCourseware.enabled')),
+        ),
         row(
           '自动完成测验',
           '对尚未提交的单元测验生成答案并提交。只处理客观题',

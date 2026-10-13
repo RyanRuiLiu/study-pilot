@@ -155,8 +155,3 @@ function readCookieFromDocument(name: string): string {
 export function readTokenFromDocument(): string {
   return readCookieFromDocument('NTESSTUDYSI');
 }
-
-/** 从 document.cookie 读取登录用户 id，未登录返回 0。 */
-export function readUserIdFromDocument(): number {
-  return parseUserId(readCookieFromDocument('STUDY_INFO'));
-}

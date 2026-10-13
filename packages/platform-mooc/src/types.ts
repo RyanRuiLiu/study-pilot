@@ -220,11 +220,40 @@ export interface CourseWork {
   test: WorkTest;
 }
 
+/**
+ * 课件单元。
+ *
+ * 与 `CourseWork` 是两套东西：工作项是「要交的作业/测验/考试」，
+ * 课件单元是「要看的内容」——视频、文档、文本、随堂测验、讨论。
+ * 两者的取值重叠而含义不同（单元 3 是文档，工作项 3 是作业），不能混用。
+ *
+ * 位置：`chapters[].lessons[].units[]`，见 docs/platforms/course-model.md 第 2 节。
+ */
+export interface CourseUnit {
+  /** 单元 id。上报时报作 `unitId` */
+  unitId: number;
+  /** 资源 id。视频是视频 id，文档是文档 id，上报时按类型报成 `videoId` 或不报 */
+  contentId: number;
+  /** 所属课时 id。上报必须带 */
+  lessonId: number;
+  lessonName: string;
+  name: string;
+  /** `LESSONUNIT_*` 取值，见 docs/platforms/course-model.md 第 3 节 */
+  contentType: number;
+  /** 视频总时长（秒）。其它类型为 null */
+  durationInSeconds: number | null;
+  /** 完成度。视频为「已学秒数 ÷ 总时长」，其余类型为 0 或 1 */
+  completePercent: number;
+  /** 0 未学；5 已学（部分学习也是 5） */
+  viewStatus: number;
+}
+
 export interface CourseStructure {
   termId: number;
   courseId: number;
   courseName: string;
   works: CourseWork[];
+  units: CourseUnit[];
 }
 
 /** 由 `test` 字段派生的状态。 */
@@ -334,15 +363,6 @@ export interface BankQuestion {
   optionDtos?: PaperOption[] | null;
   [key: string]: unknown;
 }
-
-/** 题型编号。来自上一代笔记，样本中的取值与之一致。 */
-export const QUESTION_TYPE = {
-  SINGLE: 1,
-  MULTIPLE: 2,
-  FILL_BLANK: 3,
-  TRUE_FALSE: 4,
-  SUBJECTIVE: 10,
-} as const;
 
 // ---------- 作业 ----------
 

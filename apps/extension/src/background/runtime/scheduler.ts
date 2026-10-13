@@ -197,8 +197,3 @@ export async function clearAwaitingLogin(): Promise<void> {
   if (!state.awaitingLogin) return;
   await writeState({ ...state, awaitingLogin: false });
 }
-
-/** 本地星期，0 是周日，6 是周六。 */
-export function weekday(now: number = Date.now()): number {
-  return new Date(now).getDay();
-}

@@ -15,6 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { CourseUnit } from '@study-pilot/platform-mooc';
 import { derivePlan, shouldRefresh, type Plan } from '../src/background/mooc/task-plan';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/background/mooc/snapshot';
 import type { Settings } from '../src/settings';
@@ -22,11 +23,17 @@ import type { Settings } from '../src/settings';
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date(2026, 8, 26, 10, 0, 0).getTime();
 
-function settingsWith(switches: { quiz?: boolean; review?: boolean; self?: boolean }): Settings {
+function settingsWith(switches: {
+  courseware?: boolean;
+  quiz?: boolean;
+  review?: boolean;
+  self?: boolean;
+}): Settings {
   return {
     enabled: true,
     mooc: {
       background: {
+        autoCourseware: { enabled: switches.courseware ?? false },
         autoQuiz: { enabled: switches.quiz ?? false },
         autoReview: { enabled: switches.review ?? false, comment: 'x' },
         autoSelfEvaluate: { enabled: switches.self ?? false },
@@ -66,7 +73,7 @@ function work(overrides: Partial<SnapshotWork> & { tid: number }): SnapshotWork 
   };
 }
 
-function snapshot(works: SnapshotWork[]): Snapshot {
+function snapshot(works: SnapshotWork[], units: CourseUnit[] = []): Snapshot {
   const course: SnapshotCourse = {
     termId: 1,
     courseId: 100,
@@ -74,6 +81,7 @@ function snapshot(works: SnapshotWork[]): Snapshot {
     mode: 0,
     courseName: '测试课程',
     works,
+    units,
   };
   return { fetchedAt: NOW, fetchedDate: '2026-09-26', courses: [course] };
 }
@@ -402,7 +410,9 @@ describe('组合覆盖', () => {
     for (const [quiz, review, self] of combos) {
       const plan = derivePlan(snap, settingsWith({ quiz, review, self }), NOW);
       // 每一项要么在 auto 要么在 manual，不会两边都有，也不会消失
-      const autoIds = new Set(plan.auto.map((a) => `${a.work.tid}:${a.kind}`));
+      const autoIds = new Set(
+        plan.auto.flatMap((a) => (a.kind === 'courseware' ? [] : [`${a.work.tid}:${a.kind}`])),
+      );
       for (const item of plan.manual) {
         expect(autoIds.has(`${item.work.tid}:${item.reason}`)).toBe(false);
       }
@@ -410,3 +420,64 @@ describe('组合覆盖', () => {
     }
   });
 });
+
+// ---------- 课件单元 ----------
+
+function unitOf(overrides: Partial<CourseUnit> = {}): CourseUnit {
+  return {
+    unitId: 900,
+    contentId: 901,
+    lessonId: 902,
+    lessonName: '1.1 课时',
+    name: '示例视频',
+    contentType: 1,
+    durationInSeconds: 500,
+    completePercent: 0,
+    viewStatus: 0,
+    ...overrides,
+  };
+}
+
+describe('课件单元的自动完成', () => {
+  it('开关关闭时不进计划，也不进人工项——它不是待办', () => {
+    const plan = derivePlan(snapshot([], [unitOf()]), settingsWith({}), NOW);
+    expect(plan.auto).toHaveLength(0);
+    expect(plan.manual).toHaveLength(0);
+  });
+
+  it('开关打开时收下未完成且能上报的单元', () => {
+    const plan = derivePlan(
+      snapshot([], [
+        unitOf({ unitId: 1 }),
+        unitOf({ unitId: 2, completePercent: 1, viewStatus: 5 }),
+        // 未实测的类型不猜
+        unitOf({ unitId: 3, contentType: 7 }),
+        // 视频没有时长：构不出报文，收下会变成永远做不掉的事项
+        unitOf({ unitId: 4, durationInSeconds: null }),
+        // 文档只需一个请求，没有时长概念
+        unitOf({ unitId: 5, contentType: 3, durationInSeconds: null }),
+      ]),
+      settingsWith({ courseware: true }),
+      NOW,
+    );
+
+    expect(plan.auto.map((a) => (a.kind === 'courseware' ? a.unit.unitId : a.kind))).toEqual([1, 5]);
+    expect(plan.manual).toHaveLength(0);
+  });
+
+  it('课件排在最前面：一条请求就完事，先做完最便宜的', () => {
+    const works = [work({ tid: 11 })];
+    const plan = derivePlan(
+      snapshot(works, [unitOf({ unitId: 1 })]),
+      settingsWith({ courseware: true, quiz: true }),
+      NOW,
+    );
+    expect(plan.auto.map((a) => a.kind)).toEqual(['courseware', 'quiz']);
+  });
+
+  it('只开课件开关也值得去拉最新数据', () => {
+    const snap = snapshot([], [unitOf({ unitId: 1 })]);
+    expect(shouldRefresh(snap, settingsWith({ courseware: true }), true, NOW)).toBe(true);
+  });
+});
+

@@ -19,6 +19,7 @@ import {
   buildAnswerIndex,
   buildAnswers,
   buildEvaluationItems,
+  completeUnit,
   currentEvaluatePhase,
   getEvaluationDetail,
   getHomeworkInfo,
@@ -31,7 +32,7 @@ import {
   submitQuiz,
   type MoocClient,
 } from '@study-pilot/platform-mooc';
-import type { AutoAction } from './task-plan';
+import type { AutoAction, CoursewareAutoAction, WorkAutoAction } from './task-plan';
 
 /** 单次执行中互评的循环上限。正常不会触及，仅用于防止接口异常导致死循环。 */
 const REVIEW_LOOP_LIMIT = 40;
@@ -77,7 +78,7 @@ class BankCache {
 /** 自动完成一个单元测验。 */
 async function runQuiz(
   client: MoocClient,
-  action: AutoAction,
+  action: WorkAutoAction,
   bank: BankCache,
 ): Promise<ExecResult> {
   const base = { tid: action.work.tid, name: action.work.name, kind: action.kind } as const;
@@ -131,7 +132,7 @@ async function runQuiz(
  */
 async function runSelf(
   client: MoocClient,
-  action: AutoAction,
+  action: WorkAutoAction,
   evaluatorId: number,
   comment: string,
 ): Promise<ExecResult> {
@@ -188,7 +189,7 @@ async function runSelf(
  */
 async function runReview(
   client: MoocClient,
-  action: AutoAction,
+  action: WorkAutoAction,
   evaluatorId: number,
   comment: string,
 ): Promise<ExecResult> {
@@ -275,6 +276,28 @@ async function runReview(
 }
 
 /**
+ * 完成一个课件单元。
+ *
+ * 一条请求就够（见 platform-mooc 的 `learn.ts`），失败只影响这一个单元。
+ * 这里的 `done` 表示「已上报」而非「平台已记账」：视频、文档、文本、随堂测验
+ * 立即记账，讨论是延迟记账，真实结果由下一轮快照确认。
+ */
+async function runCourseware(
+  client: MoocClient,
+  action: CoursewareAutoAction,
+): Promise<ExecResult> {
+  const base = { tid: action.unit.unitId, name: action.unit.name, kind: action.kind } as const;
+
+  const result = await completeUnit(client, action.unit);
+  if (!result.ok) {
+    return { ...base, status: 'failed', detail: `上报失败：${result.error.message}` };
+  }
+  return result.value === 'skipped'
+    ? { ...base, status: 'skipped', detail: '平台没给这个单元的时长，无法上报' }
+    : { ...base, status: 'done', detail: '已上报，平台记入学习进度' };
+}
+
+/**
  * 执行计划里全部可自动完成的事项。
  *
  * 逐项进行，每项完成后回调，由调用方落盘。单项失败不中断整轮——
@@ -293,7 +316,9 @@ export async function executeActions(
   for (const action of actions) {
     let result: ExecResult;
     try {
-      if (action.kind === 'quiz') {
+      if (action.kind === 'courseware') {
+        result = await runCourseware(client, action);
+      } else if (action.kind === 'quiz') {
         result = await runQuiz(client, action, bank);
       } else if (action.kind === 'self') {
         result = await runSelf(client, action, evaluatorId, comment);
@@ -301,9 +326,12 @@ export async function executeActions(
         result = await runReview(client, action, evaluatorId, comment);
       }
     } catch (error) {
+      const target =
+        action.kind === 'courseware'
+          ? { tid: action.unit.unitId, name: action.unit.name }
+          : { tid: action.work.tid, name: action.work.name };
       result = {
-        tid: action.work.tid,
-        name: action.work.name,
+        ...target,
         kind: action.kind,
         status: 'failed',
         detail: error instanceof Error ? error.message : String(error),

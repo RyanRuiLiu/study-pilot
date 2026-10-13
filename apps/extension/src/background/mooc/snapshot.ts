@@ -33,6 +33,7 @@ import {
   deriveStatus,
   getCourseStructure,
   getEvaluationDetail,
+  type CourseUnit,
   type MoocClient,
 } from '@study-pilot/platform-mooc';
 import { SessionExpiredError } from '../../platform/mooc/session';
@@ -80,6 +81,14 @@ export interface SnapshotCourse {
   mode: number;
   courseName: string;
   works: SnapshotWork[];
+  /**
+   * 课件单元。
+   *
+   * 与 works 是两套东西：works 是「要交的作业/测验/考试」，units 是「要看的内容」。
+   * 这里原样存结构里的单元——字段本来就少，而「能不能上报完成」由
+   * `isCompletable` 判断，快照不重复那套规则。
+   */
+  units: CourseUnit[];
 }
 
 export interface Snapshot {
@@ -102,15 +111,21 @@ const item = storage.defineItem<Snapshot | null>('local:study-pilot-snapshot', {
  * 把两者合并成一个 null，排查时就说不出到底发生过什么。
  */
 export async function readSnapshot(): Promise<Snapshot | null> {
-  return await item.getValue();
+  const snapshot = await item.getValue();
+  if (!snapshot) return null;
+  /*
+   * 旧版本的快照没有 units 字段（课件单元是后加的）。
+   * 读的时候补成空数组，调用方只需处理一种形状——否则每处用到 units 的地方
+   * 都要写一次 `?? []`，漏掉一处就是崩溃。
+   */
+  return {
+    ...snapshot,
+    courses: snapshot.courses.map((course) => ({ ...course, units: course.units ?? [] })),
+  };
 }
 
 export async function writeSnapshot(snapshot: Snapshot): Promise<void> {
   await item.setValue(snapshot);
-}
-
-export async function clearSnapshot(): Promise<void> {
-  await item.setValue(null);
 }
 
 /** 用当前时间构造一份快照的元信息。 */
@@ -266,6 +281,7 @@ export async function inspect(
       mode: course.mode ?? -1,
       courseName: course.name,
       works,
+      units: structure.value.units,
     });
   }
 

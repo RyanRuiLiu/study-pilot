@@ -31,7 +31,14 @@ import { ok, err, type Result } from '@study-pilot/core';
 import { unauthenticatedError, type TransportError } from '@study-pilot/transport';
 import type { MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
-import type { CourseStructure, CourseWork, WorkStatus, WorkTest, WorkType } from './types.ts';
+import type {
+  CourseStructure,
+  CourseUnit,
+  CourseWork,
+  WorkStatus,
+  WorkTest,
+  WorkType,
+} from './types.ts';
 
 interface RawChapter {
   id?: number;
@@ -39,6 +46,25 @@ interface RawChapter {
   quizs?: Array<Record<string, unknown>> | null;
   homeworks?: Array<Record<string, unknown>> | null;
   exam?: Record<string, unknown> | null;
+  lessons?: RawLesson[] | null;
+}
+
+/** 课时。课件单元挂在它下面，不挂在章节下。 */
+interface RawLesson {
+  id?: number;
+  name?: string | null;
+  units?: RawUnit[] | null;
+}
+
+/** 课件单元。字段含义见 docs/platforms/course-model.md 第 4 节。 */
+interface RawUnit {
+  id?: number;
+  contentId?: number;
+  contentType?: number;
+  name?: string | null;
+  durationInSeconds?: number | null;
+  completePercent?: number | null;
+  viewStatus?: number | null;
 }
 
 /** 一场考试。两部分各自可能为 null。 */
@@ -151,6 +177,7 @@ export async function getCourseStructure(
   const dto = payload.value.mocTermDto;
   const chapters = dto.chapters ?? [];
   const works: CourseWork[] = [];
+  const units: CourseUnit[] = [];
 
   chapters.forEach((chapter, index) => {
     for (const node of chapter.quizs ?? []) {
@@ -172,6 +199,18 @@ export async function getCourseStructure(
       const work = toWork(chapter.exam, 'exam-objective', chapter, index);
       if (work) works.push(work);
     }
+
+    /*
+     * 课件单元。位置是 lessons[].units[]，不在章节下——写成 chapters[].units[]
+     * 会一个单元都读不到，而界面上的表现只是「没有未完成的课件」。
+     */
+    for (const lesson of chapter.lessons ?? []) {
+      const lessonId = Number(lesson.id ?? 0);
+      for (const node of lesson.units ?? []) {
+        const unit = toUnit(node, lesson, lessonId);
+        if (unit) units.push(unit);
+      }
+    }
   });
 
   for (const exam of dto.exams ?? []) {
@@ -190,7 +229,35 @@ export async function getCourseStructure(
     courseId: Number(dto.courseId ?? 0),
     courseName: String(dto.courseName ?? ''),
     works,
+    units,
   });
+}
+
+/**
+ * 把一个课件单元节点归一化。
+ *
+ * 没有 unitId 的节点直接丢弃：上报必须带它，缺了这条数据做不了任何事。
+ * `completePercent` / `viewStatus` 缺失时按 0 处理——缺失表示平台没报，
+ * 而不是「已完成」，按 0 走会重新检查一次，代价只是一个请求。
+ */
+function toUnit(node: RawUnit, lesson: RawLesson, lessonId: number): CourseUnit | null {
+  const unitId = Number(node.id ?? 0);
+  if (!unitId) return null;
+
+  return {
+    unitId,
+    contentId: Number(node.contentId ?? 0),
+    lessonId,
+    lessonName: String(lesson.name ?? ''),
+    name: String(node.name ?? ''),
+    contentType: Number(node.contentType ?? 0),
+    durationInSeconds:
+      typeof node.durationInSeconds === 'number' && Number.isFinite(node.durationInSeconds)
+        ? node.durationInSeconds
+        : null,
+    completePercent: Number(node.completePercent ?? 0),
+    viewStatus: Number(node.viewStatus ?? 0),
+  };
 }
 
 /**
