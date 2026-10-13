@@ -29,6 +29,7 @@ const SCRIPTS = [
   'check-release.mjs',
   'check-copy.mjs',
   'check-privacy.mjs',
+  '../../verify/check-eslint.mjs',
   '../../verify/check-syncpack.mjs',
   '../../verify/check-version-literal.mjs',
 ];
