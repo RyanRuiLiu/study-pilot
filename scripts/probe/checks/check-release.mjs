@@ -256,7 +256,6 @@ const PENDING = [
   'apps/extension/entrypoints/background.ts',
   'apps/extension/entrypoints/options/main.ts',
   'packages/platform-mooc/src/review.ts',
-  'packages/platform-mooc/src/types.ts',
   'packages/platform-mooc/src/structure.ts',
 ];
 
