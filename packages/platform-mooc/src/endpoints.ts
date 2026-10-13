@@ -61,10 +61,10 @@ export const ENDPOINTS = {
   /** 取作业答卷（含参考答案）。参数 {tid, aid, evaluateId, withStdAnswerAndAnalyse, phase} */
   homeworkPaper: { bean: 'mocQuizRpcBean', method: 'getOpenHomeworkPaperDto' }, // [有样本]
 
-  /** [写操作] 保存测验草稿。参数 {paperDto}。答案先落到服务端，提交请求才不携带答案 */
+  /** [写操作] 保存测验草稿。参数 {paperDto, preview}。实测草稿写入在真实账号上不生效（见 docs/platforms/mooc.md 第 6.1 节），提交不依赖它 */
   saveDraft: { bean: 'mocQuizRpcBean', method: 'saveDraftAnswers' },
 
-  /** [写操作] 提交测验。参数 {paperDto}，其中 answers 必须为 null、submitType 为 1 */
+  /** [写操作] 提交测验。参数 {paperDto, preview}，其中 answers 原样保留、submitType 为 1 */
   submitQuiz: { bean: 'mocQuizRpcBean', method: 'submitAnswers' },
 } as const satisfies Record<string, Endpoint>;
 

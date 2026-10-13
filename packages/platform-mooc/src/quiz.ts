@@ -1,15 +1,17 @@
 /**
  * 单元测验。
  *
- * 提交流程（由真实请求样本 save-draft-real.json 与 submit-real.json 对照得出）：
+ * 提交流程（页面源码 `COM_Cache_TestBaseCache` + 本仓库实测）：
  *
- * 1. 取卷 `getQuizPaper(tid, aid = 0)`。`aid` 传 0 时服务端会创建答题表单并返回真实 aid。
+ * 1. 取卷 `getQuizPaper(tid, aid = 0)`。`aid` 传 0 时服务端会创建答题表单并返回真实 aid；
+ *    真实提交要传 `getOpenQuizInfo` 顶层的 aid。
  * 2. 用题库答案构造 `answers`，形如 `[{ qid, type, optIds, time }]`。
- * 3. 保存草稿 `saveDraft(paper)`，此时请求**携带** answers。
- * 4. 提交 `submitQuiz(paper)`，此时请求的 `answers` 为 **null**、`submitType` 为 **1**。
+ * 3. 提交 `submitQuiz(paper)`：请求体 `{paperDto, preview}`，**answers 原样保留**
+ *    （页面只对 `content` 做一次 emoji 清理），`submitType` 为 1。
  *
- * 第 3、4 步的差异是这套接口最容易写错的地方：提交请求不携带答案，
- * 答案由服务端从草稿读取。把带答案的对象直接交给提交接口会被判为无效提交。
+ * `saveDraft(paper)` 是可选旁路，提交不依赖它：实测草稿写入在真实账号上不生效
+ * （见 docs/platforms/mooc.md 第 6.1 节），而提交体携带的 answers 有效——实测一次提交
+ * 13 道题全部计入成绩。早期文档「提交不携带答案、answers 为 null」与页面源码冲突，已作废。
  *
  * 答案匹配的难点：试卷题目的 id 与题库题目的 id 属于**不同空间**，
  * 不能直接对应。可行做法是先按题干文本匹配题目，再按选项文本匹配选项，
@@ -140,7 +142,7 @@ export interface BuildAnswersResult {
  * 试卷选项 id 与题库选项 id 属于同一空间，因此直接按 id 查答案即可。
  * 不需要匹配题干，也就不受富文本标签、选项乱序、以及判断题没有选项文本的影响。
  *
- * 就地修改 `paper.answers`，因为后续的 `saveDraft` 需要同一个对象。
+ * 就地修改 `paper.answers`，因为提交（以及可选的草稿保存）读的是同一个对象。
  */
 export function buildAnswers(
   paper: QuizPaper,
