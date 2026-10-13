@@ -95,3 +95,54 @@ export function formatClock(timestamp: number): string {
   const date = new Date(timestamp);
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * 两个时刻相隔几个自然日。
+ *
+ * 不能拿 (a - b) / 一天 再取整：那是 24 小时周期，不是日历上的日子。
+ * 今天 22:00 距明天 20:00 只有 22 小时，按 24 小时周期算是「今天」，
+ * 而用户看的是日子——那分明是明天的截止。
+ * 反过来，凌晨 00:30 看昨晚 23:00 的截止，算出来是「已过期 1 天」，
+ * 实际只过了半小时。
+ *
+ * 因此先把两个时刻各自归到当天零点，再相减。
+ */
+export function daysBetween(from: number, to: number): number {
+  const a = new Date(from);
+  const b = new Date(to);
+  const startOfA = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+  const startOfB = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+  return Math.round((startOfA - startOfB) / DAY_MS);
+}
+
+/**
+ * 相对说法。它是待办那一屏的主信息，给出「还剩几天」的直观判断。
+ *
+ * 学生看到日期要先做一次心算（今天几号、还剩几天），看到「明天」不用。
+ * 所以主行放相对说法，确切日期退到副行（见 formatDate）。
+ */
+export function relativeDay(deadline: number): string {
+  if (deadline <= 0) return '无截止时间';
+  const days = daysBetween(deadline, Date.now());
+  if (days < 0) return `已过期 ${-days} 天`;
+  if (days === 0) return '今天';
+  if (days === 1) return '明天';
+  if (days === 2) return '后天';
+  return `${days} 天后`;
+}
+
+/**
+ * 是否紧急：今天到期或已经过期。
+ *
+ * 判据同样是自然日：今天 22:00 看明天 20:00 的截止不算紧急（还有一整天），
+ * 而按 24 小时周期算会被误标成紧急。
+ *
+ * 只给这两种上色，不给「三天内」：实际数据里作业常常集中在同一两天，
+ * 三天阈值会让一屏四条全红，红色退化成背景色，反而看不出哪条真的晚了。
+ */
+export function isUrgent(deadline: number): boolean {
+  if (deadline <= 0) return false;
+  return daysBetween(deadline, Date.now()) <= 0;
+}
