@@ -1,35 +1,16 @@
 /*
- * 自动执行一轮：拉最新、派生计划、执行、通知。
+ * 调度：按平台跑一轮自动执行。
  *
- * 从 entrypoints/background.ts 移出。入口创建的东西（客户端、会话续期、
- * 课程刷新、快照读取、课程选取、课件上下文）经 deps 传入。
+ * 这里只做四件事——**什么时候跑、跑哪个平台、每步之间刷心跳、运行状态与中断恢复**。
+ * 它**不认识任何平台字段**：该做什么由平台自己说（plan），怎么做由平台自己做（run），
+ * 通知由平台自己组织（report）。因此新增一个平台不需要改这个文件。
  *
- * 函数体是从入口原样搬过来的：开头把 deps 解构成同名局部变量，
- * 搬过来的代码因此一个字都不用改。
+ * 一轮里的顺序（与用户看到的行为一致）：
+ *   总开关 → 能否开始（防重入/中断） → 逐平台：前置条件 → 计划 → 只做 auto 项 → 收尾通知
  */
 
-import type { CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
-import type { InspectCourse, Snapshot } from '../platforms/mooc/read';
-import type { Settings } from '../settings';
-/**
- * 本地已有快照是否算「今天拉过」。
- *
- * 读失败不当作拉过：否则一次存储异常会让今天再也不会重新拉取，
- * 而用户看不到任何异常——只是所有判断都基于越来越旧的数据。
- */
-async function snapshotIsFresh(now: number): Promise<boolean> {
-  try {
-    return fetchedToday(await readSnapshot(), now);
-  } catch {
-    return false;
-  }
-}
 import { getSettings } from '../settings';
-import { ensureSession } from '../platform/mooc/session';
-import { executeActions } from '../platforms/mooc/execute';
-import { composeNotice, noticeSettingsOf, notify } from '../platforms/mooc/reminder';
-import { fetchedToday, readSnapshot } from '../platforms/mooc/read';
-import { derivePlan, shouldRefresh } from '../platforms/mooc/plan';
+import type { PlanItem, PlatformTasks, RunOutcome } from '../platforms/types.ts';
 import {
   beginRun,
   canStartRun,
@@ -39,81 +20,41 @@ import {
   markAwaitingLogin,
   touchRun,
 } from './runtime/scheduler';
-import { withSessionRecovery } from './runtime/session-recovery';
 
-export interface RunDeps {
-  client: MoocClient;
-  renew: () => Promise<boolean>;
-  refreshCourses: () => Promise<
-    | { ok: true; courses: unknown[]; byType: unknown }
-    | { ok: false; message: string; byType?: unknown }
-  >;
-  loadSnapshot: (courses: InspectCourse[], userId: number) => Promise<Snapshot>;
-  selectedCourses: (settings: Settings) => InspectCourse[];
-  coursewareContext: (settings: Settings) => CoursewareContext;
+export interface SchedulerDeps {
+  /**
+   * 本轮要跑的平台。
+   *
+   * 用函数而不是数组：每次运行现建实例，平台自己的"本轮状态"（计划、结果）
+   * 就不会跨轮残留。有哪些平台由装配层决定，调度层不知道。
+   */
+  platforms: () => PlatformTasks[];
 }
 
-export async function autoRun(deps: RunDeps): Promise<void> {
-  const { client, renew, refreshCourses, loadSnapshot, selectedCourses, coursewareContext } = deps;
-    const settings = await getSettings();
-    if (!settings.enabled) return;
+export async function autoRun(deps: SchedulerDeps): Promise<void> {
+  const settings = await getSettings();
+  if (!settings.enabled) return;
 
-    const state = await getTaskState();
-    if (!canStartRun(state)) return;
+  const state = await getTaskState();
+  if (!canStartRun(state)) return;
 
-    const session = await ensureSession();
-    if (!session.loggedIn) {
-      await markAwaitingLogin();
-      return;
+  const now = Date.now();
+  /*
+   * 因登录挂起的结论先记在这里，收尾之后才落盘。
+   *
+   * finishRun 会把 awaitingLogin 一并清掉（它假定本轮正常结束），
+   * 若在循环里落标记，会被本轮自己的收尾立刻抹掉——挂起就没人记得了。
+   */
+  let suspendedLogin = false;
+
+  for (const platform of deps.platforms()) {
+    if (!(await platform.isReady())) {
+      suspendedLogin = true;
+      continue;
     }
     await clearAwaitingLogin();
 
-    const courses = selectedCourses(settings);
-    if (courses.length === 0) return;
-
-    /*
-     * 立即开始，不等待。
-     *
-     * 此前这里有一项「启动延迟」（sleep 几分钟）供用户错开启动高峰，已经删掉：
-     * 它对中断恢复没有任何作用——「接着做」与否由 scheduler 的 runningSince
-     * 与心跳判定，与等待无关；而睡在 setTimeout 里时 MV3 可以把 worker 回收掉，
-     * 那一次启动检查就丢了，静默地少跑一轮。
-     */
-
-    const now = Date.now();
-
-    // 读快照。读不出来就当作没有，会走拉取分支
-    let snapshot: Snapshot | null;
-    try {
-      snapshot = await readSnapshot();
-    } catch {
-      snapshot = null;
-    }
-
-    const fresh = await snapshotIsFresh(now);
-
-    /*
-     * 快照为空时 shouldRefresh 必定为真（没有快照什么都判断不了），
-     * 因此这里同时判空只是为了把这条不变式写进代码，让分支里拿到确定的非空类型。
-     */
-    if (snapshot !== null && !shouldRefresh(snapshot, settings, fresh, now)) {
-      /*
-       * 不必拉取：快照说没有能自动完成的事，且今天已经全量看过。
-       * 用快照出提醒后结束——截止时间一旦发布就不会变，
-       * 所以快照里的它是可靠的；而"是否已完成"会变，所以只报未完成的。
-       */
-      await notify(composeNotice(derivePlan(snapshot, settings, now), [], noticeSettingsOf(settings), now));
-      return;
-    }
-
     await beginRun(now);
-    /*
-     * 因登录挂起的结论先记在这里，收尾之后才落盘。
-     *
-     * finishRun 会把 awaitingLogin 一并清掉（它假定本轮正常结束），
-     * 若在 try 内落标记，会被本轮自己的收尾立刻抹掉——挂起就没人记得了。
-     */
-    let suspendedLogin = false;
     try {
       /*
        * 每一步之前刷新心跳。
@@ -125,58 +66,26 @@ export async function autoRun(deps: RunDeps): Promise<void> {
        */
       await touchRun();
 
-      // 课程列表先刷新：勾选的课程可能变动，而后续读取按它进行
-      await refreshCourses().catch(() => undefined);
+      const plan = await platform.plan(now);
+      if (plan.needsLogin === true) suspendedLogin = true;
 
-      await touchRun();
-
-      /*
-       * 快照读取带会话恢复。
-       *
-       * 长时间闲置后的那次检查最容易撞上「cookie 还在、服务端会话已死」：
-       * 此时平台回的是未登录形态的空数据，不恢复会话就会把空快照当事实，
-       * 一整天不发通知也不报错。恢复不了则挂起等登录——沿用启动时
-       * 未登录的同一机制，用户在平台上重新活动后自动补做。
-       */
-      const recovered = await withSessionRecovery(
-        () => loadSnapshot(courses, session.userId),
-        renew,
-      );
-      if (!recovered.ok) {
-        if (recovered.kind !== 'login') throw new Error(recovered.message);
-        suspendedLogin = true;
-      } else {
-        const latest = recovered.value;
-
-        const plan = derivePlan(latest, settings, now);
-
-        /*
-         * 执行并只发一次通知。
-         *
-         * 结果要与计划一起交给通知：计划是执行之前算的，里面写着「将自动完成」，
-         * 而执行之后那些事已经完成了。只用计划组织通知，用户会以为它们还没做；
-         * 分两次发（执行后一次、再补一次）则会把同一件事说两遍。
-         */
-        const results =
-          plan.auto.length > 0
-            ? await executeActions(
-                client,
-                plan.auto,
-                session.userId,
-                settings.mooc.background.autoReview.comment,
-                // 每完成一项刷一次心跳：一轮里可能有好几项，中间任何一项卡住
-                // 都会让心跳过期，界面于是把「正在跑」读成「上次没结束」
-                () => touchRun(),
-                coursewareContext(settings),
-              )
-            : [];
-
-        await notify(composeNotice(plan, results, noticeSettingsOf(settings), now));
+      const items: PlanItem[] = [];
+      const outcomes: RunOutcome[] = [];
+      for (const item of plan.items) {
+        // 需要人到场确认的项不在这里做：无人值守时做不了，硬做就是替用户承诺
+        if (item.mode !== 'auto') continue;
+        items.push(item);
+        // 长动作（课件上报）会把心跳传进去：它自己按平台节奏刷新
+        outcomes.push(await platform.run(item, touchRun));
+        await touchRun();
       }
+
+      await platform.report(items, outcomes, now);
     } finally {
       await finishRun();
     }
-
-    // 已在 beginRun 之后收尾完毕，此刻落挂起标记不会再被 finishRun 抹掉
-    if (suspendedLogin) await markAwaitingLogin();
   }
+
+  // 已在 beginRun 之后收尾完毕，此刻落挂起标记不会再被 finishRun 抹掉
+  if (suspendedLogin) await markAwaitingLogin();
+}

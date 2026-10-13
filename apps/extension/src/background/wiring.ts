@@ -10,7 +10,8 @@ import { clearAlarm, ensureAlarm, isCheckAlarm } from './runtime/alarms';
 import { watchSettings } from '../settings';
 import { getTaskState } from './runtime/scheduler';
 import { NOTIFICATION_PREFIX } from '../platforms/mooc/reminder';
-import { autoRun, type RunDeps } from './run-tasks.ts';
+import { createMoocTasks, type MoocRunDeps } from '../platforms/mooc/tasks.ts';
+import { autoRun } from './run-tasks.ts';
 /** 平台的登录凭证 cookie。出现即表示登录成功。 */
 const LOGIN_COOKIE = 'NTESSTUDYSI';
 
@@ -18,9 +19,14 @@ const LOGIN_COOKIE = 'NTESSTUDYSI';
  * 装配所需的依赖与 run-tasks 完全一致，因此直接复用它的类型，
  * 不再声明一个空接口——空接口与超类型等价，多一层只会让人以为这里会加东西。
  */
-export type WiringDeps = RunDeps;
+export type WiringDeps = MoocRunDeps;
 
 export function registerBackgroundWiring(deps: WiringDeps): void {
+  /*
+   * 本轮要跑哪些平台：由装配层给出（调度层不知道有哪些平台）。
+   * 每次现建实例，平台自己的本轮状态不会跨轮残留。
+   */
+  const runOnce = (): Promise<void> => autoRun({ platforms: () => [createMoocTasks(deps)] });
   /*
    * 周期检查：安装时建一次。
    *
@@ -47,7 +53,7 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
 
   browser.runtime.onStartup.addListener(() => {
     void ensureAlarm();
-    void autoRun(deps).catch((error: unknown) => {
+    void runOnce().catch((error: unknown) => {
       void browser.storage.local.set({
         backgroundError: error instanceof Error ? error.message : String(error),
       });
@@ -66,7 +72,7 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
    */
   browser.alarms.onAlarm.addListener((alarm) => {
     if (!isCheckAlarm(alarm)) return;
-    void autoRun(deps).catch(() => undefined);
+    void runOnce().catch(() => undefined);
   });
 
   /**
@@ -83,7 +89,7 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
       if (change.removed) return;
       const state = await getTaskState();
       if (!state.awaitingLogin) return;
-      await autoRun(deps);
+      await runOnce();
     })();
   });
 
