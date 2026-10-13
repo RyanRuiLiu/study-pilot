@@ -33,6 +33,12 @@ const IGNORES = [
   '.dev-profile/**',
   '.cdp-profile/**',
   '.tmp-profile/**',
+  /*
+   * 变异测试的沙箱：整份仓库的副本，里面的 md 不是项目文档。
+   * 它只在跑 Stryker 时存在，但门禁不能因为「另一个进程正在跑测试」变红。
+   * 沙箱位置见 stryker.config.mjs 的 tempDirName。
+   */
+  '.stryker-tmp/**',
 ];
 
 const args = [
