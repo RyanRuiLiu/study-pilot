@@ -136,6 +136,7 @@ interface PlatformAdapter {
 | [check-anchors.mjs](../../scripts/verify/check-anchors.mjs) | 源码里跳转用的锚点在目标页面里存在（remark 与 knip 都覆盖不到） |
 | [check-syncpack.mjs](../../scripts/verify/check-syncpack.mjs) | 同一依赖在各包版本一致 |
 | [check-version-literal.mjs](../../scripts/verify/check-version-literal.mjs) | 版本号只有一个来源（package.json） |
+| [check-mutation.mjs](../../scripts/verify/check-mutation.mjs) | 变更的生产代码被测试真正约束（变异测试）。**空树或变更超过 3 个文件时跳过**，所以门禁耗时随变更量变化 |
 
 打包产物另有一条发布前必过项：[verify-package.mjs](../../scripts/probe/checks/verify-package.mjs)
 （产物能被浏览器加载）。规则本身写在配置或标准工具里，不自写正则；适配脚本只做「工具结果 →
@@ -178,8 +179,8 @@ interface PlatformAdapter {
      修法是在仓库根重跑 `CI=true pnpm install`。把 `symlinkNodeModules` 设为 `false`
      也不可用：沙箱里没有 node_modules，依赖解析不到，dry run 只跑到 78 个测试
      （健康时 319 个），漏跑的测试会让变异体再次假存活。
-2. **`background/mooc/execute/work.ts` 零测试覆盖**：全量变异跑（219 个变异体、0 killed）暴露——没有测试 import 它。
-   弹窗是样板。
+2. **`execute/work.ts` 的全文件变异分数未复核**：已补 35 项测试（`b656df9`），抽查 `work.ts:43-71`（runQuiz）为 39 变异体**全 killed**；全文件（219 变异体、约 6.5 分钟）的整体分数还没跑过。
+   
 3. **注入面板 shadow DOM 化**：组件层已按「不依赖全局样式」写，面板本身仍按老方式注入宿主页面，
    需要迁到自定义元素里。
 4. **设置页窄屏**：两栏布局在 720px 以下会挤，需要一档单栏断点。
