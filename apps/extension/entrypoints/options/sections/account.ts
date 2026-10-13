@@ -4,7 +4,7 @@
  * 从 options/main.ts 的 render() 搬出；表达式原样，只在开头取一次配置。
  */
 
-import { row, toggle, button, platform, section } from '../ui.ts';
+import { row, toggle, button, platform, section } from '../../../src/ui/form.ts';
 import { bindSetting } from '../settings-write.ts';
 import { sessionBadge } from '../session-row.ts';
 import { refreshCourses } from '../actions.ts';
@@ -27,8 +27,12 @@ export function accountSection(): HTMLElement {
         row(
           '课程列表',
           '读取当前账号的课程，之后手动勾选参与任务的课程',
-          button('读取课程列表', () => {
-            void refreshCourses();
+          button({
+            label: '读取课程列表',
+            variant: 'primary',
+            onClick: () => {
+              void refreshCourses();
+            },
           }),
         ),
         courseList(),

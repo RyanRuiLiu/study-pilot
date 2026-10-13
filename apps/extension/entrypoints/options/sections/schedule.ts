@@ -4,7 +4,7 @@
  * 从 options/main.ts 的 render() 搬出；表达式原样，只在开头取一次配置。
  */
 
-import { row, numberInput, platform, section } from '../ui.ts';
+import { row, numberInput, platform, section } from '../../../src/ui/form.ts';
 import { bindSetting } from '../settings-write.ts';
 import { lastRunHint } from '../session-row.ts';
 import { current } from '../state.ts';

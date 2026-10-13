@@ -7,43 +7,41 @@
 import { getSettings } from '../../src/settings';
 import { sendToBackground } from '../../src/platform/messaging';
 import { describeRunState } from '../../src/background/runtime/scheduler';
+import { button } from '../../src/ui/form.ts';
 
 export function sessionBadge(): HTMLElement {
   const wrap = document.createElement('div');
-  wrap.className = 'session';
+  wrap.className = 'sp-session';
 
-  const el = document.createElement('span');
-  el.id = 'session-badge';
-  el.textContent = '读取中';
+  const element = document.createElement('span');
+  element.className = 'sp-session-state';
+  element.id = 'session-badge';
+  element.textContent = '读取中';
 
-  const login = document.createElement('a');
-  login.className = 'login-link quiet f-dn';
-  login.href = 'https://www.icourse163.org/';
-  login.target = '_blank';
-  login.rel = 'noreferrer';
-  login.textContent = '前往登录';
+  const login = button({ label: '前往登录', href: 'https://www.icourse163.org/', outline: true });
+  login.classList.add('f-dn');
 
-  const refresh = document.createElement('button');
-  refresh.className = 'quiet';
-  refresh.type = 'button';
-  refresh.textContent = '刷新';
-  refresh.title = '重新向平台核对登录状态，会话可疑时自动尝试恢复';
-  refresh.addEventListener('click', () => {
-    refresh.disabled = true;
-    el.textContent = '读取中';
-    void readSessionInto(el, login).finally(() => {
-      refresh.disabled = false;
-    });
+  const refresh = button({
+    label: '刷新',
+    outline: true,
+    title: '重新向平台核对登录状态，会话可疑时自动尝试恢复',
+    onClick: () => {
+      refresh.setAttribute('disabled', '');
+      element.textContent = '读取中';
+      void readSessionInto(element, login).finally(() => {
+        refresh.removeAttribute('disabled');
+      });
+    },
   });
 
-  wrap.append(el, refresh, login);
-  void readSessionInto(el, login);
+  wrap.append(element, refresh, login);
+  void readSessionInto(element, login);
 
   // 课程列表等别的动作报出「未登录」时，让这一行同步重读，
   // 两处不能各说各话——那是本次修复之前最误导人的样子
   syncSessionBadge = () => {
-    el.textContent = '读取中';
-    void readSessionInto(el, login);
+    element.textContent = '读取中';
+    void readSessionInto(element, login);
   };
 
   return wrap;
@@ -84,15 +82,13 @@ export async function readSessionInto(el: HTMLElement, login: HTMLElement): Prom
  */
 export function lastRunHint(): HTMLElement {
   const el = document.createElement('span');
-  el.className = 'hint';
+  el.className = 'sp-hint';
   el.id = 'last-run-hint';
   el.textContent = '读取中';
 
   void Promise.all([getSettings(), sendToBackground({ type: 'TASK_STATE' })])
     .then(([settings, status]) => {
-      el.textContent = settings.enabled
-        ? describeRunState(status.state)
-        : 'Study Pilot 已停用';
+      el.textContent = settings.enabled ? describeRunState(status.state) : 'Study Pilot 已停用';
     })
     .catch(() => {
       el.textContent = '读取失败';
@@ -100,4 +96,3 @@ export function lastRunHint(): HTMLElement {
 
   return el;
 }
-

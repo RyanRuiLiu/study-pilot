@@ -171,3 +171,358 @@
 .sp-nav .sp-button {
   flex: 1;
 }
+
+/* ---------- 分区与卡片：设置项的容器 ---------- */
+
+.sp-section {
+  padding: 32px 0;
+  border-top: 1px solid var(--line);
+}
+
+.sp-section:last-of-type {
+  border-bottom: 1px solid var(--line);
+}
+
+.sp-section-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.sp-section-desc {
+  margin: 0 0 20px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.sp-card {
+  margin-bottom: 14px;
+  padding: 4px 16px 12px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.sp-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.sp-card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* 来源说明。不是徽章而是出处，所以只有边框与浅色，没有底色 */
+.sp-card-tag {
+  padding: 4px 8px;
+  color: var(--ink-faint);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--line);
+}
+
+/* ---------- 设置项一行 ---------- */
+
+.sp-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.sp-row:last-child {
+  border-bottom: none;
+}
+
+.sp-row-text {
+  min-width: 0;
+}
+
+.sp-row-name {
+  font-size: 14px;
+}
+
+.sp-row-note {
+  margin-top: 2px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.sp-row-control {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+/* ---------- 说明文字 ---------- */
+
+.sp-hint {
+  margin: 0;
+  padding: 8px 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.sp-loading {
+  padding: 12px 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.sp-error {
+  margin: 0;
+  padding: 12px;
+  background: var(--paper);
+  border-left: 3px solid var(--warn);
+  color: var(--warn);
+  font-size: 13px;
+}
+
+/* ---------- 输入框：外观由 Shoelace 给，这里只定宽 ---------- */
+
+.sp-field {
+  width: 176px;
+}
+
+.sp-field-num {
+  width: 120px;
+}
+
+.sp-field-unit {
+  color: var(--ink-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.sp-disclosure {
+  display: block;
+}
+
+/* ---------- 逐条说明块 ---------- */
+
+.sp-prose {
+  margin: 0;
+  padding: 0;
+}
+
+.sp-prose-term {
+  margin: 16px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sp-prose-term:first-of-type {
+  margin-top: 0;
+}
+
+.sp-prose-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+
+/* ---------- 登录状态行 ---------- */
+
+.sp-session {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 状态文字占固定宽度：三个说法长度不同，不固定的话按钮会随文字左右移动 */
+.sp-session-state {
+  min-width: 84px;
+}
+
+/* ---------- 课程列表 ---------- */
+
+.sp-courses {
+  margin-top: 4px;
+}
+
+.sp-course {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.sp-course + .sp-course {
+  border-top: 1px solid var(--line);
+}
+
+.sp-course-main {
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.sp-course-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sp-course-name {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.sp-course-main:hover .sp-course-name {
+  color: var(--accent);
+}
+
+.sp-course-mode {
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.sp-course-meta,
+.sp-course-stats {
+  margin-top: 2px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+/* ---------- 运行状态 ---------- */
+
+.sp-progress {
+  white-space: pre-wrap;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* ---------- 单元明细 ---------- */
+
+.sp-details-source {
+  margin: 0 0 10px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+/* 表头。比数据行浅，靠一条稍重的线分开 */
+.sp-details-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--ink-faint);
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.sp-details-course {
+  padding: 12px 0 4px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sp-details-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.sp-details-row:hover {
+  background: var(--hover);
+}
+
+.sp-details-row:hover .sp-details-name {
+  color: var(--accent);
+}
+
+.sp-details-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.sp-details-row + .sp-details-row {
+  border-top: 1px solid var(--line);
+}
+
+.sp-details-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * 四列固定宽度，各行竖直对齐，逐行比对才快。
+ * 名称占满剩余空间；后三列定宽，按最长可能的内容定：
+ * 「已过截止未提交」六个字，以及「10月18日 20:00」这样的时间。
+ */
+.sp-details-status {
+  flex: none;
+  width: 108px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.sp-details-when {
+  flex: none;
+  width: 108px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-details-score {
+  flex: none;
+  width: 84px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* 表头与数据行同宽同字形，两行才对得上 */
+.sp-details-head .sp-details-status,
+.sp-details-head .sp-details-when,
+.sp-details-head .sp-details-score {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+/*
+ * 状态配色。三种语气对应三类处境：
+ *   ok      一切正常（已公布、已完成）
+ *   active  正在进行（互评中、等待中）
+ *   warn    需要你处理（未提交、已过截止）
+ */
+.sp-details-status.is-ok {
+  color: var(--accent);
+}
+
+.sp-details-status.is-active {
+  color: var(--ink-soft);
+}
+
+.sp-details-status.is-warn {
+  color: var(--warn);
+}

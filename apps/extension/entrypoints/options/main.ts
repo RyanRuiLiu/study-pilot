@@ -8,13 +8,14 @@
  * 手动触发只是「立即执行一次」，是否真的执行由后台的门禁决定——
  * 这里的开关检查只用于提前给出提示。
  *
- * 样式分三层引入：tokens（取值）、base（通用元素）、本页布局。
- * 必须通过 import 引入，不能用 HTML 的 <link>——构建后源路径不会被改写，
+ * 样式分三层引入：tokens 与 theme（取值、Shoelace 变量映射）、components（控件外观）、
+ * 本页布局。必须通过 import 引入，不能用 HTML 的 <link>——构建后源路径不会被改写，
  * 会变成死链，页面于是回退到浏览器默认样式。
- * 弹窗用的是同一组 tokens 与 base，两页的字体、纸墨与控件因此完全一致。
  */
 
 import '../../src/ui/tokens.css';
+import '../../src/ui/theme.css';
+import '../../src/ui/components.css';
 import './style.css';
 
 import {
@@ -48,7 +49,6 @@ if (versionEl) versionEl.textContent = `v${browser.runtime.getManifest().version
 
 import { setCurrent, setRender, setToast } from './state.ts';
 import { accountSection } from './sections/account.ts';
-import { detailsSection } from './sections/details.ts';
 import { scheduleSection } from './sections/schedule.ts';
 import { tasksSection } from './sections/tasks.ts';
 import { aiSection } from './sections/ai.ts';
@@ -57,37 +57,11 @@ import { executionSection } from './sections/execution.ts';
 
 // ---------- 渲染 ----------
 
-
-
-/**
- * 课程列表。
- *
- * 每门课呈现为一张卡片：课程名、类型、学校、学期区间、规模，
- * 以及是否参与后台任务的勾选框。点击卡片主体会打开该课程的学习页。
- *
- * 不显示 termId 之类的内部标识——它们对用户没有意义，
- * 需要时由后台自己按课程索引。
- */
-
 function render(): void {
   app.replaceChildren();
 
   app.append(
     accountSection(),
-
-    /*
-     * 单元明细紧跟课程之后。
-     *
-     * 它依赖上面已勾选的课程，位置顺；同时这一份清单是「我还剩什么没做」
-     * 的答案，是打开设置页最常想看的东西，放在前面比埋在执行与诊断里省事。
-     */
-    /*
-     * 明细也套一层卡片，与其余分区一致。
-     *
-     * 先前它直接放在页面底色上，于是这一段的背景与其他板块不同——
-     * 而底色本来就比卡片浅，视觉上会显得这一块「没有边界」。
-     */
-    detailsSection(),
 
     scheduleSection(),
 
@@ -111,7 +85,6 @@ function render(): void {
     aiSection(),
 
     foregroundSection(),
-
 
     executionSection(),
   );
@@ -174,13 +147,13 @@ function applyAnchor(): void {
 function renderToc(): void {
   if (!toc) return;
 
-  const sections = Array.from(app.querySelectorAll<HTMLElement>('.section'));
+  const sections = Array.from(app.querySelectorAll<HTMLElement>('.sp-section'));
   toc.replaceChildren();
 
   const links = sections.map((el) => {
     const link = document.createElement('a');
     link.href = `#${el.id}`;
-    link.textContent = el.querySelector('.section-title')?.textContent ?? el.id;
+    link.textContent = el.querySelector('.sp-section-title')?.textContent ?? el.id;
     toc.append(link);
     return link;
   });
@@ -238,7 +211,7 @@ async function init(): Promise<void> {
   // 读取配置期间先给出占位，避免 #app 从零高度被内容突然撑开，
   // 那会让页头与底部按钮先排一遍、再被顶走，看起来像"加载时定了一下"。
   app.textContent = '正在读取配置…';
-  app.className = 'loading';
+  app.className = 'sp-loading';
 
   /*
    * 先读配置画出界面，再在后台刷新课程。

@@ -58,6 +58,13 @@ export interface ButtonOptions {
   /** 给了地址就是链接按钮（Shoelace 的 href 形态），否则是普通按钮 */
   href?: string;
   variant?: 'primary' | 'default';
+  /**
+   * 描边代替填充。用在次要场合：同一行里它不与主操作抢注意力。
+   * 尺寸默认 small（弹窗只有 288px 宽）；设置页那种宽版式传 medium。
+   */
+  outline?: boolean;
+  size?: 'small' | 'medium';
+  disabled?: boolean;
   /** 悬停说明。这句话会被用户读到，按界面文案对待 */
   title?: string;
   onClick?: () => void;
@@ -67,9 +74,11 @@ export interface ButtonOptions {
 export function button(options: ButtonOptions): HTMLElement {
   const element = document.createElement('sl-button');
   element.className = 'sp-button';
-  element.setAttribute('size', 'small');
+  element.setAttribute('size', options.size ?? 'small');
 
   if (options.variant === 'primary') element.setAttribute('variant', 'primary');
+  if (options.outline) element.setAttribute('outline', '');
+  if (options.disabled) element.setAttribute('disabled', '');
   if (options.href !== undefined) {
     element.setAttribute('href', options.href);
     // 去处都在扩展内部或平台页上，一律新开一页：弹窗一关就没了，不该顶着看
