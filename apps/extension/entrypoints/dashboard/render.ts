@@ -57,6 +57,20 @@ export const DEFAULT_FILTERS: Filters = {
   state: 'open',
 };
 
+/**
+ * 状态筛选的选项。
+ *
+ * 「未完成与失败」放在第一个，因为它是默认视图：用户打开看板是要看还剩什么，
+ * 已完成的一大片会把要紧的挤下去。想全看时才去改。
+ */
+export const STATE_FILTERS: Array<{ value: Filters['state']; label: string }> = [
+  { value: 'open', label: '未完成与失败' },
+  { value: 'todo', label: '只看未完成' },
+  { value: 'failed', label: '只看失败' },
+  { value: 'done', label: '只看已完成' },
+  { value: 'all', label: '全部状态' },
+];
+
 function matchesState(task: Task, state: Filters['state']): boolean {
   if (state === 'all') return true;
   if (state === 'open') return task.state !== 'done';
@@ -75,48 +89,52 @@ export function filterTasks(tasks: Task[], filters: Filters): Task[] {
 
 function row(task: Task): HTMLElement {
   const element = document.createElement('div');
-  element.className = 'row';
+  element.className = 'sp-task';
   element.dataset.state = task.state;
   element.dataset.mode = task.mode;
 
   const main = document.createElement('div');
-  main.className = 'row-main';
+  main.className = 'sp-task-main';
 
   const title = document.createElement(task.link ? 'a' : 'span');
-  title.className = 'row-title';
+  title.className = 'sp-task-title';
   title.textContent = task.title;
-  if (title instanceof HTMLAnchorElement && task.link) {
-    title.href = task.link;
-    title.target = '_blank';
-    title.rel = 'noreferrer';
+  /*
+   * 用 setAttribute 而不是 title.href / instanceof HTMLAnchorElement：
+   * 靠元素自身与属性写，不依赖浏览器全局，测试里（linkedom）也能直接建出来。
+   */
+  if (task.link !== undefined) {
+    title.setAttribute('href', task.link);
+    title.setAttribute('target', '_blank');
+    title.setAttribute('rel', 'noreferrer');
   }
 
   const kind = document.createElement('span');
-  kind.className = 'chip';
+  kind.className = 'sp-chip';
   kind.textContent = KIND_LABEL[task.kind];
 
   const mode = document.createElement('span');
-  mode.className = `chip is-${task.mode}`;
+  mode.className = `sp-chip is-${task.mode}`;
   mode.textContent = MODE_LABEL[task.mode];
 
   const state = document.createElement('span');
-  state.className = `chip is-${task.state}`;
+  state.className = `sp-chip is-${task.state}`;
   state.textContent = STATE_LABEL[task.state];
 
   main.append(title, kind, mode, state);
 
   const meta = document.createElement('div');
-  meta.className = 'row-meta';
+  meta.className = 'sp-task-meta';
 
   if (task.dueAt) {
     const due = document.createElement('span');
-    due.className = 'due';
+    due.className = 'sp-task-due';
     due.textContent = `${relativeDay(task.dueAt)}（${formatDate(task.dueAt)}）`;
     meta.append(due);
   }
   if (task.score !== undefined || task.maxScore !== undefined) {
     const score = document.createElement('span');
-    score.className = 'score';
+    score.className = 'sp-task-score';
     score.textContent = `得分 ${task.score ?? '—'} / ${task.maxScore ?? '—'}`;
     meta.append(score);
   }
@@ -127,16 +145,16 @@ function row(task: Task): HTMLElement {
 
 function group(course: Course | undefined, tasks: Task[]): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'group';
+  section.className = 'sp-group';
 
   const head = document.createElement('p');
-  head.className = 'group-head';
+  head.className = 'sp-group-head';
 
   const name = document.createElement('span');
   name.textContent = course?.name ?? `课程 ${tasks[0]?.courseId ?? ''}`;
 
   const count = document.createElement('span');
-  count.className = 'count';
+  count.className = 'sp-group-count';
   const open = tasks.filter((task) => task.state !== 'done').length;
   count.textContent = open > 0 ? `${tasks.length} 项，${open} 项未完成` : `${tasks.length} 项，全部完成`;
 
@@ -197,14 +215,14 @@ function summaryLine(tasks: Task[]): HTMLElement {
   if (summary.done > 0) parts.push(`已完成 ${summary.done}`);
 
   const element = document.createElement('p');
-  element.className = 'summary';
+  element.className = 'sp-summary';
   element.textContent = parts.join(' · ');
   return element;
 }
 
 function note(text: string): HTMLElement {
   const element = document.createElement('p');
-  element.className = 'empty';
+  element.className = 'sp-empty';
   element.textContent = text;
   return element;
 }

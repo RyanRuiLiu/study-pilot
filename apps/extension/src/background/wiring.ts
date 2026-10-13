@@ -88,10 +88,11 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
   });
 
   /*
-   * 点击通知直接落到设置页的单元明细。
+   * 点击通知直接落到看板的单元明细。
    *
    * 通知说的就是「哪几项要处理」，点进去自然该看到那份清单，
-   * 而不是设置页顶部再自己往下找。
+   * 而不是落到页面顶部再自己往下找。单元明细此前在设置页，已搬到看板
+   * （设置页只回答「它怎么运行」），锚点随之改指 dashboard.html#unit-details。
    * openOptionsPage 不接受锚点，只能用 tabs.create 指定完整地址；
    * tabs.create 不需要额外权限。
    */
@@ -101,14 +102,14 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
      *
      * 早先这里按 `startsWith('deadline-reminder')` 判断要不要带锚点，
      * 而通知 id 是固定的 `study-pilot-summary`——条件永远为假，
-     * 锚点一次都没生效过，用户点通知总是落在设置页顶部。
+     * 锚点一次都没生效过，用户点通知总是落在页面顶部。
      *
      * 判据现在跟着 id 的生成规则走，而不是跟着某一个具体值走：
      * 发送用的 id 每次都不一样（前缀加时间戳，见 reminder.ts），
      * 任何等值比较都会立刻失效——这个坑不能踩第二次。
      */
-    const anchor = notificationId.startsWith(NOTIFICATION_PREFIX) ? '#details' : '';
-    const url = browser.runtime.getURL(`/options.html${anchor}`);
+    const anchor = notificationId.startsWith(NOTIFICATION_PREFIX) ? '#unit-details' : '';
+    const url = browser.runtime.getURL(`/dashboard.html${anchor}`);
     void browser.tabs.create({ url });
   });
 

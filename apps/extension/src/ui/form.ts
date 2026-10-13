@@ -126,19 +126,6 @@ export function disclosure(summary: string, children: HTMLElement[]): HTMLElemen
 }
 
 /**
- * 一段静态说明，用作没有控件的设置项右侧。
- *
- * 有的设置项本身没有可调的东西，只是告诉用户背后怎么运作的。
- * 这时右侧不该留空，也不该硬塞一个假控件。
- */
-export function note(text: string): HTMLElement {
-  const element = document.createElement('span');
-  element.className = 'sp-hint';
-  element.textContent = text;
-  return element;
-}
-
-/**
  * 一个平台分组：标题在左，来源标签在右，下面是内容。
  *
  * 标签只放静态的归属或性质说明（平台域名、「按需触发」这类）。

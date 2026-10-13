@@ -526,3 +526,133 @@
 .sp-details-status.is-warn {
   color: var(--warn);
 }
+
+/* ---------- 明细区顶部的来源说明与按钮 ---------- */
+
+/*
+ * 「这一份来自哪里」与「再读一次」并排。
+ * 来源必须写在表上面：两份明细内容一样、可信度不同，不标出来用户无从分辨。
+ */
+.sp-details-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+}
+
+.sp-details-bar .sp-details-source {
+  margin: 0;
+}
+
+/* ---------- 看板：计数、分组、任务行、标签 ---------- */
+
+.sp-summary {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-group {
+  margin-bottom: 26px;
+}
+
+.sp-group-head {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.sp-group-count {
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+
+.sp-task {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  background: var(--paper-2);
+}
+
+/* 左边色条编码状态：未完成待办、失败要人看、已完成退到背景里 */
+.sp-task[data-state='todo'] {
+  border-left-color: var(--state-todo);
+}
+
+.sp-task[data-state='failed'] {
+  border-left-color: var(--state-failed);
+}
+
+.sp-task[data-state='done'] {
+  border-left-color: var(--state-done);
+  opacity: 0.72;
+}
+
+.sp-task-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.sp-task-title {
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.sp-task-title[href]:hover {
+  text-decoration: underline;
+}
+
+.sp-task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-chip {
+  font-size: 12px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--hover);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* 做法标签：自动完成是中性，需要人做的要显眼 */
+.sp-chip.is-auto {
+  background: var(--tint-auto);
+  color: var(--tint-auto-ink);
+}
+
+.sp-chip.is-assisted {
+  background: var(--tint-assisted);
+  color: var(--tint-assisted-ink);
+}
+
+.sp-chip.is-manual {
+  background: var(--tint-manual);
+  color: var(--tint-manual-ink);
+}
+
+.sp-chip.is-failed {
+  background: var(--tint-failed);
+  color: var(--tint-failed-ink);
+}
+
+.sp-chip.is-done {
+  background: var(--tint-done);
+  color: var(--tint-done-ink);
+}
