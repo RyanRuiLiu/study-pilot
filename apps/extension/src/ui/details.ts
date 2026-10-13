@@ -10,7 +10,7 @@
  */
 
 /** 状态那一路的语气。`warn` 是需要人看一眼的处境。 */
-export type DetailTone = 'ok' | 'active' | 'warn';
+type DetailTone = 'ok' | 'active' | 'warn';
 
 /** 明细里的一行。可点的行给 href，不可点的留空。 */
 export interface DetailRow {
@@ -63,11 +63,16 @@ function row(item: DetailRow): HTMLElement {
   element.className = 'sp-details-row';
   element.id = `unit-${item.key}`;
 
-  if (element instanceof HTMLAnchorElement && item.href !== undefined) {
-    element.href = item.href;
-    element.target = '_blank';
-    element.rel = 'noreferrer';
-    element.title = `打开「${item.name}」`;
+  /*
+   * 用 setAttribute 而不是 element.href / instanceof HTMLAnchorElement：
+   * 这一层将来要挂进 shadow root，也可能在没有浏览器全局的测试里跑，
+   * 靠属性写就只依赖元素本身。
+   */
+  if (item.href !== undefined) {
+    element.setAttribute('href', item.href);
+    element.setAttribute('target', '_blank');
+    element.setAttribute('rel', 'noreferrer');
+    element.setAttribute('title', `打开「${item.name}」`);
   }
 
   const status = cell('sp-details-status', item.status, item.statusTitle);

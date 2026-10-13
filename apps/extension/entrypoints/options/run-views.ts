@@ -7,13 +7,12 @@
 
 import { REJECTION_MESSAGES, sendToBackground, type JobRejection } from '../../src/platform/messaging';
 import { describeRunState } from '../../src/background/runtime/scheduler';
-import { signalContentReady } from './unit-details.ts';
 import { render, toast } from './state.ts';
 /**
  * 运行状态视图。
  *
  * 只回答「上次什么时候检查的、现在是不是正在跑」。
- * 不再列出「已完成多少项」「待处理什么」——那两样在待办与单元明细里
+ * 不再列出「已完成多少项」「待处理什么」——那两样在弹窗的待办与看板的单元明细里
  * 各有更准确的呈现，而它们是按当下重新算出来的；
  * 状态里那份是上一轮的快照，两者并列会让用户看到不一致的两套说法。
  */
@@ -26,11 +25,9 @@ export function progressView(): HTMLElement {
   void sendToBackground({ type: 'TASK_STATE' })
     .then((status) => {
       box.textContent = describeRunState(status.state);
-      signalContentReady();
     })
     .catch(() => {
       box.textContent = '读取状态失败';
-      signalContentReady();
     });
 
   return box;

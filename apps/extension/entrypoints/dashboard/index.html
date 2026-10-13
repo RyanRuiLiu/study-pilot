@@ -8,11 +8,16 @@
     <meta name="manifest.open_in_tab" content="true" />
   </head>
   <body>
-    <div class="shell">
+    <div class="sp sheet">
       <header class="masthead">
         <h1>看板</h1>
+        <!--
+          这一句必须与行为一致：打开本页只读本地快照。
+          单元明细要读平台，而它放在按钮后面，只有点了才发请求，因此文案点名了那个按钮。
+        -->
         <p class="lede">
-          各平台各课程的任务。数据来自本地快照，<strong>打开本页不会向平台发请求</strong>。
+          各平台各课程的任务。任务列表来自本地快照，<strong>打开本页不会向平台发请求</strong>；
+          单元明细里的「读取最新明细」会向平台读一次。
         </p>
       </header>
 
@@ -37,11 +42,25 @@
           状态
           <select id="state"></select>
         </label>
-        <button id="reload" class="quiet" type="button">重读快照</button>
+        <sl-button id="reload" class="sp-reload" size="medium" outline>重读快照</sl-button>
         <span id="fetched" class="fetched"></span>
       </div>
 
       <div id="app"></div>
+
+      <!--
+        单元明细。看板回答「整体还剩什么」，明细是这份答案的逐项展开，
+        因此它从设置页搬到了这里（设置页只回答「它怎么运行」）。
+        标题与说明固定写在这里；表、来源标注与「读取最新明细」按钮由 details.ts 生成。
+      -->
+      <section class="sp-section" id="unit-details">
+        <h2 class="sp-section-title">单元明细</h2>
+        <p class="sp-section-desc">
+          已勾选课程下的全部测验、作业与考试。打开时显示本地快照里的那一份，
+          点「读取最新明细」读取平台上此刻的状态与得分。
+        </p>
+        <div id="details-app"></div>
+      </section>
 
       <p class="colophon">STUDYPILOT / MOOC ENHANCER</p>
     </div>

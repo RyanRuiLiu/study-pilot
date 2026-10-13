@@ -9,7 +9,6 @@ import { coursePageUrl, describeCourseMode } from '@study-pilot/platform-mooc';
 import { formatTermRange } from '../../src/features/format';
 import { checkbox, disclosure } from '../../src/ui/form.ts';
 import { toggleCourse } from './settings-write.ts';
-import { reloadUnitDetails } from './unit-details.ts';
 import { current } from './state.ts';
 
 export function courseList(): HTMLElement {
@@ -47,16 +46,15 @@ export function courseList(): HTMLElement {
       course.enabled = next;
 
       /*
-       * 勾选变化要连带更新两处，光存盘不够。
-       *
        * 概要条上的「已选 N 门」是该数字最容易过时的地方——用户勾掉一门，
-       * 它仍显示旧数目，看起来像没生效。而单元明细按勾选的课程过滤，
-       * 取消勾选后那一门仍列在那里，用户会以为取消没成功。
+       * 它仍显示旧数目，看起来像没生效。因此这里就地改一次。
        *
        * 落盘以存储里的课程列表为基准（见 toggleCourse），界面上的改动是即时的。
+       * 勾选变化还会影响看板上的单元明细，但那一页每次打开都重新读，
+       * 不需要在这里通知它。
        */
       details.setAttribute('summary', summaryText());
-      void toggleCourse(course.termId, next).then(() => reloadUnitDetails());
+      void toggleCourse(course.termId, next);
     });
 
     const link = document.createElement('a');

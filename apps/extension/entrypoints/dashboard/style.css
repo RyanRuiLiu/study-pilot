@@ -1,15 +1,47 @@
 /*
- * 看板页样式。
+ * 看板页布局。
  *
- * 取值来自 tokens.css（与设置页、弹窗同一套），这里只写本页布局：
- * 筛选条、分组、任务行。任务行用「状态色条 + 做法标签」两个通道表达
- * 两个维度，颜色与文字不必互相解释。
+ * 只写「这一页怎么摆」：宽度、页头、筛选条、页脚。
+ * 取值在 src/ui/tokens.css，控件与任务行在 src/ui/components.css，
+ * Shoelace 的变量映射在 src/ui/theme.css —— 这一份里不出现控件样式。
+ *
+ * 上一版有 152 行，其中任务行、做法标签、分组、计数与空状态的样式
+ * 都已经在组件层里（.sp-task / .sp-chip / .sp-group / .sp-summary），
+ * 这一层只剩下页面骨架。
  */
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
 
 .shell {
   max-width: 1000px;
   margin: 0 auto;
   padding: 28px 24px 48px;
+}
+
+.masthead {
+  margin-bottom: 4px;
+}
+
+.masthead h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.lede {
+  margin: 8px 0 0;
+  max-width: 64ch;
+  color: var(--ink-soft);
+  font-size: 13px;
 }
 
 .filters {
@@ -27,126 +59,18 @@
   gap: 6px;
   align-items: center;
   font-size: 13px;
-  color: var(--ink-3);
+  color: var(--ink-soft);
 }
 
 .fetched {
   margin-left: auto;
   font-size: 13px;
-  color: var(--ink-3);
-}
-
-.summary {
-  margin: 0 0 18px;
-  font-size: 13px;
-  color: var(--ink-3);
-}
-
-.group {
-  margin-bottom: 26px;
-}
-
-.group-head {
-  display: flex;
-  justify-content: space-between;
-  margin: 0 0 8px;
-  font-weight: 600;
-}
-
-.count {
-  font-weight: 400;
-  color: var(--ink-3);
-}
-
-.row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px 10px 14px;
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--line);
-  border-radius: 8px;
-  margin-bottom: 8px;
-  background: var(--paper);
-}
-
-/* 左边色条编码状态：未完成待办、失败要人看、已完成退到背景里 */
-.row[data-state='todo'] {
-  border-left-color: #d97706;
-}
-.row[data-state='failed'] {
-  border-left-color: #dc2626;
-}
-.row[data-state='done'] {
-  border-left-color: #16a34a;
-  opacity: 0.72;
-}
-
-.row-main {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.row-title {
-  font-weight: 500;
-  color: var(--ink);
-  text-decoration: none;
-}
-
-a.row-title:hover {
-  text-decoration: underline;
-}
-
-.chip {
-  font-size: 12px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--paper-2);
-  color: var(--ink-3);
-  white-space: nowrap;
-}
-
-/* 做法标签：自动完成是中性，需要人做的要显眼 */
-.chip.is-auto {
-  background: #ecfdf5;
-  color: #047857;
-}
-.chip.is-assisted {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-.chip.is-manual {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.chip.is-failed {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-.chip.is-done {
-  background: #f0fdf4;
-  color: #15803d;
-}
-
-.row-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--ink-3);
-}
-
-.empty {
-  padding: 28px 0;
-  color: var(--ink-3);
+  color: var(--ink-faint);
 }
 
 .colophon {
   margin-top: 32px;
   font-size: 11px;
   letter-spacing: 0.12em;
-  color: var(--ink-4);
+  color: var(--ink-faint);
 }

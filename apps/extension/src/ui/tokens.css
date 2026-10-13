@@ -74,6 +74,28 @@
   --hover: #eef2f6;
 
   /*
+   * 任务行的状态色，以及做法标签的底色与字色。
+   *
+   * 色条编码「做到哪了」：未完成待办、失败要人看一眼、已完成退到背景里。
+   * 标签的底色是浅色调，字色取同色系深一档——浅底上仍然够对比，
+   * 而三档做法（自动、需要确认、需要你做）与两种结局（失败、已完成）
+   * 各自可辨，不靠位置去记。
+   */
+  --state-todo: #d97706;
+  --state-failed: #dc2626;
+  --state-done: #16a34a;
+  --tint-auto: #ecfdf5;
+  --tint-auto-ink: #047857;
+  --tint-assisted: #eff6ff;
+  --tint-assisted-ink: #1d4ed8;
+  --tint-manual: #fef3c7;
+  --tint-manual-ink: #92400e;
+  --tint-failed: #fee2e2;
+  --tint-failed-ink: #b91c1c;
+  --tint-done: #f0fdf4;
+  --tint-done-ink: #15803d;
+
+  /*
    * 主色上的文字。
    *
    * 主色作为按钮底色时文字得用白色，而白在不同底色上的对比度差别很大：
