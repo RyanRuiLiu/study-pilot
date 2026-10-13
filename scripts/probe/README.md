@@ -64,27 +64,28 @@ node scripts/probe/inspect/collect.mjs --url <URL> --out .probe/<名字> \
   --eval "[...document.querySelectorAll('button')].find(b => b.textContent.trim() === '开始考试').click()"
 ```
 
-## checks/ — 自检
+## checks/ — 门禁与验证
 
-改完代码后用这些验证，**每一条都是实测而非静态检查**。
+改完代码后跑这一条，全过才算改完：
+
+```bash
+node scripts/probe/checks/check-all.mjs
+```
 
 | 文件 | 验证什么 |
 |---|---|
-| `selfcheck.mjs` | 全面自检：逐个调后台消息，并与界面实际渲染的内容比对 |
-| `selfcheck-ui.mjs` | 前台注入面板自检：测验页、作业页的面板是否按预期出现 |
-| `selfcheck-run.mjs` | 拒绝路径与只读判定：停用、未选课、已提交必有分等 |
-| `dryrun-tasks.mjs` | 打印这一轮会做什么，**不做**。会真的拉一次最新状态 |
-| `check-classes.mjs` | 用到的类名是否都有样式。删 CSS 规则时最容易漏的就是这个 |
-| `check-copy.mjs` | 文案：有无内部术语、口语化、与功能是否一致、标点是否统一 |
-| `check-toc.mjs` | 设置页左侧导航：项数与分区一致、滚动高亮跟随、吸顶生效 |
-| `check-control-styles.mjs` | 同类控件的**实际渲染尺寸**是否一致 |
-| `check-detail-links.mjs` | 单元明细的每条链接是否拼得正确、能否打开 |
-| `check-anchor.mjs` | 通知点击后的锚点定位 |
-| `check-bar-stable.mjs` | 弹窗顶栏在点击「执行」前后位置是否位移 |
-| `check-active-refresh.mjs` | 手动打开设置页是否绕过节流、拉到最新数据 |
-| `check-net-rules.mjs` | 出站请求头规则是否安装、是否限定资源类型、是否覆盖两条路径 |
-| `test-session-refresh.mjs` | 会话恢复：删掉会话 cookie 后只发一次请求，看能否恢复 |
-| `verify-package.mjs` | 打包产物能否被加载、页面能否打开 |
+| `check-release.mjs` | 发布前必过项：文件长度、依赖方向、唯一来源、术语、代码卫生、文档引用、版本号一致、写路径只在后台、内容脚本不持客户端、交付文件齐备 |
+| `check-copy.mjs` | 文案：内部术语、口语化、与功能是否一致、标点是否统一 |
+| `check-privacy.mjs` | 隐私政策是否覆盖申请的全部权限 |
+| `check-all.mjs` | 依次跑上面三个，任一失败即退出 1 |
+| `verify-package.mjs` | 打包产物能否被加载、页面能否打开（发布前跑） |
+
+其余自检脚本（锚点定位、顶栏稳定、图标居中、控件尺寸、左侧导航、明细链接、
+`selfcheck*`、`dryrun-tasks`、会话恢复）在结论确认后**已删除**：它们的判断
+多数已固化进发布门禁或测试，留着就是需要同步的负担——其中 4 处引用早已过期，
+而这类过期不会报错（`check-copy` 自己就因为文件清单过期跑不起来过一次）。
+
+**需要时按当时的问题写一个新脚本，不要恢复旧脚本。**
 
 ## run/ — 跑一次
 
@@ -125,8 +126,7 @@ pnpm probe:session -- save
 # 改完代码后：
 pnpm build
 pnpm probe:reload                       # 必须：否则测的是旧版本
-pnpm selfcheck
-node scripts/probe/checks/check-classes.mjs
+node scripts/probe/checks/check-all.mjs # 门禁
 
 # 想知道某个按钮调什么接口：
 pnpm probe:watch                        # 然后在页面上点它

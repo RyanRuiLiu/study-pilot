@@ -5,7 +5,6 @@
  * 把能自动完成的做完、返回结果。**会真的写平台**，因此只在确认
  * 「现在确实有该做的事」时使用。
  *
- * 想先看会做什么而不写平台，用 dryrun-tasks.mjs。
  *
  * 用法：node scripts/probe/run/run-once.mjs
  */

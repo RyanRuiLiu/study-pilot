@@ -25,8 +25,8 @@
     "probe:redact": "node scripts/probe/inspect/redact.mjs",
     "probe:reload": "node scripts/probe/run/reload-ext.mjs",
     "probe:shot": "node scripts/probe/run/shot.mjs",
-    "selfcheck": "node scripts/probe/checks/selfcheck.mjs",
-    "check:privacy": "node scripts/probe/checks/check-privacy.mjs"
+    "check:privacy": "node scripts/probe/checks/check-privacy.mjs",
+    "check:all": "node scripts/probe/checks/check-all.mjs"
   },
   "devDependencies": {
     "@material/material-color-utilities": "^0.3.0",

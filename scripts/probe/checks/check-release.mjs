@@ -480,6 +480,31 @@ record(
     .join('  '),
 );
 
+// ---------- 15. 代做默认关闭 ----------
+//
+// 产品立场：**默认是助手，代做是显式开启的高级功能**。
+//
+// 「代做」指会代你向平台留下记录的动作：完成课件、提交测验、提交互评与自评、
+// 把讨论内容发给模型并留言。这些动作**不可逆**（成绩标记删不掉、留言会留痕），
+// 而默认开启意味着用户装完扩展就已经在写平台了——不知道自己同意了什么。
+//
+// 因此这里判定的是默认值：代做类开关必须是 false。助手类（本地填充、提示、
+// 界面文案）保持默认开启，因为它们不改平台数据。
+
+console.log('');
+console.log('=== 代做默认关闭 ===');
+
+const moocSchema = readFileSync(join(ROOT, 'apps/extension/src/settings/schema/mooc.ts'), 'utf8');
+const aiSchema = readFileSync(join(ROOT, 'apps/extension/src/settings/schema/ai.ts'), 'utf8');
+
+const writesOn = [];
+for (const key of ['autoCourseware', 'autoQuiz', 'autoReview', 'autoSelfEvaluate']) {
+  if (!new RegExp(`${key}:\\s*\\{[^}]*enabled:\\s*false`).test(moocSchema)) writesOn.push(key);
+}
+if (!/enabled:\s*false/.test(aiSchema)) writesOn.push('ai.enabled');
+
+record('代你写平台的功能默认关闭', writesOn.length === 0, writesOn.join(' '));
+
 // ---------- 汇总 ----------
 
 const failed = results.filter((r) => !r.ok);
