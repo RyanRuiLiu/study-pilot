@@ -49,7 +49,7 @@ const BARE_LABEL = /^[\s\d、.．:：;；,，章节课时讨论题思考练习�
 /**
  * 从讨论帖取出题目正文。取不到返回 `null`（调用方据此失败）。
  */
-export function discussionQuestion(post: UnitPost): string | null {
+function discussionQuestion(post: UnitPost): string | null {
   const content = plain(post.content);
   if (content.length < 6) return null;
   if (BARE_LABEL.test(content)) return null;

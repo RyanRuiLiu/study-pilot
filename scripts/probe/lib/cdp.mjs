@@ -10,7 +10,7 @@
 const DEFAULT_PORT = 9222;
 
 /** 浏览器级 HTTP 端点（/json/version、/json/list …）。 */
-export async function fetchJson(path, { port = DEFAULT_PORT, timeoutMs = 8000 } = {}) {
+async function fetchJson(path, { port = DEFAULT_PORT, timeoutMs = 8000 } = {}) {
   const res = await fetch(`http://127.0.0.1:${port}${path}`, {
     signal: AbortSignal.timeout(timeoutMs),
   });

@@ -73,7 +73,7 @@ function buildRules(): Rule[] {
  * 幂等：先移除同 id 的旧规则再添加，因此可以每次启动都调用。
  * 失败时返回原因，由调用方决定是否提示——缺这条规则会导致所有后台接口调用被拒。
  */
-export async function ensureNetRules(): Promise<{ ok: true } | { ok: false; message: string }> {
+async function ensureNetRules(): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
     await browser.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: [RULE_ID, RULE_ID + 1],

@@ -42,10 +42,10 @@ import type { Settings } from '../../settings';
 export const NOTIFICATION_PREFIX = 'study-pilot-';
 
 /** 工作总结（后台做完什么、有什么临近截止）。 */
-export const SUMMARY_PREFIX = `${NOTIFICATION_PREFIX}summary-`;
+const SUMMARY_PREFIX = `${NOTIFICATION_PREFIX}summary-`;
 
 /** 示例通知，与工作总结分开，免得互相清掉。 */
-export const SAMPLE_PREFIX = `${NOTIFICATION_PREFIX}sample-`;
+const SAMPLE_PREFIX = `${NOTIFICATION_PREFIX}sample-`;
 
 /**
  * 清掉本扩展早先发出的同类通知。

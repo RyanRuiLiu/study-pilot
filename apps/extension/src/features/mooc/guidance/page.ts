@@ -30,7 +30,7 @@ export function questionItems(): HTMLElement[] {
  * 只看站点自己的容器：注入块插在 .j-title 之后，不会落进 .j-answer 或
  * .j-evaluate 里，因此这里不会把刚注入的内容当成「页面已经展示」。
  */
-export function selfShowsGuidance(item: HTMLElement): boolean {
+function selfShowsGuidance(item: HTMLElement): boolean {
   const containers = [SELECTORS.answerArea, SELECTORS.evaluateModule]
     .map((selector) => item.querySelector<HTMLElement>(selector))
     .filter((node): node is HTMLElement => node !== null);
@@ -66,7 +66,7 @@ export function normalizePage(source: string): boolean {
 }
 
 /** 读取页面上的题号。题号缺失时返回 null。 */
-export function positionOf(item: HTMLElement): number | null {
+function positionOf(item: HTMLElement): number | null {
   const positionNode = item.querySelector('.position');
   const text = (positionNode?.textContent ?? '').trim();
   const parsed = Number(text);

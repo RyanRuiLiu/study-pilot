@@ -51,7 +51,7 @@ export interface SelectedCourse {
 }
 
 /** 自动互评。 */
-export interface AutoReviewSettings {
+interface AutoReviewSettings {
   enabled: boolean;
   /** 统一使用的评语 */
   comment: string;
@@ -63,12 +63,12 @@ export interface AutoReviewSettings {
  * 与互评并列但独立：互评给同学的作业打分，自评给自己的。
  * 两者都在互评期内开放，配额各自计算，因此分开开关、分开计数。
  */
-export interface AutoSelfEvaluateSettings {
+interface AutoSelfEvaluateSettings {
   enabled: boolean;
 }
 
 /** 自动答题（单元测验）。 */
-export interface AutoQuizSettings {
+interface AutoQuizSettings {
   enabled: boolean;
 }
 
@@ -79,7 +79,7 @@ export interface AutoQuizSettings {
  * 一致的记录。它不产生对错、也不改变分数，但同样改动了账号上的学习记录，
  * 因此与另外三个后台写操作一样默认关闭。
  */
-export interface AutoCoursewareSettings {
+interface AutoCoursewareSettings {
   enabled: boolean;
 }
 
@@ -92,7 +92,7 @@ export interface AutoCoursewareSettings {
  * 已过截止的也不在这里：那类不是提醒，是告知，且它与完成情况无关，
  * 因此不随这个开关开关，见 notificationOverdue 的说明。
  */
-export interface DeadlineReminderSettings {
+interface DeadlineReminderSettings {
   enabled: boolean;
   /** 距截止不足该天数时开始提醒 */
   advanceDays: number;
@@ -107,18 +107,8 @@ export interface DeadlineReminderSettings {
  * 它与截止提醒是不同的两件事，因此各有一个开关：
  * 有人只想知道有什么要做，不关心后台做了没做；也有人反过来。
  */
-export interface CompletionNoticeSettings {
+interface CompletionNoticeSettings {
   enabled: boolean;
-}
-
-/**
- * 通知总设置。
- *
- * 关闭的类别不再发出，而不是发一条空的——空通知比不通知更打扰人。
- */
-export interface NotificationSettings {
-  deadline: DeadlineReminderSettings;
-  completion: CompletionNoticeSettings;
 }
 
 /**
@@ -134,7 +124,7 @@ export interface NotificationSettings {
  * 早先还有「只在指定星期几执行」的配置，已经去掉：新作业按天出现，
  * 一天一次足够，而挑星期几会让用户在其余几天什么都等不到，且无从判断原因。
  */
-export interface ScheduleSettings {
+interface ScheduleSettings {
   /**
    * 启动后延迟多久开始检查，单位分钟。
    *
@@ -170,7 +160,7 @@ export interface ScheduleSettings {
 }
 
 /** 前台功能的开关。几项都只有开与关，但形状与后台保持一致。 */
-export interface ToggleSettings {
+interface ToggleSettings {
   enabled: boolean;
 }
 

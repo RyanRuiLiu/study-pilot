@@ -15,12 +15,18 @@
  * 密钥只在这里被读出来交给客户端，绝不进日志、不进错误消息。
  */
 
-import { createChatClient, type AiError, type ChatMessage } from '@study-pilot/ai';
+import { createChatClient, type AiError } from '@study-pilot/ai';
 import type { TextGenerator } from '@study-pilot/platform-mooc';
 import type { Settings } from '../settings';
 import { discussReplyTask, type AiTask } from './tasks/discuss-reply.ts';
 
-/** 任务表：任务 id → 提示词与解析。新增用途只改这里。 */
+/**
+ * 任务表：任务 id → 提示词与解析。新增用途只改这里。
+ *
+ * @public 门禁（scripts/probe/checks/check-release.mjs 的 SINGLE_SOURCE 表）按
+ * 名字引用它，静态分析看不到这种引用；knip 的 @public 标签是这种「对外契约」
+ * 的标准标记，去掉标签会被当成未使用导出报出来。
+ */
 export const AI_TASKS: Record<string, AiTask> = {
   'discuss-reply': discussReplyTask,
 };
@@ -86,9 +92,6 @@ export function createTextGenerator(settings: Settings): TextGenerator | undefin
     return { ok: false, reason: `${lastReason}（已重试 ${MAX_ATTEMPTS} 次）` };
   };
 }
-
-export type { AiTask } from './tasks/discuss-reply.ts';
-export type { ChatMessage };
 
 /**
  * 用当前设置发一次最小请求，确认地址、模型与密钥可用。

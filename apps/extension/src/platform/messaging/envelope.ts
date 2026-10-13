@@ -61,8 +61,6 @@ export type JobRejection =
   /** 已登录但读不到用户 id */
   | 'NO_USER_ID';
 
-export type JobResult<T> = { ok: true; summary: T[] } | { ok: false; reason: JobRejection };
-
 /** 拒绝原因对应的用户可读说明。 */
 export const REJECTION_MESSAGES: Record<JobRejection, string> = {
   DISABLED_GLOBAL: '总开关已关闭，请先在设置中启用',
@@ -93,7 +91,7 @@ export interface RunScheduledTasksResponse {
  * 直接复用 scheduler 的类型，避免两处定义漂移——界面按它渲染，
  * 字段少一个就会显示错。
  */
-export type TaskStateSnapshot = TaskState;
+type TaskStateSnapshot = TaskState;
 
 /**
  * 后台此刻的状态。

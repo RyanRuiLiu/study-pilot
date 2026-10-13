@@ -28,7 +28,7 @@ import { getUnitResource } from './resource.ts';
  * 页面越多、总时长越大：12 页 ≈ 6 分钟，与真人翻完一份 PPT 的量级一致。
  * 只有一个来源——改这里就是改全部文档的浏览时长，不存在第二处。
  */
-export const SECONDS_PER_PAGE = 30;
+const SECONDS_PER_PAGE = 30;
 
 export const documentBehavior: UnitBehavior = {
   type: UNIT_TYPE.PDF,
