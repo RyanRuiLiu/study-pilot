@@ -6,6 +6,7 @@
  */
 
 import type { Course, DashboardView, Task, TaskKind, TaskMode, TaskState } from '../../src/domain/task';
+import { orderTasks, summarize } from '../../src/domain/plan';
 import { formatDate, relativeDay } from '../../src/features/format';
 
 export const KIND_LABEL: Record<TaskKind, string> = {
@@ -161,8 +162,14 @@ export function renderBoard(app: HTMLElement, view: DashboardView, tasks: Task[]
     return;
   }
 
+  app.append(summaryLine(tasks));
+
+  /*
+   * 分组前先排序：排序规则在 domain/plan.ts 里（与执行面共用同一份判断），
+   * 这里只负责按课程切开。
+   */
   const byCourse = new Map<number, Task[]>();
-  for (const task of tasks) {
+  for (const task of orderTasks(tasks)) {
     const bucket = byCourse.get(task.courseId);
     if (bucket) bucket.push(task);
     else byCourse.set(task.courseId, [task]);
@@ -171,6 +178,28 @@ export function renderBoard(app: HTMLElement, view: DashboardView, tasks: Task[]
   for (const [courseId, list] of byCourse) {
     app.append(group(view.courses.find((course) => course.courseId === courseId), list));
   }
+}
+
+/**
+ * 顶部那行计数。
+ *
+ * 按「谁来做」分开数而不合成一个「待办 9 项」：用户要知道的是其中几件
+ * 后台会代做、几件要自己动手——合成一个数字就把这个差别抹掉了。
+ */
+function summaryLine(tasks: Task[]): HTMLElement {
+  const summary = summarize(tasks);
+  const parts = [
+    `可自动完成 ${summary.auto}`,
+    `需要确认 ${summary.assisted}`,
+    `需要你做 ${summary.manual}`,
+  ];
+  if (summary.failed > 0) parts.push(`失败 ${summary.failed}`);
+  if (summary.done > 0) parts.push(`已完成 ${summary.done}`);
+
+  const element = document.createElement('p');
+  element.className = 'summary';
+  element.textContent = parts.join(' · ');
+  return element;
 }
 
 function note(text: string): HTMLElement {
