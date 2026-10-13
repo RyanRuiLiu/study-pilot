@@ -38,14 +38,13 @@ export {
 } from './structure.ts';
 
 export {
-  UNIT_TYPE,
-  COMPLETABLE_TYPES,
+  BEHAVIORS,
   isUnitComplete,
   isCompletable,
-  buildUnitReport,
   completeUnit,
-  type CompleteOutcome,
-} from './learn.ts';
+  type BehaviorOutcome,
+  type UnitBehavior,
+} from './courseware/index.ts';
 
 export {
   getEvaluationDetail,
