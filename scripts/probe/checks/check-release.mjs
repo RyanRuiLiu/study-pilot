@@ -319,6 +319,40 @@ for (const file of [...collect(join(ROOT, 'apps'), (n) => n.endsWith('.ts')), ..
 }
 record('唯一来源的符号没有第二处声明', misplaced.length === 0, misplaced.slice(0, 4).join('  '));
 
+// ---------- 11. 代码卫生 ----------
+//
+// 下面这几样都是「让报错消失」而不是「解决问题」的手法：加一个 any、屏蔽一行
+// 类型检查、留一句 console.log。它们正是 AI 改动最容易引入的劣化，因为改完
+// 报错确实没了。全部禁止——要把错误消掉，就得真的改对。
+//
+// 只判源码，不判测试：测试里出现非空断言是常见且可接受的写法。
+
+console.log('');
+console.log('=== 代码卫生 ===');
+
+const SMELLS = [
+  [/: any\b|as any\b|<any>/, '显式 any'],
+  [/@ts-(?:ignore|expect-error|nocheck)/, '类型检查豁免'],
+  [/eslint-disable/, 'lint 豁免'],
+  [/\bdebugger\b/, 'debugger'],
+  [/console\.(?:log|debug)\(/, '调试输出'],
+  [/\w!\./, '非空断言'],
+];
+
+const smellHits = [];
+for (const file of [
+  ...collect(join(ROOT, 'apps'), (n) => n.endsWith('.ts')),
+  ...collect(join(ROOT, 'packages'), (n) => n.endsWith('.ts')),
+]) {
+  if (/[\\/]test[\\/]/.test(file) || /\.test\.ts$/.test(file)) continue;
+  const text = readFileSync(file, 'utf8');
+  for (const [re, label] of SMELLS) {
+    const found = text.match(new RegExp(re.source, 'g'));
+    if (found) smellHits.push(`${rel(file)} ${label} ×${found.length}`);
+  }
+}
+record('源码里没有「让报错消失」的手法', smellHits.length === 0, smellHits.slice(0, 4).join('  '));
+
 const LAYER_RULES = [
   ['packages/core/', []],
   ['packages/transport/', ['@study-pilot/core']],
