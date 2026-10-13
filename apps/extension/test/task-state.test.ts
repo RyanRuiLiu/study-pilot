@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { EMPTY_STATE, liveRunState, type TaskState } from '../src/background/scheduler';
+import { EMPTY_STATE, liveRunState, type TaskState } from '../src/background/runtime/scheduler';
 
 const NOW = 1_700_000_000_000;
 const MINUTE = 60 * 1000;

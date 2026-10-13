@@ -26,7 +26,7 @@ import {
   readToken,
   renewSession,
   SessionExpiredError,
-} from '../src/platform/mooc-session';
+} from '../src/platform/mooc/session';
 import { getSettings, updateSettings, watchSettings, type Settings } from '../src/settings';
 import {
   NOTIFICATION_PREFIX,
@@ -34,10 +34,10 @@ import {
   noticeSettingsOf,
   notify,
   notifySample,
-} from '../src/background/reminder';
-import { executeActions } from '../src/background/execute';
-import { mergeCourses } from '../src/background/course-selection';
-import { clearAlarm, ensureAlarm, isCheckAlarm } from '../src/background/alarms';
+} from '../src/background/mooc/reminder';
+import { executeActions } from '../src/background/mooc/execute';
+import { mergeCourses } from '../src/background/mooc/course-selection';
+import { clearAlarm, ensureAlarm, isCheckAlarm } from '../src/background/runtime/alarms';
 import { listNetRules, whenNetRulesReady } from '../src/background/net-rules';
 import {
   beginRun,
@@ -49,7 +49,7 @@ import {
   markAwaitingLogin,
   resetState,
   touchRun,
-} from '../src/background/scheduler';
+} from '../src/background/runtime/scheduler';
 import {
   fetchedToday,
   inspect,
@@ -57,13 +57,13 @@ import {
   writeSnapshot,
   type InspectCourse,
   type Snapshot,
-} from '../src/background/snapshot';
-import { derivePlan, shouldRefresh } from '../src/background/task-plan';
+} from '../src/background/mooc/snapshot';
+import { derivePlan, shouldRefresh } from '../src/background/mooc/task-plan';
 import {
   recoveryFailure,
   withSessionRecovery,
-} from '../src/background/session-recovery';
-import { toPendingSummary, toUnitDetails } from '../src/background/to-messages';
+} from '../src/background/runtime/session-recovery';
+import { toPendingSummary, toUnitDetails } from '../src/background/mooc/to-messages';
 import type { BackgroundRequest } from '../src/platform/messaging';
 
 /** 平台的登录凭证 cookie。出现即表示登录成功。 */

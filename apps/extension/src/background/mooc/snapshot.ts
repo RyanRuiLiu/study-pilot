@@ -35,8 +35,8 @@ import {
   getEvaluationDetail,
   type MoocClient,
 } from '@study-pilot/platform-mooc';
-import { SessionExpiredError } from '../platform/mooc-session';
-import { dateKey } from './scheduler';
+import { SessionExpiredError } from '../../platform/mooc/session';
+import { dateKey } from '../runtime/scheduler';
 
 /** 一个单元项在快照里的样子。 */
 export interface SnapshotWork {

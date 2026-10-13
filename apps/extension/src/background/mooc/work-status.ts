@@ -11,7 +11,7 @@
  * 而事实不会。
  */
 
-import { WORK_STATUS, type WorkStatus } from '../platform/messaging';
+import { WORK_STATUS, type WorkStatus } from '../../platform/messaging';
 import type { SnapshotWork } from './snapshot';
 
 const DAY_MS = 24 * 60 * 60 * 1000;

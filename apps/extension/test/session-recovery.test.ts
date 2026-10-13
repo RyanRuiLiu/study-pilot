@@ -8,8 +8,8 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { withSessionRecovery } from '../src/background/session-recovery';
-import { SessionExpiredError } from '../src/platform/mooc-session';
+import { withSessionRecovery } from '../src/background/runtime/session-recovery';
+import { SessionExpiredError } from '../src/platform/mooc/session';
 
 describe('withSessionRecovery', () => {
   it('第一次就成功：不碰续期，原样返回', async () => {

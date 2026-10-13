@@ -34,7 +34,7 @@ import {
   type MoocClient,
   type OpenQuizInfo,
 } from '@study-pilot/platform-mooc';
-import { createPanel, panelButton, panelInfo, type PanelHandle } from './panel';
+import { createPanel, panelButton, panelInfo, type PanelHandle } from '../panel';
 import {
   STAGE_DESCRIPTIONS,
   detectQuizStage,

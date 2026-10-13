@@ -8,13 +8,13 @@
  * 评估一遍，因此任何挂载动作都必须能安全地重复执行。
  */
 
-export { showQuizHelper, removeQuizHelper, type QuizHelperOptions } from './quiz-helper';
-export { injectHomeworkAnswers, removeHomeworkAnswers } from './homework-answers';
+export { showQuizHelper, removeQuizHelper, type QuizHelperOptions } from './mooc/quiz-helper';
+export { injectHomeworkAnswers, removeHomeworkAnswers } from './mooc/homework-answers';
 export {
   detectQuizStage,
   probeQuizStage,
   STAGE_DESCRIPTIONS,
   type QuizStage,
   type QuizStageProbe,
-} from './quiz-stage';
-export { SELECTORS, CLASS_ANALYSIS_MODE } from './selectors';
+} from './mooc/quiz-stage';
+export { SELECTORS, CLASS_ANALYSIS_MODE } from './mooc/selectors';

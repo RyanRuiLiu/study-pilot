@@ -21,7 +21,7 @@
 import { OVERDUE_REASONS, derivePlan, type Plan } from './task-plan';
 import type { Snapshot } from './snapshot';
 import type { ExecResult } from './execute';
-import type { Settings } from '../settings';
+import type { Settings } from '../../settings';
 
 /*
  * 通知标识。

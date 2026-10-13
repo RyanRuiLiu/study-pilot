@@ -8,7 +8,7 @@
  * 这里的函数都是纯的：给定计划与快照，输出消息对象，不碰网络也不碰存储。
  */
 
-import type { PendingEntry, PendingKind, PendingSummary, UnitDetail } from '../platform/messaging';
+import type { PendingEntry, PendingKind, PendingSummary, UnitDetail } from '../../platform/messaging';
 import { isExam, OVERDUE_REASONS, type AutoAction, type ManualItem, type Plan } from './task-plan';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from './snapshot';
 import { describeStatusDetail, describeWorkStatus } from './work-status';

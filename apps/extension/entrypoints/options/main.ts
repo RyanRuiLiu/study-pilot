@@ -30,7 +30,7 @@ import {
   type JobRejection,
   type UnitDetail,
 } from '../../src/platform/messaging';
-import { describeRunState } from '../../src/background/scheduler';
+import { describeRunState } from '../../src/background/runtime/scheduler';
 import { coursePageUrl, describeCourseMode, workPageUrl } from '@study-pilot/platform-mooc';
 import type { SelectedCourse } from '../../src/settings';
 import { formatDateTime, formatTermRange } from '../../src/features/format';
