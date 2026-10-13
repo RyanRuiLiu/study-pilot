@@ -14,7 +14,6 @@ import {
   getHomeworkPaper,
   getQuizPaper,
   nextSubmission,
-  saveDraft,
   submitEvaluation,
   submitQuiz,
   type MoocClient,
@@ -63,7 +62,6 @@ export async function runQuiz(
     };
   }
 
-  await saveDraft(client, paper.value);
   const submitted = await submitQuiz(client, paper.value);
   if (!submitted.ok) {
     return { ...base, status: 'failed', detail: `提交失败：${submitted.error.message}` };
