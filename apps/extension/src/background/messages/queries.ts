@@ -218,7 +218,7 @@ export async function handleQuery(
 
           const [moocTrace, spocTrace] = [await trace(1), await trace(2)];
 
-          let ruleCount: number | string = 0;
+          let ruleCount: number | string;
           try {
             ruleCount = (await listNetRules()).length;
           } catch (error) {
