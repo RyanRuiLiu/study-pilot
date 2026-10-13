@@ -58,7 +58,7 @@ ai: { enabled, baseUrl, model, apiKey }
 ## 5. 怎么加一个 AI 用途
 
 1. `apps/extension/src/ai/tasks/<name>.ts`：写 `messages(input)` 与 `parse(content)`，**格式只有一种**
-2. 在 `apps/extension/src/ai/index.ts` 的 `AI_TASKS` 登记一行
+2. 在 [`apps/extension/src/ai/index.ts`](../apps/extension/src/ai/index.ts) 的 `AI_TASKS` 登记一行
 3. 需要 AI 的行为在 `platform-mooc` 里声明 `needs: 'text'`，并只依赖注入的 `generateText`
 4. 补测试：提示词构造、合法输出、非法输出、失败路径
 

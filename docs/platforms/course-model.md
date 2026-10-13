@@ -41,7 +41,7 @@ result.mocTermDto
 └── courseId / id / courseName / mode / startTime / endTime …
 ```
 
-[源码] 与 [实测] 一致：`packages/platform-mooc/src/structure.ts` 的注释给出了同样的位置；
+[源码] 与 [实测] 一致：[`packages/platform-mooc/src/structure.ts`](../../packages/platform-mooc/src/structure.ts) 的注释给出了同样的位置；
 本轮遍历 `chapters[].lessons[].units[]` 读到了全部课件单元。
 
 **课件单元挂在 lesson 下，不在 chapter 下**——这是最容易被写错的一处。

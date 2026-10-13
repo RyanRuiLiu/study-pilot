@@ -64,7 +64,7 @@ c.geneAuthHeaders = function (e) {
 | 摘要 | MD5 十六进制转大写 |
 | 请求头 | `Timestamp`、`Auth-Signature`、`Nonce`、`System: v1`、`Content-Type` |
 
-实现位置：`packages/transport/src/sign.ts`，测试见 `packages/transport/test/sign.test.ts`。
+实现位置：[`packages/transport/src/sign.ts`](../../packages/transport/src/sign.ts)，测试见 [`packages/transport/test/sign.test.ts`](../../packages/transport/test/sign.test.ts)。
 
 ### 1.1 空请求体的边界
 
@@ -161,7 +161,7 @@ try {
    持久凭证（NTES_YD_PASSPORT / STUDY_PERSIST）时，`NTESSTUDYSI`、
    `STUDY_INFO`、`STUDY_SESS` 会被重新下发。续期是否发生可以用
    `STUDY_SESS` 的值是否变化来回答——这正是官网打开首页就能"自动登录"的
-   机制，扩展里对应的实现是 `apps/extension/src/platform/mooc/session.ts`
+   机制，扩展里对应的实现是 [`apps/extension/src/platform/mooc/session.ts`](../../apps/extension/src/platform/mooc/session.ts)
    的 `renewSession`。
 
 官网前端不靠 cookie 判断登录：`core.js` 中的 `_$isLogin` 读的是
@@ -197,7 +197,7 @@ batchId={毫秒时间戳}
 dwr.engine._remoteHandleCallback('<batchId>','0',true)
 ```
 
-实现位置：`packages/transport/src/dwr.ts`。
+实现位置：[`packages/transport/src/dwr.ts`](../../packages/transport/src/dwr.ts)。
 
 涉及的两个端点：
 
@@ -395,7 +395,7 @@ _.__onToggleDoing = function () {
 `MocEvaluateBean.submitSubmissionEvaluate`），协议细节见第 4 节。
 
 作业所处阶段由 `edu.u._$currentEvaluatePhase` 计算，实现位于
-`packages/platform-mooc/src/review.ts`：
+[`packages/platform-mooc/src/review.ts`](../../packages/platform-mooc/src/review.ts)：
 
 ```js
 if (now < deadline) return 1;                        // 提交期
