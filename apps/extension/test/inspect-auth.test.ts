@@ -50,6 +50,7 @@ function emptyStructure(termId: number): ResultLike {
     courseId: 1000 + termId,
     courseName: `课程${termId}`,
     works: [],
+    units: [],
   });
 }
 

@@ -86,6 +86,7 @@ function daysLeft(deadline: number, now: number): number {
 
 /** 给执行结果配一个说法。 */
 const KIND_LABEL: Record<ExecResult['kind'], string> = {
+  courseware: '课件',
   quiz: '答题',
   review: '互评',
   self: '自评',

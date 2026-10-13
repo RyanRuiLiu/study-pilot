@@ -9,7 +9,7 @@
  */
 
 import type { PendingEntry, PendingKind, PendingSummary, UnitDetail } from '../../platform/messaging';
-import { isExam, OVERDUE_REASONS, type AutoAction, type ManualItem, type Plan } from './task-plan';
+import { isExam, OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from './task-plan';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from './snapshot';
 import { describeStatusDetail, describeWorkStatus } from './work-status';
 
@@ -21,7 +21,7 @@ import { describeStatusDetail, describeWorkStatus } from './work-status';
  * 于是自评被显示成「互评作业」——点进去会发现评的是自己，
  * 与标题说的不是一回事。
  */
-const AUTO_KIND: Record<AutoAction['kind'], PendingKind> = {
+const AUTO_KIND: Record<WorkAutoAction['kind'], PendingKind> = {
   quiz: 'submit-quiz',
   review: 'evaluate-homework',
   self: 'self-evaluate',
@@ -93,6 +93,15 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
   const entries: PendingEntry[] = [];
 
   for (const action of plan.auto) {
+    /*
+     * 课件不是待办。
+     *
+     * 它没有截止时间、也不属于任何章节，开了自动完成之后一件件做掉即可。
+     * 把它塞进待办列表会让「我还有什么没做」变长，而它本来不是要交的东西；
+     * 做完了什么由完成提醒报告。
+     */
+    if (action.kind === 'courseware') continue;
+
     const { course, work } = action;
     entries.push({
       /*

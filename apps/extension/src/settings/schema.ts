@@ -77,6 +77,17 @@ export interface AutoQuizSettings {
 }
 
 /**
+ * 自动完成课件。
+ *
+ * 把尚未完成的课件单元（视频、文档、文本、随堂测验、讨论）标记为已学。
+ * 它不产生对错、也不改变分数，但同样改动了账号上的学习记录，
+ * 因此与另外三个后台写操作一样默认关闭。
+ */
+export interface AutoCoursewareSettings {
+  enabled: boolean;
+}
+
+/**
  * 作业截止提醒。
  *
  * 只覆盖「临近截止但还没完成」的事项。已经完成的不再提醒——
@@ -184,6 +195,7 @@ export interface MoocSettings {
     homeworkAnswers: ToggleSettings;
   };
   background: {
+    autoCourseware: AutoCoursewareSettings;
     autoReview: AutoReviewSettings;
     autoSelfEvaluate: AutoSelfEvaluateSettings;
     autoQuiz: AutoQuizSettings;
@@ -231,7 +243,7 @@ export const DEFAULT_SETTINGS: Settings = {
      * 自己点：做题助手的面板要人点了才会填充，提交也是人点；得分指导只是
      * 往题目下面插一段说明，不产生任何写入。
      *
-     * 与后台三个开关的分界线是「自动」——后台任务在检查时自己就动了，
+     * 与后台开关的分界线是「自动」——后台任务在检查时自己就动了，
      * 前台不会。所以前台默认开不构成替用户做决定，后台默认关才是。
      */
     foreground: {
@@ -240,12 +252,15 @@ export const DEFAULT_SETTINGS: Settings = {
     },
     background: {
       /*
-       * 以下三个都是写操作，默认全部关闭。
+       * 以下四个都是写操作，默认全部关闭。
        *
-       * 它们会代替用户提交测验、给同学的作业打分、给自己的作业打分 ——
-       * 这些都是账号上的真实记录，且无法撤销。替用户做这种决定需要
-       * 他自己明确打开开关，而不是靠一个默认值替他决定。
+       * 它们会代替用户提交测验、给同学的作业打分、给自己的作业打分、
+       * 把课件标记为已学 —— 这些都是账号上的真实记录，且无法撤销。
+       * 替用户做这种决定需要他自己明确打开开关，而不是靠一个默认值替他决定。
        */
+      autoCourseware: {
+        enabled: false,
+      },
       autoQuiz: {
         enabled: false,
       },

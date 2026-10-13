@@ -38,6 +38,16 @@ export {
 } from './structure.ts';
 
 export {
+  UNIT_TYPE,
+  COMPLETABLE_TYPES,
+  isUnitComplete,
+  isCompletable,
+  buildUnitReport,
+  completeUnit,
+  type CompleteOutcome,
+} from './learn.ts';
+
+export {
   getEvaluationDetail,
   countDwrArray,
   type EvaluationProgress,

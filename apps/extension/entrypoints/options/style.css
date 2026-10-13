@@ -476,42 +476,6 @@ button.quiet:hover,
   margin: 0;
 }
 
-/* ---------- 星期 ---------- */
-
-.weekdays { display: flex; gap: 8px; }
-
-.weekday {
-  position: relative;
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 30px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  color: var(--ink-soft);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.weekday input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.weekday:has(input:checked) {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-}
-
-.weekday:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
-
 /* ---------- 课程列表 ---------- */
 
 .courses { margin-top: 4px; }

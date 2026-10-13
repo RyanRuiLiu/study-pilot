@@ -14,18 +14,33 @@
  * 却不知道这一条到底会不会被自动处理，因为答案取决于今天是不是执行日。
  */
 
+import { isCompletable, isUnitComplete, type CourseUnit } from '@study-pilot/platform-mooc';
 import type { Settings } from '../../settings';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from './snapshot';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * 一件能自动完成的事。
+ *
+ * 两种形态：作业/测验/考试上的，与课件单元上的。用可辨识联合而不是
+ * 「两个字段都在、其中一个为空」——后者让每个使用处都得先判空，
+ * 漏一处就是运行时崩溃。
+ */
+export type AutoAction = WorkAutoAction | CoursewareAutoAction;
 
-/** 一件能自动完成的事。 */
-export interface AutoAction {
+/** 作业、测验、考试上的自动项。 */
+export interface WorkAutoAction {
   kind: 'quiz' | 'review' | 'self';
   course: SnapshotCourse;
   work: SnapshotWork;
   /** 互评还差几份；kind 为 review 时有值 */
   remaining: number;
+}
+
+/** 课件单元上的自动项。 */
+export interface CoursewareAutoAction {
+  kind: 'courseware';
+  course: SnapshotCourse;
+  unit: CourseUnit;
 }
 
 /**
@@ -103,13 +118,6 @@ export interface Plan {
   manual: ManualItem[];
 }
 
-/** 判断一个时刻是否落在提醒窗口内。 */
-function withinWindow(deadline: number | null, advanceDays: number, now: number): boolean {
-  if (deadline === null) return false;
-  if (deadline <= now) return false;
-  return deadline - now <= advanceDays * DAY_MS;
-}
-
 /**
  * 某个单元此刻是否处于互评期。
  *
@@ -125,6 +133,7 @@ function inReviewWindow(work: SnapshotWork, now: number): boolean {
 
 /** 当前哪些自动任务开着。 */
 interface TaskSwitches {
+  courseware: boolean;
   quiz: boolean;
   review: boolean;
   self: boolean;
@@ -132,6 +141,7 @@ interface TaskSwitches {
 
 function readSwitches(settings: Settings): TaskSwitches {
   return {
+    courseware: settings.mooc.background.autoCourseware.enabled,
     quiz: settings.mooc.background.autoQuiz.enabled,
     review: settings.mooc.background.autoReview.enabled,
     self: settings.mooc.background.autoSelfEvaluate.enabled,
@@ -262,14 +272,36 @@ export function derivePlan(
         }
       }
     }
+
+    /*
+     * 课件单元。
+     *
+     * 与 works 不同，它不是「待办」：没有截止时间，不做也不会错过什么，
+     * 因此开关关着时直接跳过，不进 manual——把「可以代劳」说成「需要你处理」
+     * 会让待办列表变长，而用户并不知道那些其实只是「没开启自动完成」。
+     *
+     * 收下的条件是 isUnitComplete 为假且 isCompletable 为真：
+     * 已完成的不必再做，不能上报的（未实测的类型、平台没给时长的视频）
+     * 不进计划，否则它们会每轮重现、永远做不掉。
+     */
+    if (on.courseware) {
+      for (const unit of course.units) {
+        if (!isUnitComplete(unit) && isCompletable(unit)) {
+          auto.push({ kind: 'courseware', course, unit });
+        }
+      }
+    }
   }
 
   /*
-   * 测验排前面。一次请求就能定结果，而互评要逐份取逐份交；
+   * 先做最便宜的。
+   *
+   * 课件单元一条请求就完事，测验次之，互评要逐份取逐份交。
    * 中途被关掉时，先保证那些能一次做完的已经做完。
    */
   auto.sort((a, b) => {
-    const weight = (k: AutoAction['kind']) => (k === 'quiz' ? 0 : k === 'self' ? 1 : 2);
+    const weight = (k: AutoAction['kind']) =>
+      k === 'courseware' ? 0 : k === 'quiz' ? 1 : k === 'self' ? 2 : 3;
     return weight(a.kind) - weight(b.kind);
   });
 
@@ -287,7 +319,7 @@ export function derivePlan(
  *   3. 今天还没拉过 → 拉。这是发现新作业的唯一手段。
  *      本地快照永远不知道今天多了什么。
  *
- * 注意第 1 层：用户把三个自动任务都关掉、只留提醒时，仍然需要每天拉一次。
+ * 注意第 1 层：用户把四个自动任务都关掉、只留提醒时，仍然需要每天拉一次。
  * 否则提醒会基于越来越旧的快照，说「还有 2 天」而实际已经截至。
  */
 export function shouldRefresh(
@@ -300,6 +332,7 @@ export function shouldRefresh(
   if (snapshot === null) return true;
 
   const taskEnabled =
+    settings.mooc.background.autoCourseware.enabled ||
     settings.mooc.background.autoQuiz.enabled ||
     settings.mooc.background.autoReview.enabled ||
     settings.mooc.background.autoSelfEvaluate.enabled;
@@ -312,15 +345,5 @@ export function shouldRefresh(
 
   // 兜底：每天至少拉一次，用来发现新发布的作业
   return !fetchedToday;
-}
-
-/** 计划里能自动完成的部分是否为空。 */
-export function planIsEmpty(plan: Plan): boolean {
-  return plan.auto.length === 0 && plan.manual.length === 0;
-}
-
-/** 供提醒使用：筛出落在窗口内的手工项。 */
-export function dueManualItems(plan: Plan, advanceDays: number, now: number): ManualItem[] {
-  return plan.manual.filter((item) => withinWindow(item.deadline, advanceDays, now));
 }
 
