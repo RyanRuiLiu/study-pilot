@@ -12,7 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_TYPE } from '@study-pilot/platform-mooc';
 import type { SnapshotCourse, SnapshotWork } from '../src/background/mooc/snapshot';
-import { PLATFORMS, adapterOf } from '../src/platforms/index';
+import { MOOC_PLATFORM, toCourse, toTasks } from '../src/platforms/index';
 import { taskId } from '../src/domain/task';
 
 const COURSE: SnapshotCourse = {
@@ -51,11 +51,9 @@ function course(overrides: Partial<SnapshotCourse> = {}): SnapshotCourse {
   return { ...COURSE, ...overrides };
 }
 
-describe('注册表', () => {
-  it('按平台 id 取 adapter；没有的返回 null', () => {
-    expect(adapterOf('mooc')?.platform.name).toBe('慕课');
-    expect(adapterOf('unknown')).toBeNull();
-    expect(PLATFORMS).toHaveLength(1);
+describe('平台', () => {
+  it('平台标识稳定——看板与任务 id 都用到它', () => {
+    expect(MOOC_PLATFORM).toEqual({ id: 'mooc', name: '慕课' });
   });
 });
 
@@ -71,7 +69,7 @@ describe('课件单元 → 任务', () => {
     ] as const;
 
     for (const [index, row] of units.entries()) {
-      const tasks = adapterOf('mooc')!.toTasks(
+      const tasks = toTasks(
         course({
           units: [
             {
@@ -101,7 +99,7 @@ describe('课件单元 → 任务', () => {
   });
 
   it('已完成按 completePercent 判定', () => {
-    const tasks = adapterOf('mooc')!.toTasks(
+    const tasks = toTasks(
       course({
         units: [
           {
@@ -123,7 +121,7 @@ describe('课件单元 → 任务', () => {
   });
 
   it('未实测的类型不映射——宁可不展示也不猜', () => {
-    const tasks = adapterOf('mooc')!.toTasks(
+    const tasks = toTasks(
       course({
         units: [
           {
@@ -147,7 +145,7 @@ describe('课件单元 → 任务', () => {
 
 describe('工作项 → 任务', () => {
   it('测验未提交时可由后台完成，考试与作业只能人工', () => {
-    const tasks = adapterOf('mooc')!.toTasks(
+    const tasks = toTasks(
       course({
         works: [
           work({ tid: 1, type: 'quiz', name: '单元测验' }),
@@ -168,7 +166,7 @@ describe('工作项 → 任务', () => {
   });
 
   it('已提交的作业会分出互评与自评两条独立任务', () => {
-    const tasks = adapterOf('mooc')!.toTasks(
+    const tasks = toTasks(
       course({
         works: [
           work({
@@ -195,7 +193,7 @@ describe('工作项 → 任务', () => {
   });
 
   it('互评评够、自评做完时两条都是完成', () => {
-    const tasks = adapterOf('mooc')!.toTasks(
+    const tasks = toTasks(
       course({
         works: [
           work({ submitted: true, reviewable: true, evaluateTotal: 5, evaluateDone: 5, selfDone: true }),
@@ -206,21 +204,21 @@ describe('工作项 → 任务', () => {
   });
 
   it('配额未知时不派生互评——那说明上次没读到进度，占一份配额有副作用', () => {
-    const tasks = adapterOf('mooc')!.toTasks(
+    const tasks = toTasks(
       course({ works: [work({ submitted: true, reviewable: true })] }),
     );
     expect(tasks.map((t) => t.kind)).toEqual(['homework']);
   });
 
   it('每条任务都带可跳转地址（由平台 adapter 提供）', () => {
-    const tasks = adapterOf('mooc')!.toTasks(course({ works: [work({ tid: 42 })] }));
+    const tasks = toTasks(course({ works: [work({ tid: 42 })] }));
     expect(tasks[0]?.link).toContain('id=42');
   });
 });
 
 describe('课程映射', () => {
   it('带上平台与学期，供看板分组', () => {
-    expect(adapterOf('mooc')!.toCourse(COURSE)).toEqual({
+    expect(toCourse(COURSE)).toEqual({
       platformId: 'mooc',
       courseId: 9000000014,
       termId: 9000000030,

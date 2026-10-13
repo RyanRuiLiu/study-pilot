@@ -132,18 +132,18 @@ node scripts/probe/run/reload-ext.mjs
 
 ### 改完要自证
 
-仓库带一套自检脚本，每条都是实测而非静态检查：
-
 ```bash
-node scripts/probe/checks/selfcheck.mjs            # 后台接口与界面是否对得上
-node scripts/probe/checks/check-classes.mjs        # 用到的类名是否都有样式
-node scripts/probe/checks/check-copy.mjs           # 文案是否与功能一致
-node scripts/probe/checks/check-toc.mjs            # 左侧导航与分区是否对得上
-node scripts/probe/checks/check-control-styles.mjs # 按钮与链接的尺寸是否一致
-node scripts/probe/checks/dryrun-tasks.mjs         # 打印会做什么，不执行
+node scripts/probe/checks/check-all.mjs        # 全部门禁：发布 / 文案 / 隐私
 ```
 
-工具链的完整说明见 [scripts/probe/README.md](scripts/probe/README.md)。
+这一条跑的是**必过项**：文件长度、依赖方向、唯一来源、术语、代码卫生、
+文档引用、版本号一致、写路径与客户端归属。发布前再跑一次打包产物验证：
+
+```bash
+node scripts/probe/checks/verify-package.mjs   # 打包产物能被浏览器加载
+```
+
+工具链（逆向、采集、运维）的说明见 [scripts/probe/README.md](scripts/probe/README.md)。
 
 ## 文档
 

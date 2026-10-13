@@ -65,7 +65,7 @@ export async function readSession(): Promise<MoocSession> {
  * 登录状态也显示未登录；随手打开一次 MOOC 网页，再回来就一切正常——
  * 那次访问替扩展完成了会话恢复。
  *
- * 实测（scripts/probe/checks/test-session-refresh.mjs）确认恢复是服务端行为：
+ * 实测确认恢复是服务端行为：
  * 删掉会话 cookie 后只发一次带凭据的 GET，NTESSTUDYSI、STUDY_INFO、
  * STUDY_SESS 三者都会被重新下发，不需要加载页面、不需要执行页面脚本。
  * 所以这里一次静默请求即可，不必打开标签页打扰用户。
