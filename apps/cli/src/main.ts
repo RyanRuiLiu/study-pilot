@@ -4,38 +4,49 @@
  * 它的作用是证明「扩展只是一个载体」：核心用例与厂商装配都从包里取，
  * 扩展侧一行代码都不用——`@study-pilot/application` 给端口与用例，
  * `@study-pilot/platform-mooc` 给慕课的运行件（createMoocRuntime）。
- * 本目录只提供载体自己的四件事里的两件（配置文件、cookie 文件），
- * 另两件（状态存储、进度输出）等有写操作时再加——现在加就是没人用的假实现。
+ * 本目录只提供载体自己的四件事：配置文件、cookie 文件、状态文件、进度输出。
  *
- * 命令（都只读，不改平台上的任何数据）：
- *   courses [--select <termId>]   去平台读课程列表；--select 顺手把它勾上并写进配置
- *   pending                       读一遍并算出「要做什么」（可自动 / 需人工）
+ * 命令：
+ *   courses [--select <termId>]   去平台读课程列表；--select 把它勾上并写进配置（只读平台）
+ *   pending                       读一遍并算出「要做什么」（可自动 / 需人工），只读
+ *   run [--yes]                   预演这一轮会做什么；**加 --yes 才真的执行**（会写平台）
+ *
+ * 为什么 run 默认是预演：写平台会改账号上的学习记录，且不可撤销。所以默认只把「要做什么」
+ * 摆出来，真正动手必须显式给 --yes——这就是本载体的授权规则（扩展那边等价的是用户点按钮）。
  *
  * 用法：
- *   node apps/cli/src/main.ts courses --cookies .probe/mooc-session.json --config .probe/cli-config.json
  *   node apps/cli/src/main.ts pending --cookies .probe/mooc-session.json --config .probe/cli-config.json
+ *   node apps/cli/src/main.ts run --yes --cookies .probe/mooc-session.json --config .probe/cli-config.json
  */
 
+import { createRunner, type RoundResult } from '@study-pilot/application';
+import { createMoocRuntime } from '@study-pilot/platform-mooc';
 import { createFileConfigStore } from './config-store.ts';
 import { createHeaderFetch } from './fetch.ts';
 import { createCookieFileHost, readSessionFile } from './host.ts';
-import { createMoocRuntime } from '@study-pilot/platform-mooc';
+import { createStdoutProgress } from './progress.ts';
+import { createFileTaskStore } from './task-store.ts';
 
-const USAGE = `study-pilot（命令行载体，只读）
+const USAGE = `study-pilot（命令行载体）
 
-  courses [--select <termId>]   去平台读课程列表；--select 把它勾上并写进配置
-  pending                       读一遍并算出要做什么（可自动 / 需人工）
+  courses [--select <termId>]   去平台读课程列表；--select 把它勾上并写进配置（只读平台）
+  pending                       读一遍并算出要做什么（可自动 / 需人工），只读
+  run [--yes]                   预演这一轮；加 --yes 才真的执行（会写平台）
 
 可选参数：
   --cookies <file>   浏览器导出的会话文件（默认 .probe/mooc-session.json）
   --config  <file>   配置文件（默认 .probe/cli-config.json）
+  --state   <file>   运行状态文件（默认 .probe/cli-state.json）
+  --yes              run 的授权旗标：没有它只预演，不写平台
 `;
 
 interface Args {
   command: string;
   cookies: string;
   config: string;
+  state: string;
   select: number | undefined;
+  yes: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -43,16 +54,23 @@ function parseArgs(argv: string[]): Args {
     command: argv[0] ?? '',
     cookies: '.probe/mooc-session.json',
     config: '.probe/cli-config.json',
+    state: '.probe/cli-state.json',
     select: undefined,
+    yes: false,
   };
   for (let i = 1; i < argv.length; i += 1) {
     const flag = argv[i];
     const value = argv[i + 1];
-    if (flag === '--cookies' && value !== undefined) {
+    if (flag === '--yes') {
+      args.yes = true;
+    } else if (flag === '--cookies' && value !== undefined) {
       args.cookies = value;
       i += 1;
     } else if (flag === '--config' && value !== undefined) {
       args.config = value;
+      i += 1;
+    } else if (flag === '--state' && value !== undefined) {
+      args.state = value;
       i += 1;
     } else if (flag === '--select' && value !== undefined) {
       args.select = Number(value);
@@ -62,6 +80,35 @@ function parseArgs(argv: string[]): Args {
     }
   }
   return args;
+}
+
+/** 一轮的结局 → 输出与退出码。命令行的「一句话」在这里，判断不在这里（用例说了算）。 */
+function reportRound(result: RoundResult, configPath: string): number {
+  switch (result.status) {
+    case 'rejected':
+      console.error('正在执行：状态文件说上一轮还没结束（等一会儿，或删掉状态文件重试）');
+      return 4;
+    case 'not-logged-in':
+      console.error('未登录：会话 cookie 已失效，请重新导出（scripts/probe/lib/cookies.mjs）');
+      return 2;
+    case 'no-course':
+      console.error(`没有勾选课程：先跑 courses --select <termId>（配置：${configPath}）`);
+      return 3;
+    case 'nothing-to-do':
+      console.log('没有可自动完成的事项');
+      return 0;
+    case 'finished': {
+      console.log(`完成 ${result.done} 项，需你处理 ${result.manual} 项`);
+      for (const failure of result.failed) console.error(`  ✗ ${failure.name}：${failure.detail}`);
+      return result.failed.length > 0 ? 1 : 0;
+    }
+    case 'failed':
+      console.error(`这一轮失败：${result.message}`);
+      return 1;
+    case 'disabled':
+      console.error('这一轮没有执行');
+      return 1;
+  }
 }
 
 async function main(): Promise<number> {
@@ -148,6 +195,44 @@ async function main(): Promise<number> {
         console.log('（读回来的数据里没有未完成的项；四个自动开关是否打开，不影响这条结论）');
       }
       return 0;
+    }
+
+    case 'run': {
+      if (!args.yes) {
+        /* 预演：读一遍，把「要做什么」摆出来，一个字都不写平台 */
+        const plan = await runtime.tasks().plan(Date.now());
+        if (plan.needsLogin === true) {
+          console.error('未登录：会话 cookie 已失效，请重新导出（scripts/probe/lib/cookies.mjs）');
+          return 2;
+        }
+        if (plan.blocked === 'no-course') {
+          console.error(`没有勾选课程：先跑 courses --select <termId>（配置：${args.config}）`);
+          return 3;
+        }
+        const auto = plan.items.filter((item) => item.mode === 'auto');
+        const manual = plan.items.filter((item) => item.mode !== 'auto');
+        console.log(`预演（没有写平台）：这一轮会做 ${auto.length} 项，另有 ${manual.length} 项需你处理`);
+        for (const item of auto) console.log(`  [将自动] ${item.group} · ${item.title}`);
+        for (const item of manual) console.log(`  [需人工] ${item.group} · ${item.title}`);
+        console.log(
+          auto.length === 0
+            ? '没有要自动做的事，因此加不加 --yes 都不会写平台。'
+            : '确认无误后加 --yes 真的执行（会改账号上的学习记录，不可撤销）。',
+        );
+        return 0;
+      }
+
+      /*
+       * 真的执行：手动模式（用户明确要求），状态落文件、进度打到标准输出。
+       * 用例自己判「能不能开始」（状态文件里的中断标记 / 本进程认领），这里不重复判。
+       */
+      const runner = createRunner({
+        platforms: () => [runtime.tasks()],
+        config,
+        tasks: createFileTaskStore(args.state),
+        progress: createStdoutProgress(),
+      });
+      return reportRound(await runner.runRound('manual'), args.config);
     }
 
     default:
