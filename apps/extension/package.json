@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@study-pilot/ai": "workspace:*",
+    "@study-pilot/application": "workspace:*",
     "@study-pilot/core": "workspace:*",
     "@study-pilot/platform-mooc": "workspace:*",
     "@study-pilot/transport": "workspace:*"

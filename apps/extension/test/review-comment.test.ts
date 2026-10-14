@@ -1,6 +1,6 @@
 
 import { describe, expect, it } from "vitest";
-import { normalize } from "../src/settings/schema";
+import { normalize } from "@study-pilot/application";
 
 describe("评语兜底", () => {
   it("留空时退回默认值", () => {

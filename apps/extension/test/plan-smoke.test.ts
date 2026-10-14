@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 import type { CourseUnit } from '@study-pilot/platform-mooc';
 import { derivePlan } from '../src/platforms/mooc/plan';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/platforms/mooc/read';
-import { DEFAULT_SETTINGS } from '../src/settings/schema/index.ts';
+import { DEFAULT_SETTINGS } from '@study-pilot/application';
 
 const HOUR = 60 * 60 * 1000;
 const NOW = new Date(2026, 8, 26, 10, 0, 0).getTime();
