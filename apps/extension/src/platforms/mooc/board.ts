@@ -12,7 +12,7 @@
 
 import { UNIT_TYPE, workPageUrl, type CourseUnit } from '@study-pilot/platform-mooc';
 import type { SnapshotCourse, SnapshotWork } from './read';
-import { dueLine } from '../../ui/format';
+import { dueLine } from '../../format';
 import { describeStatusDetail, describeWorkStatus } from './work-status.ts';
 
 /** 工作项类别（平台的 work.type 原样）。 */

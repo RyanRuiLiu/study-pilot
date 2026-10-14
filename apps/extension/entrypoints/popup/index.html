@@ -4,38 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Study Pilot</title>
-    <!--
-      样式在 main.ts 里通过 import 引入。
-      不用 <link>：构建后源路径不会被打包器改写，会变成死链，
-      页面于是回退到浏览器默认样式（字体、间距全丢）。
-    -->
   </head>
   <body>
-    <main class="pop">
-      <!--
-        顶栏是弹窗的固定部分：品牌与主操作。动态内容——状态一行、计数、
-        最紧要的几项、看板与设置两个入口——由 src/ui 的构造器生成，见 main.ts。
-
-        「立即执行」的说明留在 HTML 里而不是构造器里：脚本文案自检断言的就是
-        这个 title，它必须讲「拉最新状态后执行」这件事本身，不得罗列任务类别。
-        外观全部来自组件与官方主题，这里没有任何自写的样式类。
-        品牌同样是固定文字，一并写在这里。
-      -->
-      <header class="head">
-        <strong>Study Pilot</strong>
-        <sl-button
-          id="run-now"
-          
-          size="small"
-          variant="primary"
-          title="立即执行一轮：拉取最新数据，完成能自动做的事"
-          >立即执行</sl-button
-        >
-      </header>
-
-      <!-- 其余内容全部由 view.ts 按数据生成：先是一句加载提示 -->
-      <div id="popup-body"></div>
-    </main>
+    <!-- 界面正在重写。数据只从 src/ui-bridge.ts 取（见该文件顶部的唯一约定）。 -->
+    <p>界面正在重写。</p>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
