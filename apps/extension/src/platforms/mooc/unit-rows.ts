@@ -9,9 +9,9 @@
  */
 
 import { workPageUrl } from '@study-pilot/platform-mooc';
-import { WORK_STATUS, type UnitDetail } from '../../src/platform/messaging';
-import { formatDateTime } from '../../src/features/format';
-import type { DetailGroup, DetailRow } from '../../src/ui/details.ts';
+import { WORK_STATUS, type UnitDetail } from '../../platform/messaging';
+import { formatDateTime } from '../../features/format';
+import type { DetailGroup, DetailRow } from '../../ui/details.ts';
 
 /**
  * 状态的配色分类。

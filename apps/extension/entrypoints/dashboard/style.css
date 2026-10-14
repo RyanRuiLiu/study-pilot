@@ -74,3 +74,25 @@ body {
   letter-spacing: 0.12em;
   color: var(--ink-faint);
 }
+
+/*
+ * 一个平台一个分区：外壳只给容器与标题，里面的东西由平台自己排
+ * （筛选、清单、明细都在分区内，见 src/platforms/*/views.ts）。
+ */
+.sp-platform + .sp-platform {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--sl-color-neutral-200);
+}
+
+.sp-platform-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sp-platform-name {
+  margin: 0;
+  font-size: 1.05rem;
+}

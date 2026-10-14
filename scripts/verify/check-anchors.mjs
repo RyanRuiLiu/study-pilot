@@ -7,7 +7,7 @@
  * 「id 在不在」，不判断跳到那里是否合适（那只能靠人读）。
  *
  * 两类判据：
- *   1. 写死页面的引用 `dashboard.html#unit-details`（代码或注释里都算），
+ *   1. 写死页面的引用 `dashboard.html#platforms`（代码或注释里都算），
  *      目标页面必须有这个 id，页面本身也得存在。
  *   2. 页面按 id 取元素：`required<...>('#x')` 与 `getElementById('x')`。
  *      文件在 entrypoints/<页>/ 下时，id 必须在该页自己的 HTML 里；

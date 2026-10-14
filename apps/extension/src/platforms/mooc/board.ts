@@ -10,8 +10,8 @@
  */
 
 import { UNIT_TYPE, workPageUrl, type CourseUnit } from '@study-pilot/platform-mooc';
-import type { Snapshot, SnapshotCourse, SnapshotWork } from '../../src/platforms/mooc/read';
-import { formatDate, relativeDay } from '../../src/features/format';
+import type { Snapshot, SnapshotCourse, SnapshotWork } from './read';
+import { formatDate, relativeDay } from '../../features/format';
 
 /** 工作项类别（平台的 work.type 原样）。 */
 const WORK_LABEL: Record<SnapshotWork['type'], string> = {
@@ -31,7 +31,7 @@ const UNIT_LABEL: Record<number, string> = {
 };
 
 export type BoardMode = 'auto' | 'assisted' | 'manual';
-export type BoardState = 'todo' | 'done' | 'late';
+type BoardState = 'todo' | 'done' | 'late';
 
 export const MODE_LABEL: Record<BoardMode, string> = {
   auto: '自动完成',
@@ -39,7 +39,7 @@ export const MODE_LABEL: Record<BoardMode, string> = {
   manual: '需要你做',
 };
 
-export const STATE_LABEL: Record<BoardState, string> = {
+const STATE_LABEL: Record<BoardState, string> = {
   todo: '未完成',
   done: '已完成',
   late: '已过截止',

@@ -98,7 +98,8 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
    *
    * 通知说的就是「哪几项要处理」，点进去自然该看到那份清单，
    * 而不是落到页面顶部再自己往下找。单元明细此前在设置页，已搬到看板
-   * （设置页只回答「它怎么运行」），锚点随之改指 dashboard.html#unit-details。
+   * （设置页只回答「它怎么运行」），锚点现在指 dashboard.html#platforms——各平台的分区
+   * 由平台自己的视图渲染，外壳没有平台专属的锚点，只有这个稳定的容器。
    * openOptionsPage 不接受锚点，只能用 tabs.create 指定完整地址；
    * tabs.create 不需要额外权限。
    */
@@ -114,7 +115,7 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
      * 发送用的 id 每次都不一样（前缀加时间戳，见 reminder.ts），
      * 任何等值比较都会立刻失效——这个坑不能踩第二次。
      */
-    const anchor = notificationId.startsWith(NOTIFICATION_PREFIX) ? '#unit-details' : '';
+    const anchor = notificationId.startsWith(NOTIFICATION_PREFIX) ? '#platforms' : '';
     const url = browser.runtime.getURL(`/dashboard.html${anchor}`);
     void browser.tabs.create({ url });
   });

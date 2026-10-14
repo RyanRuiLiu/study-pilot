@@ -22,46 +22,10 @@
       </header>
 
       <!--
-        筛选放在正文之前：看板默认只看「未完成」与「失败」，
-        因此这两条不是可选项而是默认视图的一部分，用户想全看时才去改。
+        各平台自己的分区。外壳只给容器与标题：筛选、清单、明细、按钮都由平台渲染，
+        因为它们的字段与说法各平台不同（见 src/platforms/*/views.ts）。
       -->
-      <div class="filters">
-        <label class="filter">
-          课程
-          <select id="course"></select>
-        </label>
-        <label class="filter">
-          类别
-          <select id="kind"></select>
-        </label>
-        <label class="filter">
-          做法
-          <select id="mode"></select>
-        </label>
-        <label class="filter">
-          状态
-          <select id="state"></select>
-        </label>
-        <sl-button id="reload" class="sp-reload" size="medium" outline>重读快照</sl-button>
-        <span id="fetched" class="fetched"></span>
-      </div>
-
-      <div id="app"></div>
-
-      <!--
-        单元明细。看板回答「整体还剩什么」，明细是这份答案的逐项展开，
-        因此它从设置页搬到了这里（设置页只回答「它怎么运行」）。
-        标题与说明固定写在这里；表、来源标注与「读取最新明细」按钮由 details.ts 生成。
-      -->
-      <section class="sp-section" id="unit-details">
-        <h2 class="sp-section-title">单元明细</h2>
-        <p class="sp-section-desc">
-          已勾选课程下的全部测验、作业与考试。打开时显示本地快照里的那一份，
-          点「读取最新明细」读取平台上此刻的状态与得分。
-        </p>
-        <div id="details-app"></div>
-      </section>
-
+      <div id="platforms"></div>
       <p class="colophon">STUDYPILOT / MOOC ENHANCER</p>
     </div>
 

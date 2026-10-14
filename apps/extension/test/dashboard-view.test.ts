@@ -21,8 +21,9 @@ import {
   kindOptions,
   orderItems,
   renderBoard,
-} from '../entrypoints/dashboard/render';
-import { detailsView } from '../entrypoints/dashboard/details';
+} from '../src/platforms/mooc/board';
+import { detailsView } from '../src/platforms/mooc/details';
+import { moocViews } from '../src/platforms/mooc/views';
 
 const page = parseHTML('<!doctype html><html><body><div id="app"></div></body></html>');
 Object.assign(globalThis, { window: page.window, document: page.document });
@@ -231,5 +232,53 @@ describe('明细区', () => {
     const details = detailsView(() => {});
     details.renderSnapshot(null);
     expect(details.element.textContent).toContain('还没有读取过数据');
+  });
+});
+
+/*
+ * 平台分区：外壳只调用 PlatformViews.render，平台自己把筛选、清单与明细铺好。
+ * 这里用假的 sendToBackground 喂一份快照，验的就是"平台分区能独立渲染出来"。
+ */
+vi.mock('../src/platform/messaging', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/platform/messaging')>()),
+  sendToBackground: vi.fn(),
+}));
+
+describe('平台分区（PlatformViews）', () => {
+  it('渲染筛选条、清单与明细段，并报回快照读取时刻', async () => {
+    const messaging = await import('../src/platform/messaging');
+    const sendToBackground = vi.mocked(messaging.sendToBackground);
+    sendToBackground.mockResolvedValue({
+      status: 'ok',
+      value: snapshot([course({ works: [work({ tid: 7, name: '第三单元作业' })] })]),
+    } as never);
+
+    const host = page.document.createElement('div');
+    const fetchedAt = await moocViews.render(host);
+
+    expect(fetchedAt).toBe(1_700_000_000_000);
+    expect(host.querySelectorAll('select')).toHaveLength(4);
+    expect(host.querySelector('.sp-summary')?.textContent).toContain('共 1 项');
+    expect(host.textContent).toContain('第三单元作业');
+    // 明细段的锚点属于平台分区：通知点进来要落到它
+    // 明细段的 id 是页内锚点：按属性核对，不用 "#id" 选择器（那种写法属于"取页面元素"）
+    expect(host.querySelector('section.sp-section')?.id).toBe('unit-details');
+    expect(host.textContent).toContain('读取最新明细');
+  });
+
+  it('读取失败时如实说，不画空清单', async () => {
+    const messaging = await import('../src/platform/messaging');
+    vi.mocked(messaging.sendToBackground).mockResolvedValue({
+      status: 'error',
+      reason: 'FAILED',
+      message: '存储读不出来',
+    } as never);
+
+    const host = page.document.createElement('div');
+    const fetchedAt = await moocViews.render(host);
+
+    expect(fetchedAt).toBe(0);
+    expect(host.textContent).toContain('读取失败：存储读不出来');
+    expect(host.querySelectorAll('.sp-task')).toHaveLength(0);
   });
 });

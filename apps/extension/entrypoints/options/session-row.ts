@@ -1,7 +1,7 @@
 /*
  * 登录状态行与上次运行提示。
  *
- * 从 unit-details.ts 再分出：两者没有共用状态，唯一的关系是都显示在设置页顶部。
+ * 从明细区再分出：两者没有共用状态，唯一的关系是都显示在设置页顶部。
  * syncSessionBadge 随之留在这里——它由渲染登录行时赋值。
  */
 import { getSettings } from '../../src/settings';
