@@ -56,7 +56,16 @@ function summary(entries: PendingEntry[]): PendingSummary {
 }
 
 function data(overrides: Partial<PopupData> = {}): PopupData {
-  return { live: 'idle', lastError: null, summary: summary([]), notLoggedIn: false, staleList: false, error: null, ...overrides };
+  return {
+    live: 'idle',
+    lastError: null,
+    summary: summary([]),
+    courseware: null,
+    notLoggedIn: false,
+    staleList: false,
+    error: null,
+    ...overrides,
+  };
 }
 
 const handlers = { pageUrl: 'chrome-extension://x/options.html#overview', onSettings: () => {} };
@@ -162,10 +171,24 @@ describe('弹窗这一屏', () => {
     expect(root.querySelector('sl-alert')?.textContent).toContain('执行前的清单');
   });
 
+  it('没有要交的东西时，说出还剩多少课件没看完', () => {
+    renderPopup(root, data({ courseware: { unfinished: 68, total: 131 } }), handlers);
+
+    expect(root.textContent).toContain('没有要交的东西。');
+    expect(root.textContent).toContain('还有 68 项课件没看完');
+    expect(root.textContent).toContain('共 131 项');
+  });
+
+  it('课件都看完时不提这件事（没有信息的话不说）', () => {
+    renderPopup(root, data({ courseware: { unfinished: 0, total: 131 } }), handlers);
+
+    expect(root.textContent).not.toContain('课件没看完');
+  });
+
   it('没有待办时给一句话，不留空白', () => {
     renderPopup(root, data({ summary: summary([]) }), handlers);
     const lines = [...root.querySelectorAll('p')].map((el) => el.textContent);
-    expect(lines).toContain('暂无待办。');
+    expect(lines).toContain('没有要交的东西。');
   });
 
   it('两个入口：概览与设置', () => {

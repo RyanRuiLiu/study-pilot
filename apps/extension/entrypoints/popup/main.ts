@@ -16,7 +16,12 @@ import '../../src/ui/layout.css';
 import './style.css';
 
 import { required } from '../../src/ui/dom';
-import { sendToBackground, type PendingSummary, type TaskStatus } from '../../src/browser/messaging';
+import {
+  sendToBackground,
+  type PendingSummary,
+  type Snapshot,
+  type TaskStatus,
+} from '../../src/browser/messaging';
 import { getSettings, watchSettings } from '../../src/settings';
 import { renderLoading, renderPopup, type PopupData, type PopupView } from './view.ts';
 import { runNow } from '../../src/browser/run-once.ts';
@@ -38,11 +43,14 @@ let sawRunning = false;
  * 取数：两个请求，各司其职。
  *
  *   TASK_STATE       后台此刻在不在跑，以及上一轮记下的失败原因。界面不自己猜（理由见 envelope.ts）
- *   PENDING_SUMMARY  让后台立刻去平台拉一次并更新快照，并带回这一屏要的一切：
- *                    待办条目、计数、跳转地址、读取时刻，以及「未登录 / 读取失败」。
+ *   PENDING_SUMMARY  让后台立刻去平台拉一次并更新快照，并带回「要交的东西」：
+ *                    条目、计数、跳转地址、读取时刻，以及「未登录 / 读取失败」。
+ *   DASHBOARD        同一份快照的全体（课件单元也在里面）。
  *
- * 这里不读 DASHBOARD：那是概览那张表要的东西，弹窗要的条目、计数与去处
- * 平台汇总里全都有。读两份同一份快照只会多一层要同步的东西。
+ * 多读一次 DASHBOARD 是为了回答一个 PENDING_SUMMARY 答不了的问题：
+ * 「没有要交的东西，那还剩什么」。单元的完成度只在快照里，而用户的课上
+ * 大多是没看完的课件——少了这份数据，弹窗在无事可交时只会说「暂无待办」，
+ * 看起来像坏了。两个请求读的是同一份快照，因此不会互相矛盾。
  */
 async function load(): Promise<PopupData> {
   let live: TaskStatus['live'] = 'idle';
@@ -51,6 +59,7 @@ async function load(): Promise<PopupData> {
   let notLoggedIn = false;
   let staleList = false;
   let summary: PendingSummary | null = null;
+  let courseware: PopupData['courseware'] = null;
 
   try {
     const status = await sendToBackground({ type: 'TASK_STATE' });
@@ -74,7 +83,29 @@ async function load(): Promise<PopupData> {
     error = error ?? reason(cause);
   }
 
-  return { live, lastError, summary, notLoggedIn, staleList, error };
+  try {
+    const outcome = await sendToBackground({ type: 'DASHBOARD' });
+    if (outcome.status === 'ok' && outcome.value !== null) {
+      courseware = countCourseware(outcome.value);
+    }
+  } catch (cause) {
+    error = error ?? reason(cause);
+  }
+
+  return { live, lastError, summary, courseware, notLoggedIn, staleList, error };
+}
+
+/** 课件单元没看完多少：完成度在快照里，只有它知道。 */
+function countCourseware(snapshot: Snapshot): { unfinished: number; total: number } {
+  let unfinished = 0;
+  let total = 0;
+  for (const course of snapshot.courses) {
+    for (const unit of course.units) {
+      total += 1;
+      if (unit.completePercent < 1) unfinished += 1;
+    }
+  }
+  return { unfinished, total };
 }
 
 /** 执行按钮的可按性。正在执行时点它只会被后台拒绝，直接禁掉更省事。 */

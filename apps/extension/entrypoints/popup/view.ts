@@ -28,6 +28,13 @@ export interface PopupData {
   live: TaskStatus['live'];
   /** 平台自己的待办汇总；未登录或读取失败时为 null（状态行已说明原因） */
   summary: PendingSummary | null;
+  /**
+   * 课件单元的完成情况，来自同一份快照。
+   *
+   * 只说「要交的东西」不够：没事可交的时候，用户真正想知道的是「还剩多少没看」，
+   * 而这件事只有快照里的 completePercent 知道。
+   */
+  courseware: { unfinished: number; total: number } | null;
   /** 需要重新登录。与一般失败分开：这里给的是去处，不是原因 */
   notLoggedIn: boolean;
   /**
@@ -213,9 +220,20 @@ export function renderPopup(
             .slice(0, PER_COURSE)
             .map((entry) => ({ title: entry.name, due: entry.deadline, href: entry.href })),
         })),
-        '暂无待办。',
+        '没有要交的东西。',
       ),
     );
+
+    /*
+     * 没有要交的东西时，补一句「还剩什么」——否则弹窗只是一句「没有要交的东西」，
+     * 而用户打开它本来是想知道今天还有什么事没做。顺序也要对：先答"有没有要交的"，
+     * 再说"那还剩什么"。
+     */
+    if (data.summary.entries.length === 0 && data.courseware !== null && data.courseware.unfinished > 0) {
+      const left = document.createElement('small');
+      left.textContent = `还有 ${data.courseware.unfinished} 项课件没看完（共 ${data.courseware.total} 项），概览里能按课程看。`;
+      parts.push(left);
+    }
 
     const hidden = groups.reduce((sum, group) => sum + Math.max(0, group.rows.length - PER_COURSE), 0);
     if (hidden > 0) {
