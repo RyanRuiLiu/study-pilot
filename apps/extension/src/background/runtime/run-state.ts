@@ -1,11 +1,11 @@
 /*
- * 运行状态：每个平台一条独立运行槽、逐项记录、最近几轮历史。
+ * 运行状态：每个平台一条独立运行槽、逐项记录。
  *
  * 与 scheduler.ts 的分工
  * ---------------------
  * scheduler 只管一件事：这一轮能不能开始（防重入与中断判定）。它不描述进度。
- * 本文件管另一件事：**此刻每个平台在做什么、做到第几项、上一轮结果如何**，
- * 供界面显示。两者不重叠：一个决定要不要跑，一个说明跑成什么样。
+ * 本文件管另一件事：**此刻每个平台在做什么、做到第几项**，供界面显示。
+ * 两者不重叠：一个决定要不要跑，一个说明跑成什么样。
  *
  * 为什么按平台分槽
  * ----------------
@@ -54,8 +54,8 @@ interface RunItem {
 interface PlatformRun {
   id: string;
   name: string;
-  /** idle 空闲 · running 正在执行 · stopping 已请求停止，等当前项做完 */
-  state: 'idle' | 'running' | 'stopping';
+  /** idle 空闲 · running 正在执行 */
+  state: 'idle' | 'running';
   startedAt: number | null;
   /** 本轮计划要做的项数与已做完的项数 */
   total: number;
@@ -66,32 +66,13 @@ interface PlatformRun {
   items: RunItem[];
 }
 
-/** 一轮结束后留下的摘要。只存计数与摘要，不存逐项记录（那些在 items 里）。 */
-interface RunRound {
-  platformId: string;
-  platformName: string;
-  startedAt: number;
-  finishedAt: number;
-  done: number;
-  skipped: number;
-  failed: number;
-  /** 失败摘要：第一条失败的原因，没有失败时为空串 */
-  note: string;
-  /** 这一轮是不是被停止的 */
-  stopped: boolean;
-}
-
 /** 界面读的那一份运行状态快照。`PlatformRun.items` 等类型随它一起交出去。 */
 export interface RunState {
   platforms: PlatformRun[];
-  history: RunRound[];
 }
 
-/** 历史保留的轮数。有上限，不然存储会一直长。 */
-const HISTORY_LIMIT = 20;
-
 /** 空状态。首次运行与「这个平台还没跑过」都用它。 */
-const EMPTY_RUN_STATE: RunState = { platforms: [], history: [] };
+const EMPTY_RUN_STATE: RunState = { platforms: [] };
 
 /** 一个平台没跑过时的样子。 */
 function idlePlatform(id: string, name: string): PlatformRun {
@@ -166,47 +147,7 @@ export async function completeItem(id: string, name: string, item: { course: str
   await withPlatform({ ...run, current: null, finished: run.finished + 1, items: [...withoutCurrent, entry] });
 }
 
-/**
- * 一个平台跑完，落一条历史。
- *
- * 计数由调用方给（它手里就有全部结局），本模块不重复数一遍——
- * 同一件事在两处各数一次，就是以后对不上的开始。
- */
-export async function finishPlatform(id: string, name: string, counts: { done: number; skipped: number; failed: number; note: string; stopped: boolean }, now: number): Promise<void> {
-  const state = await read();
-  const run = state.platforms.find((p) => p.id === id) ?? idlePlatform(id, name);
-  const round: RunRound = {
-    platformId: id,
-    platformName: name,
-    startedAt: run.startedAt ?? now,
-    finishedAt: now,
-    done: counts.done,
-    skipped: counts.skipped,
-    failed: counts.failed,
-    note: counts.note,
-    stopped: counts.stopped,
-  };
-  await publish({
-    ...state,
-    platforms: [...state.platforms.filter((p) => p.id !== id), idlePlatform(id, name)],
-    history: [round, ...state.history].slice(0, HISTORY_LIMIT),
-  });
-}
-
-/*
- * 停止：只记一个请求标记，由执行循环在**两项之间**去查。
- * 不在一项中间掐断——那会留下「卷已开、答案没交」这种半提交状态，
- * 而账号上的成绩是不可撤销的。
- */
-const stopRequests = new Set<string>();
-
-export function isStopRequested(id: string): boolean {
-  return stopRequests.has(id);
-}
-
-/** 一项做完后回收标记；返回是否确实收到过停止请求。 */
-export function takeStopRequest(id: string): boolean {
-  const had = stopRequests.has(id);
-  stopRequests.delete(id);
-  return had;
+/** 一个平台跑完：换回空闲。本轮的逐项记录只在这一轮进行时存在，界面靠推送看它。 */
+export async function finishPlatform(id: string, name: string): Promise<void> {
+  await withPlatform(idlePlatform(id, name));
 }

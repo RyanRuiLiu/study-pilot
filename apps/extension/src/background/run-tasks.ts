@@ -3,14 +3,14 @@
  *
  * 这里只做四件事——**什么时候跑、跑哪个平台、每步之间刷心跳、运行状态与中断恢复**。
  * 它**不认识任何平台字段**：该做什么由平台自己说（plan），怎么做由平台自己做（run），
- * 通知由平台自己组织（report）。因此新增一个平台不需要改这个文件。
+ * 因此新增一个平台不需要改这个文件。
  *
  * 一轮里的顺序（与用户看到的行为一致）：
- *   总开关 → 能否开始（防重入/中断） → 逐平台：前置条件 → 计划 → 只做 auto 项 → 收尾通知
+ *   总开关 → 能否开始（防重入/中断） → 逐平台：前置条件 → 计划 → 只做 auto 项 → 收尾
  */
 
 import { getSettings } from '../settings';
-import type { PlanItem, PlatformTasks, RunOutcome } from '../platforms/types.ts';
+import type { PlatformTasks } from '../platforms/types.ts';
 import {
   beginRun,
   canStartRun,
@@ -28,8 +28,6 @@ import {
   completeItem,
   enterItem,
   finishPlatform,
-  isStopRequested,
-  takeStopRequest,
 } from './runtime/run-state';
 
 export interface SchedulerDeps {
@@ -85,22 +83,10 @@ export async function autoRun(deps: SchedulerDeps): Promise<void> {
 
         // 需要人到场确认的项不在这里做：无人值守时做不了，硬做就是替用户承诺
         const queue = plan.items.filter((entry) => entry.mode === 'auto');
-        const items: PlanItem[] = [];
-        const outcomes: RunOutcome[] = [];
 
         // 总数先落定，界面立刻能画出「0 / 7」
         await beginPlatform(platform.id, platform.name, queue.length, Date.now());
-        let stopped = false;
         for (const item of queue) {
-          /*
-           * 停止只在两项之间生效。一项做到一半掐断会留下「卷已开、答案没交」
-           * 这种半提交状态，而账号上的成绩不可撤销。
-           */
-          if (isStopRequested(platform.id)) {
-            takeStopRequest(platform.id);
-            stopped = true;
-            break;
-          }
           await enterItem(platform.id, platform.name, { course: item.group, title: item.title }, Date.now());
           // 长动作（课件上报）会把心跳传进去：它自己按平台节奏刷新
           const outcome = await platform.run(item, touchRun);
@@ -112,25 +98,10 @@ export async function autoRun(deps: SchedulerDeps): Promise<void> {
             outcome.message ?? '',
             Date.now(),
           );
-          items.push(item);
-          outcomes.push(outcome);
           await touchRun();
         }
 
-
-        const firstFailure = outcomes.find((outcome) => outcome.status === 'failed');
-        await finishPlatform(
-          platform.id,
-          platform.name,
-          {
-            done: outcomes.filter((outcome) => outcome.status === 'done').length,
-            skipped: outcomes.filter((outcome) => outcome.status === 'skipped').length,
-            failed: outcomes.filter((outcome) => outcome.status === 'failed').length,
-            note: firstFailure?.message ?? '',
-            stopped,
-          },
-          Date.now(),
-        );
+        await finishPlatform(platform.id, platform.name);
       } finally {
         await finishRun();
       }
