@@ -14,6 +14,17 @@
     pnpm build              # 构建扩展（apps/extension/.output/chrome-mv3）
     node scripts/check.mjs  # 唯一的检查：4 条
 
+两条冒烟（可选，第二条要本地已有登录会话）：
+
+    node node_modules/vitest/vitest.mjs run --root apps/extension test/plan-smoke.test.ts
+        # 证明计划与通知逻辑不碰浏览器（用一个会抛异常的 browser 代理）
+
+    node scripts/probe/lib/cookies.mjs
+        # 从正在运行的浏览器导出慕课会话到 .probe/（只读、已被 git 忽略）
+
+    node node_modules/vitest/vitest.mjs run --root apps/extension test/node-live.test.ts
+        # 在 Node 里直连平台读课程列表（只读，不写平台）
+
 装到浏览器：chrome://extensions → 开发者模式 → 加载已解压的扩展程序 →
 选 apps/extension/.output/chrome-mv3。
 
@@ -48,3 +59,4 @@ src/browser、src/settings。这是"界面可以换人重写、核心可以独�
 - 打开看板与弹窗不向平台发请求，只读本地快照；要读平台只有"读取最新"这一个显式动作。
 - AI 密钥只存本机，不进日志、不上报。
 - 除你在设置里填的 AI 地址，不向任何第三方域名发请求。
+
