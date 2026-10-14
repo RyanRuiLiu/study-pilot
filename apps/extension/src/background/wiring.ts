@@ -9,7 +9,7 @@
 import { clearAlarm, ensureAlarm, isCheckAlarm } from './runtime/alarms';
 import { watchSettings } from '../settings';
 import { getTaskState } from './runtime/task-state';
-import type { PlatformTasks, PlatformWiring } from '../platforms/types.ts';
+import type { PlatformTasks, PlatformWiring } from '@study-pilot/application';
 import { autoRun } from './run-tasks.ts';
 
 /**

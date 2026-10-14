@@ -5,7 +5,7 @@
  * 它不认识任何平台——cookie 的域名由调用方给。换宿主（命令行、测试）时换这个文件即可。
  */
 
-import type { HostCapabilities } from '../platforms/types.ts';
+import type { HostCapabilities } from '@study-pilot/application';
 import { whenNetRulesReady } from './net-rules.ts';
 
 export const browserCapabilities: HostCapabilities = {

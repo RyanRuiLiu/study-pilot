@@ -13,7 +13,7 @@
  */
 
 import type { AnySendResponse, AppRequest, MessageHandlers, SendResponse } from '../../messages.ts';
-import type { PlatformTasks } from '../../platforms/types.ts';
+import type { PlatformTasks } from '@study-pilot/application';
 import { getRunState } from '../runtime/run-state';
 import { canStartRun, claimRun, releaseRun } from '../runtime/scheduler';
 import { beginRun, finishRun, getTaskState, touchRun } from '../runtime/task-state';

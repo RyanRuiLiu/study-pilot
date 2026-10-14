@@ -17,7 +17,7 @@
  */
 
 import type { Browser } from 'wxt/browser';
-import type { NetRuleSet } from '../platforms/types.ts';
+import type { NetRuleSet } from '@study-pilot/application';
 
 /** 动态规则的起始 id。Chrome 要求 id 唯一且非 0。 */
 const RULE_ID = 1;
