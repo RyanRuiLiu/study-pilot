@@ -85,7 +85,6 @@ describe('Node 里跑核心逻辑', () => {
           autoCourseware: { enabled: true },
           autoQuiz: { enabled: true },
           autoReview: { enabled: true, comment: 'x' },
-          deadlineReminder: { enabled: true, advanceDays: 1 },
         },
       },
     };

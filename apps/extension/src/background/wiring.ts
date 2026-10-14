@@ -18,7 +18,7 @@ import { autoRun } from './run-tasks.ts';
  */
 export interface WiringDeps {
   platforms: () => PlatformTasks[];
-  /** 各平台的信号（登录 cookie、通知前缀）。外壳按清单遍历，不认平台名字 */
+  /** 各平台的信号（登录凭证 cookie）。外壳按清单遍历，不认平台名字 */
   wiring: PlatformWiring[];
 }
 
@@ -101,24 +101,6 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
       if (!state.awaitingLogin) return;
       await runOnce();
     })();
-  });
-
-  /*
-   * 点击通知落到主页面。
-   *
-   * 通知说的就是「哪几项要处理」，点进去自然该看到那份清单。锚点固定 `#overview`：
-   * 单元明细已经并进概览的那张表，而概览是主页面的第一个标签——两类通知落同一处，
-   * 不需要按通知种类分锚点，外壳也就不需要知道这条通知来自哪个平台
-   * （`notificationPrefix` 这个字段因此删掉了）。
-   *
-   * 早先这里按 `startsWith('deadline-reminder')` 判断要不要带锚点，而通知 id
-   * 是固定的 `study-pilot-summary`——条件永远为假，锚点一次都没生效过。
-   *
-   * openOptionsPage 不接受锚点，只能用 tabs.create 指定完整地址；
-   * tabs.create 不需要额外权限。
-   */
-  browser.notifications.onClicked.addListener(() => {
-    void browser.tabs.create({ url: browser.runtime.getURL('/options.html#overview') });
   });
 
   /*
