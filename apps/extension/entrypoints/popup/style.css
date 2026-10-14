@@ -1,25 +1,72 @@
 /*
- * 弹窗的骨架：宽度与滚动区，其余都交给组件与官方主题。
+ * 弹窗的摆放。
+ *
+ * 只有"盒子怎么排"：颜色、圆角、阴影、字号、间距取值一律来自 Shoelace 官方主题
+ * （light.css + --sl-* 变量），这里不写任何自画的视觉。整个文件没有色值、没有
+ * border、没有 box-shadow、没有 font-size。
+ *
+ * 结构是一份目录：课程一行（名字 + 项数），下面每项一行（标题、类别与状态、截止）。
  */
 
 body {
   margin: 0;
   /*
-   * 360px。Chrome 给弹窗的上限是 800×600。
-   * 288 那一档放不下「组名 + 那句数量」，长课程名会被挤成两行。
+   * 360px。Chrome 给弹窗的上限是 800×600；
+   * 再窄「课程名 + 项数」会折行，再宽则一行里空得没道理。
    */
   width: 360px;
-  background: var(--sl-color-neutral-0);
 }
 
 .pop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sl-spacing-small);
   padding: var(--sl-spacing-small);
 }
 
-/* 顶栏与入口一直够得着，滚的是中间那一叠卡片 */
-.sp-stack {
-  max-height: 340px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  margin: var(--sl-spacing-small) 0;
+/* 顶行：品牌与主操作分居两端 */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sl-spacing-small);
+}
+
+/* 课程行：名字在左，项数在右 */
+.group {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sl-spacing-small);
+}
+
+/*
+ * 一项一行：标题占满剩余宽度，类别与状态、截止依次靠右。
+ * minmax(0, 1fr) 是让长标题肯被压缩而不是把日期挤出弹窗。
+ */
+.item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: var(--sl-spacing-small);
+  text-decoration: none;
+  color: inherit;
+}
+
+.item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sl-spacing-2x-small);
+}
+
+/* 日期与得分按等宽数字排，长短不一时也不会左右跳 */
+.item-when {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 底部两个入口 */
+.foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sl-spacing-small);
 }
