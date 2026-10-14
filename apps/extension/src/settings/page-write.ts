@@ -4,8 +4,8 @@
  * 从 options/main.ts 按原有分节搬出。
  */
 
-import { getSettings, updateSettings } from '../../src/settings';
-import { current, setCurrent } from './state.ts';
+import { getSettings, updateSettings } from './';
+import { current, setCurrent } from './page-state.ts';
 
 
 // ---------- 落盘 ----------
@@ -34,7 +34,7 @@ let writing: Promise<void> = Promise.resolve();
  * 合并基准是**存储里的当前值**（见 updateSettings），不是内存快照，
  * 因此即使设置页手里的数据已经过时，也不会把别的字段带回去。
  */
-export function writePatch(patch: unknown): Promise<void> {
+function writePatch(patch: unknown): Promise<void> {
   writing = writing
     .then(() => updateSettings(patch))
     .then((next) => {
@@ -45,7 +45,7 @@ export function writePatch(patch: unknown): Promise<void> {
 }
 
 /** 按路径就地改内存。界面靠它做即时反馈，落盘见 bindSetting。 */
-export function setPath(target: unknown, path: string, value: unknown): void {
+function setPath(target: unknown, path: string, value: unknown): void {
   const parts = path.split('.');
   /*
    * `split` 对任何字符串都至少返回一项，所以下面两处判空在运行时永不命中。
@@ -63,7 +63,7 @@ export function setPath(target: unknown, path: string, value: unknown): void {
 }
 
 /** 把一条路径展开成 patch 对象。 */
-export function patchAt(path: string, value: unknown): Record<string, unknown> {
+function patchAt(path: string, value: unknown): Record<string, unknown> {
   const parts = path.split('.');
   const leaf = parts[parts.length - 1];
   if (leaf === undefined) return {};

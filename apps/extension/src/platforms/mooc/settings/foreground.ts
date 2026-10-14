@@ -4,9 +4,9 @@
  * 从 options/main.ts 的 render() 搬出；表达式原样，只在开头取一次配置。
  */
 
-import { row, toggle, platform, section } from '../../../src/ui/form.ts';
-import { bindSetting } from '../settings-write.ts';
-import { current } from '../state.ts';
+import { row, toggle, platform, section } from '../../../ui/form.ts';
+import { bindSetting } from '../../../settings/page-write.ts';
+import { current } from '../../../settings/page-state.ts';
 
 export function foregroundSection(): HTMLElement {
   const mooc = current.mooc;

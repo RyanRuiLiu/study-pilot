@@ -9,8 +9,8 @@ import { testAiConnection } from '../../src/ai';
 import { ensureHostPermission } from '../../src/ai/permission';
 import { getSettings } from '../../src/settings';
 import { REJECTION_MESSAGES, sendToBackground } from '../../src/platform/messaging';
-import { syncSessionBadge } from './session-row.ts';
-import { current, render, setCurrent, toast } from './state.ts';
+import { moocSettings } from '../../src/platforms/mooc/settings.ts';
+import { current, render, setCurrent, toast } from '../../src/settings/page-state.ts';
 
 
 // ---------- 动作 ----------
@@ -64,7 +64,7 @@ export async function refreshCourses(): Promise<void> {
      * ——那是按本地 cookie 读的。让两处一致，用户才不会对着
      * 「已登录 + 请先登录」各自矛盾的两行字。
      */
-    if (response.reason === 'NOT_LOGGED_IN') syncSessionBadge?.();
+    if (response.reason === 'NOT_LOGGED_IN') moocSettings.onLoginChanged?.();
     return;
   }
   setCurrent(await getSettings());

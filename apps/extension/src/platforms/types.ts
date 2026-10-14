@@ -52,6 +52,26 @@ export interface PlatformTasks {
   report(items: PlanItem[], outcomes: RunOutcome[], now: number): Promise<void>;
 }
 
+/**
+ * 设置页半边：本平台的设置分区。
+ *
+ * 分区里的控件与文案都是平台自己的（慕课有"账号与课程/自动任务/前台功能"），
+ * 外壳只把它们排进设置页并参与同一套左侧导航。读写配置走 app 层的
+ * `src/settings`（外壳与平台共用），因此平台不需要反向依赖外壳。
+ */
+export interface PlatformSettings {
+  id: string;
+  name: string;
+  /** 渲染本平台的设置分区（可多节）。每节须是 `.sp-section`，带 id 与标题 */
+  render(): HTMLElement[];
+  /**
+   * 登录状态可能变了：平台据此刷新自己分区里的登录行。
+   *
+   * 外壳不知道谁有登录行、长什么样，只在收到 NOT_LOGGED_IN 一类结果时喊一声。
+   */
+  onLoginChanged?(): void;
+}
+
 /** 前台半个契约：看板里属于本平台的那一块。 */
 export interface PlatformViews {
   id: string;

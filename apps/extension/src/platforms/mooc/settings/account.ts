@@ -4,12 +4,12 @@
  * 从 options/main.ts 的 render() 搬出；表达式原样，只在开头取一次配置。
  */
 
-import { row, toggle, button, platform, section } from '../../../src/ui/form.ts';
-import { bindSetting } from '../settings-write.ts';
-import { sessionBadge } from '../session-row.ts';
-import { refreshCourses } from '../actions.ts';
-import { courseList } from '../course-list.ts';
-import { current } from '../state.ts';
+import { row, toggle, button, platform, section } from '../../../ui/form.ts';
+import { bindSetting } from '../../../settings/page-write.ts';
+import { sessionBadge } from './session-row.ts';
+import { refreshCourses } from '../../../../entrypoints/options/actions.ts';
+import { courseList } from './course-list.ts';
+import { current } from '../../../settings/page-state.ts';
 
 export function accountSection(): HTMLElement {
   return section('account', '账号与课程', '先确认登录状态，再选择参与任务的课程。', [
