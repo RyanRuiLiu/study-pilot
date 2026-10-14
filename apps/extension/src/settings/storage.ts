@@ -13,9 +13,10 @@
  */
 
 import { storage } from 'wxt/utils/storage';
+import { KEYS } from '../keys.ts';
 import { DEFAULT_SETTINGS, mergeWithBase, normalize, type Settings } from './schema';
 
-const item = storage.defineItem<Settings>('local:study-pilot-settings', {
+const item = storage.defineItem<Settings>(KEYS.settings, {
   fallback: DEFAULT_SETTINGS,
 });
 

@@ -18,8 +18,9 @@
  * 只覆盖其一的话，另一类请求仍会被 403 拒掉。
  */
 
+import { MOOC_ORIGIN } from '@study-pilot/platform-mooc';
 import type { NetRuleSet } from '../types.ts';
 
 export const MOOC_REQUEST_RULES: NetRuleSet[] = [
-  { origin: 'https://www.icourse163.org', paths: ['/web/j/', '/dwr/'] },
+  { origin: MOOC_ORIGIN, paths: ['/web/j/', '/dwr/'] },
 ];

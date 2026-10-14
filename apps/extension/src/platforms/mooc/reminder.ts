@@ -22,6 +22,7 @@ import { OVERDUE_REASONS, derivePlan, type Plan } from './plan';
 import type { Snapshot } from './read';
 import type { ExecResult } from './execute';
 import type { Settings } from '../../settings';
+import { KEYS } from '../../keys.ts';
 import type { HostCapabilities } from '../types.ts';
 
 /*
@@ -37,7 +38,7 @@ import type { HostCapabilities } from '../types.ts';
  * 唯一 id 的副作用是通知堆积，所以发送前先按前缀清掉本类通知的旧条目，
  * 通知中心里始终只留最近一条。
  */
-const NOTIFICATION_PREFIX = 'study-pilot-';
+const NOTIFICATION_PREFIX = KEYS.notificationPrefix;
 
 /** 工作总结（后台做完什么、有什么临近截止）。 */
 const SUMMARY_PREFIX = `${NOTIFICATION_PREFIX}summary-`;
