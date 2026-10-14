@@ -1,8 +1,9 @@
 # Study Pilot
 
 中国大学 MOOC 的学习助手（Chrome / Edge 扩展，MV3；另有命令行载体）。它读你在平台上的
-课程、作业与测验，把"还剩什么"列出来；能自动做的事（看课件、客观题测验、互评、自评）
-按你的开关在后台完成。**考试永远不自动提交**。
+课程、作业与测验，把「还剩什么」列出来；能替你做的事（看课件、客观题测验、互评、自评）
+在你点下按钮时完成——没有定时任务，也不会在你没点的时候写任何东西。
+**考试永远不自动提交**。
 
 这份文件是唯一的说明。规则不写在这里，写在代码里：每条约定都放在它约束的那个文件顶部。
 唯一的机器检查是 tsc 与 vitest（见下）。
@@ -40,6 +41,7 @@
     node apps/cli/src/main.ts run --cookies .probe/mooc-session.json --config .probe/cli-config.json
         # 预演这一轮会做什么；**加 --yes 才真的执行**——写平台会改账号上的学习记录且不可撤销，
         # 所以默认只摆出来，动手必须显式授权（扩展那边等价的是用户点按钮）
+        # 可加 --kind courseware,quiz 与 --course <课程名> 收窄范围；预演与执行两侧同样生效
 
 直接跑 TS 即可：Node 22+ 会剥掉类型，而包内的相对导入都带 .ts 扩展名，因此不经打包也能加载。
 要单文件分发时再打包：pnpm --filter @study-pilot/cli build → apps/cli/dist/main.mjs（esbuild）。
@@ -55,12 +57,14 @@
       ai/            OpenAI 兼容接口（讨论区留言用，可选）
     apps/extension/  载体一：浏览器扩展
       src/adapters/   慕课的消息与视图适配器、本载体补的那半装配
-      src/background/ 调度与路由（跑什么、什么时候跑）、运行状态、定时
-      src/browser/    宿主能力：cookie、请求头改写、运行状态推送
+      src/background/ 消息路由与运行状态（执行只由人点按钮发起）
+      src/browser/    宿主能力：cookie、请求头改写、运行状态推送、执行入口
       src/settings/   配置落到浏览器存储（形状与规范化在 packages/application）
+      src/features/   页面内功能：作业页的得分指导注入
+      src/ui/         界面共用：设计令牌、格式化、执行范围的分类
       src/ai/         AI 用例：提示词与生成器（把 packages/ai 接给策略层）
       src/ui-bridge.ts  界面唯一的取数入口
-      entrypoints/    后台装配与弹窗/设置页
+      entrypoints/    后台装配、弹窗、设置页、作业页内容脚本
       test/           测试（boundaries.test.ts 是分层的机械核对）
     apps/cli/        载体二：命令行
       src/config-store.ts  配置端口落到一个 JSON 文件
@@ -77,7 +81,8 @@ src/browser、src/settings。这是"界面可以换人重写、核心可以独�
 `pnpm -r test` 就会核对（6 条）：包内不出现 browser/wxt；包的相对 import 不许跑出本包；
 应用层不认识任何厂商；厂商适配器不直接用宿主全局；各载体之间互不依赖；文件级循环为 0。
 
-改平台数据的写操作只在 packages/* 的执行面与触发它的 src/{background,adapters}/ 里发生；
+改平台数据的写操作只在 packages/* 的执行面与触发它的载体侧（消息路由、界面）里发生；
+执行的发起者永远是人——扩展里是弹窗与设置页上的按钮，命令行里是 --yes；
 考试提交永远由人触发。
 
 ## 数据从哪来
