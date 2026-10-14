@@ -108,7 +108,7 @@ async function read(): Promise<RunState> {
  */
 const ports = new Set<RunStatePort>();
 
-import { RUN_STATE_PORT } from '../../browser/messaging/envelope.ts';
+import { RUN_STATE_PORT } from '../../protocol.ts';
 
 /** 落盘并推送。每个变更函数都以它收尾，保证「看到的」与「存下的」是同一份。 */
 async function publish(state: RunState): Promise<void> {

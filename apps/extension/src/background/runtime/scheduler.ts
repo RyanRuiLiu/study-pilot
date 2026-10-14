@@ -21,46 +21,13 @@
 
 
 /** 存储键。集中在此，避免各处硬编码字符串。 */
+import type { LiveRunState, TaskState } from '../../protocol.ts';
+
+// 类型定义已移到 src/protocol.ts（两端都要用的形状）；这里转出，调用方的 import 不变。
+export type { LiveRunState, TaskState };
 const STATE_KEY = 'study-pilot:task-state';
 
 /** 跨次运行保留的状态。 */
-export interface TaskState {
-  /**
-   * 正在执行的一轮开始时间。非 null 表示上次运行没有正常结束——
-   * 可能是正在跑，也可能是浏览器被强杀后留下的标记，两者要靠心跳区分。
-   */
-  runningSince: number | null;
-  /**
-   * 最近一次心跳。
-   *
-   * 执行线程活着的时候不断刷新它。MV3 的 worker 会被回收、浏览器会被强杀，
-   * 那时 runningSince 还留在存储里没人清，而实际已经没有东西在跑了。
-   * 只看 runningSince 会把「残留」误报成「正在执行」——用户于是等一个
-   * 永远不会结束的动作，界面与事实分离。判据见 liveRunState。
-   */
-  heartbeatAt: number | null;
-  /** 最近一次正常结束的时间 */
-  lastFinishedAt: number | null;
-  /**
-   * 本轮因未登录而挂起，等待登录后补执行。
-   *
-   * 平台的登录凭证是会话级 cookie，关闭浏览器即失效。
-   * 而触发时机恰是「浏览器启动」，那一刻用户通常还没登录，因此不能
-   * 简单地跳过——那会让这一次执行机会白等到明天。这里记下挂起标记，
-   * 登录后立刻补执行。
-   */
-  awaitingLogin: boolean;
-  /**
-   * 上一轮自动执行的失败原因；null 表示没有未交代清楚的失败。
-   *
-   * 后台一轮跑在 service worker 里，出错时既没有控制台可看（生产构建把 console
-   * 换成空函数），也没有弹窗可等。不把这个记下来，「今天什么都没做」与
-   * 「今天试了但失败了」在界面上长得一模一样。
-   *
-   * 一轮正常结束时由 `finishRun` 清掉：失败已经被这一轮的结果取代了。
-   */
-  lastError: string | null;
-}
 
 export const EMPTY_STATE: TaskState = {
   runningSince: null,
@@ -80,7 +47,6 @@ export const EMPTY_STATE: TaskState = {
 const HEARTBEAT_TIMEOUT_MS = 120_000;
 
 /** 后台此刻处于哪种状态。 */
-export type LiveRunState = 'idle' | 'running' | 'interrupted' | 'awaiting-login';
 
 /**
  * 由持久状态推出「此刻在做什么」。

@@ -7,7 +7,17 @@
  * 只有这五件事，每件都对应平台内部真实的一处调用；不多留"以后可能用得上"的口子。
  */
 
+import type { NetRuleSet } from '../types.ts';
+
 export interface MoocHost {
+  /**
+   * 等请求头改写规则生效。
+   *
+   * 规则由外壳安装（declarativeNetRequest 是外壳的活），平台只说"我需要它们生效了"。
+   * 注入而不是 import：平台不该认识外壳的任何模块。
+   */
+  whenRequestRulesReady: (rules: NetRuleSet[]) => Promise<void>;
+
   /** 读一个慕课 cookie 的值；没有或读失败都返回空串 */
   readCookie: (name: string) => Promise<string>;
 
