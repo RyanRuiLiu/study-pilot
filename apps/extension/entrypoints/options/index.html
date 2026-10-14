@@ -4,36 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Study Pilot</title>
-    <!--
-      扩展唯一的页面，四个标签：概览 / 运行 / 设置 / 关于。
-
-      刻意只有这些：
-      - 一个 sl-tab-group（官方用法：标签与面板在同一个组里）。设置里的分区用
-        sl-details，不再套第二层标签栏。
-      - 没有顶栏、没有品牌字、没有全局按钮条：动作属于它所在的那一页
-        （概览里读平台数据、运行里执行一轮），同一件事不出现两次。
-      - 样式全部来自 main.ts 引入的 Shoelace 官方主题；本页没有自己的样式文件。
-        <link> 不用：构建后源路径不会被改写，会变成死链。
-    -->
     <meta name="manifest.open_in_tab" content="true" />
   </head>
   <body>
-    <sl-tab-group id="nav">
-      <sl-tab slot="nav" panel="overview">概览</sl-tab>
-      <sl-tab slot="nav" panel="run">运行</sl-tab>
-      <sl-tab slot="nav" panel="settings">设置</sl-tab>
-      <sl-tab slot="nav" panel="about">关于</sl-tab>
-
-      <sl-tab-panel name="overview" id="overview"></sl-tab-panel>
-      <sl-tab-panel name="run" id="run"></sl-tab-panel>
-      <sl-tab-panel name="settings" id="settings"></sl-tab-panel>
-      <sl-tab-panel name="about" id="about"></sl-tab-panel>
-    </sl-tab-group>
-
-    <sl-alert id="toast" variant="primary" duration="3200" closable>
-      <span id="toast-text"></span>
-    </sl-alert>
-
+    <!-- 界面正在重写。数据只从 src/ui-bridge.ts 取（见该文件顶部的唯一约定）。 -->
+    <p>界面正在重写。</p>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

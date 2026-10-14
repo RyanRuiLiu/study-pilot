@@ -13,7 +13,8 @@
 
 import { REJECTION_MESSAGES, sendToBackground } from './messaging';
 import { getSettings } from '../settings';
-import type { Tone } from '../ui';
+/** 提示语气的三态；界面层也用它，但这里只定义、不依赖界面。 */
+export type Tone = 'idle' | 'busy' | 'error';
 
 /** 执行期间要写状态行、控按钮、结束后让入口重读清单，因此由入口传进来。 */
 export interface RunHandles {
