@@ -18,7 +18,7 @@
  */
 
 import { hasTextGenerator, type Settings } from '@study-pilot/application';
-import type { Snapshot } from '../read';
+import type { Snapshot } from '../read/index.ts';
 import { planCourseware } from './courseware.ts';
 import { byCheapest } from './order.ts';
 import type { AutoAction, ManualItem, Plan, TaskSwitches } from './types.ts';

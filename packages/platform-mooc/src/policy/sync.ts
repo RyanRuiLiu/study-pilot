@@ -12,10 +12,10 @@ import { COURSE_TYPE } from '../endpoints.ts';
 import { getCourses } from '../courses.ts';
 import type { CourseSummary } from '../types.ts';
 import type { ConfigPort } from '@study-pilot/application';
-import { readToken, renewSession, SessionExpiredError } from './session';
+import { readToken, renewSession, SessionExpiredError } from './session.ts';
 import type { HostCapabilities } from '@study-pilot/application';
-import { inspect, type InspectCourse, type Snapshot } from './read';
-import { mergeCourses } from './course-selection';
+import { inspect, type InspectCourse, type Snapshot } from './read/index.ts';
+import { mergeCourses } from './course-selection.ts';
 
 import { MOOC_REQUEST_RULES } from './net-rules.ts';
 

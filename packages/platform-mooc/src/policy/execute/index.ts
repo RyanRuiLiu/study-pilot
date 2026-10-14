@@ -20,7 +20,7 @@
 
 import type { MoocClient } from '../../client.ts';
 import type { CoursewareContext } from '../../courseware/index.ts';
-import type { AutoAction } from '../plan';
+import type { AutoAction } from '../plan/index.ts';
 import { BankCache } from './bank.ts';
 import { runCourseware } from './courseware.ts';
 import type { ExecResult } from './types.ts';

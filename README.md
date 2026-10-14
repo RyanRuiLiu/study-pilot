@@ -33,11 +33,13 @@
 
 命令行载体（第二个载体，只读，用来证明核心不依赖扩展）：
 
-    pnpm --filter @study-pilot/cli build       # 打成 apps/cli/dist/main.mjs（esbuild，同扩展的构建方式）
-    node apps/cli/dist/main.mjs courses --cookies .probe/mooc-session.json --config .probe/cli-config.json
+    node apps/cli/src/main.ts courses --cookies .probe/mooc-session.json --config .probe/cli-config.json
         # 去平台读课程列表；加 --select <termId> 把它勾上并写进配置文件
-    node apps/cli/dist/main.mjs pending --cookies .probe/mooc-session.json --config .probe/cli-config.json
+    node apps/cli/src/main.ts pending --cookies .probe/mooc-session.json --config .probe/cli-config.json
         # 读一遍并算出要做什么（可自动 / 需人工），不改平台上的任何数据
+
+直接跑 TS 即可：Node 22+ 会剥掉类型，而包内的相对导入都带 .ts 扩展名，因此不经打包也能加载。
+要单文件分发时再打包：pnpm --filter @study-pilot/cli build → apps/cli/dist/main.mjs（esbuild）。
 
 ## 目录
 

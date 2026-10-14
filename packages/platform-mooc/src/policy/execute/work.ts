@@ -16,7 +16,7 @@ import {
 } from '../../review.ts';
 import { buildAnswers, getQuizPaper, submitQuiz } from '../../quiz.ts';
 import type { MoocClient } from '../../client.ts';
-import type { WorkAutoAction } from '../plan';
+import type { WorkAutoAction } from '../plan/index.ts';
 import type { BankCache } from './bank.ts';
 import type { ExecResult } from './types.ts';
 

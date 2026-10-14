@@ -16,7 +16,7 @@
 import { deriveStatus, getCourseStructure } from '../../structure.ts';
 import { currentEvaluatePhase, getEvaluationDetail } from '../../review.ts';
 import type { MoocClient } from '../../client.ts';
-import { SessionExpiredError } from '../session';
+import { SessionExpiredError } from '../session.ts';
 import type { InspectCourse, Snapshot, SnapshotCourse, SnapshotWork } from './types.ts';
 
 /**

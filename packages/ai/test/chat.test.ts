@@ -64,9 +64,14 @@ const okBody = (content: string) =>
 
 describe('调用', () => {
   it('请求构造正确，并取回助手文本', async () => {
-    let seen: { url: string; init: RequestInit } | null = null;
+    /*
+     * 用对象持有「回调里记下来的那次请求」，不用 `let x: T | null`：
+     * 赋值发生在回调里，控制流分析看不到它一定执行过，会把变量收窄成 null。
+     */
+    const seen: { url?: string; init?: RequestInit } = {};
     const client = clientWith(async (url: string, init: RequestInit) => {
-      seen = { url, init };
+      seen.url = url;
+      seen.init = init;
       return new Response(okBody('  你好  '), { status: 200 });
     });
 
@@ -74,10 +79,10 @@ describe('调用', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value).toBe('你好');
-    expect(seen?.url).toBe('https://api.example.com/v1/chat/completions');
-    const headers = seen?.init.headers as Record<string, string>;
+    expect(seen.url).toBe('https://api.example.com/v1/chat/completions');
+    const headers = seen.init?.headers as Record<string, string>;
     expect(headers.Authorization).toBe(`Bearer ${KEY}`);
-    const body = JSON.parse(String(seen?.init.body ?? '{}'));
+    const body = JSON.parse(String(seen.init?.body ?? '{}'));
     expect(body.model).toBe('demo-model');
     expect(body.messages).toEqual([{ role: 'user', content: '说一句话' }]);
     expect(body.stream).toBe(false);

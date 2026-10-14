@@ -6,7 +6,7 @@
  */
 
 import type { CourseUnit } from '../../types.ts';
-import type { SnapshotCourse, SnapshotWork } from '../read';
+import type { SnapshotCourse, SnapshotWork } from '../read/index.ts';
 
 /**
  * 一件能自动完成的事。
