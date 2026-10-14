@@ -200,13 +200,6 @@ export async function finishPlatform(id: string, name: string, counts: { done: n
  */
 const stopRequests = new Set<string>();
 
-export async function requestStop(id: string): Promise<void> {
-  stopRequests.add(id);
-  const state = await read();
-  const run = state.platforms.find((p) => p.id === id);
-  if (run && run.state === 'running') await withPlatform({ ...run, state: 'stopping' });
-}
-
 export function isStopRequested(id: string): boolean {
   return stopRequests.has(id);
 }

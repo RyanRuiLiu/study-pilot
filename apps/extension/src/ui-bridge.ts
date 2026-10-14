@@ -68,11 +68,6 @@ export function getRunState() {
   return sendToBackground({ type: 'RUN_STATE' });
 }
 
-/** 停止某个平台正在跑的那一轮（在两项之间生效）。 */
-export function stopRun(platformId: string) {
-  return sendToBackground({ type: 'STOP_PLATFORM_RUN', platformId });
-}
-
 /**
  * 立刻执行一轮。
  *

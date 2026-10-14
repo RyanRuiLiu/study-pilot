@@ -48,13 +48,11 @@ export type ShellRequest =
   /** 运行状态快照（进度、逐项记录、最近几轮） */
   | { type: 'RUN_STATE' }
   /** 停止某个平台正在跑的那一轮，在两项之间生效 */
-  | { type: 'STOP_PLATFORM_RUN'; platformId: string };
 
 export interface ShellResponseMap {
   RUN_SCHEDULED_TASKS: RunScheduledTasksResponse;
   TASK_STATE: TaskStatus;
   RUN_STATE: RunState;
-  STOP_PLATFORM_RUN: { ok: true };
 }
 
 /** 全部请求：外壳 + 各平台。 */
