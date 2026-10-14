@@ -20,7 +20,7 @@ import { liveRunState } from '../src/background/runtime/scheduler';
 import { getTaskState, recordRunFailure } from '../src/background/runtime/task-state';
 import { attachRunStatePort } from '../src/background/runtime/run-state';
 import { registerMessageHandler } from '../src/background/messages/router';
-import { createMoocPlatform } from '../src/platforms/mooc/platform.ts';
+import { createMoocPlatform } from '../src/adapters/mooc/platform.ts';
 import { browserCapabilities } from '../src/browser/capabilities.ts';
 import { configStore } from '../src/settings';
 import { registerBackgroundWiring } from '../src/background/wiring';
