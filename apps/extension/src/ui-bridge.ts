@@ -4,7 +4,7 @@
  * ============================ 唯一的约定 ============================
  *
  * 界面（entrypoints/popup、entrypoints/options，将来由设计者重写）**只从本文件取数**：
- * 不 import src/platforms、src/background、src/browser、src/settings。
+ * 不 import src/adapters、src/background、src/browser、src/settings。
  *
  * 为什么只有这一条：界面与核心的边界只要靠人记，就一定会漏；写成"唯一入口"之后，
  * 界面换人重写时核心一行都不用动，核心脱离浏览器跑时界面也不用知道。

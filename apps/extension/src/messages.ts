@@ -4,7 +4,7 @@
  * 这里是全项目唯一把"外壳的命令"和"各平台的命令"合到一起的地方：
  *   - 外壳命令（手动跑一轮、运行状态）：与平台无关，形状在 protocol.ts；
  *   - 平台命令（登录态、课程、待办、明细）：形状由各平台自己给出，
- *     慕课那份在 platforms/mooc/messages/payload.ts。
+ *     慕课那份在 adapters/mooc/messages/payload.ts。
  *
  * 为什么只有这一个地方知道全部命令：加第二个平台时，只有这里要加一行
  * （合并它的请求类型与响应映射）。别处——界面、后台路由、平台内部——都只认自己那一半。
@@ -21,7 +21,7 @@ import type {
   RunScheduledTasksResponse,
   TaskStatus,
 } from './protocol.ts';
-import type { MoocRequest, MoocResponseMap } from './platforms/mooc/messages/payload.ts';
+import type { MoocRequest, MoocResponseMap } from './adapters/mooc/messages/payload.ts';
 
 export * from './protocol.ts';
 /** 界面要的视图模型：定义在平台里，这里转出，界面只认这一个来源。 */
@@ -36,8 +36,8 @@ export type {
   PendingSummary,
   UnitDetail,
   WorkStatus,
-} from './platforms/mooc/messages/payload.ts';
-export { WORK_STATUS } from './platforms/mooc/messages/payload.ts';
+} from './adapters/mooc/messages/payload.ts';
+export { WORK_STATUS } from './adapters/mooc/messages/payload.ts';
 
 /** 外壳自己的命令。 */
 export type ShellRequest =
