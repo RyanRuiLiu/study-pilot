@@ -2,9 +2,9 @@
  * 平台契约：**调度层与展示外壳唯一认识的形状**。
  *
  * 分为后台与前台两部分，因为它们住在两个不同的地方：
- *   PlatformTasks  后台：能不能做、该做什么、怎么做（本文件）
- *   前台的看板半边等看板按平台分区时一并加入——**不预置用不到的类型**
- * 它只描述"外壳需要知道什么"，平台自己的字段一律放 payload，
+ *   PlatformTasks  后台：能不能做、该做什么、怎么做
+ *   PlatformViews  前台：看板里属于本平台的那一块
+ * 两半都只描述"外壳需要知道什么"，平台自己的字段一律放 payload，
  * 外壳不解释它——这是"平台各自独立、只统一调度与分壳"的最小接口。
  *
  * 本文件只有类型，运行时不产生任何代码，因此前后台两个 bundle 各自只包含
@@ -50,4 +50,15 @@ export interface PlatformTasks {
   run(item: PlanItem, heartbeat: () => Promise<void>): Promise<RunOutcome>;
   /** 本轮收尾：组织通知等平台自己的事。没有要报的就什么都不做 */
   report(items: PlanItem[], outcomes: RunOutcome[], now: number): Promise<void>;
+}
+
+/** 前台半个契约：看板里属于本平台的那一块。 */
+export interface PlatformViews {
+  id: string;
+  name: string;
+  /**
+   * 渲染本平台的分区：读自己的数据、画自己的筛选与明细，返回快照读取时刻
+   * （0 表示还没读过）。外壳只提供容器与标题，不认识任何平台字段。
+   */
+  render(host: HTMLElement): Promise<number>;
 }

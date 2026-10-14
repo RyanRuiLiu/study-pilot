@@ -12,11 +12,11 @@
  */
 
 import { workPageUrl } from '@study-pilot/platform-mooc';
-import type { Snapshot, SnapshotCourse, SnapshotWork } from '../../src/platforms/mooc/read';
-import { formatDateTime } from '../../src/features/format';
-import { sendToBackground } from '../../src/platform/messaging';
-import { button } from '../../src/ui';
-import { detailSource, detailTable, type DetailGroup, type DetailRow } from '../../src/ui/details.ts';
+import type { Snapshot, SnapshotCourse, SnapshotWork } from './read';
+import { formatDateTime } from '../../features/format';
+import { sendToBackground } from '../../platform/messaging';
+import { button } from '../../ui';
+import { detailSource, detailTable, type DetailGroup, type DetailRow } from '../../ui/details.ts';
 import { unitGroups } from './unit-rows.ts';
 
 export interface DetailsView {
