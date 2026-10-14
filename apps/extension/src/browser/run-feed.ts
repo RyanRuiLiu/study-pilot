@@ -51,6 +51,3 @@ export function subscribeRunState(listener: Listener): () => void {
 }
 
 /** 请求停止某个平台的那一轮。停止只在两项之间生效，这里只负责把请求发出去。 */
-export async function stopPlatformRun(platformId: string): Promise<void> {
-  await browser.runtime.sendMessage({ type: 'STOP_PLATFORM_RUN', platformId });
-}

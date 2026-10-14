@@ -14,8 +14,8 @@
 
 import type { AnySendResponse, AppRequest, MessageHandlers, SendResponse } from '../../messages.ts';
 import type { PlatformTasks } from '../../platforms/types.ts';
+import { getRunState } from '../runtime/run-state';
 import { beginRun, canStartRun, claimRun, finishRun, getTaskState, releaseRun, touchRun } from '../runtime/scheduler';
-import { getRunState, requestStop } from '../runtime/run-state';
 
 /** 装配层给出的东西：各平台的处理器表与要跑的平台。 */
 export interface RouterDeps {
@@ -100,11 +100,6 @@ export function registerMessageHandler(deps: RouterDeps): void {
     void (async () => {
       if (request?.type === 'RUN_STATE') {
         sendResponse(await getRunState());
-        return;
-      }
-      if (request?.type === 'STOP_PLATFORM_RUN') {
-        await requestStop(request.platformId);
-        sendResponse({ ok: true });
         return;
       }
       if (request?.type === 'RUN_SCHEDULED_TASKS') {
