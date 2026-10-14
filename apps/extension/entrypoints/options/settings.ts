@@ -31,6 +31,7 @@ function sections(): SettingsSection[] {
 
 export function mountSettings(toast: (text: string) => void): SettingsView {
   const host = document.createElement('div');
+  host.className = 'sp-stack';
 
   const reset = button({
     label: '恢复默认设置',
