@@ -16,7 +16,7 @@ import { ensureAlarm } from '../src/background/runtime/alarms';
 import { whenNetRulesReady } from '../src/browser/net-rules';
 
 
-import { liveRunState } from '../src/background/runtime/scheduler';
+import { liveRunState } from '@study-pilot/application';
 import { getTaskState, recordRunFailure } from '../src/background/runtime/task-state';
 import { attachRunStatePort } from '../src/background/runtime/run-state';
 import { registerMessageHandler } from '../src/background/messages/router';

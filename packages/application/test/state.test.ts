@@ -1,5 +1,5 @@
 /*
- * 「此刻后台在做什么」的判据。
+ * 跨次运行状态的判据与迁移。
  *
  * 这是后台与界面之间唯一的约定，踩过两个坑：
  *
@@ -7,14 +7,24 @@
  *     没人清，而线程早就不在了，于是弹窗一直显示「正在执行」——
  *     用户等一件永远不会发生的事。
  *
- * 二、界面自己算这个判断。两处各写一遍，就各错各的；判据因此收到后台
- *     一处（`liveRunState`），界面只负责显示。
+ * 二、界面自己算这个判断。两处各写一遍，就各错各的；判据因此收到一处
+ *     （`liveRunState`），界面只负责显示。
+ *
+ * 全部是纯函数（见 src/state.ts）：不碰存储，所以这些用例一个替身都不需要。
  */
 
 import { describe, expect, it } from 'vitest';
-import { canStartRun, claimRun, liveRunState, releaseRun } from '../src/background/runtime/scheduler';
-import { EMPTY_STATE } from '../src/background/runtime/task-state';
-import type { TaskState } from '../src/protocol.ts';
+import {
+  EMPTY_STATE,
+  beginRun,
+  canStartRun,
+  finishRun,
+  liveRunState,
+  recordRunFailure,
+  setAwaitingLogin,
+  touchRun,
+  type TaskState,
+} from '../src/index.ts';
 
 const NOW = 1_700_000_000_000;
 const MINUTE = 60 * 1000;
@@ -109,12 +119,61 @@ describe('能否开始一轮', () => {
   });
 });
 
-describe('本进程内的执行权', () => {
-  it('一轮没结束前，第二个触发源拿不到执行权', () => {
-    expect(claimRun()).toBe(true);
-    expect(claimRun()).toBe(false);
-    releaseRun();
-    expect(claimRun()).toBe(true);
-    releaseRun();
+/* 迁移规则本身：四条，每条对应代码里写下的那句话。 */
+describe('状态的迁移', () => {
+  it('开始时落下 runningSince 与第一次心跳', () => {
+    expect(beginRun(state(), NOW)).toEqual({
+      runningSince: NOW,
+      heartbeatAt: NOW,
+      lastFinishedAt: null,
+      awaitingLogin: false,
+      lastError: null,
+    });
+  });
+
+  it('心跳只对进行中的一轮有效：结束后的迟到回调不再写活它', () => {
+    const finished = state({ runningSince: null, heartbeatAt: null });
+    // 原样返回（同一个对象），载体据此也能省一次落盘
+    expect(touchRun(finished, NOW)).toBe(finished);
+
+    const running = state({ runningSince: NOW - 1000, heartbeatAt: NOW - 1000 });
+    expect(touchRun(running, NOW).heartbeatAt).toBe(NOW);
+  });
+
+  it('结束时清掉心跳、挂起标记与上一轮的失败', () => {
+    const before = state({
+      runningSince: NOW - 1000,
+      heartbeatAt: NOW - 1000,
+      awaitingLogin: true,
+      lastError: '上一轮的失败',
+    });
+    expect(finishRun(before, NOW)).toEqual({
+      runningSince: null,
+      heartbeatAt: null,
+      lastFinishedAt: NOW,
+      awaitingLogin: false,
+      lastError: null,
+    });
+  });
+
+  it('失败只改 lastError 与结束时刻，不动运行标记', () => {
+    const before = state({ runningSince: NOW - 1000, heartbeatAt: NOW - 1000 });
+    expect(recordRunFailure(before, '网络断了', NOW)).toEqual({
+      runningSince: NOW - 1000,
+      heartbeatAt: NOW - 1000,
+      lastFinishedAt: NOW,
+      awaitingLogin: false,
+      lastError: '网络断了',
+    });
+  });
+
+  it('挂起标记值没变时原样返回，调用方据此跳过落盘', () => {
+    const idle = state();
+    expect(setAwaitingLogin(idle, false)).toBe(idle);
+    expect(setAwaitingLogin(idle, true).awaitingLogin).toBe(true);
+
+    const waiting = state({ awaitingLogin: true });
+    expect(setAwaitingLogin(waiting, true)).toBe(waiting);
+    expect(setAwaitingLogin(waiting, false).awaitingLogin).toBe(false);
   });
 });

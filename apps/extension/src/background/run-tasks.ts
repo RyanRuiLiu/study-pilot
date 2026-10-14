@@ -11,7 +11,8 @@
 
 import { getSettings } from '../settings';
 import type { PlatformTasks } from '@study-pilot/application';
-import { canStartRun, claimRun, releaseRun } from './runtime/scheduler';
+import { canStartRun } from '@study-pilot/application';
+import { claimRun, releaseRun } from './runtime/scheduler';
 import {
   beginRun,
   clearAwaitingLogin,

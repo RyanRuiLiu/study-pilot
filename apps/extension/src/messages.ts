@@ -12,7 +12,7 @@
  * 界面侧不要直接用它：界面走 src/ui-bridge.ts，那是"只看数据"的入口。
  */
 
-import type { RunState } from './background/runtime/run-state';
+import type { RunState } from '@study-pilot/application';
 import type {
   AnySendResponse,
   JobRejection,
@@ -27,7 +27,7 @@ export * from './protocol.ts';
 /** 界面要的视图模型：定义在平台里，这里转出，界面只认这一个来源。 */
 export type { Snapshot } from '@study-pilot/platform-mooc';
 export type { MoocSession } from '@study-pilot/platform-mooc';
-export type { RunState } from './background/runtime/run-state';
+export type { RunState } from '@study-pilot/application';
 export type {
   MoocRequest,
   MoocResponseMap,
