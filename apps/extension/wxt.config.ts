@@ -71,7 +71,6 @@ export default defineConfig({
     permissions: [
       'cookies',
       'storage',
-      'notifications',
       /*
        * 定时唤醒后台检查。MV3 的后台线程不能常驻，没有它就只能等
        * 浏览器下次启动，而那意味着「作业刚发布时你正开着浏览器，
@@ -93,7 +92,7 @@ export default defineConfig({
      *
      * 接口地址由用户在设置里填写，事先不知道是哪个域名，所以声明只能给通配。
      * 「声明」不等于「拥有」：未获授权时这些域名的请求发不出去，实际申请时
-     * 也只申请用户填写的那个源（见 src/ai/permission.ts）。
+     * 也只申请用户填写的那个源。
      * 不开启 AI 就一个第三方域名都没有。
      */
     optional_host_permissions: ['*://*/*'],

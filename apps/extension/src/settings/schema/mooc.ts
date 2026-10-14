@@ -83,74 +83,18 @@ interface AutoCoursewareSettings {
   enabled: boolean;
 }
 
-/**
- * 作业截止提醒。
- *
- * 只覆盖「临近截止但还没完成」的事项。已经完成的不再提醒——
- * 提醒的作用是催人去处理，而完成的事没什么可催的。
- *
- * 已过截止的也不在这里：那类不是提醒，是告知，且它与完成情况无关，
- * 因此不随这个开关开关，见 notificationOverdue 的说明。
- */
-interface DeadlineReminderSettings {
-  enabled: boolean;
-  /** 距截止不足该天数时开始提醒 */
-  advanceDays: number;
-}
-
-/**
- * 自动完成提醒。
- *
- * 后台替你做了事之后告知一声。做成的事会改动你的学习记录，
- * 静默地改是不可接受的——哪怕改对了，用户也需要知道发生了什么。
- *
- * 它与截止提醒是不同的两件事，因此各有一个开关：
- * 有人只想知道有什么要做，不关心后台做了没做；也有人反过来。
- */
-interface CompletionNoticeSettings {
-  enabled: boolean;
-}
-
-
-/** 前台功能的开关。几项都只有开与关，但形状与后台保持一致。 */
-interface ToggleSettings {
-  enabled: boolean;
-}
-
 /** 慕课平台。当前接入的是 icourse163.org。 */
 export interface MoocSettings {
-  foreground: {
-    /** 做题页助手：填充答案与提交 */
-    quizHelper: ToggleSettings;
-    /** 作业页得分指导注入 */
-    guidance: ToggleSettings;
-  };
   background: {
     autoCourseware: AutoCoursewareSettings;
     autoReview: AutoReviewSettings;
     autoSelfEvaluate: AutoSelfEvaluateSettings;
     autoQuiz: AutoQuizSettings;
-    deadlineReminder: DeadlineReminderSettings;
-    completionNotice: CompletionNoticeSettings;
     courses: SelectedCourse[];
   };
 }
 
 export const DEFAULT_MOOC: MoocSettings = {
-  /*
-   * 前台功能默认全开。
-   *
-   * 它们只在用户打开对应页面时才挂上去，而真正会改动平台的动作都由用户
-   * 自己点：做题助手的面板要人点了才会填充，提交也是人点；得分指导只是
-   * 往题目下面插一段说明，不产生任何写入。
-   *
-   * 与后台开关的分界线是「自动」——后台任务在检查时自己就动了，
-   * 前台不会。所以前台默认开不构成替用户做决定，后台默认关才是。
-   */
-  foreground: {
-    quizHelper: { enabled: true },
-    guidance: { enabled: true },
-  },
   background: {
     /*
      * 以下四个都是写操作，默认全部关闭。
@@ -181,32 +125,6 @@ export const DEFAULT_MOOC: MoocSettings = {
     },
     autoSelfEvaluate: {
       enabled: false,
-    },
-    /*
-     * 截止提醒默认打开。它只读不写，多提醒一次不会造成任何损失，
-     * 而漏提醒的代价是错过截止时间。
-     */
-    deadlineReminder: {
-      enabled: true,
-      /*
-       * 提前 1 天。
-       *
-       * 这一项做的就是「距截止还剩 1 天时，打开浏览器发桌面通知」。
-       * 提前量再大反而会连着几天反复提醒同一件事。
-       */
-      advanceDays: 1,
-    },
-    /*
-     * 完成提醒默认打开。
-     *
-     * 它报告的是后台已经做成的事，而那些事改动了用户的学习记录。
-     * 默认关掉意味着改动是静默发生的，用户要到打开界面才发现——
-     * 这比多看一条通知糟糕得多。
-     *
-     * 它不增加任何写操作，只是告知，因此默认开启不构成风险。
-     */
-    completionNotice: {
-      enabled: true,
     },
     courses: [],
   },

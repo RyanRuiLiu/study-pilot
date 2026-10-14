@@ -38,10 +38,8 @@ function settingsWith(switches: {
         autoQuiz: { enabled: switches.quiz ?? false },
         autoReview: { enabled: switches.review ?? false, comment: 'x' },
         autoSelfEvaluate: { enabled: switches.self ?? false },
-        deadlineReminder: { enabled: true, advanceDays: 1 },
         courses: [],
       },
-      foreground: {},
     },
   } as unknown as Settings;
 }
