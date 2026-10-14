@@ -69,14 +69,14 @@ beforeEach(() => {
 describe('弹窗这一屏', () => {
   it('计数用平台自己的分项，不在页面里另算', () => {
     renderPopup(root, data({ summary: summary([entry(), entry({ kind: 'submit-homework', handling: 'manual' })]) }), handlers);
-    expect(root.querySelector('p')?.textContent).toBe('共 2 项 · 会自动完成 1 · 需你处理 1');
+    expect(root.querySelector('.sp-count')?.textContent).toBe('共 2 项 · 会自动完成 1 · 需你处理 1');
   });
 
   it('有已过期项时补一项计数，且它排在最后', () => {
     const overdue = entry({ overdue: true, name: '过期测验', deadline: 1 });
     renderPopup(root, data({ summary: summary([overdue, entry({ name: '还有时间' })]) }), handlers);
 
-    expect(root.querySelector('p')?.textContent).toContain('已过期 1');
+    expect(root.querySelector('.sp-count')?.textContent).toContain('已过期 1');
     const names = [...root.querySelectorAll('.sp-item .sp-fill')].map((el) => el.textContent);
     expect(names).toEqual(['还有时间', '过期测验']);
   });
@@ -178,10 +178,21 @@ describe('弹窗这一屏', () => {
     const view = renderPopup(root, data({ summary: summary([entry(), entry()]) }), handlers);
     const before = root.querySelectorAll('.sp-item').length;
 
+    // 平静状态是一行小字而不是 sl-alert，因此按文字断言，不绑元素类型
     view.setStatus('已提交 2 道题', 'idle');
 
-    expect(root.querySelector('sl-alert')?.textContent).toBe('已提交 2 道题');
+    expect(root.textContent).toContain('已提交 2 道题');
     expect(root.querySelectorAll('.sp-item').length).toBe(before);
+  });
+
+  it('忙碌降回平静时状态整块换掉，不被旧元素吃掉', () => {
+    const view = renderPopup(root, data({ live: 'running' }), handlers);
+    expect(root.querySelector('sl-alert')?.textContent).toBe('正在执行');
+
+    view.setStatus('已提交 2 道题', 'idle');
+
+    expect(root.querySelector('sl-alert')).toBeNull();
+    expect(root.textContent).toContain('已提交 2 道题');
   });
 });
 

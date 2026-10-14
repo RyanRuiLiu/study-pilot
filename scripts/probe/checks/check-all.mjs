@@ -36,6 +36,7 @@ const SCRIPTS = [
   '../../verify/check-version-literal.mjs',
   '../../verify/check-doc-refs.mjs',
   '../../verify/check-anchors.mjs',
+  '../../verify/check-text-hygiene.mjs',
   '../../verify/check-mutation.mjs',
 ];
 
