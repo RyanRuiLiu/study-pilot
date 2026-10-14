@@ -7,7 +7,7 @@
  * 不取得分明细——那些对判断没有用，取了只是扩大泄漏面。
  */
 
-import type { CourseUnit } from '@study-pilot/platform-mooc';
+import type { CourseUnit } from '../../types.ts';
 
 /** 一个单元项在快照里的样子。 */
 export interface SnapshotWork {

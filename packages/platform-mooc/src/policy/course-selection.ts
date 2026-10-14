@@ -8,8 +8,8 @@
  * 而它所在的 `refreshCourses` 依赖网络与浏览器存储，测不了。
  */
 
-import type { CourseSummary } from '@study-pilot/platform-mooc';
-import type { SelectedCourse } from '../../settings';
+import type { CourseSummary } from '../types.ts';
+import type { SelectedCourse } from '@study-pilot/application';
 
 /**
  * 把平台返回的课程合并成配置里的课程列表。

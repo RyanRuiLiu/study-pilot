@@ -45,7 +45,7 @@ function readSession(): SessionFile | null {
 /**
  * 宿主端的 fetch：把浏览器里本来就有的东西补齐。
  *
- * 慕课服务端会因为 Origin 是扩展而返回 403（见 src/platforms/mooc/net-rules.ts 的实测），
+ * 慕课服务端会因为 Origin 是扩展而返回 403（见 packages/platform-mooc/src/policy/net-rules.ts 的实测），
  * 扩展靠 declarativeNetRequest 改写请求头；Node 里没有那层，就在这儿直接写上去。
  * 这几行就是"宿主适配"的全部内容——平台代码一行都没改。
  */

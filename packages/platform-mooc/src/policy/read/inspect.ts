@@ -13,13 +13,9 @@
  *   - 它从不直接用于通知，通知只报确认过的事实
  */
 
-import {
-  currentEvaluatePhase,
-  deriveStatus,
-  getCourseStructure,
-  getEvaluationDetail,
-  type MoocClient,
-} from '@study-pilot/platform-mooc';
+import { deriveStatus, getCourseStructure } from '../../structure.ts';
+import { currentEvaluatePhase, getEvaluationDetail } from '../../review.ts';
+import type { MoocClient } from '../../client.ts';
 import { SessionExpiredError } from '../session';
 import type { InspectCourse, Snapshot, SnapshotCourse, SnapshotWork } from './types.ts';
 

@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { CourseSummary } from '@study-pilot/platform-mooc';
-import { mergeCourses } from '../src/platforms/mooc/course-selection';
+import { mergeCourses } from '@study-pilot/platform-mooc';
 import type { SelectedCourse } from '../src/settings';
 
 /** 学期区间盖住当下的课程。按旧规则它会被自动勾上。 */

@@ -5,7 +5,8 @@
  * 卷子里每道题都要靠它比对，逐题去查会成倍放大请求量。
  */
 
-import { buildAnswerIndex, getQuizBank, type MoocClient } from '@study-pilot/platform-mooc';
+import { buildAnswerIndex, getQuizBank } from '../../quiz.ts';
+import type { MoocClient } from '../../client.ts';
 
 export class BankCache {
   private readonly loaded = new Map<number, Map<string, boolean>>();

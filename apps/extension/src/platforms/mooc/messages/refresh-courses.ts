@@ -9,8 +9,8 @@
  */
 
 import type { MessageHandler } from '../../../protocol.ts';
-import { ensureSession } from '../session';
-import { recoveryFailure, withSessionRecovery } from '../recovery.ts';
+import { ensureSession } from '@study-pilot/platform-mooc';
+import { recoveryFailure, withSessionRecovery } from '@study-pilot/platform-mooc';
 import type { MoocMessageDeps } from './deps.ts';
 import type { MoocResponseMap } from './payload.ts';
 

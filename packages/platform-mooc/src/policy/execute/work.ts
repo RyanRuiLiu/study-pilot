@@ -2,22 +2,20 @@
  * 作业、测验、考试上的自动项：答题、自评、互评。
  *
  * 三条路都返回 `ExecResult`，不抛异常；成败都如实写在 `detail` 里，
- * 因为它会原样出现在通知中。
+ * 因为它会原样出现在运行状态的逐项记录里。
  */
 
 import {
-  buildAnswers,
   buildEvaluationItems,
   currentEvaluatePhase,
   getEvaluationDetail,
   getHomeworkInfo,
   getHomeworkPaper,
-  getQuizPaper,
   nextSubmission,
   submitEvaluation,
-  submitQuiz,
-  type MoocClient,
-} from '@study-pilot/platform-mooc';
+} from '../../review.ts';
+import { buildAnswers, getQuizPaper, submitQuiz } from '../../quiz.ts';
+import type { MoocClient } from '../../client.ts';
 import type { WorkAutoAction } from '../plan';
 import type { BankCache } from './bank.ts';
 import type { ExecResult } from './types.ts';

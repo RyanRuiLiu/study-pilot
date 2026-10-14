@@ -18,7 +18,8 @@
  * 题库缓存见 `bank.ts`，结果形状见 `types.ts`。
  */
 
-import type { CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
+import type { MoocClient } from '../../client.ts';
+import type { CoursewareContext } from '../../courseware/index.ts';
 import type { AutoAction } from '../plan';
 import { BankCache } from './bank.ts';
 import { runCourseware } from './courseware.ts';

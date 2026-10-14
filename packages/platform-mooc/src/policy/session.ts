@@ -17,8 +17,8 @@
  *    该格式由 `getQuizInfo` 返回的 `answererId` 交叉验证过（两处一致）。
  */
 
-import type { HostCapabilities } from '../types.ts';
-import { MOOC_ORIGIN } from '@study-pilot/platform-mooc';
+import type { HostCapabilities } from '@study-pilot/application';
+import { MOOC_ORIGIN } from '../client.ts';
 
 export interface MoocSession {
   /** 是否处于登录态 */

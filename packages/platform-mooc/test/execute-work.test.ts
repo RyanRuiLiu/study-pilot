@@ -12,7 +12,7 @@
  *   - 自评按满分给，评语原样传下去
  *   - 没有客观题 / 没有可评题目 / 不在互评期：skipped，不是 failed
  *
- * 平台接口整体替身（与 `guidance.test.ts` 同一手法），但纯函数
+ * 平台接口按模块替身，但纯函数
  * （`buildAnswers`、`buildAnswerIndex`、`buildEvaluationItems`、
  * `currentEvaluatePhase`）走真实实现：这三条路的判据就建在它们上面，
  * 换掉它们等于把要验的东西一起换掉，测试就只剩下「我调用了你」。
@@ -29,17 +29,22 @@ import type {
   MoocClient,
   QuizPaper,
   SubmissionProgress,
-} from '@study-pilot/platform-mooc';
-import type { SnapshotCourse, SnapshotWork } from '../src/platforms/mooc/read';
-import type { WorkAutoAction } from '../src/platforms/mooc/plan';
+} from '../src/index.ts';
+import type { SnapshotCourse, SnapshotWork } from '../src/policy/read/types.ts';
+import type { WorkAutoAction } from '../src/policy/plan/types.ts';
 
-vi.mock('@study-pilot/platform-mooc', async (importOriginal) => {
+/* 只替身「会向平台写」的那几个调用，纯函数（buildAnswers / buildAnswerIndex /
+   currentEvaluatePhase 等）走真实实现：判据就建在它们上面，换掉等于把要验的东西一起换掉。
+   替身按被测代码 import 的模块分：测验在 ../src/quiz.ts，作业与互评在 ../src/review.ts。 */
+vi.mock('../src/quiz.ts', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, getQuizPaper: vi.fn(), getQuizBank: vi.fn(), submitQuiz: vi.fn() };
+});
+
+vi.mock('../src/review.ts', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return {
     ...actual,
-    getQuizPaper: vi.fn(),
-    getQuizBank: vi.fn(),
-    submitQuiz: vi.fn(),
     getHomeworkInfo: vi.fn(),
     getEvaluationDetail: vi.fn(),
     getHomeworkPaper: vi.fn(),
@@ -52,14 +57,12 @@ import {
   getEvaluationDetail,
   getHomeworkInfo,
   getHomeworkPaper,
-  getQuizBank,
-  getQuizPaper,
   nextSubmission,
   submitEvaluation,
-  submitQuiz,
-} from '@study-pilot/platform-mooc';
-import { BankCache } from '../src/platforms/mooc/execute/bank';
-import { runQuiz, runReview, runSelf } from '../src/platforms/mooc/execute/work';
+} from '../src/review.ts';
+import { getQuizBank, getQuizPaper, submitQuiz } from '../src/quiz.ts';
+import { BankCache } from '../src/policy/execute/bank.ts';
+import { runQuiz, runReview, runSelf } from '../src/policy/execute/work.ts';
 
 const DAY = 24 * 60 * 60 * 1000;
 /*

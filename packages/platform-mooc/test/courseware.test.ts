@@ -13,7 +13,6 @@
 
 import { describe, expect, it } from 'vitest';
 import { md5hex } from '@study-pilot/core';
-import { createThrottle } from '@study-pilot/transport';
 import { createMoocClient } from '../src/client.ts';
 import {
   BEHAVIORS,
@@ -71,7 +70,7 @@ function clientStub(responses: Record<string, unknown> = {}) {
     }) as never,
     getToken: () => TOKEN,
     md5: md5hex,
-    throttle: createThrottle({ minGapMs: 0 }),
+    minGapMs: 0,
   });
   return {
     client,

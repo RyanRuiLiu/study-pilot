@@ -25,8 +25,8 @@ import type { MoocRequest, MoocResponseMap } from './platforms/mooc/messages/pay
 
 export * from './protocol.ts';
 /** 界面要的视图模型：定义在平台里，这里转出，界面只认这一个来源。 */
-export type { Snapshot } from './platforms/mooc/read';
-export type { MoocSession } from './platforms/mooc/session';
+export type { Snapshot } from '@study-pilot/platform-mooc';
+export type { MoocSession } from '@study-pilot/platform-mooc';
 export type { RunState } from './background/runtime/run-state';
 export type {
   MoocRequest,

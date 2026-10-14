@@ -12,15 +12,13 @@
 import type { CoursewareContext } from '@study-pilot/platform-mooc';
 import { createTextGenerator } from '../../ai';
 import type { MessageHandlers } from '../../protocol.ts';
-import type { HostCapabilities, PlatformWiring } from '../types.ts';
+import type { ConfigPort, HostCapabilities, PlatformWiring } from '@study-pilot/application';
 import type { Settings } from '../../settings';
-import type { PlatformTasks } from '../types.ts';
+import type { PlatformTasks } from '@study-pilot/application';
 import type { MoocMessageDeps } from './messages/deps.ts';
 import { moocHandlers } from './messages/handlers.ts';
-import type { InspectCourse } from './read';
-import { createPlatformClient, loadSnapshot, refreshCourses } from './sync.ts';
-import { MOOC_REQUEST_RULES } from './net-rules.ts';
-import { createMoocTasks } from './tasks.ts';
+import type { InspectCourse } from '@study-pilot/platform-mooc';
+import { createPlatformClient, createMoocTasks, loadSnapshot, MOOC_REQUEST_RULES, refreshCourses } from '@study-pilot/platform-mooc';
 
 /**
  * 外壳给出的东西：只有它自己拥有的能力。
@@ -29,6 +27,8 @@ import { createMoocTasks } from './tasks.ts';
  */
 export interface MoocEnv {
   host: HostCapabilities;
+  /** 配置端口：由载体实现（扩展侧是浏览器存储，命令行侧是文件） */
+  config: ConfigPort;
   shell: MoocMessageDeps['shell'];
 }
 
@@ -75,7 +75,7 @@ export function createMoocPlatform(env: MoocEnv): MoocPlatform {
     host: env.host,
     client,
     renew,
-    refreshCourses: () => refreshCourses(client),
+    refreshCourses: () => refreshCourses(client, env.config),
     loadSnapshot: (courses, userId) => loadSnapshot(client, courses, userId),
     selectedCourses,
     coursewareContext,
@@ -85,10 +85,10 @@ export function createMoocPlatform(env: MoocEnv): MoocPlatform {
 
   return {
     handlers: moocHandlers(deps),
-    tasks: () => createMoocTasks({ ...deps, recordFailure: env.shell.recordFailure }),
+    tasks: () => createMoocTasks({ ...deps, config: env.config, recordFailure: env.shell.recordFailure }),
     /*
      * 登录后才下发的是 STUDY_INFO 与 STUDY_SESS；NTESTUDYSI 在访客状态下也有，
-     * 不能当登录信号（见 src/platforms/mooc/session.ts 的 cookie 分工表）。
+     * 不能当登录信号（见 packages/platform-mooc/src/policy/session.ts 的 cookie 分工表）。
      */
     wiring: {
       id: 'mooc',

@@ -9,7 +9,7 @@
 
 import { COURSE_TYPE, getCourses } from '@study-pilot/platform-mooc';
 import type { MessageHandler } from '../../../protocol.ts';
-import { ensureSession, renewSession } from '../session';
+import { ensureSession, renewSession } from '@study-pilot/platform-mooc';
 import type { MoocMessageDeps } from './deps.ts';
 import type { MoocResponseMap } from './payload.ts';
 
