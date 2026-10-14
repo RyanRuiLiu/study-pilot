@@ -47,45 +47,28 @@ const versionEl = document.getElementById('version');
 if (versionEl) versionEl.textContent = `v${browser.runtime.getManifest().version}`;
 
 
-import { setCurrent, setRender, setToast } from './state.ts';
-import { accountSection } from './sections/account.ts';
-import { scheduleSection } from './sections/schedule.ts';
-import { tasksSection } from './sections/tasks.ts';
+import { setCurrent, setRender, setToast } from '../../src/settings/page-state.ts';
 import { aiSection } from './sections/ai.ts';
-import { foregroundSection } from './sections/foreground.ts';
 import { executionSection } from './sections/execution.ts';
+import { moocSettings } from '../../src/platforms/mooc/settings.ts';
 
 // ---------- 渲染 ----------
 
 function render(): void {
   app.replaceChildren();
 
+  /*
+   * 通用设置在前、各平台的分区在后。
+   *
+   * 分区由拥有者渲染：运行时机、AI、执行与诊断属于外壳（跨平台），
+   * 账号与课程、自动任务、前台功能属于慕课（见 src/platforms/mooc/settings.ts）。
+   * 新增平台时这里不用改——多出来的分区自然接在后面。
+   */
   app.append(
-    accountSection(),
-
-    scheduleSection(),
-
-    /*
-     * 运作方式。
-     *
-     * 这一节没有可调的东西，只有事实：扩展什么时候动、动什么、不动什么、
-     * 出了边界会怎样。用户从界面上只能看到「未提交」这类结果，看不到背后
-     * 的规则，而这几条规则决定了他能否放心把提交交给它。
-     *
-     * 写法上先定义动作，再讲时机。原因是有四个动作容易被混为一谈——
-     * 检查不发请求、拉取只读、执行写平台、通知是给用户看的——
-     * 而它们的差别正是用户最关心的：会不会频繁请求、会不会动我的数据。
-     * 不先分清，后面每句话都会含糊。
-     *
-     * 每一条都对应代码里的一个实际分支，不是泛泛的承诺。
-     */
-
-    tasksSection(),
-
+    // 各平台自己的分区在前（账号与课程、运行时机、自动任务、前台功能）
+    ...moocSettings.render(),
+    // 外壳的通用分区在后（AI 与执行诊断跨平台）
     aiSection(),
-
-    foregroundSection(),
-
     executionSection(),
   );
 

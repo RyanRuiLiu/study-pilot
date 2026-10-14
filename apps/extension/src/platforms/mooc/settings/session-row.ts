@@ -4,10 +4,10 @@
  * 从明细区再分出：两者没有共用状态，唯一的关系是都显示在设置页顶部。
  * syncSessionBadge 随之留在这里——它由渲染登录行时赋值。
  */
-import { getSettings } from '../../src/settings';
-import { sendToBackground } from '../../src/platform/messaging';
-import { describeRunState } from '../../src/background/runtime/scheduler';
-import { button } from '../../src/ui/form.ts';
+import { getSettings } from '../../../settings';
+import { sendToBackground } from '../../../platform/messaging';
+import { describeRunState } from '../../../background/runtime/scheduler';
+import { button } from '../../../ui/form.ts';
 
 export function sessionBadge(): HTMLElement {
   const wrap = document.createElement('div');
@@ -60,7 +60,7 @@ export let syncSessionBadge: (() => void) | null = null;
  * 只显示「已登录」不显示用户 id：那一行是给用户确认状态用的，
  * 而 id 是账号内部标识，对他没有用处，露在界面上也没有必要。
  */
-export async function readSessionInto(el: HTMLElement, login: HTMLElement): Promise<void> {
+async function readSessionInto(el: HTMLElement, login: HTMLElement): Promise<void> {
   try {
     const session = await sendToBackground({ type: 'SESSION' });
     el.textContent = session.loggedIn ? '已登录' : '未登录';

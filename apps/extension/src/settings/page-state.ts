@@ -6,7 +6,7 @@
  * 就成环了。这里只放「谁都需要、但谁都不拥有」的四个东西。
  */
 
-import type { Settings } from '../../src/settings';
+import type { Settings } from './';
 
 /** 当前配置。由入口与落盘处更新；各处只读。 */
 export let current: Settings;
@@ -27,11 +27,4 @@ export let toast: (text: string) => void = () => {};
 
 export function setToast(fn: (text: string) => void): void {
   toast = fn;
-}
-
-/** 重读登录状态行。由单元明细那一侧赋值，动作按需触发。 */
-export let syncSessionBadge: (() => void) | null = null;
-
-export function setSyncSessionBadge(fn: (() => void) | null): void {
-  syncSessionBadge = fn;
 }

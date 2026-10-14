@@ -7,7 +7,7 @@
 
 import { REJECTION_MESSAGES, sendToBackground, type JobRejection } from '../../src/platform/messaging';
 import { describeRunState } from '../../src/background/runtime/scheduler';
-import { render, toast } from './state.ts';
+import { render, toast } from '../../src/settings/page-state.ts';
 /**
  * 运行状态视图。
  *

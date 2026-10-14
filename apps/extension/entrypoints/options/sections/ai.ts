@@ -5,9 +5,9 @@
  */
 
 import { row, toggle, textInput, button, prose, section } from '../../../src/ui/form.ts';
-import { bindSetting } from '../settings-write.ts';
+import { bindSetting } from '../../../src/settings/page-write.ts';
 import { requestAiPermission, checkAiConnection } from '../actions.ts';
-import { current } from '../state.ts';
+import { current } from '../../../src/settings/page-state.ts';
 
 export function aiSection(): HTMLElement {
   const ai = current.ai;

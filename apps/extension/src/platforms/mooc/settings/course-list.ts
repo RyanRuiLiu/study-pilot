@@ -6,10 +6,10 @@
  */
 
 import { coursePageUrl, describeCourseMode } from '@study-pilot/platform-mooc';
-import { formatTermRange } from '../../src/features/format';
-import { checkbox, disclosure } from '../../src/ui/form.ts';
-import { toggleCourse } from './settings-write.ts';
-import { current } from './state.ts';
+import { formatTermRange } from '../../../features/format';
+import { checkbox, disclosure } from '../../../ui/form.ts';
+import { toggleCourse } from '../../../settings/page-write.ts';
+import { current } from '../../../settings/page-state.ts';
 
 export function courseList(): HTMLElement {
   const wrap = document.createElement('div');
