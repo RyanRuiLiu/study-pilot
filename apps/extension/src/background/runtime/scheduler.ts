@@ -145,9 +145,6 @@ export async function getTaskState(): Promise<TaskState> {
   return readState();
 }
 
-export async function resetState(): Promise<void> {
-  await writeState(EMPTY_STATE);
-}
 
 /** 标记本轮开始。同时落下第一次心跳。 */
 export async function beginRun(now: number = Date.now()): Promise<void> {

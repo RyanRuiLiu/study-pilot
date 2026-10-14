@@ -8,10 +8,8 @@
  */
 
 import {
-  getCoursesWithTrace,
   getOpenQuizInfo,
   getQuizBank,
-  type CourseType,
 } from '@study-pilot/platform-mooc';
 import { getSettings } from '../../../settings';
 import { ensureSession } from '../../../platform/mooc/session';
@@ -29,7 +27,7 @@ export async function handleQuery(
   request: BackgroundRequest | undefined,
   sendResponse: SendResponse,
 ): Promise<boolean> {
-  const { client, renew, loadSnapshot, selectedCourses } = deps;
+  const { renew, loadSnapshot, selectedCourses } = deps;
 
   switch (request?.type) {
         case 'PENDING_SUMMARY': {
@@ -186,58 +184,6 @@ export async function handleQuery(
           break;
         }
 
-        case 'DIAGNOSE': {
-          /*
-           * 诊断入口：把后台看到的关键状态一次性返回，便于排查
-           * 「接口能通但界面拿不到数据」这类问题。
-           *
-           * 每一步单独兜底，任一环节异常都不该让整条诊断失效。
-           * 两类课程分别取，因为「缺课程」经常只缺其中一类。
-           */
-          const session = await ensureSession();
-          const settings = await getSettings();
-
-          const trace = async (courseType: CourseType) => {
-            try {
-              const t = await getCoursesWithTrace(client, { courseType });
-              const envelope = t.envelope as { result?: unknown[]; pagination?: unknown } | undefined;
-              return {
-                request: t.request,
-                error: t.error ?? null,
-                rawCount: t.rawCount ?? null,
-                parsedCount: t.parsedCount ?? null,
-                hasEnvelope: envelope !== undefined,
-                envelopeResultIsArray: Array.isArray(envelope?.result),
-                hasPagination: envelope?.pagination !== undefined,
-              };
-            } catch (error) {
-              return { error: `抛出: ${error instanceof Error ? error.message : String(error)}` };
-            }
-          };
-
-          const [moocTrace, spocTrace] = [await trace(1), await trace(2)];
-
-          let ruleCount: number | string;
-          try {
-            ruleCount = await deps.shell.netRuleCount();
-          } catch (error) {
-            ruleCount = `抛出: ${error instanceof Error ? error.message : String(error)}`;
-          }
-
-          sendResponse({
-            session: {
-              loggedIn: session.loggedIn,
-              userId: session.userId,
-              tokenLength: session.token.length,
-            },
-            netRules: ruleCount,
-            selectedCourses: settings.mooc.background.courses.length,
-            mooc: moocTrace,
-            spoc: spocTrace,
-          });
-          break;
-        }
-
         case 'TASK_STATE': {
           /*
            * 状态与判据一起给。
@@ -251,10 +197,6 @@ export async function handleQuery(
           break;
         }
 
-        case 'RESET_TASK_STATE':
-          await deps.shell.resetRunState();
-          sendResponse({ ok: true });
-          break;
     case 'QUIZ_BANK': {
       // 题库：前台按它填充选项，因此只回数据，索引由前台构造（纯函数）
       const bank = await getQuizBank(deps.client, request.termId);

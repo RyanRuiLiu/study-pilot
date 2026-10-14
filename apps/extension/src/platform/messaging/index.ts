@@ -20,7 +20,6 @@ import type {
 import type { Snapshot } from '../../platforms/mooc/read';
 import type { MoocSession } from '../mooc/session';
 import type {
-  DiagnoseReport,
   JobRejection,
   QueryOutcome,
   RunScheduledTasksResponse,
@@ -51,9 +50,7 @@ export type BackgroundRequest =
   | RefreshCoursesRequest
   | { type: 'RUN_SCHEDULED_TASKS' }
   | { type: 'TASK_STATE' }
-  | { type: 'RESET_TASK_STATE' }
   | { type: 'PENDING_SUMMARY' }
-  | { type: 'DIAGNOSE' }
   | { type: 'UNIT_DETAILS' }
   | { type: 'NOTIFY_SAMPLE' }
   /*
@@ -84,9 +81,7 @@ export interface ResponseMap {
     | { ok: false; reason: JobRejection; message?: string };
   RUN_SCHEDULED_TASKS: RunScheduledTasksResponse;
   TASK_STATE: TaskStatus;
-  RESET_TASK_STATE: { ok: true };
   PENDING_SUMMARY: QueryOutcome<PendingSummary>;
-  DIAGNOSE: DiagnoseReport;
   UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
   NOTIFY_SAMPLE: { ok: true; hasContent: boolean };
   QUIZ_BANK: QueryOutcome<BankQuestion[]>;

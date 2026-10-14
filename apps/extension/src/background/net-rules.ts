@@ -106,11 +106,3 @@ export function whenNetRulesReady(): Promise<void> {
   return readyOnce;
 }
 
-/** 读取当前已安装的动态规则，用于诊断。 */
-export async function listNetRules(): Promise<Rule[]> {
-  try {
-    return await browser.declarativeNetRequest.getDynamicRules();
-  } catch {
-    return [];
-  }
-}
