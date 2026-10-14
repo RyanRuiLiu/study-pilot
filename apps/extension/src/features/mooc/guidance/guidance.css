@@ -15,10 +15,6 @@ sl-alert {
   width: 100%;
 }
 
-sl-alert::part(base) {
-  border-radius: var(--sl-border-radius-medium);
-}
-
 /* 评分依据里的公式就是行内小图，随文走 */
 .content img {
   max-width: 100%;
