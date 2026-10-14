@@ -60,8 +60,7 @@ export interface PlatformTasks {
   plan(now: number, options?: { force?: boolean }): Promise<PlanResult>;
   /** 做一件。失败如实返回，调度层不重试、不解释 */
   run(item: PlanItem, heartbeat: () => Promise<void>): Promise<RunOutcome>;
-  /** 本轮收尾：组织通知等平台自己的事。没有要报的就什么都不做 */
-  report(items: PlanItem[], outcomes: RunOutcome[], now: number): Promise<void>;
+
 }
 
 /**
@@ -82,12 +81,6 @@ export interface HostCapabilities {
   whenRequestRulesReady: (rules: NetRuleSet[]) => Promise<void>;
   /** 读某个域名下的 cookie；没有或读失败都返回空串 */
   readCookie: (origin: string, name: string) => Promise<string>;
-  /** 系统通知中心里现有的通知 id */
-  listNotifications: () => Promise<string[]>;
-  /** 清掉一条系统通知 */
-  clearNotification: (id: string) => Promise<void>;
-  /** 发一条系统通知（id 由调用方给，图标由宿主决定） */
-  showNotification: (id: string, notice: { title: string; message: string }) => Promise<void>;
 }
 
 export interface NetRuleSet {

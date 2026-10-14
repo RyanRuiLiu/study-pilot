@@ -141,8 +141,6 @@ export type MoocRequest =
   | { type: 'UNIT_DETAILS' }
   /** 课程与任务的完整快照，只读本地 */
   | { type: 'DASHBOARD' }
-  /** 发一条示例通知 */
-  | { type: 'NOTIFY_SAMPLE' }
   /** 后台此刻的状态（由平台实现，形状属应用契约） */
   | { type: 'TASK_STATE' };
 
@@ -166,6 +164,5 @@ export interface MoocResponseMap {
   PENDING_SUMMARY: QueryOutcome<PendingSummary>;
   UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
   DASHBOARD: QueryOutcome<Snapshot | null>;
-  NOTIFY_SAMPLE: { ok: true; hasContent: boolean };
   TASK_STATE: { state: import('../../../protocol.ts').TaskState; live: import('../../../protocol.ts').LiveRunState };
 }

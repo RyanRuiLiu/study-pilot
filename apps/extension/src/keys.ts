@@ -17,6 +17,4 @@ export const KEYS = {
   runState: 'study-pilot:run-state',
   /** 定时检查的闹钟名 */
   checkAlarm: 'study-pilot-check',
-  /** 通知 id 的前缀（清旧通知时按它匹配） */
-  notificationPrefix: 'study-pilot-',
 } as const;

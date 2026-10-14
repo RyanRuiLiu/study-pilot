@@ -19,17 +19,11 @@ vi.mock('../src/platforms/mooc/session', () => ({ ensureSession: vi.fn() }));
 vi.mock('../src/platforms/mooc/read', () => ({ readSnapshot: vi.fn(), fetchedToday: vi.fn() }));
 vi.mock('../src/platforms/mooc/plan', () => ({ derivePlan: vi.fn(), shouldRefresh: vi.fn() }));
 vi.mock('../src/platforms/mooc/execute', () => ({ executeActions: vi.fn() }));
-vi.mock('../src/platforms/mooc/reminder', () => ({
-  notify: vi.fn(),
-  composeNotice: vi.fn(),
-  noticeSettingsOf: vi.fn(),
-}));
 
 import { ensureSession } from '../src/platforms/mooc/session';
 import { readSnapshot } from '../src/platforms/mooc/read';
 import { derivePlan, shouldRefresh } from '../src/platforms/mooc/plan';
 import { executeActions } from '../src/platforms/mooc/execute';
-import { composeNotice, noticeSettingsOf, notify } from '../src/platforms/mooc/reminder';
 import { getSettings } from '../src/settings';
 import { createMoocTasks, type MoocRunDeps } from '../src/platforms/mooc/tasks';
 import type { CourseUnit } from '@study-pilot/platform-mooc';
@@ -75,9 +69,6 @@ function tasksOf(auto: AutoAction[]) {
 const fakeHost: HostCapabilities = {
   whenRequestRulesReady: async () => {},
   readCookie: async () => '',
-  listNotifications: async () => [],
-  clearNotification: async () => {},
-  showNotification: async () => {},
 };
 
 function deps(): MoocRunDeps {
@@ -93,19 +84,15 @@ function deps(): MoocRunDeps {
   };
 }
 
-/** 跑完整一轮：计划 → 逐项执行 → 收尾通知。返回交给通知的那份结果清单。 */
-async function runRound(auto: AutoAction[]): Promise<{ items: PlanItem[]; reported: ReturnType<typeof resultOf>[] }> {
+/** 跑完整一轮：计划 → 逐项执行。 */
+async function runRound(auto: AutoAction[]): Promise<{ items: PlanItem[] }> {
   const tasks = tasksOf(auto);
   const { items } = await tasks.plan(NOW);
 
-  const outcomes = [];
   for (const item of items) {
-    outcomes.push(await tasks.run(item, async () => {}));
+    await tasks.run(item, async () => {});
   }
-  await tasks.report(items, outcomes, NOW);
-
-  const call = vi.mocked(composeNotice).mock.calls.at(-1);
-  return { items, reported: (call?.[1] ?? []) as ReturnType<typeof resultOf>[] };
+  return { items };
 }
 
 beforeEach(() => {
@@ -117,8 +104,6 @@ beforeEach(() => {
   vi.mocked(readSnapshot).mockResolvedValue({} as never);
   // 需要拉最新数据，plan 才会走到「派生计划 → 执行」那条路
   vi.mocked(shouldRefresh).mockReturnValue(true);
-  vi.mocked(noticeSettingsOf).mockReturnValue({} as never);
-  vi.mocked(composeNotice).mockReturnValue({ title: 'T', message: 'M' } as never);
   vi.mocked(executeActions).mockImplementation((_client, actions) =>
     Promise.resolve(actions.map((action) => resultOf(action as never)) as never),
   );
@@ -151,27 +136,3 @@ describe('自动项的 id', () => {
   });
 });
 
-describe('通知拿到的是每项自己的结果', () => {
-  it('结果按项对号入座，不是全部读同一条', async () => {
-    const { reported } = await runRound([quizAction(101, '第一单元测验'), quizAction(102, '第二单元测验')]);
-
-    expect(reported.map((result) => result.detail)).toEqual(['已完成：第一单元测验', '已完成：第二单元测验']);
-  });
-
-  it('通知里的条数与执行过的项数一致', async () => {
-    const auto = [quizAction(101, '第一单元测验'), quizAction(102, '第二单元测验'), coursewareAction(9, '1.1 课程介绍')];
-    const { items, reported } = await runRound(auto);
-
-    expect(items).toHaveLength(auto.length);
-    expect(reported).toHaveLength(auto.length);
-  });
-
-  it('没有自动项、也没有失败项时不打扰用户', async () => {
-    const tasks = tasksOf([]);
-    const { items } = await tasks.plan(NOW);
-    await tasks.report(items, [], NOW);
-
-    expect(items).toEqual([]);
-    expect(notify).not.toHaveBeenCalled();
-  });
-});

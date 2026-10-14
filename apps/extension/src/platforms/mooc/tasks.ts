@@ -15,10 +15,9 @@ import { ensureSession, SessionExpiredError } from './session';
 import { withSessionRecovery } from './recovery.ts';
 import { getSettings, type Settings } from '../../settings';
 import type { PlanItem, PlanResult, PlatformTasks, RunOutcome } from '../types.ts';
-import { executeActions, type ExecResult } from './execute';
+import { executeActions } from './execute';
 import { derivePlan, shouldRefresh, type Plan } from './plan';
 import { fetchedToday, readSnapshot, type InspectCourse, type Snapshot } from './read';
-import { composeNotice, noticeSettingsOf, notify } from './reminder';
 
 /** 平台跑一轮需要的外界能力。全由入口创建后注入，平台自己不碰浏览器全局。 */
 export interface MoocRunDeps {
@@ -89,9 +88,7 @@ function toItems(plan: Plan): PlanItem[] {
 
 export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
   /** 本轮的计划。report 要用它组织通知：计划是执行前算的，执行后有些项已经完成了。 */
-  let planned: Plan | null = null;
   /** 本轮的执行结果，按项记下；payload 与结果都是慕课自己的形状。 */
-  const results = new Map<string, ExecResult>();
 
   return {
     id: 'mooc',
@@ -126,8 +123,6 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
          * 所以快照里的它是可靠的；而"是否已完成"会变，所以只报未完成的。
          */
         const plan = derivePlan(snapshot, settings, now);
-        planned = plan;
-        await notify(deps.host, composeNotice(plan, [], noticeSettingsOf(settings), now));
         return { items: toItems(plan) };
       }
 
@@ -173,7 +168,6 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       }
 
       const plan = derivePlan(recovered.value, settings, now);
-      planned = plan;
       return { items: toItems(plan) };
     },
 
@@ -192,32 +186,8 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       );
       if (result === undefined) return { status: 'skipped', message: '没有可执行的动作' };
 
-      results.set(item.id, result);
       return { status: result.status, message: result.detail };
     },
 
-    /**
-     * 收尾通知。
-     *
-     * 结果要与计划一起交给通知：计划是执行之前算的，里面写着「将自动完成」，
-     * 而执行之后那些事已经完成了。只用计划组织通知，用户会以为它们还没做；
-     * 分两次发（执行后一次、再补一次）则会把同一件事说两遍。
-     */
-    async report(items: PlanItem[], outcomes: RunOutcome[], now: number): Promise<void> {
-      const plan = planned;
-      if (plan === null) return;
-      planned = null;
-
-      const done = items
-        .map((item) => results.get(item.id))
-        .filter((result): result is ExecResult => result !== undefined);
-      results.clear();
-
-      // 没有自动项、也没有失败项时不必打扰用户；计划本身会说明还剩什么
-      if (done.length === 0 && outcomes.every((outcome) => outcome.status !== 'failed')) return;
-
-      const settings = await getSettings();
-      await notify(deps.host, composeNotice(plan, done, noticeSettingsOf(settings), now));
-    },
   };
 }
