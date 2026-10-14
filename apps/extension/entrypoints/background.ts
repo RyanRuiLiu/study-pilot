@@ -20,7 +20,7 @@ import { getTaskState, liveRunState, recordRunFailure } from '../src/background/
 import { attachRunStatePort } from '../src/background/runtime/run-state';
 import { registerMessageHandler } from '../src/background/messages/router';
 import { createMoocPlatform } from '../src/platforms/mooc/platform.ts';
-import { browserMoocHost } from '../src/browser/host.ts';
+import { browserCapabilities } from '../src/browser/capabilities.ts';
 import { registerBackgroundWiring } from '../src/background/wiring';
 
 
@@ -34,7 +34,7 @@ export default defineBackground(() => {
    * 将来加第二个平台：再调一次它自己的工厂，把它并进 handlers、wiring 与 platforms 清单。
    */
   const mooc = createMoocPlatform({
-    host: browserMoocHost,
+    host: browserCapabilities,
     shell: {
       runState: async () => {
         const state = await getTaskState();

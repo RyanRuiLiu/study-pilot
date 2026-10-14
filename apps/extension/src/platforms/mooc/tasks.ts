@@ -10,7 +10,7 @@
  */
 
 import type { CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
-import type { MoocHost } from './host.ts';
+import type { HostCapabilities } from '../types.ts';
 import { ensureSession, SessionExpiredError } from './session';
 import { withSessionRecovery } from './recovery.ts';
 import { getSettings, type Settings } from '../../settings';
@@ -23,7 +23,7 @@ import { composeNotice, noticeSettingsOf, notify } from './reminder';
 /** 平台跑一轮需要的外界能力。全由入口创建后注入，平台自己不碰浏览器全局。 */
 export interface MoocRunDeps {
   /** 宿主能力（cookie、通知），由外壳实现；平台自己不碰 browser.* */
-  host: MoocHost;
+  host: HostCapabilities;
   client: MoocClient;
   renew: () => Promise<boolean>;
   refreshCourses: () => Promise<

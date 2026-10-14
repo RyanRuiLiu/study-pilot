@@ -1,6 +1,6 @@
 /*
  * 慕课后台流程的结果归属（`platforms/mooc/tasks.ts`）。
-import type { MoocHost } from '../src/platforms/mooc/host.ts';
+import type { HostCapabilities } from '../src/platforms/types.ts';
  *
  * 这里验的不是计划算得对不对（那是 task-plan.test.ts），也不是一条动作怎么执行
  * （那是 execute-work.test.ts），而是**一件事的结果有没有记到正确的项上**：
@@ -12,7 +12,7 @@ import type { MoocHost } from '../src/platforms/mooc/host.ts';
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MoocHost } from '../src/platforms/mooc/host.ts';
+import type { HostCapabilities } from '../src/platforms/types.ts';
 
 vi.mock('../src/settings', () => ({ getSettings: vi.fn() }));
 vi.mock('../src/platforms/mooc/session', () => ({ ensureSession: vi.fn() }));
@@ -72,7 +72,7 @@ function tasksOf(auto: AutoAction[]) {
  * 测试替身：平台只认 host 接口，不认浏览器。这里给一套不做事的最小实现，
  * 通知相关的方法本来就被 vi.mock 掉，不会真的走到。
  */
-const fakeHost: MoocHost = {
+const fakeHost: HostCapabilities = {
   whenRequestRulesReady: async () => {},
   readCookie: async () => '',
   listNotifications: async () => [],

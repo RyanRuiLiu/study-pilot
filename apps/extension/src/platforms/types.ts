@@ -71,6 +71,25 @@ export interface PlatformTasks {
  * 装配层把各平台的这一份交给外壳，外壳只按清单遍历。
  */
 /** 一条请求头改写规则：把这些路径前缀的请求头指向该平台自己的源。 */
+/**
+ * 宿主能力：平台要浏览器/运行环境提供的那几件事。
+ *
+ * 定义在契约里而不是外壳里：外壳实现它、平台使用它，两边都只认这一份定义。
+ * 平台内部因此不出现 browser.*，换宿主（命令行、测试替身）时只换实现。
+ */
+export interface HostCapabilities {
+  /** 等请求头改写规则生效（规则由外壳安装） */
+  whenRequestRulesReady: (rules: NetRuleSet[]) => Promise<void>;
+  /** 读某个域名下的 cookie；没有或读失败都返回空串 */
+  readCookie: (origin: string, name: string) => Promise<string>;
+  /** 系统通知中心里现有的通知 id */
+  listNotifications: () => Promise<string[]>;
+  /** 清掉一条系统通知 */
+  clearNotification: (id: string) => Promise<void>;
+  /** 发一条系统通知（id 由调用方给，图标由宿主决定） */
+  showNotification: (id: string, notice: { title: string; message: string }) => Promise<void>;
+}
+
 export interface NetRuleSet {
   /** 平台源，改写后的 Origin 与 Referer 都指向它 */
   origin: string;

@@ -10,7 +10,7 @@ import { md5hex } from '@study-pilot/core';
 import { COURSE_TYPE, createMoocClient, getCourses, type CourseSummary, type MoocClient } from '@study-pilot/platform-mooc';
 import { getSettings, updateSettings } from '../../settings';
 import { readToken, renewSession, SessionExpiredError } from './session';
-import type { MoocHost } from './host.ts';
+import type { HostCapabilities } from '../types.ts';
 import { inspect, writeSnapshot, type InspectCourse, type Snapshot } from './read';
 import { mergeCourses } from './course-selection';
 
@@ -43,7 +43,7 @@ async function looksLikeOriginRejection(res: Response): Promise<boolean> {
   }
 }
 
-export function createPlatformClient(host: MoocHost): PlatformClient {
+export function createPlatformClient(host: HostCapabilities): PlatformClient {
   const client = createMoocClient({
     /*
      * 出站请求的第一步是确保改写 Origin 的规则已生效。
