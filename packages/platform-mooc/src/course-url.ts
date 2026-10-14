@@ -38,7 +38,7 @@ function learnPagePrefix(mode: number): string {
  * 学校简称取自 schoolPanel.shortName（该账号为 NTU）。
  * 用课程 shortName 会拼出打不开的地址。
  */
-function coursePageUrl(course: {
+export function coursePageUrl(course: {
   courseId: number;
   schoolShortName: string;
   mode: number;

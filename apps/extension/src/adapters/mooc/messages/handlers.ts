@@ -10,6 +10,7 @@
 
 import type { MessageHandlers } from '../../../protocol.ts';
 import type { MoocMessageDeps } from './deps.ts';
+import { coursewareSummaryCommand } from './courseware-summary.ts';
 import { coursesCommand } from './courses.ts';
 import { pendingCommand } from './pending.ts';
 import { refreshCoursesCommand } from './refresh-courses.ts';
@@ -24,6 +25,7 @@ export function moocHandlers(deps: MoocMessageDeps): MessageHandlers {
     REFRESH_COURSES: refreshCoursesCommand(deps),
     PENDING_SUMMARY: pendingCommand(deps),
     UNIT_DETAILS: unitDetailsCommand(deps),
+    COURSEWARE_SUMMARY: coursewareSummaryCommand(deps),
     TASK_STATE: taskStateCommand(deps),
     // 不是本平台的命令：交回外壳，由它决定怎么回（undefined 表示没人处理）
     '*': async (_request, sendResponse) => sendResponse(undefined),
