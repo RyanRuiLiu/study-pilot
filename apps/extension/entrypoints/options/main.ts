@@ -49,7 +49,6 @@ if (versionEl) versionEl.textContent = `v${browser.runtime.getManifest().version
 
 import { setCurrent, setRender, setToast } from '../../src/settings/page-state.ts';
 import { aiSection } from './sections/ai.ts';
-import { executionSection } from './sections/execution.ts';
 import { moocSettings } from '../../src/platforms/mooc/settings.ts';
 
 // ---------- 渲染 ----------
@@ -69,7 +68,6 @@ function render(): void {
     ...moocSettings.render(),
     // 外壳的通用分区在后（AI 与执行诊断跨平台）
     aiSection(),
-    executionSection(),
   );
 
   renderToc();

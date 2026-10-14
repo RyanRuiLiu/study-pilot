@@ -8,61 +8,21 @@
  * `src/background/scheduler.ts`，一轮的完整流程在 `src/background/run-tasks.ts`。
  */
 
-import {
-  type CoursewareContext,
-} from '@study-pilot/platform-mooc';
-import { createTextGenerator } from '../src/ai';
 
 
-import { type Settings } from '../src/settings';
 
 
 import { ensureAlarm } from '../src/background/runtime/alarms';
 import { whenNetRulesReady } from '../src/background/net-rules';
 
 
-import {
-  type InspectCourse,
-} from '../src/platforms/mooc/read';
-import { getTaskState, liveRunState, resetState } from '../src/background/runtime/scheduler';
-import { listNetRules } from '../src/background/net-rules';
+import { getTaskState, liveRunState } from '../src/background/runtime/scheduler';
 import { registerMessageHandler } from '../src/background/messages/router';
-import { moocHandlers } from '../src/platforms/mooc/messages/handlers';
-import { createMoocTasks } from '../src/platforms/mooc/tasks.ts';
+import { createMoocPlatform } from '../src/platforms/mooc/platform.ts';
 import { registerBackgroundWiring } from '../src/background/wiring';
-import { createPlatformClient, loadSnapshot, refreshCourses } from '../src/platforms/mooc/sync';
 
 
 
-
-/**
- * 课件行为的上下文。
- *
- * 只有一处来源：设置里的 AI 配置。没配齐时 `generateText` 为 undefined，
- * 而讨论单元本来就不会进计划（`isCompletable` 的 `needs:'text'`），
- * 所以这里不做任何替代——真到了执行层而没有生成器，行为会如实返回失败。
- */
-function coursewareContext(settings: Settings): CoursewareContext {
-  return { generateText: createTextGenerator(settings) };
-}
-
-/**
- * 当前勾选参与任务的课程。
- *
- * 只取已勾选且带完整定位信息的：拼跳转地址需要 courseId 与 schoolShortName，
- * 缺了它们的课程能读但点不进去，列出来只会让用户多点一次空链接。
- */
-function selectedCourses(settings: Settings): InspectCourse[] {
-  return settings.mooc.background.courses
-    .filter((course) => course.enabled)
-    .map((course) => ({
-      termId: course.termId,
-      courseId: course.courseId,
-      schoolShortName: course.schoolShortName,
-      mode: course.mode,
-      name: course.name,
-    }));
-}
 
 
 export default defineBackground(() => {
@@ -114,37 +74,23 @@ export default defineBackground(() => {
    *
    * 传进各模块后，它们不认识这些值的来历；入口只负责把它们配好。
    */
-  const { client, renew } = createPlatformClient();
-
-  /** 执行一轮所需的协作方。传进 run-tasks 后，那边不认识它们的来历。 */
-  const runDeps = {
-    client,
-    renew,
-    refreshCourses: () => refreshCourses(client),
-    loadSnapshot: (courses: InspectCourse[], userId: number) => loadSnapshot(client, courses, userId),
-    selectedCourses,
-    coursewareContext,
-  };
-
   /*
-   * 消息处理器表：**装配层合并各平台**。
+   * 平台。外壳只调工厂，不碰平台的内部实现（read / plan / execute / 处理器）。
    *
-   * 路由本身不认识任何一条业务，只按 type 分发；因此新增平台只要在这里多合并
-   * 一份处理器，并把它加进平台清单。
+   * 将来加第二个平台：再调一次它自己的工厂，把它并进 handlers 与 platforms 清单。
    */
-  registerMessageHandler({
-    handlers: moocHandlers({
-      ...runDeps,
-      shell: {
-        runState: async () => {
-          const state = await getTaskState();
-          return { state, live: liveRunState(state) };
-        },
-        resetRunState: resetState,
-        netRuleCount: async () => (await listNetRules()).length,
+  const mooc = createMoocPlatform({
+    shell: {
+      runState: async () => {
+        const state = await getTaskState();
+        return { state, live: liveRunState(state) };
       },
-    }),
-    platforms: () => [createMoocTasks(runDeps)],
+    },
   });
-  registerBackgroundWiring(runDeps);
+
+  registerMessageHandler({
+    handlers: mooc.handlers,
+    platforms: () => [mooc.tasks()],
+  });
+  registerBackgroundWiring({ platforms: () => [mooc.tasks()] });
 });

@@ -10,23 +10,22 @@ import { clearAlarm, ensureAlarm, isCheckAlarm } from './runtime/alarms';
 import { watchSettings } from '../settings';
 import { getTaskState } from './runtime/scheduler';
 import { NOTIFICATION_PREFIX } from '../platforms/mooc/reminder';
-import { createMoocTasks, type MoocRunDeps } from '../platforms/mooc/tasks.ts';
+import type { PlatformTasks } from '../platforms/types.ts';
 import { autoRun } from './run-tasks.ts';
 /** 平台的登录凭证 cookie。出现即表示登录成功。 */
 const LOGIN_COOKIE = 'NTESSTUDYSI';
 
 /*
- * 装配所需的依赖与 run-tasks 完全一致，因此直接复用它的类型，
- * 不再声明一个空接口——空接口与超类型等价，多一层只会让人以为这里会加东西。
+ * 装配只需要「有哪些平台」。装配层知道平台清单，调度层不认识它们，
+ * 依赖也只有这一项——因此不再复用某个平台的依赖类型。
  */
-export type WiringDeps = MoocRunDeps;
+export interface WiringDeps {
+  platforms: () => PlatformTasks[];
+}
 
 export function registerBackgroundWiring(deps: WiringDeps): void {
-  /*
-   * 本轮要跑哪些平台：由装配层给出（调度层不知道有哪些平台）。
-   * 每次现建实例，平台自己的本轮状态不会跨轮残留。
-   */
-  const runOnce = (): Promise<void> => autoRun({ platforms: () => [createMoocTasks(deps)] });
+  // 要跑哪些平台由装配层给出（调度层不认识它们）；实例由各平台的工厂现建
+  const runOnce = (): Promise<void> => autoRun({ platforms: deps.platforms });
   /*
    * 周期检查：安装时建一次。
    *

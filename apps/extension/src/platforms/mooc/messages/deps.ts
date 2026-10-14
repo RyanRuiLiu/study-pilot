@@ -26,9 +26,5 @@ export interface MoocMessageDeps {
   shell: {
     /** 执行状态：原始状态 + 人话结论 */
     runState: () => Promise<{ state: TaskState; live: LiveRunState }>;
-    /** 清掉执行状态（诊断里的「重置」） */
-    resetRunState: () => Promise<void>;
-    /** 已安装的请求头规则条数 */
-    netRuleCount: () => Promise<number>;
   };
 }

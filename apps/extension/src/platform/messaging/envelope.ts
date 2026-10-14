@@ -105,17 +105,6 @@ export interface TaskStatus {
   live: LiveRunState;
 }
 
-/** 诊断报告，一次性给出后台的关键状态。 */
-export interface DiagnoseReport {
-  session: { loggedIn: boolean; userId: number; tokenLength: number };
-  /** 已安装的出站请求头规则条数；失败时为错误说明 */
-  netRules: number | string;
-  /** 配置里已勾选的课程数 */
-  selectedCourses: number;
-  /** 平台返回的课程数；失败时为错误说明 */
-  fetchedCourses: number | string;
-  fetchedNames: string[];
-}
 
 type RequestOf<K extends BackgroundRequest['type']> = Extract<BackgroundRequest, { type: K }>;
 
