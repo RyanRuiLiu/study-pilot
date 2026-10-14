@@ -12,7 +12,7 @@
  */
 
 import { WORK_STATUS, type WorkStatus } from './messages/payload.ts';
-import type { SnapshotWork } from './read';
+import type { SnapshotWork } from '@study-pilot/platform-mooc';
 
 /**
  * 一个单元此刻的状态。

@@ -10,7 +10,7 @@
 
 /* 这里曾经把 CourseSummary 当课程列表的形状，而实际回的是几条：那是谎，改掉。 */
 import type { QueryOutcome, JobRejection } from '../../../protocol.ts';
-import type { MoocSession } from '../session';
+import type { MoocSession } from '@study-pilot/platform-mooc';
 
 /**
  * 单元状态。平台的叫法，不自创。

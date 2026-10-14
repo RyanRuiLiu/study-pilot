@@ -7,10 +7,13 @@
  */
 
 import { md5hex } from '@study-pilot/core';
-import { COURSE_TYPE, createMoocClient, getCourses, type CourseSummary, type MoocClient } from '@study-pilot/platform-mooc';
-import { getSettings, updateSettings } from '../../settings';
+import { createMoocClient, type MoocClient } from '../client.ts';
+import { COURSE_TYPE } from '../endpoints.ts';
+import { getCourses } from '../courses.ts';
+import type { CourseSummary } from '../types.ts';
+import type { ConfigPort } from '@study-pilot/application';
 import { readToken, renewSession, SessionExpiredError } from './session';
-import type { HostCapabilities } from '../types.ts';
+import type { HostCapabilities } from '@study-pilot/application';
 import { inspect, type InspectCourse, type Snapshot } from './read';
 import { mergeCourses } from './course-selection';
 
@@ -94,7 +97,7 @@ export function createPlatformClient(host: HostCapabilities): PlatformClient {
  * 在数据层再加一层日期缓存，只是把同一个判断做两遍，
  * 还会出现两处判断不一致的隐患。
  */
-export async function refreshCourses(client: MoocClient): Promise<
+export async function refreshCourses(client: MoocClient, config: ConfigPort): Promise<
   | { ok: true; courses: CourseSummary[]; byType: unknown }
   | { ok: false; message: string; byType?: unknown }
 > {
@@ -139,18 +142,18 @@ export async function refreshCourses(client: MoocClient): Promise<
 
   /*
    * 合并时只沿用用户自己做过的勾选，新出现的课程一律不勾。
-   * 规则与理由在 `src/background/course-selection.ts`。
+   * 规则与理由在 `packages/platform-mooc/src/policy/course-selection.ts`。
    *
    * 写入只带 courses 一条路径，不整份回写。
    *
    * 这里曾经是「读配置 → 发两次网络请求 → 把几秒前读到的那份整体写回」。
    * 那几秒里用户可能刚在设置页拨了开关，或者别的入口改了配置，于是那些
    * 改动被这份旧数据抹掉——不报错，用户看到的是「设置自己变回去了」。
-   * 现在合并基准是存储里的当前值（updateSettings），只动 courses。
+   * 现在合并基准是存储里的当前值（先 config.read 拿、再 config.update 写），只动 courses。
    */
-  const settings = await getSettings();
+  const settings = await config.read();
 
-  await updateSettings({
+  await config.update({
     mooc: {
       background: {
         courses: mergeCourses(settings.mooc.background.courses, courses),

@@ -8,7 +8,6 @@
  *                    `TextGenerator` 端口
  *
  * 「只有一处来源」的几件事都在这里：
- *   - 是否具备文本能力（`hasTextGenerator`）——计划层用它决定讨论单元进不进计划；
  *   - 重试策略（`RETRYABLE`）——重试哪些、几次、退避多久；
  *   - 任务表（`AI_TASKS`）——新增 AI 用途只需加一个任务模块并登记一行。
  *
@@ -16,6 +15,7 @@
  */
 
 import { createChatClient, type AiError } from '@study-pilot/ai';
+import { hasTextGenerator } from '@study-pilot/application';
 import type { TextGenerator } from '@study-pilot/platform-mooc';
 import type { Settings } from '../settings';
 import { discussReplyTask, type AiTask } from './tasks/discuss-reply.ts';
@@ -51,12 +51,6 @@ function retryable(error: AiError): boolean {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** 设置里是否已经填齐 AI 的必要信息。计划层与生成器共用这一处判断。 */
-export function hasTextGenerator(settings: Settings): boolean {
-  const { enabled, baseUrl, model, apiKey } = settings.ai;
-  return enabled && baseUrl.trim() !== '' && model.trim() !== '' && apiKey.trim() !== '';
-}
 
 /**
  * 由设置造出文本生成器。填不齐或缺开关时返回 undefined——

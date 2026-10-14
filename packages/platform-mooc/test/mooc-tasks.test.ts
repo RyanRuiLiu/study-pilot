@@ -1,5 +1,5 @@
 /*
- * 慕课后台流程的结果归属（`platforms/mooc/tasks.ts`）。
+ * 慕课后台流程的结果归属（`policy/tasks.ts` 的 createMoocTasks）。
  *
  * 这里验的不是计划算得对不对（那是 task-plan.test.ts），也不是一条动作怎么执行
  * （那是 execute-work.test.ts），而是**一件事的结果有没有记到正确的项上**：
@@ -10,21 +10,30 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HostCapabilities } from '../src/platforms/types.ts';
+import type { HostCapabilities } from '@study-pilot/application';
 
-vi.mock('../src/settings', () => ({ getSettings: vi.fn() }));
-vi.mock('../src/platforms/mooc/session', () => ({ ensureSession: vi.fn() }));
-vi.mock('../src/platforms/mooc/plan', () => ({ derivePlan: vi.fn() }));
-vi.mock('../src/platforms/mooc/execute', () => ({ executeActions: vi.fn() }));
+/* 替身按被测代码 import 的模块分：tasks.ts 从 ./session、./plan、./execute 取用，
+   冒充包的门拦不住它（包内部的相对 import 不经过门）。 */
+vi.mock('../src/policy/session.ts', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, ensureSession: vi.fn() };
+});
+vi.mock('../src/policy/plan/index.ts', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, derivePlan: vi.fn() };
+});
+vi.mock('../src/policy/execute/index.ts', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, executeActions: vi.fn() };
+});
 
-import { ensureSession } from '../src/platforms/mooc/session';
-import { derivePlan } from '../src/platforms/mooc/plan';
-import { executeActions } from '../src/platforms/mooc/execute';
-import { getSettings } from '../src/settings';
-import { createMoocTasks, type MoocRunDeps } from '../src/platforms/mooc/tasks';
-import type { CourseUnit } from '@study-pilot/platform-mooc';
-import type { PlanItem } from '../src/platforms/types.ts';
-import type { AutoAction, Plan } from '../src/platforms/mooc/plan';
+import { ensureSession } from '../src/policy/session.ts';
+import { derivePlan } from '../src/policy/plan/index.ts';
+import { executeActions } from '../src/policy/execute/index.ts';
+import { createMoocTasks, type MoocRunDeps } from '../src/policy/tasks.ts';
+import type { CourseUnit } from '../src/types.ts';
+import type { AutoAction, Plan } from '../src/policy/plan/types.ts';
+import type { PlanItem } from '@study-pilot/application';
 
 const NOW = 1_700_000_000_000;
 
@@ -67,6 +76,10 @@ const fakeHost: HostCapabilities = {
 function deps(): MoocRunDeps {
   return {
     host: fakeHost,
+    config: {
+      read: async () => ({ mooc: { background: { autoReview: { comment: '按评分点逐项给分' } } } }) as never,
+      update: async () => ({}) as never,
+    },
     client: {} as never,
     renew: async () => true,
     refreshCourses: async () => ({ ok: true, courses: [], byType: null }),
@@ -90,9 +103,6 @@ async function runRound(auto: AutoAction[]): Promise<{ items: PlanItem[] }> {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(getSettings).mockResolvedValue({
-    mooc: { background: { autoReview: { comment: '按评分点逐项给分' } } },
-  } as never);
   vi.mocked(ensureSession).mockResolvedValue({ loggedIn: true, userId: 42 } as never);
   vi.mocked(executeActions).mockImplementation((_client, actions) =>
     Promise.resolve(actions.map((action) => resultOf(action as never)) as never),

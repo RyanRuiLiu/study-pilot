@@ -12,7 +12,6 @@ import { describe, expect, it } from 'vitest';
 import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '../src/client.ts';
 import { COURSE_TYPE, getCourses, getCourseStructure } from '../src/index.ts';
-import { createThrottle } from '@study-pilot/transport';
 
 const TOKEN = 'deadbeefdeadbeefdeadbeefdeadbeef';
 
@@ -28,7 +27,7 @@ function clientWith(envelopes: Record<string, unknown>) {
     }) as never,
     getToken: () => TOKEN,
     md5: md5hex,
-    throttle: createThrottle({ minGapMs: 0 }),
+    minGapMs: 0,
   });
 }
 

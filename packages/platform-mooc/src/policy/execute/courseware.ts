@@ -6,7 +6,8 @@
  * 立即记账，讨论是延迟记账，真实结果由下一轮快照确认。
  */
 
-import { completeUnit, type CoursewareContext, type MoocClient } from '@study-pilot/platform-mooc';
+import { completeUnit, type CoursewareContext } from '../../courseware/index.ts';
+import type { MoocClient } from '../../client.ts';
 import type { CoursewareAutoAction } from '../plan';
 import type { ExecResult } from './types.ts';
 

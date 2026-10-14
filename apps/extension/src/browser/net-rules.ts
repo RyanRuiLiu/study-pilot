@@ -13,7 +13,7 @@
  * 重启后失效，而后台任务恰恰是在浏览器启动时执行的。
  *
  * 平台为什么需要这条规则（Origin 判别来源的实测对比）记录在规则数据那里：
- * 见 `src/platforms/mooc/net-rules.ts`。
+ * 见 `packages/platform-mooc/src/policy/net-rules.ts`。
  */
 
 import type { Browser } from 'wxt/browser';

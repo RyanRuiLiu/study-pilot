@@ -5,7 +5,7 @@
  * 导入它就会拉起浏览器 API；这些是纯逻辑，测试可以自由导入。
  */
 
-import type { CourseUnit } from '@study-pilot/platform-mooc';
+import type { CourseUnit } from '../../types.ts';
 import type { SnapshotCourse, SnapshotWork } from '../read';
 
 /**

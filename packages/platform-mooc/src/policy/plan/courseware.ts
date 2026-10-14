@@ -6,7 +6,7 @@
  * 会让待办列表变长，而用户并不知道那些其实只是「没开启自动完成」。
  */
 
-import { isCompletable, isUnitComplete } from '@study-pilot/platform-mooc';
+import { isCompletable, isUnitComplete } from '../../courseware/index.ts';
 import type { SnapshotCourse } from '../read';
 import type { CoursewareAutoAction } from './types.ts';
 

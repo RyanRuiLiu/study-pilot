@@ -9,20 +9,22 @@
  * 以前后台直接写慕课的流程，现在平台把流程包成两个动作（plan / run）。
  */
 
-import type { CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
-import type { HostCapabilities } from '../types.ts';
+import type { MoocClient } from '../client.ts';
+import type { CoursewareContext } from '../courseware/index.ts';
+import type { ConfigPort, HostCapabilities, Settings } from '@study-pilot/application';
 import { ensureSession, SessionExpiredError } from './session';
 import { withSessionRecovery } from './recovery.ts';
-import { getSettings, type Settings } from '../../settings';
-import type { PlanItem, PlanResult, PlatformTasks, RunOutcome } from '../types.ts';
+import type { PlanItem, PlanResult, PlatformTasks, RunOutcome } from '@study-pilot/application';
 import { executeActions } from './execute';
 import { derivePlan, type Plan } from './plan';
 import type { InspectCourse, Snapshot } from './read';
 
 /** 平台跑一轮需要的外界能力。全由入口创建后注入，平台自己不碰浏览器全局。 */
 export interface MoocRunDeps {
-  /** 宿主能力（cookie、通知），由外壳实现；平台自己不碰 browser.* */
+  /** 宿主能力（cookie），由外壳实现；平台自己不碰 browser.* */
   host: HostCapabilities;
+  /** 配置端口：配置的读写由载体提供，平台不直接碰存储 */
+  config: ConfigPort;
   client: MoocClient;
   renew: () => Promise<boolean>;
   refreshCourses: () => Promise<
@@ -82,7 +84,7 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
     },
 
     async plan(now: number): Promise<PlanResult> {
-      const settings = await getSettings();
+      const settings = await deps.config.read();
       const courses = deps.selectedCourses(settings);
       if (courses.length === 0) return { items: [], blocked: 'no-course' };
 
@@ -134,7 +136,7 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
     async run(item: PlanItem, heartbeat: () => Promise<void>): Promise<RunOutcome> {
       const action = item.payload;
       // payload 是本平台 plan() 放进去的，形状由本文件保证
-      const settings = await getSettings();
+      const settings = await deps.config.read();
       const session = await ensureSession(deps.host);
       const [result] = await executeActions(
         deps.client,

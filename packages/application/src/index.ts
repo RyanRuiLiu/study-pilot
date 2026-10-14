@@ -10,5 +10,6 @@
  * 或任何厂商名字出现在这里即为越界。这条边界要机械核对，不靠人记。
  */
 export * from './model.ts';
+export * from './ai.ts';
 export * from './ports.ts';
 export * from './config/index.ts';

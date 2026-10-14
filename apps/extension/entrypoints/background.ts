@@ -22,6 +22,7 @@ import { attachRunStatePort } from '../src/background/runtime/run-state';
 import { registerMessageHandler } from '../src/background/messages/router';
 import { createMoocPlatform } from '../src/platforms/mooc/platform.ts';
 import { browserCapabilities } from '../src/browser/capabilities.ts';
+import { configStore } from '../src/settings';
 import { registerBackgroundWiring } from '../src/background/wiring';
 
 
@@ -36,6 +37,7 @@ export default defineBackground(() => {
    */
   const mooc = createMoocPlatform({
     host: browserCapabilities,
+    config: configStore,
     shell: {
       runState: async () => {
         const state = await getTaskState();

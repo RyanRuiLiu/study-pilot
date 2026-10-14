@@ -9,8 +9,8 @@
 import type { CourseSummary, CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
 import type { LiveRunState, TaskState } from '../../../protocol.ts';
 import type { Settings } from '../../../settings';
-import type { InspectCourse, Snapshot } from '../read';
-import type { HostCapabilities } from '../../types.ts';
+import type { InspectCourse, Snapshot } from '@study-pilot/platform-mooc';
+import type { HostCapabilities } from '@study-pilot/application';
 
 export interface MoocMessageDeps {
   /** 宿主能力（cookie）——平台自己不碰 browser.*，由外壳实现 */

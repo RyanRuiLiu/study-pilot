@@ -17,8 +17,7 @@
  * `courseware.ts`，类型与判据见 `types.ts`，顺序见 `order.ts`。
  */
 
-import { hasTextGenerator } from '../../../ai';
-import type { Settings } from '../../../settings';
+import { hasTextGenerator, type Settings } from '@study-pilot/application';
 import type { Snapshot } from '../read';
 import { planCourseware } from './courseware.ts';
 import { byCheapest } from './order.ts';

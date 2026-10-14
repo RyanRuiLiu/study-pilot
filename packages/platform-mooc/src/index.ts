@@ -69,6 +69,25 @@ export {
   type BuildAnswersResult,
 } from './quiz.ts';
 
+/*
+ * 策略层：慕课自己的判断与流程（会话、读取、计划、执行）。
+ *
+ * 与接口层同一个包，因为它们是同一家厂商的事实。两半的分工只有一条：
+ * 接口层是「怎么把请求发出去」，策略层是「请求什么、拿到之后怎么判断」。
+ * 这里只做转发：导入方从包的门进来，不必知道内部怎么分层。
+ */
+export * from './policy/read/index.ts';
+export * from './policy/plan/index.ts';
+export * from './policy/execute/index.ts';
+export * from './policy/execute/work.ts';
+export * from './policy/execute/bank.ts';
+export * from './policy/session.ts';
+export * from './policy/recovery.ts';
+export * from './policy/net-rules.ts';
+export * from './policy/course-selection.ts';
+export * from './policy/sync.ts';
+export * from './policy/tasks.ts';
+
 export {
   getHomeworkInfo,
   getHomeworkPaper,
