@@ -108,6 +108,23 @@ export type RunScheduledTasksResponse =
     }
   | { ok: false; reason: JobRejection };
 
+/**
+ * 一个消息处理器。
+ *
+ * 处理器由**平台**提供（外壳只按 type 分发），因此它拿到的是协议里的请求对象与
+ * 回响应入口，不认识外壳的其它东西。请求的形状由各平台自己收窄。
+ */
+export type MessageHandler = (
+  request: { type?: string },
+  sendResponse: (response?: unknown) => void,
+) => Promise<void>;
+
+/** 宽松的回响应入口，只用于分发处那一层。 */
+export type AnySendResponse = (response?: unknown) => void;
+
+/** 处理器表：按请求 type 索引，`*` 是兜底。 */
+export type MessageHandlers = Record<string, MessageHandler> & { '*': MessageHandler };
+
 /** 后台此刻的状态：原始状态 + 由后台判定的人话结论。 */
 export interface TaskStatus {
   state: TaskState;

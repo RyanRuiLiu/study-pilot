@@ -11,7 +11,7 @@
  * 执行中的信息交给状态行，按钮只负责「可以点」与「不能点」。
  */
 
-import { REJECTION_MESSAGES, sendToBackground } from './messaging';
+import { REJECTION_MESSAGES, sendToBackground } from '../messages.ts';
 import { getSettings } from '../settings';
 /** 提示语气的三态；界面层也用它，但这里只定义、不依赖界面。 */
 export type Tone = 'idle' | 'busy' | 'error';
