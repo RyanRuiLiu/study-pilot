@@ -15,7 +15,9 @@
 import { getSettings } from '../../settings';
 
 /** alarm 名称。固定值：名称固定才能让「已装好且间隔正确」这一判据成立。 */
-const ALARM_NAME = 'study-pilot-check';
+import { KEYS } from '../../keys.ts';
+
+const ALARM_NAME = KEYS.checkAlarm;
 
 /**
  * 确保周期检查已装好，且间隔与设置一致。

@@ -7,10 +7,11 @@
  */
 
 import { storage } from 'wxt/utils/storage';
+import { KEYS } from '../../../keys.ts';
 import { dateKey } from '../../../format';
 import { SNAPSHOT_VERSION, type Snapshot } from './types.ts';
 
-const item = storage.defineItem<Snapshot | null>('local:study-pilot-snapshot', {
+const item = storage.defineItem<Snapshot | null>(KEYS.snapshot, {
   fallback: null,
 });
 

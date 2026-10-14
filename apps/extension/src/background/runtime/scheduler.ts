@@ -20,12 +20,13 @@
  */
 
 
-/** 存储键。集中在此，避免各处硬编码字符串。 */
+import { KEYS } from '../../keys.ts';
+
 import type { LiveRunState, TaskState } from '../../protocol.ts';
 
 // 类型定义已移到 src/protocol.ts（两端都要用的形状）；这里转出，调用方的 import 不变。
 export type { LiveRunState, TaskState };
-const STATE_KEY = 'study-pilot:task-state';
+const STATE_KEY = KEYS.taskState;
 
 /** 跨次运行保留的状态。 */
 

@@ -31,7 +31,9 @@ interface RunStatePort {
 }
 
 /** 存储键。集中在此，避免各处硬编码字符串。 */
-const KEY = 'study-pilot:run-state';
+import { KEYS } from '../../keys.ts';
+
+const KEY = KEYS.runState;
 
 /** 逐项记录的一条。`running` 表示正在进行，其余都是终态。 */
 type RunItemStatus = 'running' | 'done' | 'skipped' | 'failed';

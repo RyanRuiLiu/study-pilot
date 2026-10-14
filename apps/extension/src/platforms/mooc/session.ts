@@ -18,8 +18,7 @@
  */
 
 import type { HostCapabilities } from '../types.ts';
-
-const MOOC_ORIGIN = 'https://www.icourse163.org';
+import { MOOC_ORIGIN } from '@study-pilot/platform-mooc';
 
 export interface MoocSession {
   /** 是否处于登录态 */
