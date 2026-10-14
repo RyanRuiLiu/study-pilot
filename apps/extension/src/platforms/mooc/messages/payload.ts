@@ -10,7 +10,6 @@
 
 /* 这里曾经把 CourseSummary 当课程列表的形状，而实际回的是几条：那是谎，改掉。 */
 import type { QueryOutcome, JobRejection } from '../../../protocol.ts';
-import type { Snapshot } from '../read';
 import type { MoocSession } from '../session';
 
 /**
@@ -137,10 +136,8 @@ export type MoocRequest =
   | { type: 'REFRESH_COURSES' }
   /** 要交的东西（测验/作业/互评/自评/考试） */
   | { type: 'PENDING_SUMMARY' }
-  /** 全部单元明细，只读本地快照 */
+  /** 全部单元明细，逐门课从平台读一次 */
   | { type: 'UNIT_DETAILS' }
-  /** 课程与任务的完整快照，只读本地 */
-  | { type: 'DASHBOARD' }
   /** 后台此刻的状态（由平台实现，形状属应用契约） */
   | { type: 'TASK_STATE' };
 
@@ -163,6 +160,5 @@ export interface MoocResponseMap {
     | { ok: false; reason: JobRejection; message?: string };
   PENDING_SUMMARY: QueryOutcome<PendingSummary>;
   UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
-  DASHBOARD: QueryOutcome<Snapshot | null>;
   TASK_STATE: { state: import('../../../protocol.ts').TaskState; live: import('../../../protocol.ts').LiveRunState };
 }

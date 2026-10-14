@@ -54,10 +54,9 @@ export interface PlatformTasks {
   /**
    * 该做什么。调度层只执行 mode 为 auto 的项。
    *
-   * `force` 用于手动执行：那时用户要的是「现在就去平台上拿最新的」，
-   * 不受「今天已经拉过」的约束。
+   * 没有「要不要重新拉」的选项：每次调用都拿最新数据，不做任何缓存。
    */
-  plan(now: number, options?: { force?: boolean }): Promise<PlanResult>;
+  plan(now: number): Promise<PlanResult>;
   /** 做一件。失败如实返回，调度层不重试、不解释 */
   run(item: PlanItem, heartbeat: () => Promise<void>): Promise<RunOutcome>;
 

@@ -64,8 +64,6 @@ export type QueryOutcome<T> =
   | {
       status: 'ok';
       value: T;
-      /** 这一份数据是后台正在执行时给出的（重新拉取会与它互相覆盖） */
-      running?: boolean;
     }
   | { status: 'error'; message: string; reason?: 'NOT_LOGGED_IN' };
 

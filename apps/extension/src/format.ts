@@ -148,12 +148,3 @@ export function isUrgent(deadline: number): boolean {
   if (deadline <= 0) return false;
   return daysBetween(deadline, Date.now()) <= 0;
 }
-
-/** 本地日期键，格式 YYYY-MM-DD。按本地时区计算，跨时区不适用。 */
-export function dateKey(now: number = Date.now()): string {
-  const date = new Date(now);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}

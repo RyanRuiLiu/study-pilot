@@ -65,7 +65,6 @@ function stateWhileInterrupted(): object {
 
 interface FakePlatform extends PlatformTasks {
   calls: string[];
-  planOptions: Array<{ force?: boolean } | undefined>;
 }
 
 function item(id: string, mode: PlanItem['mode']): PlanItem {
@@ -78,19 +77,16 @@ function platform(
   ready = true,
 ): FakePlatform {
   const calls: string[] = [];
-  const planOptions: Array<{ force?: boolean } | undefined> = [];
   return {
     id: name,
     name,
     calls,
-    planOptions,
     isReady: async () => {
       calls.push('isReady');
       return ready;
     },
-    plan: async (_now, options) => {
+    plan: async () => {
       calls.push('plan');
-      planOptions.push(options);
       return plan;
     },
     run: async (entry) => {
@@ -202,14 +198,6 @@ describe('逐平台执行', () => {
 
     expect(mooc.calls).toContain('run:auto-1');
     expect(mooc.calls.some((call) => call.includes('manual-1'))).toBe(false);
-  });
-
-  it('自动执行不给平台加「强制刷新」：那是手动执行才有的', async () => {
-    const mooc = platform('mooc', { items: [] });
-
-    await autoRun({ platforms: () => [mooc] });
-
-    expect(mooc.planOptions).toEqual([undefined]);
   });
 
   it('每一步之间刷心跳：长动作拿到心跳回调', async () => {
