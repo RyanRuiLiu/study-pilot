@@ -151,6 +151,9 @@ export interface OverviewRow {
   mode: 'auto' | 'assisted' | 'manual';
   /** 三态：未完成 / 已完成 / 已过截止。左缘色条按它上色 */
   state: 'todo' | 'done' | 'late';
+  progress: string;
+  /** 所属章节（课程内的分组名）。概览的左树与右侧分组都按它切 */
+  group: string;
   /** 状态标签，如「未提交」「互评 2/5」 */
   status: string;
   /** 状态的补充说明，做成悬停提示；空串表示没有需要解释的 */

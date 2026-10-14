@@ -45,6 +45,10 @@ export interface BoardItem {
   kind: string;
   mode: BoardMode;
   state: BoardState;
+  /** 所属章节（课程内的分组名） */
+  group: string;
+  /** 完成度（如 80%）；作业/测验没有这个概念时为空串 */
+  progress: string;
   /** 状态标签：工作项用平台的说法（未提交 / 互评 2/5…），课件单元没有更多话说，留空 */
   status: string;
   /** 状态的补充说明。几个相近说法的区别不自明，写在悬停里 */
@@ -77,6 +81,8 @@ function workRow(course: SnapshotCourse, work: SnapshotWork): BoardItem {
     course: course.courseName,
     title: work.name,
     status,
+    group: work.chapterName,
+    progress: '',
     statusDetail: describeStatusDetail(status),
     dueLabel,
     kind: WORK_LABEL[work.type],
@@ -105,6 +111,8 @@ function unitRow(course: SnapshotCourse, unit: CourseUnit): BoardItem {
      * 先前这里写的是与状态同一套字，于是概览那一列读作「未完成 · 未完成」。
      */
     status: '',
+    group: unit.lessonName,
+    progress: `${Math.round(unit.completePercent * 100)}%`,
     statusDetail: '',
     dueLabel: '',
     scoreLabel: '',
