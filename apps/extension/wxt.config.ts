@@ -71,12 +71,6 @@ export default defineConfig({
     permissions: [
       'cookies',
       'storage',
-      /*
-       * 定时唤醒后台检查。MV3 的后台线程不能常驻，没有它就只能等
-       * 浏览器下次启动，而那意味着「作业刚发布时你正开着浏览器，
-       * 却什么都不会发生」。用途与间隔见 src/background/alarms.ts。
-       */
-      'alarms',
       'declarativeNetRequestWithHostAccess',
     ],
     /*

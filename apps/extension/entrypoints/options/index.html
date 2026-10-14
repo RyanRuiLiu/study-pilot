@@ -3,12 +3,95 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Study Pilot</title>
+    <title>Study Pilot 设置</title>
+    <!--
+      设置页在独立标签页中打开，而不是嵌进扩展管理页的小弹窗。
+      不声明这一条的话，WXT 生成的 manifest 会写成 open_in_tab: false，
+      即便 wxt.config.ts 里写的是 true——entrypoint 自己的声明优先。
+      嵌在小弹窗里时页面宽度只有约 600px，表单会被压成一条窄栏。
+    -->
     <meta name="manifest.open_in_tab" content="true" />
+    <!-- 样式在 main.ts 里通过 import 引入（理由见 popup/index.html 同款注释） -->
   </head>
   <body>
-    <!-- 界面正在重写。数据只从 src/ui-bridge.ts 取（见该文件顶部的唯一约定）。 -->
-    <p>界面正在重写。</p>
+    <div class="page">
+      <header class="masthead">
+        <h1>Study Pilot</h1>
+        <p class="lede">改动会立即保存。</p>
+      </header>
+
+      <!--
+        概览：只读一行，回答「我现在是什么状态」。
+        打开设置页最先想知道的就是这个，因此放在最上面。
+      -->
+      <section class="card">
+        <p class="overview" id="overview-text">正在读取…</p>
+      </section>
+
+      <section class="card">
+        <h2>账号与课程</h2>
+        <p class="session" id="session-text">正在读取…</p>
+        <div class="actions">
+          <button id="refresh-courses" class="btn quiet" type="button">读取课程列表</button>
+        </div>
+        <div id="course-list"></div>
+      </section>
+
+      <!--
+        课件：每门课的已完成 / 总数，与「快速完成」。
+        它不在弹窗里——课件没有截止时间，属于「想清进度时来一趟」的地方。
+      -->
+      <section class="card">
+        <h2>课件</h2>
+        <div id="courseware-list"></div>
+        <div class="actions">
+          <button id="courseware-all" class="btn" type="button">全部快速完成</button>
+          <span class="note" id="courseware-status"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>任务与参数</h2>
+        <label class="field">
+          <span class="field-label">互评评语</span>
+          <input id="review-comment" type="text" />
+        </label>
+        <p class="note">平台要求评语非空；留空会退回默认那句（见输入框里的值）。</p>
+
+        <h3>AI 连接</h3>
+        <label class="check">
+          <input id="ai-enabled" type="checkbox" />
+          <span>启用（讨论单元的留言需要它）</span>
+        </label>
+        <label class="field">
+          <span class="field-label">接口地址</span>
+          <input id="ai-base-url" type="text" placeholder="https://api.example.com/v1" />
+        </label>
+        <label class="field">
+          <span class="field-label">模型</span>
+          <input id="ai-model" type="text" placeholder="模型名" />
+        </label>
+        <label class="field">
+          <span class="field-label">密钥</span>
+          <input id="ai-api-key" type="password" />
+        </label>
+        <div class="actions">
+          <button id="ai-test" class="btn" type="button">保存并测试连接</button>
+          <span class="note" id="ai-status"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>关于</h2>
+        <p class="note">
+          <span id="version"></span> · <a href="https://github.com/RyanRuiLiu/study-pilot" target="_blank" rel="noreferrer">GitHub</a> · MIT
+        </p>
+      </section>
+    </div>
+
+    <!-- 提示条。放在内容之外，浮在底部居中，不占布局位置 -->
+    <span id="toast" class="toast" role="status" aria-live="polite"></span>
+
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

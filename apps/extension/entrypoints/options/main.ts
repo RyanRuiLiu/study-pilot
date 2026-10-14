@@ -1,8 +1,44 @@
 /*
- * 页面入口。
+ * 设置页（入口）。
  *
- * 唯一的约定：这里只能从 ../src/ui-bridge.ts 取数据与动作，
- * 不 import src/adapters、src/background、src/browser、src/settings。
- * 界面按页拆模块（view / 行 / 状态各一个文件），不要都堆在这个入口里。
+ * 一页五块的顺序就是使用顺序：
+ *   概览（有什么）→ 账号与课程（参与什么）→ 课件（刷进度）
+ *   → 任务与参数（填空）→ 关于
+ *
+ * 数据只从 src/ui-bridge.ts（以及平台包的纯地址工具）取。
+ * 样式分两层引入：tokens（取值）、本页布局；import 而不是 <link>（理由见 popup）。
+ *
+ * 装配在这里，各块实现见同级模块。
  */
-export {};
+
+import '../../src/ui/tokens.css';
+import './style.css';
+
+import { getCourseware } from '../../src/ui-bridge';
+import { initCourseActions, renderCourses } from './courses.ts';
+import { renderCourseware } from './courseware.ts';
+import { renderOverview } from './overview.ts';
+import { renderParams } from './params.ts';
+import { initToast } from './toast.ts';
+
+function init(): void {
+  const toastEl = document.getElementById('toast');
+  if (toastEl !== null) initToast(toastEl);
+
+  const versionEl = document.getElementById('version');
+  if (versionEl !== null) versionEl.textContent = `v${browser.runtime.getManifest().version}`;
+
+  /*
+   * 课件进度只读一次，概览与课件区共用：各读各的会让页面一开就发两遍
+   * 同样的请求，而两处显示的是同一件事——不一致时还说不清以哪边为准。
+   */
+  const courseware = getCourseware();
+
+  initCourseActions();
+  void renderCourses();
+  void renderCourseware(courseware);
+  void renderOverview(courseware);
+  void renderParams();
+}
+
+init();
