@@ -1,30 +1,26 @@
 /*
- * 出站请求头规则。
+ * 出站请求头规则（通用机制）。
  *
- * 平台的 .rpc 接口按 Origin 判别来源：
+ * 规则内容由平台给出（哪些域名、哪两条路径前缀），外壳只负责把它拼成
+ * declarativeNetRequest 的形状并安装——`buildRules(sets)` 的入参就是平台声明。
  *
- *   service worker 发的请求   Origin: chrome-extension://<id>   -> 403
- *   页面上下文发的请求         Origin: https://www.icourse163.org -> 200
- *
- * 同一接口、同一签名、同一请求体，差别只在 Origin。实测对比过两者的出站头，
- * 服务端对扩展来源一律拒绝。
- *
- * 官方 API declarativeNetRequest 的 modifyHeaders 会在请求发出前改写请求头，
+ * 官方 API `declarativeNetRequest` 的 modifyHeaders 会在请求发出前改写请求头，
  * 实测可以把 Origin 改写成平台域名，于是后台无需打开任何标签页即可发请求。
  * 权限要求是 declarativeNetRequestWithHostAccess 而不是基础权限——
  * 后者不能修改请求头。
  *
  * 规则装在动态规则集里（不是 session 规则），因为 session 规则在浏览器
  * 重启后失效，而后台任务恰恰是在浏览器启动时执行的。
+ *
+ * 平台为什么需要这条规则（Origin 判别来源的实测对比）记录在规则数据那里：
+ * 见 `src/platforms/mooc/net-rules.ts`。
  */
 
 import type { Browser } from 'wxt/browser';
+import type { NetRuleSet } from '../platforms/types.ts';
 
 /** 动态规则 id。固定值，重复安装时先按 id 移除再添加，保证幂等。 */
 const RULE_ID = 1;
-
-/** 平台域名。改写后的 Origin 与 Referer 都指向它。 */
-const PLATFORM_ORIGIN = 'https://www.icourse163.org';
 
 /** 规则里用到的类型别名，避免直接引用 chrome 命名空间。 */
 type Rule = Browser.declarativeNetRequest.Rule;
@@ -34,13 +30,8 @@ type HeaderOperation = Browser.declarativeNetRequest.HeaderOperation;
 /**
  * 请求头规则的完整定义。
  *
- * 平台的接口有两条路径前缀，都要覆盖：
- *   /web/j/      .rpc 接口
- *   /dwr/call/   DWR 接口（互评、待办等走这条）
- * 只覆盖其一的话，另一类请求仍会带着扩展的 Origin 被 403 拒掉。
- *
- * 用两条规则而不是把 urlFilter 放宽到整个域名——后者会把图片、脚本等
- * 静态资源的 Origin 一并改掉，没有必要。
+ * 规则内容由平台给出（哪些域名、哪两条路径前缀）：那是平台的实测事实，
+ * 外壳无从判断。这里只负责把它拼成 declarativeNetRequest 的形状。
  *
  * 不限定 resourceTypes。曾经写过 `['xmlhttprequest']`，但那条限制在
  * service worker 里会让规则匹配不上：文档说 xmlhttprequest 覆盖
@@ -50,21 +41,30 @@ type HeaderOperation = Browser.declarativeNetRequest.HeaderOperation;
  * 排查时很容易误以为是规则没安装。
  * 省略该字段即匹配所有类型，urlFilter 已经把范围收得足够窄。
  */
-function buildRules(): Rule[] {
-  const condition = (urlFilter: string) => ({ urlFilter });
+function buildRules(sets: NetRuleSet[]): Rule[] {
+  const rules: Rule[] = [];
 
-  const action = {
-    type: 'modifyHeaders' as RuleActionType,
-    requestHeaders: [
-      { header: 'Origin', operation: 'set' as HeaderOperation, value: PLATFORM_ORIGIN },
-      { header: 'Referer', operation: 'set' as HeaderOperation, value: `${PLATFORM_ORIGIN}/` },
-    ],
-  };
+  for (const [index, set] of sets.entries()) {
+    const action = {
+      type: 'modifyHeaders' as RuleActionType,
+      requestHeaders: [
+        { header: 'Origin', operation: 'set' as HeaderOperation, value: set.origin },
+        { header: 'Referer', operation: 'set' as HeaderOperation, value: `${set.origin}/` },
+      ],
+    };
 
-  return [
-    { id: RULE_ID, priority: 1, action, condition: condition('icourse163.org/web/j/') },
-    { id: RULE_ID + 1, priority: 1, action, condition: condition('icourse163.org/dwr/') },
-  ];
+    for (const [offset, path] of set.paths.entries()) {
+      const host = set.origin.replace(/^https?:\/\//, '');
+      rules.push({
+        id: RULE_ID + index * 10 + offset,
+        priority: 1,
+        action,
+        condition: { urlFilter: `${host}${path}` },
+      });
+    }
+  }
+
+  return rules;
 }
 
 /**
@@ -73,11 +73,11 @@ function buildRules(): Rule[] {
  * 幂等：先移除同 id 的旧规则再添加，因此可以每次启动都调用。
  * 失败时返回原因，由调用方决定是否提示——缺这条规则会导致所有后台接口调用被拒。
  */
-async function ensureNetRules(): Promise<{ ok: true } | { ok: false; message: string }> {
+async function ensureNetRules(sets: NetRuleSet[]): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
     await browser.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: [RULE_ID, RULE_ID + 1],
-      addRules: buildRules(),
+      addRules: buildRules(sets),
     });
     return { ok: true };
   } catch (error) {
@@ -96,8 +96,8 @@ async function ensureNetRules(): Promise<{ ok: true } | { ok: false; message: st
  */
 let readyOnce: Promise<void> | null = null;
 
-export function whenNetRulesReady(): Promise<void> {
-  readyOnce ??= ensureNetRules().then((result) => {
+export function whenNetRulesReady(sets: NetRuleSet[]): Promise<void> {
+  readyOnce ??= ensureNetRules(sets).then((result) => {
     if (!result.ok) {
       // 记下失败原因便于诊断；不阻塞请求，让上层拿到平台的真实响应
       void browser.storage.local.set({ netRulesError: result.message });

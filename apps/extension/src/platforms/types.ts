@@ -63,6 +63,41 @@ export interface PlatformTasks {
 }
 
 /**
+ * 外壳要观察的平台信号。
+ *
+ * 外壳不认识任何平台的名字：cookie 叫什么、通知 id 什么前缀，都是平台自己的事。
+ * 装配层把各平台的这一份交给外壳，外壳只按清单遍历。
+ */
+/** 一条请求头改写规则：把这些路径前缀的请求头指向该平台自己的源。 */
+export interface NetRuleSet {
+  /** 平台源，改写后的 Origin 与 Referer 都指向它 */
+  origin: string;
+  /**
+   * 要覆盖的路径前缀（拼在域名之后的片段）。
+   *
+   * 用精确前缀而不是整站：放宽到整个域名会把图片、脚本等静态资源的 Origin
+   * 一并改掉，没有必要。
+   */
+  paths: string[];
+}
+
+export interface PlatformWiring {
+  id: string;
+  /**
+   * 登录凭证 cookie：它出现即表示登录成功，用于「挂起等登录」之后补跑一轮。
+   * 缺省表示该平台没有这种信号，外壳便不观察 cookie。
+   *
+   * **必须是登录后才下发的那个**：匿名会话 cookie 在访客状态下也有，
+   * 拿它当信号会在没人登录时误触发（慕课就踩过这个坑）。
+   */
+  loginCookie?: { name: string; domain: string };
+  /** 通知 id 前缀：外壳据此判断这条通知来自哪个平台 */
+  notificationPrefix: string;
+  /** 需要改写请求头的规则；缺省表示该平台不需要 */
+  requestRules?: NetRuleSet[];
+}
+
+/**
  * 设置页半边：本平台的设置分区。
  *
  * 分区里的控件与文案都是平台自己的（慕课有"账号与课程/自动任务/前台功能"），

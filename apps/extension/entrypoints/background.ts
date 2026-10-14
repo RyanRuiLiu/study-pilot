@@ -26,6 +26,20 @@ import { registerBackgroundWiring } from '../src/background/wiring';
 
 
 export default defineBackground(() => {
+  /*
+   * 平台。外壳只调工厂，不碰平台的内部实现（read / plan / execute / 处理器）。
+   *
+   * 将来加第二个平台：再调一次它自己的工厂，把它并进 handlers、wiring 与 platforms 清单。
+   */
+  const mooc = createMoocPlatform({
+    shell: {
+      runState: async () => {
+        const state = await getTaskState();
+        return { state, live: liveRunState(state) };
+      },
+    },
+  });
+
   // 回调内包一层 try/catch 是有必要的：生产构建会把 console 替换为空函数，
   // 回调抛出异常时不会有任何输出，表现只是「监听器一个都没注册」。
   // 把原因落到 storage，出问题时可以查出来。
@@ -45,7 +59,7 @@ export default defineBackground(() => {
      * 监听器注册并发进行，两者互不依赖；真正要发请求时，
      * 客户端里仍会 await whenNetRulesReady() 兜一次底。
      */
-    void whenNetRulesReady();
+    void whenNetRulesReady(mooc.wiring.requestRules ?? []);
     void browser.storage.local.remove('backgroundError');
 
     /*
@@ -74,23 +88,10 @@ export default defineBackground(() => {
    *
    * 传进各模块后，它们不认识这些值的来历；入口只负责把它们配好。
    */
-  /*
-   * 平台。外壳只调工厂，不碰平台的内部实现（read / plan / execute / 处理器）。
-   *
-   * 将来加第二个平台：再调一次它自己的工厂，把它并进 handlers 与 platforms 清单。
-   */
-  const mooc = createMoocPlatform({
-    shell: {
-      runState: async () => {
-        const state = await getTaskState();
-        return { state, live: liveRunState(state) };
-      },
-    },
-  });
 
   registerMessageHandler({
     handlers: mooc.handlers,
     platforms: () => [mooc.tasks()],
   });
-  registerBackgroundWiring({ platforms: () => [mooc.tasks()] });
+  registerBackgroundWiring({ platforms: () => [mooc.tasks()], wiring: [mooc.wiring] });
 });

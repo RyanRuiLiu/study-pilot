@@ -12,12 +12,14 @@
 import type { CoursewareContext } from '@study-pilot/platform-mooc';
 import { createTextGenerator } from '../../ai';
 import type { MessageHandlers } from '../../platform/messaging';
+import type { PlatformWiring } from '../types.ts';
 import type { Settings } from '../../settings';
 import type { PlatformTasks } from '../types.ts';
 import type { MoocMessageDeps } from './messages/deps.ts';
 import { moocHandlers } from './messages/handlers.ts';
 import type { InspectCourse } from './read';
 import { createPlatformClient, loadSnapshot, refreshCourses } from './sync.ts';
+import { NOTIFICATION_PREFIX } from './reminder.ts';
 import { createMoocTasks } from './tasks.ts';
 
 /** 外壳给出的东西：只有它自己拥有的能力。客户端与会话续期由本平台自己建。 */
@@ -58,6 +60,8 @@ export interface MoocPlatform {
   handlers: MessageHandlers;
   /** 要跑一轮时的平台实例（现建，见上面的说明） */
   tasks: () => PlatformTasks;
+  /** 外壳要观察的信号：登录 cookie 与通知前缀 */
+  wiring: PlatformWiring;
 }
 
 export function createMoocPlatform(env: MoocEnv): MoocPlatform {
@@ -75,5 +79,14 @@ export function createMoocPlatform(env: MoocEnv): MoocPlatform {
   return {
     handlers: moocHandlers(deps),
     tasks: () => createMoocTasks(deps),
+    /*
+     * 登录后才下发的是 STUDY_INFO 与 STUDY_SESS；NTESTUDYSI 在访客状态下也有，
+     * 不能当登录信号（见 src/platform/mooc/session.ts 的 cookie 分工表）。
+     */
+    wiring: {
+      id: 'mooc',
+      loginCookie: { name: 'STUDY_INFO', domain: 'icourse163.org' },
+      notificationPrefix: NOTIFICATION_PREFIX,
+    },
   };
 }
