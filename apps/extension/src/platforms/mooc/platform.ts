@@ -11,7 +11,7 @@
 
 import type { CoursewareContext } from '@study-pilot/platform-mooc';
 import { createTextGenerator } from '../../ai';
-import type { MessageHandlers } from '../../browser/messaging';
+import type { MessageHandlers } from '../../protocol.ts';
 import type { PlatformWiring } from '../types.ts';
 import type { Settings } from '../../settings';
 import type { PlatformTasks } from '../types.ts';

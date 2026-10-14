@@ -16,14 +16,14 @@
  * 每条都是后台消息或运行状态的薄包装，没有自己的状态、没有缓存、不做二次加工。
  */
 
-import { sendToBackground } from './browser/messaging';
+import { sendToBackground } from './messages.ts';
 import { runNow as runOnce } from './browser/run-once.ts';
 import { subscribeRunState } from './browser/run-feed.ts';
 import { getSettings, updateSettings } from './settings';
 
 // 视图模型：界面需要认识的就这几个形状
-export type { PendingSummary, UnitDetail } from './browser/messaging';
-export type { Snapshot } from './browser/messaging';
+export type { PendingSummary, UnitDetail } from './messages.ts';
+export type { Snapshot } from './messages.ts';
 export type { RunState } from './background/runtime/run-state';
 export type { Tone } from './browser/run-once.ts';
 export type { Settings } from './settings';

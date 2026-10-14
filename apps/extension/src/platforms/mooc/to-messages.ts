@@ -9,7 +9,7 @@
  */
 
 import { workPageUrl } from '@study-pilot/platform-mooc';
-import type { PendingEntry, PendingKind, PendingSummary, UnitDetail } from '../../browser/messaging';
+import type { PendingEntry, PendingKind, PendingSummary, UnitDetail } from './messages/payload.ts';
 import { OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from './plan';
 import type { Snapshot, SnapshotCourse } from './read';
 import { describeStatusDetail, describeWorkStatus } from './work-status';

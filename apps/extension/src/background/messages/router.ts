@@ -12,7 +12,7 @@
  * 定义；未识别的请求回 undefined，前台据此报「后台无响应」。
  */
 
-import type { AnySendResponse, BackgroundRequest, MessageHandlers, SendResponse } from '../../browser/messaging';
+import type { AnySendResponse, AppRequest, MessageHandlers, SendResponse } from '../../messages.ts';
 import type { PlatformTasks } from '../../platforms/types.ts';
 import { beginRun, canStartRun, claimRun, finishRun, getTaskState, releaseRun, touchRun } from '../runtime/scheduler';
 import { getRunState, requestStop } from '../runtime/run-state';
@@ -95,7 +95,7 @@ async function runOnce(deps: RouterDeps, sendResponse: SendResponse<'RUN_SCHEDUL
 
 export function registerMessageHandler(deps: RouterDeps): void {
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    const request = message as BackgroundRequest | undefined;
+    const request = message as AppRequest | undefined;
 
     void (async () => {
       if (request?.type === 'RUN_STATE') {
@@ -115,7 +115,7 @@ export function registerMessageHandler(deps: RouterDeps): void {
       // 处理器表里没有这个 type 就用兜底；兜底也说处理不了就回 undefined
       const fallback = deps.handlers['*'];
       const handler = request === undefined ? fallback : (deps.handlers[request.type] ?? fallback);
-      await handler(request as BackgroundRequest, sendResponse as AnySendResponse);
+      await handler(request as AppRequest, sendResponse as AnySendResponse);
     })().catch((error: unknown) => {
       /*
        * 兜底响应只能报「失败」，不能报「未登录」。
