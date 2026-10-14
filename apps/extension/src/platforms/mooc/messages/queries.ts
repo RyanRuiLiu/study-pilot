@@ -39,7 +39,7 @@ export async function handleQuery(
            * 混在一起会让问题被掩盖。
            */
           const settingsForPending = await getSettings();
-          const pendingSession = await ensureSession();
+          const pendingSession = await ensureSession(deps.host);
 
           /*
            * 未登录时不往下走。
@@ -133,7 +133,7 @@ export async function handleQuery(
       const [snapshot, settings] = await Promise.all([readSnapshot(), getSettings()]);
       // 必须经 sendResponse 交回：直接 return 的是这个异步函数自己，
       // 调用方只能等到通道关闭，拿到的是「后台无响应」
-      sendResponse({ ok: true, hasContent: await notifySample(snapshot, settings) });
+      sendResponse({ ok: true, hasContent: await notifySample(deps.host, snapshot, settings) });
       break;
     }
 
@@ -143,7 +143,7 @@ export async function handleQuery(
            * 与「逐个课程读取时出错」是两件事。
            */
           const settings = await getSettings();
-          const session = await ensureSession();
+          const session = await ensureSession(deps.host);
 
           /*
            * 未登录时不往下走。原因与待办汇总相同：拿 userId = 0 去查

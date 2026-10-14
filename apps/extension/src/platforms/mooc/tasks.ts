@@ -10,6 +10,7 @@
  */
 
 import type { CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
+import type { MoocHost } from './host.ts';
 import { ensureSession, SessionExpiredError } from './session';
 import { withSessionRecovery } from './recovery.ts';
 import { getSettings, type Settings } from '../../settings';
@@ -21,6 +22,8 @@ import { composeNotice, noticeSettingsOf, notify } from './reminder';
 
 /** 平台跑一轮需要的外界能力。全由入口创建后注入，平台自己不碰浏览器全局。 */
 export interface MoocRunDeps {
+  /** 宿主能力（cookie、通知），由外壳实现；平台自己不碰 browser.* */
+  host: MoocHost;
   client: MoocClient;
   renew: () => Promise<boolean>;
   refreshCourses: () => Promise<
@@ -95,7 +98,7 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
     name: '中国大学 MOOC',
 
     async isReady(): Promise<boolean> {
-      return (await ensureSession()).loggedIn;
+      return (await ensureSession(deps.host)).loggedIn;
     },
 
     async plan(now: number, options?: { force?: boolean }): Promise<PlanResult> {
@@ -124,11 +127,11 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
          */
         const plan = derivePlan(snapshot, settings, now);
         planned = plan;
-        await notify(composeNotice(plan, [], noticeSettingsOf(settings), now));
+        await notify(deps.host, composeNotice(plan, [], noticeSettingsOf(settings), now));
         return { items: toItems(plan) };
       }
 
-      const session = await ensureSession();
+      const session = await ensureSession(deps.host);
       if (!session.loggedIn) return { items: [], needsLogin: true };
 
       /*
@@ -178,7 +181,7 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       const action = item.payload;
       // payload 是本平台 plan() 放进去的，形状由本文件保证
       const settings = await getSettings();
-      const session = await ensureSession();
+      const session = await ensureSession(deps.host);
       const [result] = await executeActions(
         deps.client,
         [action as Parameters<typeof executeActions>[1][number]],
@@ -214,7 +217,7 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       if (done.length === 0 && outcomes.every((outcome) => outcome.status !== 'failed')) return;
 
       const settings = await getSettings();
-      await notify(composeNotice(plan, done, noticeSettingsOf(settings), now));
+      await notify(deps.host, composeNotice(plan, done, noticeSettingsOf(settings), now));
     },
   };
 }

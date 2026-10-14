@@ -16,14 +16,20 @@ import type { PlatformWiring } from '../types.ts';
 import type { Settings } from '../../settings';
 import type { PlatformTasks } from '../types.ts';
 import type { MoocMessageDeps } from './messages/deps.ts';
+import type { MoocHost } from './host.ts';
 import { moocHandlers } from './messages/handlers.ts';
 import type { InspectCourse } from './read';
 import { createPlatformClient, loadSnapshot, refreshCourses } from './sync.ts';
 import { MOOC_REQUEST_RULES } from './net-rules.ts';
 import { createMoocTasks } from './tasks.ts';
 
-/** 外壳给出的东西：只有它自己拥有的能力。客户端与会话续期由本平台自己建。 */
+/**
+ * 外壳给出的东西：只有它自己拥有的能力。
+ *
+ * host 是宿主能力（cookie 读取、系统通知）；客户端与会话续期由本平台自己建。
+ */
 export interface MoocEnv {
+  host: MoocHost;
   shell: MoocMessageDeps['shell'];
 }
 
@@ -65,8 +71,9 @@ export interface MoocPlatform {
 }
 
 export function createMoocPlatform(env: MoocEnv): MoocPlatform {
-  const { client, renew } = createPlatformClient();
+  const { client, renew } = createPlatformClient(env.host);
   const deps: MoocMessageDeps = {
+    host: env.host,
     client,
     renew,
     refreshCourses: () => refreshCourses(client),
