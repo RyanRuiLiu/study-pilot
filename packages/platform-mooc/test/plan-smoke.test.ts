@@ -7,16 +7,16 @@
  * 代理，然后照常派生计划：核心代码只要有一处调浏览器，这里立刻红。
  *
  * 跑法（Node 里跑，不加载扩展、不连平台）：
- *   node node_modules/vitest/vitest.mjs run --root apps/extension test/plan-smoke.test.ts
+ *   node node_modules/vitest/vitest.mjs run --root packages/platform-mooc test/plan-smoke.test.ts
  * 它会打印算出来的计划，能直接看到输出了什么。
  *
  * 边界：这里只验证不碰浏览器；真正的网络读取仍然要在浏览器里跑，因为需要你的登录 cookie。
  */
 
 import { describe, expect, it } from 'vitest';
-import type { CourseUnit } from '@study-pilot/platform-mooc';
-import { derivePlan } from '@study-pilot/platform-mooc';
-import type { Snapshot, SnapshotCourse, SnapshotWork } from '@study-pilot/platform-mooc';
+import type { CourseUnit } from '../src/types.ts';
+import { derivePlan } from '../src/policy/plan/index.ts';
+import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/policy/read/types.ts';
 import { DEFAULT_SETTINGS } from '@study-pilot/application';
 
 const HOUR = 60 * 60 * 1000;

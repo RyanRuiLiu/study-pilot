@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
  * 而它顶层就建立存储项、读 browser.runtime，测试环境里必然抛错
  * （这一点 schema/index.ts 的文件头写着，我第一版正是踩了它）。
  */
-import { DEFAULT_SETTINGS, normalize } from '@study-pilot/application';
+import { DEFAULT_SETTINGS, normalize } from '../src/index.ts';
 
 /*
  * 版本 2 → 3：调度配置由 `mooc.background.schedule` 提升到顶层。
