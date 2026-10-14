@@ -10,11 +10,11 @@ import type { CourseSummary, CoursewareContext, MoocClient } from '@study-pilot/
 import type { LiveRunState, TaskState } from '../../../background/runtime/scheduler';
 import type { Settings } from '../../../settings';
 import type { InspectCourse, Snapshot } from '../read';
-import type { MoocHost } from '../host.ts';
+import type { HostCapabilities } from '../../types.ts';
 
 export interface MoocMessageDeps {
   /** 宿主能力（cookie、通知）——平台自己不碰 browser.*，由外壳实现 */
-  host: MoocHost;
+  host: HostCapabilities;
   client: MoocClient;
   /** 会话续期；返回是否真的续上了 */
   renew: () => Promise<boolean>;

@@ -12,11 +12,10 @@
 import type { CoursewareContext } from '@study-pilot/platform-mooc';
 import { createTextGenerator } from '../../ai';
 import type { MessageHandlers } from '../../protocol.ts';
-import type { PlatformWiring } from '../types.ts';
+import type { HostCapabilities, PlatformWiring } from '../types.ts';
 import type { Settings } from '../../settings';
 import type { PlatformTasks } from '../types.ts';
 import type { MoocMessageDeps } from './messages/deps.ts';
-import type { MoocHost } from './host.ts';
 import { moocHandlers } from './messages/handlers.ts';
 import type { InspectCourse } from './read';
 import { createPlatformClient, loadSnapshot, refreshCourses } from './sync.ts';
@@ -29,7 +28,7 @@ import { createMoocTasks } from './tasks.ts';
  * host 是宿主能力（cookie 读取、系统通知）；客户端与会话续期由本平台自己建。
  */
 export interface MoocEnv {
-  host: MoocHost;
+  host: HostCapabilities;
   shell: MoocMessageDeps['shell'];
 }
 

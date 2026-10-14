@@ -22,7 +22,7 @@ import { OVERDUE_REASONS, derivePlan, type Plan } from './plan';
 import type { Snapshot } from './read';
 import type { ExecResult } from './execute';
 import type { Settings } from '../../settings';
-import type { MoocHost } from './host.ts';
+import type { HostCapabilities } from '../types.ts';
 
 /*
  * 通知标识。
@@ -50,7 +50,7 @@ const SAMPLE_PREFIX = `${NOTIFICATION_PREFIX}sample-`;
  *
  * 按前缀匹配，因此旧版本留下的固定 id（`study-pilot-summary` 这种）也在范围内。
  */
-async function clearOutstanding(host: MoocHost, prefix: string): Promise<void> {
+async function clearOutstanding(host: HostCapabilities, prefix: string): Promise<void> {
   try {
     const ids = await host.listNotifications();
     await Promise.all(
@@ -219,7 +219,7 @@ export function composeNotice(
  * 清是为了不堆积，新 id 是为了让系统把它当成新通知弹出来，
  * 而不是把旧的那条改一行字。理由见文件上方 NOTIFICATION_PREFIX 的说明。
  */
-export async function notify(host: MoocHost, notice: Notice | null): Promise<boolean> {
+export async function notify(host: HostCapabilities, notice: Notice | null): Promise<boolean> {
   if (notice === null) return false;
 
   await clearOutstanding(host, SUMMARY_PREFIX);
@@ -243,7 +243,7 @@ export async function notify(host: MoocHost, notice: Notice | null): Promise<boo
  * 不改动任何状态，也不写平台。
  */
 export async function notifySample(
-  host: MoocHost,
+  host: HostCapabilities,
   snapshot: Snapshot | null,
   settings: Settings,
   now: number = Date.now(),

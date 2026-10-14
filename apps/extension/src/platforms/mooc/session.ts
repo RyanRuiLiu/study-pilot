@@ -17,7 +17,7 @@
  *    该格式由 `getQuizInfo` 返回的 `answererId` 交叉验证过（两处一致）。
  */
 
-import type { MoocHost } from './host.ts';
+import type { HostCapabilities } from '../types.ts';
 
 const MOOC_ORIGIN = 'https://www.icourse163.org';
 
@@ -30,9 +30,9 @@ export interface MoocSession {
   token: string;
 }
 
-/** 读一个 cookie。取值与容错都在宿主实现里（见 host.ts），这里只转交。 */
-function readCookie(host: MoocHost, name: string): Promise<string> {
-  return host.readCookie(name);
+/** 读一个 cookie。域名是本平台的事实，取值与容错在宿主实现里。 */
+function readCookie(host: HostCapabilities, name: string): Promise<string> {
+  return host.readCookie(MOOC_ORIGIN, name);
 }
 
 /** 解析 STUDY_INFO 得到用户 id。格式不符时返回 0。 */
@@ -42,7 +42,7 @@ function parseUserId(studyInfo: string): number {
   return Number.isFinite(id) && id > 0 ? id : 0;
 }
 
-async function readSession(host: MoocHost): Promise<MoocSession> {
+async function readSession(host: HostCapabilities): Promise<MoocSession> {
   const [token, studyInfo] = await Promise.all([
     readCookie(host, 'NTESSTUDYSI'),
     readCookie(host, 'STUDY_INFO'),
@@ -74,7 +74,7 @@ async function readSession(host: MoocHost): Promise<MoocSession> {
  * 已死的情形由 {@link renewSession} 处理——那里的判据是服务端的表态，
  * 不是本地的 cookie。
  */
-export async function ensureSession(host: MoocHost): Promise<MoocSession> {
+export async function ensureSession(host: HostCapabilities): Promise<MoocSession> {
   const current = await readSession(host);
   if (current.loggedIn && current.token) return current;
 
@@ -119,7 +119,7 @@ export class SessionExpiredError extends Error {
  * 「未换发」会被误读成「登录失效」——它其实说明不了任何事。
  */
 export async function renewSession(
-  host: MoocHost,
+  host: HostCapabilities,
 ): Promise<{ renewed: boolean; session: MoocSession }> {
   const before = await readCookie(host, 'STUDY_SESS');
   try {
@@ -132,6 +132,6 @@ export async function renewSession(
 }
 
 /** 读取令牌，供后台使用。 */
-export function readToken(host: MoocHost): Promise<string> {
+export function readToken(host: HostCapabilities): Promise<string> {
   return readCookie(host, 'NTESSTUDYSI');
 }
