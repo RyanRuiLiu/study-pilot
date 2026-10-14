@@ -26,6 +26,8 @@ function toRow(item: BoardItem): OverviewRow {
     kind: item.kind,
     mode: item.mode,
     state: item.state,
+    group: item.group,
+    progress: item.progress,
     status: item.review === undefined ? item.status : `${item.status}（${item.review}）`,
     statusDetail: item.statusDetail,
     dueAt: item.due,
