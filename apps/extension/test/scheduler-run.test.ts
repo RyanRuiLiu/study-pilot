@@ -35,7 +35,7 @@ import {
   recordRunFailure,
   touchRun,
 } from '../src/background/runtime/task-state';
-import type { PlanItem, PlatformTasks } from '../src/platforms/types.ts';
+import type { PlanItem, PlatformTasks } from '@study-pilot/application';
 
 const getSettingsMock = vi.mocked(getSettings);
 const getTaskStateMock = vi.mocked(getTaskState);
