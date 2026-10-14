@@ -7,7 +7,7 @@
  */
 
 import { isCompletable, isUnitComplete } from '../../courseware/index.ts';
-import type { SnapshotCourse } from '../read';
+import type { SnapshotCourse } from '../read/index.ts';
 import type { CoursewareAutoAction } from './types.ts';
 
 /**

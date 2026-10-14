@@ -6,7 +6,7 @@
  * 如实交出去。续期动作以依赖注入进来，本模块保持纯逻辑可测。
  */
 
-import { SessionExpiredError } from './session';
+import { SessionExpiredError } from './session.ts';
 
 /** 恢复之后一次读取的三种结局。 */
 export type RecoveryOutcome<T> =

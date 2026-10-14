@@ -288,6 +288,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@types/node':
+        specifier: 20.19.43
+        version: 20.19.43
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

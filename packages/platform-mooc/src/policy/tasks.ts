@@ -12,12 +12,12 @@
 import type { MoocClient } from '../client.ts';
 import type { CoursewareContext } from '../courseware/index.ts';
 import type { ConfigPort, HostCapabilities, Settings } from '@study-pilot/application';
-import { ensureSession, SessionExpiredError } from './session';
+import { ensureSession, SessionExpiredError } from './session.ts';
 import { withSessionRecovery } from './recovery.ts';
 import type { PlanItem, PlanResult, PlatformTasks, RunOutcome } from '@study-pilot/application';
-import { executeActions } from './execute';
-import { derivePlan, type Plan } from './plan';
-import type { InspectCourse, Snapshot } from './read';
+import { executeActions } from './execute/index.ts';
+import { derivePlan, type Plan } from './plan/index.ts';
+import type { InspectCourse, Snapshot } from './read/index.ts';
 
 /** 平台跑一轮需要的外界能力。全由入口创建后注入，平台自己不碰浏览器全局。 */
 export interface MoocRunDeps {

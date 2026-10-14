@@ -8,7 +8,7 @@
 
 import { completeUnit, type CoursewareContext } from '../../courseware/index.ts';
 import type { MoocClient } from '../../client.ts';
-import type { CoursewareAutoAction } from '../plan';
+import type { CoursewareAutoAction } from '../plan/index.ts';
 import type { ExecResult } from './types.ts';
 
 export async function runCourseware(
