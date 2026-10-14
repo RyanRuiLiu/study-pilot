@@ -12,7 +12,8 @@
 import { MOOC_ORIGIN } from '@study-pilot/platform-mooc';
 import type { PendingEntry, PendingSummary, TaskStatus } from '../../src/browser/messaging';
 import { formatDateTime } from '../../src/ui/format';
-import { actionRow, button, countLine, navBar, statusLine, taskGroups, type Tone } from '../../src/ui';
+import { relativeDay } from '../../src/ui/format.ts';
+import { button, statusLine, type Tone } from '../../src/ui';
 
 /**
  * 一门课在这一屏里最多铺几张纸条。
@@ -158,11 +159,85 @@ function statusTone(data: PopupData): Tone {
   return data.live === 'running' ? 'busy' : 'idle';
 }
 
-/** 计数：用平台自己的分项（会自动完成 / 需你处理 / 已过期），外壳不另算一遍。 */
-function countParts(summary: PendingSummary): string[] {
-  const parts = [`共 ${summary.entries.length} 项`, `会自动完成 ${summary.auto}`, `需你处理 ${summary.manual}`];
-  if (summary.overdue > 0) parts.push(`已过期 ${summary.overdue}`);
-  return parts;
+/**
+ * 一句话说清「要交的东西有多少、其中多少不用你管」。
+ *
+ * 先前这里是「共 3 项 · 会自动完成 1 · 需你处理 2」这种用中点拼接的标签串：
+ * 读起来像仪表盘，不像人说话。改用陈述句，信息一个不少。
+ */
+function summarySentence(summary: PendingSummary): string {
+  const head = `有 ${summary.entries.length} 项要交`;
+  const auto = summary.auto > 0 ? `，其中 ${summary.auto} 项会自动完成` : '';
+  const manual = summary.manual > 0 ? `，${summary.manual} 项要你自己做` : '';
+  const overdue = summary.overdue > 0 ? `，${summary.overdue} 项已过期` : '';
+  return `${head}${auto}${manual}${overdue}。`;
+}
+
+/** 类别只有五种，说法照平台自己的分法，不另造词。 */
+const KIND_LABEL: Record<PendingEntry['kind'], string> = {
+  'submit-quiz': '测验',
+  'submit-homework': '作业',
+  'evaluate-homework': '互评',
+  'self-evaluate': '自评',
+  'submit-exam': '考试',
+};
+
+/** 一行里左侧那段「谁来做 / 已过期」——颜色由组件自带的 variant 给，不另立一套色。 */
+function stateBadge(entry: PendingEntry): HTMLElement {
+  const badge = document.createElement('sl-badge');
+  badge.setAttribute('pill', '');
+  if (entry.overdue) {
+    badge.setAttribute('variant', 'danger');
+    badge.textContent = '已过期';
+  } else if (entry.handling === 'auto') {
+    badge.setAttribute('variant', 'neutral');
+    badge.textContent = '会自动完成';
+  } else {
+    badge.setAttribute('variant', 'warning');
+    badge.textContent = '要你做';
+  }
+  return badge;
+}
+
+/** 课程那一行：名字在左，这一门有几项要交在右。 */
+function courseHeading(name: string, count: number): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'group';
+  const title = document.createElement('strong');
+  title.textContent = name;
+  const badge = document.createElement('sl-badge');
+  badge.textContent = String(count);
+  row.append(title, badge);
+  return row;
+}
+
+/** 一项一行：标题、类别与状态、截止。可点的整行是链接。 */
+function entryRow(entry: PendingEntry): HTMLElement {
+  const row = document.createElement(entry.href === undefined ? 'div' : 'a');
+  row.className = 'item';
+  if (entry.href !== undefined) {
+    row.setAttribute('href', entry.href);
+    row.setAttribute('target', '_blank');
+    row.setAttribute('rel', 'noreferrer');
+  }
+
+  const title = document.createElement('span');
+  title.className = 'item-title';
+  title.textContent = entry.name;
+
+  const meta = document.createElement('span');
+  meta.className = 'item-meta';
+  const kind = document.createElement('sl-tag');
+  kind.setAttribute('size', 'small');
+  kind.textContent = KIND_LABEL[entry.kind];
+  meta.append(kind, stateBadge(entry));
+
+  const when = document.createElement('span');
+  when.className = 'item-when';
+  when.textContent = entry.deadline > 0 ? relativeDay(entry.deadline) : '';
+
+  row.append(title, meta, when);
+  return row;
 }
 
 /** 一句不需要被当成告警的说明。 */
@@ -194,62 +269,56 @@ export function renderPopup(
   const parts: HTMLElement[] = [status];
   if (data.notLoggedIn) {
     parts.push(
-      actionRow([
-        button({
-          label: '前往登录',
-          href: `${MOOC_ORIGIN}/`,
-          title: '打开慕课平台登录页',
-        }),
-      ]),
+      button({
+        label: '前往登录',
+        href: `${MOOC_ORIGIN}/`,
+        title: '打开慕课平台登录页',
+      }),
     );
   } else if (data.error === null && data.summary !== null) {
-    const groups = byCourse(data.summary.entries, Date.now());
+    const entries = data.summary.entries;
 
-    /*
-     * 一条都没有时不必再报一遍「共 0 项 · 会自动完成 0 · 需你处理 0」——
-     * 下面的空状态已经把话说完了，两处一起说等于什么也没说清楚。
-     */
-    if (data.summary.entries.length > 0) parts.push(countLine(countParts(data.summary)));
+    if (entries.length === 0) {
+      const none = document.createElement('p');
+      none.textContent = '没有要交的东西。';
+      parts.push(none);
 
-    parts.push(
-      taskGroups(
-        groups.map((group) => ({
-          title: group.course,
-          count: `${group.rows.length} 项`,
-          rows: group.rows
-            .slice(0, PER_COURSE)
-            .map((entry) => ({ title: entry.name, due: entry.deadline, href: entry.href })),
-        })),
-        '没有要交的东西。',
-      ),
-    );
+      /*
+       * 无事可交时补一句「还剩什么」：用户打开弹窗本来是想知道今天还有什么事没做，
+       * 只说「没有要交的」等于什么都没说。单元的完成度只在快照里。
+       */
+      if (data.courseware !== null && data.courseware.unfinished > 0) {
+        const left = document.createElement('small');
+        left.textContent = `还有 ${data.courseware.unfinished} 项课件没看完，共 ${data.courseware.total} 项，概览里能按课程看。`;
+        parts.push(left);
+      }
+    } else {
+      const note = document.createElement('small');
+      note.textContent = summarySentence(data.summary);
+      parts.push(note);
 
-    /*
-     * 没有要交的东西时，补一句「还剩什么」——否则弹窗只是一句「没有要交的东西」，
-     * 而用户打开它本来是想知道今天还有什么事没做。顺序也要对：先答"有没有要交的"，
-     * 再说"那还剩什么"。
-     */
-    if (data.summary.entries.length === 0 && data.courseware !== null && data.courseware.unfinished > 0) {
-      const left = document.createElement('small');
-      left.textContent = `还有 ${data.courseware.unfinished} 项课件没看完（共 ${data.courseware.total} 项），概览里能按课程看。`;
-      parts.push(left);
-    }
+      const groups = byCourse(entries, Date.now());
+      for (const group of groups) {
+        parts.push(courseHeading(group.course, group.rows.length));
+        for (const entry of group.rows.slice(0, PER_COURSE)) parts.push(entryRow(entry));
+      }
 
-    const hidden = groups.reduce((sum, group) => sum + Math.max(0, group.rows.length - PER_COURSE), 0);
-    if (hidden > 0) {
-      const more = document.createElement('p');
-      more.className = 'sp-note';
-      more.textContent = `另有 ${hidden} 项没排在上面这些组里，概览那张表能看全部、也能按截止时间排。`;
-      parts.push(more);
+      const hidden = groups.reduce((sum, group) => sum + Math.max(0, group.rows.length - PER_COURSE), 0);
+      if (hidden > 0) {
+        const more = document.createElement('small');
+        more.textContent = `另有 ${hidden} 项没列出来，概览里能看全部。`;
+        parts.push(more);
+      }
     }
   }
 
-  parts.push(
-    navBar([
-      button({ label: '概览', href: handlers.pageUrl, title: '打开概览：整体还剩什么' }),
-      button({ label: '设置', onClick: handlers.onSettings, title: '打开设置：它怎么运行' }),
-    ]),
+  const foot = document.createElement('div');
+  foot.className = 'foot';
+  foot.append(
+    button({ label: '概览', variant: 'text', href: handlers.pageUrl, title: '打开概览：整体还剩什么' }),
+    button({ label: '设置', variant: 'text', onClick: handlers.onSettings, title: '打开设置：它怎么运行' }),
   );
+  parts.push(foot);
 
   root.replaceChildren(...parts);
   /*
