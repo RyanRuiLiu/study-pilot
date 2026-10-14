@@ -10,7 +10,7 @@
 
 /* 这里曾经把 CourseSummary 当课程列表的形状，而实际回的是几条：那是谎，改掉。 */
 import type { QueryOutcome, JobRejection } from '../../../protocol.ts';
-import type { MoocSession } from '@study-pilot/platform-mooc';
+import type { CoursewareProgress, MoocSession } from '@study-pilot/platform-mooc';
 
 /**
  * 单元状态。平台的叫法，不自创。
@@ -138,6 +138,8 @@ export type MoocRequest =
   | { type: 'PENDING_SUMMARY' }
   /** 全部单元明细，逐门课从平台读一次 */
   | { type: 'UNIT_DETAILS' }
+  /** 课件进度：每门课的完成计数（只读） */
+  | { type: 'COURSEWARE_SUMMARY' }
   /** 后台此刻的状态（由平台实现，形状属应用契约） */
   | { type: 'TASK_STATE' };
 
@@ -160,5 +162,6 @@ export interface MoocResponseMap {
     | { ok: false; reason: JobRejection; message?: string };
   PENDING_SUMMARY: QueryOutcome<PendingSummary>;
   UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
+  COURSEWARE_SUMMARY: QueryOutcome<CoursewareProgress[]>;
   TASK_STATE: { state: import('../../../protocol.ts').TaskState; live: import('../../../protocol.ts').LiveRunState };
 }
