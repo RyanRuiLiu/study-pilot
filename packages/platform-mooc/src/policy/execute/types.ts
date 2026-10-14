@@ -2,7 +2,7 @@
  * 一次执行的结果。
  *
  * 形状与 `AutoAction['kind']` 绑定：结果要能回指是哪一类事项，
- * 通知与设置页按它决定说法。
+ * 界面的逐项记录按它决定说法。
  */
 
 import type { AutoAction } from '../plan/index.ts';
