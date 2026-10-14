@@ -14,7 +14,13 @@
 
 import { storage } from 'wxt/utils/storage';
 import { KEYS } from '../keys.ts';
-import { DEFAULT_SETTINGS, mergeWithBase, normalize, type Settings } from './schema';
+import {
+  DEFAULT_SETTINGS,
+  mergeWithBase,
+  normalize,
+  type ConfigPort,
+  type Settings,
+} from '@study-pilot/application';
 
 const item = storage.defineItem<Settings>(KEYS.settings, {
   fallback: DEFAULT_SETTINGS,
@@ -52,6 +58,20 @@ export async function resetSettings(): Promise<Settings> {
   await item.setValue(next);
   return next;
 }
+
+/**
+ * 配置端口（应用层真正要的那两个动作）。
+ *
+ * 载体把这一份交给应用层与厂商适配器，它们从此不再直接读存储：换一个载体
+ * 时只换这个实现，应用层一行不动。
+ *
+ * 只有 read 与 update。reset 与 watch 是载体自己的事——前者是设置页的按钮，
+ * 后者用来重挂定时器，应用层从不调用，放进端口只会变成没人实现的假接口。
+ */
+export const configStore: ConfigPort = {
+  read: getSettings,
+  update: updateSettings,
+};
 
 /** 订阅配置变化，返回取消订阅函数。 */
 export function watchSettings(listener: (next: Settings) => void): () => void {
