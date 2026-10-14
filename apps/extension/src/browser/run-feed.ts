@@ -12,8 +12,7 @@
  * 而端口天生就是「有变化才说话」，页面关掉连接自动断，不需要清理定时器。
  */
 
-import { RUN_STATE_PORT } from '../messages.ts';
-import type { RunState } from '../background/runtime/run-state';
+import { RUN_STATE_PORT, type RunState } from '../messages.ts';
 
 type Listener = (state: RunState) => void;
 

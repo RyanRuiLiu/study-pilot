@@ -24,7 +24,7 @@ import { getSettings, updateSettings } from './settings';
 // 视图模型：界面需要认识的就这几个形状
 export type { PendingSummary, UnitDetail } from './messages.ts';
 export type { Snapshot } from './messages.ts';
-export type { RunState } from './background/runtime/run-state';
+export type { RunState } from './messages.ts';
 export type { Tone } from './browser/run-once.ts';
 export type { Settings } from './settings';
 

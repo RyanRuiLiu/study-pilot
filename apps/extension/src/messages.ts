@@ -45,9 +45,8 @@ export type ShellRequest =
   | { type: 'RUN_SCHEDULED_TASKS' }
   /** 后台此刻在不在跑、上一轮记下的失败 */
   | { type: 'TASK_STATE' }
-  /** 运行状态快照（进度、逐项记录、最近几轮） */
-  | { type: 'RUN_STATE' }
-  /** 停止某个平台正在跑的那一轮，在两项之间生效 */
+  /** 运行状态快照（进度与逐项记录） */
+  | { type: 'RUN_STATE' };
 
 export interface ShellResponseMap {
   RUN_SCHEDULED_TASKS: RunScheduledTasksResponse;
