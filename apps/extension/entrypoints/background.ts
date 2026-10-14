@@ -24,9 +24,13 @@ import { whenNetRulesReady } from '../src/background/net-rules';
 import {
   type InspectCourse,
 } from '../src/platforms/mooc/read';
+import { getTaskState, liveRunState, resetState } from '../src/background/runtime/scheduler';
+import { listNetRules } from '../src/background/net-rules';
 import { registerMessageHandler } from '../src/background/messages/router';
+import { moocHandlers } from '../src/platforms/mooc/messages/handlers';
+import { createMoocTasks } from '../src/platforms/mooc/tasks.ts';
 import { registerBackgroundWiring } from '../src/background/wiring';
-import { createPlatformClient, loadSnapshot, refreshCourses } from '../src/background/platform-sync';
+import { createPlatformClient, loadSnapshot, refreshCourses } from '../src/platforms/mooc/sync';
 
 
 
@@ -122,6 +126,25 @@ export default defineBackground(() => {
     coursewareContext,
   };
 
-  registerMessageHandler(runDeps);
+  /*
+   * 消息处理器表：**装配层合并各平台**。
+   *
+   * 路由本身不认识任何一条业务，只按 type 分发；因此新增平台只要在这里多合并
+   * 一份处理器，并把它加进平台清单。
+   */
+  registerMessageHandler({
+    handlers: moocHandlers({
+      ...runDeps,
+      shell: {
+        runState: async () => {
+          const state = await getTaskState();
+          return { state, live: liveRunState(state) };
+        },
+        resetRunState: resetState,
+        netRuleCount: async () => (await listNetRules()).length,
+      },
+    }),
+    platforms: () => [createMoocTasks(runDeps)],
+  });
   registerBackgroundWiring(runDeps);
 });

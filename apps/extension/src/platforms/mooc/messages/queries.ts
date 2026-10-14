@@ -13,20 +13,19 @@ import {
   getQuizBank,
   type CourseType,
 } from '@study-pilot/platform-mooc';
-import { getSettings } from '../../settings';
-import { ensureSession } from '../../platform/mooc/session';
-import type { BackgroundRequest } from '../../platform/messaging';
-import { notifySample } from '../../platforms/mooc/reminder';
-import { readSnapshot } from '../../platforms/mooc/read';
-import { derivePlan } from '../../platforms/mooc/plan';
-import { toPendingSummary, toUnitDetails } from '../../platforms/mooc/to-messages';
-import { listNetRules } from '../net-rules';
-import { getTaskState, liveRunState, resetState } from '../runtime/scheduler';
-import { recoveryFailure, withSessionRecovery } from '../../platforms/mooc/recovery.ts';
-import type { RouterDeps, SendResponse } from './router.ts';
+import { getSettings } from '../../../settings';
+import { ensureSession } from '../../../platform/mooc/session';
+import type { BackgroundRequest } from '../../../platform/messaging';
+import { notifySample } from '../reminder';
+import { readSnapshot } from '../read';
+import { derivePlan } from '../plan';
+import { toPendingSummary, toUnitDetails } from '../to-messages';
+import { recoveryFailure, withSessionRecovery } from '../recovery.ts';
+import type { SendResponse } from '../../../platform/messaging';
+import type { MoocMessageDeps } from './deps.ts';
 
 export async function handleQuery(
-  deps: RouterDeps,
+  deps: MoocMessageDeps,
   request: BackgroundRequest | undefined,
   sendResponse: SendResponse,
 ): Promise<boolean> {
@@ -68,7 +67,7 @@ export async function handleQuery(
            * 执行结束后弹窗会自己重读一次待办（跟随轮询看到不是 running 就重读），
            * 所以省掉的这次请求不会被漏掉。
            */
-          if (liveRunState(await getTaskState()) === 'running') {
+          if ((await deps.shell.runState()).live === 'running') {
             const cached = await readSnapshot().catch(() => null);
             const plan = cached
               ? derivePlan(cached, settingsForPending)
@@ -220,7 +219,7 @@ export async function handleQuery(
 
           let ruleCount: number | string;
           try {
-            ruleCount = (await listNetRules()).length;
+            ruleCount = await deps.shell.netRuleCount();
           } catch (error) {
             ruleCount = `抛出: ${error instanceof Error ? error.message : String(error)}`;
           }
@@ -247,13 +246,13 @@ export async function handleQuery(
            * 在浏览器被强杀后会留着没人清，猜出来是「正在执行」，而实际什么
            * 都没发生。判据归后台（scheduler.liveRunState），界面只负责显示。
            */
-          const state = await getTaskState();
-          sendResponse({ state, live: liveRunState(state) });
+          const { state, live } = await deps.shell.runState();
+        sendResponse({ state, live });
           break;
         }
 
         case 'RESET_TASK_STATE':
-          await resetState();
+          await deps.shell.resetRunState();
           sendResponse({ ok: true });
           break;
     case 'QUIZ_BANK': {

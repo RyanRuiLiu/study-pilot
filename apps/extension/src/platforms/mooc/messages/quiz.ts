@@ -19,12 +19,12 @@ import {
   getQuizPaper,
   submitQuiz,
 } from '@study-pilot/platform-mooc';
-import type { RouterDeps } from './router.ts';
+import type { MoocMessageDeps } from './deps.ts';
 
 export type SubmitQuizResult = { ok: true; matched: number } | { ok: false; message: string };
 
 export async function handleSubmitQuiz(
-  deps: RouterDeps,
+  deps: MoocMessageDeps,
   quizId: number,
   termId: number,
 ): Promise<SubmitQuizResult> {

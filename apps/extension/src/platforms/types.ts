@@ -36,6 +36,11 @@ export interface PlanResult {
    * 调度层据此记下挂起状态，等用户下次在平台上活动后自动补做。
    */
   needsLogin?: boolean;
+  /**
+   * 什么都没做时说明原因，外壳据此给前台一句准确的话。
+   * 「没勾课程」是平台才知道的事，外壳不该去猜。
+   */
+  blocked?: 'no-course';
 }
 
 /** 后台半个契约。 */
@@ -44,8 +49,13 @@ export interface PlatformTasks {
   name: string;
   /** 前置条件（登录/会话）。调度层据此决定"等登录"还是继续 */
   isReady(): Promise<boolean>;
-  /** 该做什么。调度层只执行 mode 为 auto 的项 */
-  plan(now: number): Promise<PlanResult>;
+  /**
+   * 该做什么。调度层只执行 mode 为 auto 的项。
+   *
+   * `force` 用于手动执行：那时用户要的是「现在就去平台上拿最新的」，
+   * 不受「今天已经拉过」的约束。
+   */
+  plan(now: number, options?: { force?: boolean }): Promise<PlanResult>;
   /** 做一件。失败如实返回，调度层不重试、不解释 */
   run(item: PlanItem, heartbeat: () => Promise<void>): Promise<RunOutcome>;
   /** 本轮收尾：组织通知等平台自己的事。没有要报的就什么都不做 */
