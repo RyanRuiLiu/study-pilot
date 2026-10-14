@@ -7,9 +7,8 @@
 
 import { describe, expect, it } from 'vitest';
 /*
- * 从 schema 直接导入，不走 settings 的 barrel：后者会连带 storage.ts，
- * 而它顶层就建立存储项、读 browser.runtime，测试环境里必然抛错
- * （这一点 schema/index.ts 的文件头写着，我第一版正是踩了它）。
+ * 从包的入口直接导入，不走扩展侧 settings 的门：后者会连带 storage.ts，
+ * 而它顶层就建立存储项、读 browser.runtime，测试环境里必然抛错。
  */
 import { DEFAULT_MOOC, DEFAULT_SETTINGS, normalize } from '../src/index.ts';
 
