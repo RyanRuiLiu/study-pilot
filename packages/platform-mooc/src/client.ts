@@ -23,6 +23,15 @@ import type { Md5HexFn } from '@study-pilot/core';
 /** 站点 origin。所有接口路径都相对它拼接。 */
 export const MOOC_ORIGIN = 'https://www.icourse163.org';
 
+/**
+ * 平台按常规浏览器 UA 判来源（非浏览器 UA 会被回绝）。
+ *
+ * 浏览器载体用不到它——那边发出去的请求天然带浏览器自己的 UA；自己发请求的载体
+ * （命令行、服务端）要用它。写成一处，免得两边各留一份、改一处漏一处。
+ */
+export const BROWSER_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
+
 export interface MoocClientOptions {
   fetch: FetchLike;
   /** 取 NTESSTUDYSI。未登录时平台也会下发匿名值 */

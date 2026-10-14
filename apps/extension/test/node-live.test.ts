@@ -22,7 +22,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { COURSE_TYPE, createMoocClient, getCourses } from '@study-pilot/platform-mooc';
+import { BROWSER_USER_AGENT, COURSE_TYPE, createMoocClient, getCourses } from '@study-pilot/platform-mooc';
 import { md5hex } from '@study-pilot/core';
 
 const SESSION_FILE = resolve(process.cwd(), '../../.probe/mooc-session.json');
@@ -59,10 +59,7 @@ function nodeFetch(sessionFile: SessionFile): typeof fetch {
     headers.set('Cookie', cookie);
     headers.set('Origin', sessionFile.origin);
     headers.set('Referer', `${sessionFile.origin}/`);
-    headers.set(
-      'User-Agent',
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36',
-    );
+    headers.set('User-Agent', BROWSER_USER_AGENT);
     return fetch(input, { ...init, headers });
   };
 }

@@ -22,6 +22,7 @@ import type { CoursewareContext, TextGenerator } from '../courseware/index.ts';
 import type { MoocClient, MoocClientOptions } from '../client.ts';
 import { createPlatformClient, loadSnapshot, refreshCourses, type PlatformClient } from './sync.ts';
 import { createMoocTasks, type MoocRunDeps } from './tasks.ts';
+import { LOGIN_COOKIE } from './session.ts';
 import { MOOC_REQUEST_RULES } from './net-rules.ts';
 import type { InspectCourse, Snapshot } from './read/index.ts';
 
@@ -125,13 +126,10 @@ export function createMoocRuntime(carrier: MoocCarrierDeps): MoocRuntime {
     selectedCourses,
     coursewareContext,
     tasks: () => createMoocTasks(runDeps),
-    /*
-     * 登录后才下发的是 STUDY_INFO 与 STUDY_SESS；NTESTUDYSI 在访客状态下也有，
-     * 不能当登录信号（见本包 policy/session.ts 的 cookie 分工表）。
-     */
     wiring: {
       id: 'mooc',
-      loginCookie: { name: 'STUDY_INFO', domain: 'icourse163.org' },
+      // 登录信号（含「为什么不能用 NTESTUDYSI」）在 session.ts 一处定义
+      loginCookie: LOGIN_COOKIE,
       requestRules: MOOC_REQUEST_RULES,
     },
   };
