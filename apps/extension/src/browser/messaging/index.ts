@@ -18,6 +18,9 @@ import type {
   PaperQuestion,
 } from '@study-pilot/platform-mooc';
 import type { Snapshot } from '../../platforms/mooc/read';
+
+/** DASHBOARD 的载荷就是它；弹窗要算「还剩多少课件」时也要用同一个类型 */
+export type { Snapshot };
 import type { MoocSession } from '../../platforms/mooc/session';
 import type {
   JobRejection,
