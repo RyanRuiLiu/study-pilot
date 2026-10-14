@@ -41,18 +41,6 @@ export async function waitForCdp({ port = DEFAULT_PORT, timeoutMs = 30000 } = {}
   }
 }
 
-/** 新建一个 about:blank 页面并返回其 target。 */
-export async function newPageTarget({ port = DEFAULT_PORT } = {}) {
-  const res = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' });
-  if (!res.ok) throw new Error(`新建页面失败：HTTP ${res.status}`);
-  return res.json();
-}
-
-/** 关闭 target。 */
-export async function closeTarget(id, { port = DEFAULT_PORT } = {}) {
-  await fetch(`http://127.0.0.1:${port}/json/close/${id}`, { method: 'PUT' }).catch(() => undefined);
-}
-
 /** 一条 CDP 会话（直连某个 page target 的 WebSocket）。 */
 export class Session {
   #ws;

@@ -91,9 +91,6 @@ export const REJECTION_MESSAGES: Record<JobRejection, string> = {
   NO_USER_ID: '无法读取账号信息，请确认已登录后重试',
 };
 
-export function describeRejection(reason: JobRejection): string {
-  return REJECTION_MESSAGES[reason];
-}
 
 /** 手动执行一轮的响应。 */
 export type RunScheduledTasksResponse =

@@ -16,6 +16,3 @@ export declare function findChromeForTesting(): string | null;
  * 它不能作为调试宿主，只用于报错时说明检测到的是哪一个。
  */
 export declare function findBrandedChrome(): string | null;
-
-/** 装不上时给用户的统一说法。 */
-export declare function chromeForTestingInstallHint(): string;

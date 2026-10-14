@@ -99,22 +99,3 @@ export function findBrandedChrome() {
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
-/**
- * 装不上时给用户的统一说法。两处调用点共用，不许各写一份。
- *
- * @returns {string}
- */
-export function chromeForTestingInstallHint() {
-  return [
-    '找不到 Chrome for Testing，无法加载未打包扩展。',
-    '',
-    '官方品牌版 Chrome 自 137 起移除了 --load-extension，且没有 CDP 的 Extensions',
-    '域：加载会「假成功」（返回 id 但扩展并未装上），扩展页面打开是',
-    'ERR_BLOCKED_BY_CLIENT。因此不静默退回品牌版。',
-    '',
-    '安装：',
-    '  npx @puppeteer/browsers install chrome@stable --path ~/.cache/chrome-for-testing',
-    '',
-    `查找位置：${chromeForTestingRoot() || '（未设置 CHROME_FOR_TESTING_PATH，也没有 USERPROFILE）'}`,
-  ].join('\n');
-}
