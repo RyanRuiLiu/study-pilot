@@ -11,7 +11,7 @@ import { COURSE_TYPE, createMoocClient, getCourses, type CourseSummary, type Moo
 import { getSettings, updateSettings } from '../../settings';
 import { readToken, renewSession, SessionExpiredError } from './session';
 import type { HostCapabilities } from '../types.ts';
-import { inspect, writeSnapshot, type InspectCourse, type Snapshot } from './read';
+import { inspect, type InspectCourse, type Snapshot } from './read';
 import { mergeCourses } from './course-selection';
 
 import { MOOC_REQUEST_RULES } from './net-rules.ts';
@@ -90,10 +90,7 @@ export function createPlatformClient(host: HostCapabilities): PlatformClient {
  * 排查时无从下手。
  *
  * 不做任何「多久之内不重复请求」的判断。节流由调用方负责，
- * 而且调用方本来就有更准确的依据：
- *   自动执行   由 `plan.shouldRefresh` 决定值不值得拉（看快照里有没有能被
- *              消灭的项，以及今天是否已完整拉过 `read.fetchedToday`）；
- *   手动打开   无条件调，用户明确表达了现在想看。
+ * 而且调用方本来就有更准确的依据：它知道自己为什么现在要拉。
  * 在数据层再加一层日期缓存，只是把同一个判断做两遍，
  * 还会出现两处判断不一致的隐患。
  */
@@ -164,22 +161,11 @@ export async function refreshCourses(client: MoocClient): Promise<
   return { ok: true, courses, byType };
 }
 
-/**
- * 拉取平台最新状态并落盘快照。
- *
- * 这是**唯一**更新快照的入口。自动执行与手动打开都走它，因此快照永远
- * 反映最近一次读取——不会出现「弹窗看到的是新数据、启动判断用的是旧数据」。
- *
- * 两个调用时机对它的要求不同，但都通过调用方决定「要不要调」来表达：
- *   自动执行   由 shouldRefresh 决定，可能整轮都不调
- *   手动打开   无条件调，用户明确表达了现在想看
- */
+/** 拉取平台最新状态。每次调用都是一次真实读取：不缓存，也不留旧数据。 */
 export async function loadSnapshot(
   client: MoocClient,
   courses: InspectCourse[],
   userId: number,
 ): Promise<Snapshot> {
-  const snapshot = await inspect(client, courses, userId);
-  await writeSnapshot(snapshot);
-  return snapshot;
+  return await inspect(client, courses, userId);
 }

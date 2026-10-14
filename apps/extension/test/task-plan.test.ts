@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { CourseUnit } from '@study-pilot/platform-mooc';
-import { derivePlan, shouldRefresh, type Plan } from '../src/platforms/mooc/plan';
+import { derivePlan, type Plan } from '../src/platforms/mooc/plan';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/platforms/mooc/read';
 import type { Settings } from '../src/settings';
 
@@ -83,7 +83,7 @@ function snapshot(works: SnapshotWork[], units: CourseUnit[] = []): Snapshot {
     works,
     units,
   };
-  return { version: 1, fetchedAt: NOW, fetchedDate: '2026-09-26', courses: [course] };
+  return { courses: [course] };
 }
 
 /** 计划的简写，便于在表格里写期望值。 */
@@ -337,43 +337,6 @@ describe('一份作业同时需要互评与自评', () => {
   });
 });
 
-// ---------- 是否值得拉取 ----------
-
-describe('是否值得拉取', () => {
-  const nothingToDo = snapshot([work({ tid: 1, submitted: true, score: 90 })]);
-  const hasQuiz = snapshot([work({ tid: 1 })]);
-  const hasDisabledQuiz = snapshot([work({ tid: 1 })]);
-
-  it('没有快照时必须拉', () => {
-    expect(shouldRefresh(null, ALL, false, NOW)).toBe(true);
-  });
-
-  it('今天还没拉过时必拉，这是发现新作业的唯一手段', () => {
-    expect(shouldRefresh(nothingToDo, ALL, false, NOW)).toBe(true);
-  });
-
-  it('今天拉过且无事可做时不拉——这是绝大多数触发的情形', () => {
-    expect(shouldRefresh(nothingToDo, ALL, true, NOW)).toBe(false);
-  });
-
-  it('有能自动完成的事时立刻拉，不等满一天', () => {
-    expect(shouldRefresh(hasQuiz, ALL, true, NOW)).toBe(true);
-  });
-
-  it('任务全关时，可自动项不构成拉取理由', () => {
-    // 自动答题关着，那项测验不会被处理，因此不值得为它去拉
-    expect(shouldRefresh(hasDisabledQuiz, NONE, true, NOW)).toBe(false);
-  });
-
-  it('任务全关但仍保证每天拉一次', () => {
-    expect(shouldRefresh(hasDisabledQuiz, NONE, false, NOW)).toBe(true);
-  });
-
-  it('只开自动自评时，未提交的测验不构成拉取理由', () => {
-    expect(shouldRefresh(hasQuiz, ONLY_SELF, true, NOW)).toBe(false);
-  });
-});
-
 // ---------- 组合覆盖度自检 ----------
 
 describe('组合覆盖', () => {
@@ -476,9 +439,5 @@ describe('课件单元的自动完成', () => {
     expect(plan.auto.map((a) => a.kind)).toEqual(['courseware', 'quiz']);
   });
 
-  it('只开课件开关也值得去拉最新数据', () => {
-    const snap = snapshot([], [unitOf({ unitId: 1 })]);
-    expect(shouldRefresh(snap, settingsWith({ courseware: true }), true, NOW)).toBe(true);
-  });
 });
 

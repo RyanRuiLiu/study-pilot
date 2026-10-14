@@ -70,10 +70,8 @@ function course(): SnapshotCourse {
 }
 
 const snapshot: Snapshot = {
-  version: 1,
-  fetchedAt: NOW,
   courses: [course()],
-} as Snapshot;
+};
 
 describe('Node 里跑核心逻辑', () => {
   it('不碰浏览器也能算出计划与通知正文', () => {

@@ -12,19 +12,6 @@ import { ok } from '@study-pilot/core';
 import type { TransportError } from '@study-pilot/transport';
 import type { CourseStructure } from '@study-pilot/platform-mooc';
 
-/*
- * snapshot.ts 顶层会注册存储项，vitest 环境没有 wxt 的 browser 全局，
- * 用一个惰性空实现替身——快照读写本身不在这轮测试范围内。
- */
-vi.mock('wxt/utils/storage', () => ({
-  storage: {
-    defineItem: () => ({
-      getValue: async () => null,
-      setValue: async () => undefined,
-    }),
-  },
-}));
-
 /** getCourseStructure 的结果按 termId 从这张表里取。 */
 const structureResults = new Map<number, ResultLike>();
 type ResultLike =

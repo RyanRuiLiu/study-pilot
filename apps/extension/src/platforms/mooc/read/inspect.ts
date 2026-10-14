@@ -21,7 +21,6 @@ import {
   type MoocClient,
 } from '@study-pilot/platform-mooc';
 import { SessionExpiredError } from '../session';
-import { snapshotStamp } from './storage.ts';
 import type { InspectCourse, Snapshot, SnapshotCourse, SnapshotWork } from './types.ts';
 
 /**
@@ -169,5 +168,5 @@ export async function inspect(
     throw new Error(`全部 ${failures} 门课程都读取失败（${firstFailure}）`);
   }
 
-  return { ...snapshotStamp(now), courses: snapshotCourses };
+  return { courses: snapshotCourses };
 }

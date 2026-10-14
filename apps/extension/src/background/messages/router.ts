@@ -55,7 +55,7 @@ async function runOnce(deps: RouterDeps, sendResponse: SendResponse<'RUN_SCHEDUL
 
       // 与自动执行同一套：每一步之前刷心跳，理由见 autoRun 里的说明
       await touchRun();
-      const plan = await platform.plan(now, { force: true });
+      const plan = await platform.plan(now);
       if (plan.needsLogin === true) {
         sendResponse({ ok: false, reason: 'NOT_LOGGED_IN' });
         return;

@@ -48,14 +48,9 @@ export function getPending() {
   return sendToBackground({ type: 'PENDING_SUMMARY' });
 }
 
-/** 全部单元明细，来自本地快照（打开界面不发请求）。 */
+/** 全部单元明细，逐门课从平台读一次。 */
 export function getUnitDetails() {
   return sendToBackground({ type: 'UNIT_DETAILS' });
-}
-
-/** 课程与任务的完整快照（本地）。 */
-export function getDashboard() {
-  return sendToBackground({ type: 'DASHBOARD' });
 }
 
 /** 后台此刻在不在跑、上一轮记下的失败。 */
@@ -63,7 +58,7 @@ export function getTaskState() {
   return sendToBackground({ type: 'TASK_STATE' });
 }
 
-/** 运行状态的当前快照（含最近几轮的历史）。 */
+/** 运行状态的当前快照。 */
 export function getRunState() {
   return sendToBackground({ type: 'RUN_STATE' });
 }

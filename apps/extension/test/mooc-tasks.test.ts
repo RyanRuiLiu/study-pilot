@@ -1,14 +1,12 @@
 /*
  * 慕课后台流程的结果归属（`platforms/mooc/tasks.ts`）。
-import type { HostCapabilities } from '../src/platforms/types.ts';
  *
  * 这里验的不是计划算得对不对（那是 task-plan.test.ts），也不是一条动作怎么执行
  * （那是 execute-work.test.ts），而是**一件事的结果有没有记到正确的项上**：
- * plan 给出的 id 是 run 落结果、report 取结果的唯一凭据。id 少写一个插值时，
- * 一轮里所有工作项共用同一条结果，通知里「替你做了什么」会整体错位到最后那一项，
- * 而请求、提交、计数全都正常——界与事实分离，且不报任何错。
+ * plan 给出的 id 是 run 落结果的唯一凭据。id 少写一个插值时，一轮里所有工作项
+ * 共用同一条结果，而请求、提交、计数全都正常——结果与事实分离，且不报任何错。
  *
- * 平台的接口调用与通知发送换成替身：本文件要验的是记账，不是网络。
+ * 平台的接口调用换成替身：本文件要验的是记账，不是网络。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,13 +14,11 @@ import type { HostCapabilities } from '../src/platforms/types.ts';
 
 vi.mock('../src/settings', () => ({ getSettings: vi.fn() }));
 vi.mock('../src/platforms/mooc/session', () => ({ ensureSession: vi.fn() }));
-vi.mock('../src/platforms/mooc/read', () => ({ readSnapshot: vi.fn(), fetchedToday: vi.fn() }));
-vi.mock('../src/platforms/mooc/plan', () => ({ derivePlan: vi.fn(), shouldRefresh: vi.fn() }));
+vi.mock('../src/platforms/mooc/plan', () => ({ derivePlan: vi.fn() }));
 vi.mock('../src/platforms/mooc/execute', () => ({ executeActions: vi.fn() }));
 
 import { ensureSession } from '../src/platforms/mooc/session';
-import { readSnapshot } from '../src/platforms/mooc/read';
-import { derivePlan, shouldRefresh } from '../src/platforms/mooc/plan';
+import { derivePlan } from '../src/platforms/mooc/plan';
 import { executeActions } from '../src/platforms/mooc/execute';
 import { getSettings } from '../src/settings';
 import { createMoocTasks, type MoocRunDeps } from '../src/platforms/mooc/tasks';
@@ -62,10 +58,7 @@ function tasksOf(auto: AutoAction[]) {
   return createMoocTasks(deps());
 }
 
-/*
- * 测试替身：平台只认 host 接口，不认浏览器。这里给一套不做事的最小实现，
- * 通知相关的方法本来就被 vi.mock 掉，不会真的走到。
- */
+/** 测试替身：平台只认 host 接口，不认浏览器。这里给一套不做事的最小实现。 */
 const fakeHost: HostCapabilities = {
   whenRequestRulesReady: async () => {},
   readCookie: async () => '',
@@ -101,9 +94,6 @@ beforeEach(() => {
     mooc: { background: { autoReview: { comment: '按评分点逐项给分' } } },
   } as never);
   vi.mocked(ensureSession).mockResolvedValue({ loggedIn: true, userId: 42 } as never);
-  vi.mocked(readSnapshot).mockResolvedValue({} as never);
-  // 需要拉最新数据，plan 才会走到「派生计划 → 执行」那条路
-  vi.mocked(shouldRefresh).mockReturnValue(true);
   vi.mocked(executeActions).mockImplementation((_client, actions) =>
     Promise.resolve(actions.map((action) => resultOf(action as never)) as never),
   );

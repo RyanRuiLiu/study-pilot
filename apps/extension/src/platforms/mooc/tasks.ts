@@ -1,12 +1,12 @@
 /*
  * 慕课的平台实现（后台半边）。
  *
- * 这里拥有慕课的全部后台流程：会话、刷新课程、读快照（带会话恢复）、派生计划、
- * 执行、组织通知。调度层只看到 PlanItem 与 RunOutcome，不认识 courseId、tid、
+ * 这里拥有慕课的全部后台流程：会话、刷新课程、读最新数据（带会话恢复）、派生计划、
+ * 执行。调度层只看到 PlanItem 与 RunOutcome，不认识 courseId、tid、
  * contentType 这些字段——它们是慕课的事，装进 payload 里交回这里。
  *
  * 从 src/background/run-tasks.ts 搬来，逻辑逐行保留；唯一变化是"谁调用谁"：
- * 以前后台直接写慕课的流程，现在平台把流程包成三个动作（plan / run / report）。
+ * 以前后台直接写慕课的流程，现在平台把流程包成两个动作（plan / run）。
  */
 
 import type { CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
@@ -16,8 +16,8 @@ import { withSessionRecovery } from './recovery.ts';
 import { getSettings, type Settings } from '../../settings';
 import type { PlanItem, PlanResult, PlatformTasks, RunOutcome } from '../types.ts';
 import { executeActions } from './execute';
-import { derivePlan, shouldRefresh, type Plan } from './plan';
-import { fetchedToday, readSnapshot, type InspectCourse, type Snapshot } from './read';
+import { derivePlan, type Plan } from './plan';
+import type { InspectCourse, Snapshot } from './read';
 
 /** 平台跑一轮需要的外界能力。全由入口创建后注入，平台自己不碰浏览器全局。 */
 export interface MoocRunDeps {
@@ -34,20 +34,6 @@ export interface MoocRunDeps {
   coursewareContext: (settings: Settings) => CoursewareContext;
   /** 失败记进外壳的运行状态（平台不反向依赖执行面，这是注入进来的端口） */
   recordFailure: (message: string) => Promise<void>;
-}
-
-/**
- * 本地已有快照是否算「今天拉过」。
- *
- * 读失败不当作拉过：否则一次存储异常会让今天再也不会重新拉取，
- * 而用户看不到任何异常——只是所有判断都基于越来越旧的数据。
- */
-async function snapshotIsFresh(now: number): Promise<boolean> {
-  try {
-    return fetchedToday(await readSnapshot(), now);
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -87,9 +73,6 @@ function toItems(plan: Plan): PlanItem[] {
 }
 
 export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
-  /** 本轮的计划。report 要用它组织通知：计划是执行前算的，执行后有些项已经完成了。 */
-  /** 本轮的执行结果，按项记下；payload 与结果都是慕课自己的形状。 */
-
   return {
     id: 'mooc',
     name: '中国大学 MOOC',
@@ -98,33 +81,10 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       return (await ensureSession(deps.host)).loggedIn;
     },
 
-    async plan(now: number, options?: { force?: boolean }): Promise<PlanResult> {
+    async plan(now: number): Promise<PlanResult> {
       const settings = await getSettings();
       const courses = deps.selectedCourses(settings);
       if (courses.length === 0) return { items: [], blocked: 'no-course' };
-
-      let snapshot: Snapshot | null;
-      try {
-        snapshot = await readSnapshot();
-      } catch {
-        snapshot = null;
-      }
-
-      /*
-       * 快照为空时 shouldRefresh 必定为真（没有快照什么都判断不了），
-       * 因此这里同时判空只是为了把这条不变式写进代码，让分支里拿到确定的非空类型。
-       */
-      // 手动执行（force）跳过「今天已经拉过」这一关：用户点它就是要拿最新的
-      const fresh = options?.force === true ? false : await snapshotIsFresh(now);
-      if (snapshot !== null && !options?.force && !shouldRefresh(snapshot, settings, fresh, now)) {
-        /*
-         * 不必拉取：快照说没有能自动完成的事，且今天已经全量看过。
-         * 用快照出提醒后结束——截止时间一旦发布就不会变，
-         * 所以快照里的它是可靠的；而"是否已完成"会变，所以只报未完成的。
-         */
-        const plan = derivePlan(snapshot, settings, now);
-        return { items: toItems(plan) };
-      }
 
       const session = await ensureSession(deps.host);
       if (!session.loggedIn) return { items: [], needsLogin: true };

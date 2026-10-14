@@ -7,14 +7,12 @@
  * 未登录时不往下走：平台接口以用户为维度，拿 userId = 0 去查得到的是「查不到」，
  * 会被当成读取失败，而真实原因是没登录。
  *
- * 正在执行时不重新拉取，只回现有快照：执行那一轮自己就在写快照，两边同时拉会互相
- * 覆盖，而用户看到的正好是被抹掉的那一份。执行结束后界面会自己重读一次。
+ * 每次调用都从平台读一次最新数据：读是只读的，不存在两份读取互相覆盖的问题。
  */
 
 import type { MessageHandler } from '../../../protocol.ts';
 import { getSettings } from '../../../settings';
 import { derivePlan } from '../plan';
-import { readSnapshot } from '../read';
 import { recoveryFailure, withSessionRecovery } from '../recovery.ts';
 import { ensureSession } from '../session';
 import { toPendingSummary } from '../to-messages';
@@ -35,20 +33,9 @@ export function pendingCommand(deps: MoocMessageDeps): MessageHandler {
       return;
     }
 
-    if ((await deps.shell.runState()).live === 'running') {
-      const cached = await readSnapshot().catch(() => null);
-      const plan = cached ? derivePlan(cached, settings) : { auto: [], manual: [] };
-      sendResponse({
-        status: 'ok',
-        running: true,
-        value: toPendingSummary(plan, settings.schedule.keepOverdueDays),
-      } satisfies MoocResponseMap['PENDING_SUMMARY']);
-      return;
-    }
-
     try {
       /*
-       * 用户主动打开弹窗就是「现在想看看有什么要做」，因此无条件拉最新并更新快照。
+       * 用户主动打开弹窗就是「现在想看看有什么要做」，因此无条件去平台拉最新一份。
        * 拉取带会话恢复：这是「长时间不点扩展后显示暂无待办」的现场路径。
        */
       const outcome = await withSessionRecovery(
