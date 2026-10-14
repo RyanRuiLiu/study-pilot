@@ -104,7 +104,8 @@ export type RunScheduledTasksResponse =
       failed?: Array<{ name: string; detail: string }>;
       message?: string;
     }
-  | { ok: false; reason: JobRejection };
+  /** message 是失败的具体原因；界面只按 reason 取文案，这个字段留给出错时排查 */
+  | { ok: false; reason: JobRejection; message?: string };
 
 /**
  * 一个消息处理器。
