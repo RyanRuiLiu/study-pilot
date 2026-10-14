@@ -13,6 +13,7 @@ import { readToken, renewSession, SessionExpiredError } from '../../platform/moo
 import { inspect, writeSnapshot, type InspectCourse, type Snapshot } from './read';
 import { mergeCourses } from './course-selection';
 import { whenNetRulesReady } from '../../background/net-rules';
+import { MOOC_REQUEST_RULES } from './net-rules.ts';
 
 export interface PlatformClient {
   client: MoocClient;
@@ -56,7 +57,7 @@ const client = createMoocClient({
    * 重发时规则一定已生效，不必猜要等多久——第一次失败本身就是判据。
    */
   fetch: async (input, init) => {
-    await whenNetRulesReady();
+    await whenNetRulesReady(MOOC_REQUEST_RULES);
     const first = await fetch(input, init);
     if (!(await looksLikeOriginRejection(first))) return first;
 

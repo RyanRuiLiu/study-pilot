@@ -9,18 +9,17 @@
 import { clearAlarm, ensureAlarm, isCheckAlarm } from './runtime/alarms';
 import { watchSettings } from '../settings';
 import { getTaskState } from './runtime/scheduler';
-import { NOTIFICATION_PREFIX } from '../platforms/mooc/reminder';
-import type { PlatformTasks } from '../platforms/types.ts';
+import type { PlatformTasks, PlatformWiring } from '../platforms/types.ts';
 import { autoRun } from './run-tasks.ts';
-/** 平台的登录凭证 cookie。出现即表示登录成功。 */
-const LOGIN_COOKIE = 'NTESSTUDYSI';
 
-/*
- * 装配只需要「有哪些平台」。装配层知道平台清单，调度层不认识它们，
- * 依赖也只有这一项——因此不再复用某个平台的依赖类型。
+/**
+ * 装配只需要「有哪些平台」与「各平台的信号」。
+ * 装配层知道平台清单，调度层与外壳都不认识它们。
  */
 export interface WiringDeps {
   platforms: () => PlatformTasks[];
+  /** 各平台的信号（登录 cookie、通知前缀）。外壳按清单遍历，不认平台名字 */
+  wiring: PlatformWiring[];
 }
 
 export function registerBackgroundWiring(deps: WiringDeps): void {
@@ -77,12 +76,21 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
   /**
    * 登录后补执行。
    *
-   * 只观察 NTESSTUDYSI——它是平台的登录凭证，出现即表示登录成功。
+   * 只观察各平台声明的**登录凭证 cookie**（缺省表示该平台没有这种信号）。
    * 挂起标记不存在时这里不做任何事，因此日常浏览网页不会误触发。
+   *
+   * 为什么由平台声明而不是外壳写死 cookie 名：名字与"它是不是登录凭证"都是
+   * 平台的实测结论，外壳无从判断。慕课这里踩过一次：匿名会话 cookie 在访客
+   * 状态下也有，拿它当信号会在没人登录时补跑一轮。
    */
   browser.cookies.onChanged.addListener((change) => {
-    if (change.cookie.name !== LOGIN_COOKIE) return;
-    if (change.cookie.domain && !change.cookie.domain.includes('icourse163.org')) return;
+    const matched = deps.wiring.some((platform) => {
+      const expected = platform.loginCookie;
+      if (expected === undefined) return false;
+      if (change.cookie.name !== expected.name) return false;
+      return !change.cookie.domain || change.cookie.domain.includes(expected.domain);
+    });
+    if (!matched) return;
 
     void (async () => {
       if (change.removed) return;
@@ -114,7 +122,9 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
      * 发送用的 id 每次都不一样（前缀加时间戳，见 reminder.ts），
      * 任何等值比较都会立刻失效——这个坑不能踩第二次。
      */
-    const anchor = notificationId.startsWith(NOTIFICATION_PREFIX) ? '#platforms' : '';
+    const anchor = deps.wiring.some((platform) => notificationId.startsWith(platform.notificationPrefix))
+      ? '#platforms'
+      : '';
     const url = browser.runtime.getURL(`/dashboard.html${anchor}`);
     void browser.tabs.create({ url });
   });
