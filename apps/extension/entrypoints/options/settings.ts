@@ -1,19 +1,15 @@
 /*
- * 设置页：二级标签 + 表单。
+ * 设置页：并列的分区。
  *
- * 布局照 chrome://settings 与 VS Code Settings 那一类：一级在顶（本文件的宿主），
- * 二级在左或上一排，一次只显示一类。原来是「一条长页 + 左侧锚点导航」，
- * 要滚、要跟随高亮、还要在异步内容把文档撑高时反复重新定位（那套 ResizeObserver
- * 与滚动监听已经整块删掉）——分成标签之后这些都不需要了。
+ * 每个分区就是官方的一个 sl-details（可收起的块），标题取自分区自己身上
+ * （sectionTitle），不另写一份清单——手写的话，改了标题而忘了改导航，两边就会对不上。
  *
- * 标签从分区自己身上读标题（sectionTitle），不另写一份清单：
- * 手写的话，改了分区标题而忘了改导航，两边就会对不上。
+ * 先前这里在「概览/运行/设置/关于」之下又套了一层 sl-tab-group：同一页两排标签，
+ * 视觉上分不清层级，也偏离了组件的本意。分区比标签更贴切——它们可以并列、可收起，
+ * 用户也能一眼看到有哪几块。
  */
 
-import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
-import '@shoelace-style/shoelace/dist/components/tab/tab.js';
-import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
-import '@shoelace-style/shoelace/dist/components/divider/divider.js';
+import '@shoelace-style/shoelace/dist/components/details/details.js';
 
 import { getSettings, resetSettings } from '../../src/settings';
 import { setCurrent, setRender, setToast } from '../../src/settings/page-state.ts';
@@ -35,13 +31,7 @@ function sections(): HTMLElement[] {
 
 export function mountSettings(toast: (text: string) => void): SettingsView {
   const host = document.createElement('div');
-  host.className = 'sp-settings';
 
-  const group = document.createElement('sl-tab-group');
-  host.append(group);
-
-  const foot = document.createElement('div');
-  foot.className = 'sp-settings-foot';
   const reset = button({
     label: '恢复默认设置',
     outline: true,
@@ -56,27 +46,22 @@ export function mountSettings(toast: (text: string) => void): SettingsView {
       });
     },
   });
-  const version = document.createElement('span');
-  version.className = 'sp-version';
+  const version = document.createElement('p');
   version.textContent = `v${browser.runtime.getManifest().version}`;
-  foot.append(reset, version);
-  host.append(foot);
 
   function render(): void {
-    group.replaceChildren();
-    sections().forEach((section, index) => {
-      const tab = document.createElement('sl-tab');
-      tab.setAttribute('slot', 'nav');
-      tab.panel = section.id;
-      tab.textContent = sectionTitle(section);
-      if (index === 0) tab.active = true;
+    host.replaceChildren();
 
-      const panel = document.createElement('sl-tab-panel');
-      panel.name = section.id;
-      panel.append(inlineSection(section));
+    for (const section of sections()) {
+      const details = document.createElement('sl-details');
+      details.setAttribute('summary', sectionTitle(section));
+      // 默认展开：设置项是来读的，不是要用户先去点开才知道里面有什么
+      details.setAttribute('open', '');
+      details.append(inlineSection(section));
+      host.append(details);
+    }
 
-      group.append(tab, panel);
-    });
+    host.append(reset, version);
   }
 
   setToast(toast);

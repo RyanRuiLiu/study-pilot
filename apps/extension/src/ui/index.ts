@@ -30,7 +30,6 @@ import '@shoelace-style/shoelace/dist/components/divider/divider.js';
 import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/tag/tag.js';
 
-import { dueLine, isUrgent } from './format';
 
 /** 状态行的语气。`busy` 是「正在做事」，`error` 是需要人看一眼的失败。 */
 export type Tone = 'idle' | 'busy' | 'error';
@@ -121,127 +120,12 @@ export function countLine(parts: string[]): HTMLElement {
   return line;
 }
 
-/** 整行可点的链接。去处一律新开一页：弹窗一关就没了，不该顶着当前页看。 */
-function anchor(href: string): HTMLAnchorElement {
-  const element = document.createElement('a');
-  element.href = href;
-  element.target = '_blank';
-  element.rel = 'noreferrer';
-  return element;
-}
 
-/** 一条待办要渲染的最小信息。组件不认识任何平台的模型，只认这三项。 */
-interface TaskRowItem {
-  title: string;
-  /** 截止时间（毫秒）；0 表示没有截止时间，此时不显示时间 */
-  due: number;
-  /** 可跳转地址；缺省时这一行不可点 */
-  href?: string;
-}
 
-/**
- * 一组待办：组名、组名后面那句数量、以及这一组里的条目。
- *
- * 先前是一整条不分组的清单，三门课的待办混在一起：「哪门课还欠着多少」
- * 这一眼看不出来，而那恰恰是点开弹窗要问的第一件事。
- */
-export interface TaskGroup {
-  title: string;
-  /**
-   * 组名后面那句（弹窗里是「没做完的 / 一共」）。
-   *
-   * 由调用方算好交进来：怎么数法各平台不同，组件不认识任何计数模型，
-   * 与 countLine 的分工一样。
-   */
-  count: string;
-  rows: TaskRowItem[];
-}
 
-/**
- * 一组一张卡片：卡片头是组名与那句数量，里面一行一条，行与行之间用官方分隔线。
- *
- * 「还剩多久」用 sl-tag 标在行尾，紧急的那几条换成 danger——
- * 这两件事都是组件库现成的画法，不再自己发明一道色条。
- */
-export function taskGroups(groups: TaskGroup[], emptyText: string): HTMLElement {
-  if (groups.length === 0) {
-    const empty = document.createElement('p');
-    empty.textContent = emptyText;
-    return empty;
-  }
 
-  const wrap = document.createElement('div');
-  wrap.className = 'sp-stack';
-  for (const group of groups) {
-    const card = document.createElement('sl-card');
 
-    const head = document.createElement('div');
-    head.slot = 'header';
-    head.className = 'sp-line';
-    const title = document.createElement('span');
-    title.className = 'sp-fill';
-    title.textContent = group.title;
-    head.append(title);
-    const count = document.createElement('sl-tag');
-    count.size = 'small';
-    count.variant = 'neutral';
-    count.textContent = group.count;
-    head.append(count);
 
-    const body = document.createElement('div');
-    group.rows.forEach((row, index) => {
-      if (index > 0) body.append(document.createElement('sl-divider'));
-      body.append(taskRow(row));
-    });
-
-    card.append(head, body);
-    wrap.append(card);
-  }
-  return wrap;
-}
-
-/** 一条待办：标题 + 还剩多久。有地址就整行可点。 */
-function taskRow(row: TaskRowItem): HTMLElement {
-  const line = document.createElement('div');
-  line.className = 'sp-line sp-item';
-
-  if (row.href === undefined) {
-    const title = document.createElement('span');
-    title.className = 'sp-fill';
-    title.textContent = row.title;
-    line.append(title);
-  } else {
-    const link = anchor(row.href);
-    link.className = 'sp-fill';
-    link.textContent = row.title;
-    line.append(link);
-  }
-
-  if (row.due > 0) {
-    const when = document.createElement('sl-tag');
-    when.size = 'small';
-    when.variant = isUrgent(row.due) ? 'danger' : 'neutral';
-    when.textContent = dueLine(row.due);
-    line.append(when);
-  }
-  return line;
-}
-
-/** 一排动作。官方组件就是 sl-button-group：并排、共用边框、首尾圆角。 */
-export function actionRow(controls: HTMLElement[]): HTMLElement {
-  const group = document.createElement('sl-button-group');
-  group.append(...controls);
-  return group;
-}
-
-/** 底部入口：一排等宽按钮。与 actionRow 同一种组件，只是语义上用在页脚。 */
-export function navBar(controls: HTMLElement[]): HTMLElement {
-  const nav = document.createElement('footer');
-  const group = actionRow(controls);
-  group.style.display = 'flex';
-  nav.append(group);
-  return nav;
-}
 
 /** 表格里的一行：要印出来的那几格文字。 */
 export interface DataRow {

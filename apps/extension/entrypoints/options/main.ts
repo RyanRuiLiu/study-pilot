@@ -10,8 +10,6 @@
  */
 
 import '@shoelace-style/shoelace/dist/themes/light.css';
-import '../../src/ui/layout.css';
-import './style.css';
 
 import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
 import '@shoelace-style/shoelace/dist/components/tab/tab.js';
@@ -42,8 +40,23 @@ type TabName = (typeof TABS)[number];
 const nav = required<HTMLElement & { show(name: string): void }>('#nav');
 const toastEl = required<SlAlert>('#toast');
 const toastText = required<HTMLElement>('#toast-text');
-const summary = required<HTMLElement>('#run-summary');
-const runButton = required<HTMLElement>('#run-now');
+const runPanel = required<HTMLElement>('sl-tab-panel[name="run"]');
+
+/*
+ * 「执行一轮」与它的状态属于「运行」这一页：同一件事只出现一次。
+ * 先前它们在顶栏，于是概览与运行各自还有一个「读取最新」之类的按钮，
+ * 同一页里三处都能动手，既重复又说不清各自做什么。
+ */
+const runButton = document.createElement('sl-button');
+runButton.setAttribute('variant', 'primary');
+runButton.textContent = '立即执行';
+
+const summary = document.createElement('p');
+summary.setAttribute('role', 'status');
+summary.textContent = '正在读取状态…';
+
+const actions = document.createElement('div');
+actions.append(runButton, summary);
 
 /**
  * 提示条走组件自带的 toast()：它把这条 alert 挂进 sl-toast-stack，
@@ -62,10 +75,10 @@ const overview = mountOverview(platforms);
 const run = mountRun();
 const settings = mountSettings(toast);
 
-required<HTMLElement>('#overview').append(overview.host);
-required<HTMLElement>('#run').append(run.host);
-required<HTMLElement>('#settings').append(settings.host);
-required<HTMLElement>('#about').append(mountAbout());
+required<HTMLElement>('sl-tab-panel[name="overview"]').append(overview.host);
+runPanel.append(actions, run.host);
+required<HTMLElement>('sl-tab-panel[name="settings"]').append(settings.host);
+required<HTMLElement>('sl-tab-panel[name="about"]').append(mountAbout());
 
 /* ---------- 标签切换与地址栏 ---------- */
 
@@ -103,9 +116,9 @@ subscribeRunState((state) => {
   overview.setBusy(running.length > 0);
   if (running.length > 0) {
     runButton.setAttribute('disabled', '');
-    summary.textContent = `正在执行 · ${running
+    summary.textContent = `正在执行，${running
       .map((platform) => `${platform.name} ${platform.finished}/${platform.total}`)
-      .join(' · ')}`;
+      .join('，')}`;
     return;
   }
 
@@ -114,7 +127,7 @@ subscribeRunState((state) => {
   summary.textContent =
     last === undefined
       ? '还没有执行过'
-      : `上次执行 ${formatDateTime(last.finishedAt)} · 完成 ${last.done} · 失败 ${last.failed}`;
+      : `上次执行 ${formatDateTime(last.finishedAt)}，完成 ${last.done} 项，失败 ${last.failed} 项。`;
 
   // 一轮结束会改动平台上的东西，清单必须跟着重读，否则用户看到的还是执行前那份
   if (last !== undefined && last.finishedAt !== lastFinishedAt) {

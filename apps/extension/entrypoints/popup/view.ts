@@ -10,10 +10,10 @@
  */
 
 import { MOOC_ORIGIN } from '@study-pilot/platform-mooc';
-import type { PendingEntry, PendingSummary, TaskStatus } from '../../src/browser/messaging';
+import type { PendingSummary, TaskStatus } from '../../src/browser/messaging';
 import { formatDateTime } from '../../src/ui/format';
-import { relativeDay } from '../../src/ui/format.ts';
 import { button, statusLine, type Tone } from '../../src/ui';
+import { byCourse, courseHeading, entryRow, summarySentence } from './rows.ts';
 
 /**
  * 一门课在这一屏里最多铺几张纸条。
@@ -22,7 +22,7 @@ import { button, statusLine, type Tone } from '../../src/ui';
  * 等于让人滚半天，而滚完也记不住。每组三条足够看出这一组的形势，
  * 剩下的由下面那句「另有 N 项」领去概览。
  */
-const PER_COURSE = 3;
+const PER_GROUP = 3;
 
 export interface PopupData {
   /** 后台此刻的运行状态，由后台的 TASK_STATE 判定，界面不自己猜 */
@@ -70,72 +70,9 @@ export interface PopupView {
 
 
 /**
- * 谁最紧要：已过截止的排在最后，其余按截止时间升序，没有截止的排在有截止的后面。
- *
- * 过期项排在最后不是藏起来，是别占住第一行：平台上已经做不了了，
- * 而用户打开弹窗是要看「现在还能做什么」。它们仍然在清单里，
- * 加上日期本身就是提醒（见 format.ts 的相对说法）。
+ * 状态那一句说什么。平静时是"上次读取 …"，其余按后台给的状态与错误如实说，
+ * 界面不解释、也不改写成更好听的说法。
  */
-function urgencyRank(entry: PendingEntry, now: number): [number, number] {
-  if (entry.overdue) return [2, 0];
-  if (entry.deadline > 0 && entry.deadline < now) return [2, 0];
-  if (entry.deadline > 0) return [0, entry.deadline];
-  return [1, 0];
-}
-
-function byUrgency(entries: PendingEntry[], now: number): PendingEntry[] {
-  return [...entries].sort((left, right) => {
-    const [leftBucket, leftAt] = urgencyRank(left, now);
-    const [rightBucket, rightAt] = urgencyRank(right, now);
-    if (leftBucket !== rightBucket) return leftBucket - rightBucket;
-    if (leftAt !== rightAt) return leftAt - rightAt;
-    return left.name.localeCompare(right.name, 'zh-Hans-CN');
-  });
-}
-
-/** 一组：一门课和它欠着的那些事，外加「这一组排第几」的两个依据。 */
-interface CourseGroup {
-  course: string;
-  rows: PendingEntry[];
-  /** 这一组里最紧要那件事的档位与时刻，与 urgencyRank 同源；组间按它排 */
-  rank: number;
-  at: number;
-}
-
-/**
- * 按课程分好组。
- *
- * 分组而不是排成一条按时间来的长清单，是因为这一屏要先回答「哪门课欠得多、
- * 欠的是什么」；时间只在组内排序用。组的先后按各自最紧要的那件事排，
- * 于是第一组永远是眼下最该看的课。
- */
-function byCourse(entries: PendingEntry[], now: number): CourseGroup[] {
-  const grouped = new Map<string, CourseGroup>();
-
-  for (const entry of entries) {
-    const [rank, at] = urgencyRank(entry, now);
-    const group = grouped.get(entry.courseName);
-    if (group === undefined) {
-      grouped.set(entry.courseName, { course: entry.courseName, rows: [entry], rank, at });
-      continue;
-    }
-    group.rows.push(entry);
-    if (rank < group.rank || (rank === group.rank && at < group.at)) {
-      group.rank = rank;
-      group.at = at;
-    }
-  }
-
-  return [...grouped.values()]
-    .sort(
-      (left, right) =>
-        left.rank - right.rank ||
-        left.at - right.at ||
-        left.course.localeCompare(right.course, 'zh-Hans-CN'),
-    )
-    .map((group) => ({ ...group, rows: byUrgency(group.rows, now) }));
-}
-
 function statusText(data: PopupData): string {
   if (data.error !== null) return data.error;
   if (data.notLoggedIn) return '登录状态已失效，需要重新登录慕课平台后才能读取待办。';
@@ -157,87 +94,6 @@ function statusTone(data: PopupData): Tone {
    */
   if (data.error !== null || data.notLoggedIn || data.lastError !== null) return 'error';
   return data.live === 'running' ? 'busy' : 'idle';
-}
-
-/**
- * 一句话说清「要交的东西有多少、其中多少不用你管」。
- *
- * 先前这里是「共 3 项 · 会自动完成 1 · 需你处理 2」这种用中点拼接的标签串：
- * 读起来像仪表盘，不像人说话。改用陈述句，信息一个不少。
- */
-function summarySentence(summary: PendingSummary): string {
-  const head = `有 ${summary.entries.length} 项要交`;
-  const auto = summary.auto > 0 ? `，其中 ${summary.auto} 项会自动完成` : '';
-  const manual = summary.manual > 0 ? `，${summary.manual} 项要你自己做` : '';
-  const overdue = summary.overdue > 0 ? `，${summary.overdue} 项已过期` : '';
-  return `${head}${auto}${manual}${overdue}。`;
-}
-
-/** 类别只有五种，说法照平台自己的分法，不另造词。 */
-const KIND_LABEL: Record<PendingEntry['kind'], string> = {
-  'submit-quiz': '测验',
-  'submit-homework': '作业',
-  'evaluate-homework': '互评',
-  'self-evaluate': '自评',
-  'submit-exam': '考试',
-};
-
-/** 一行里左侧那段「谁来做 / 已过期」——颜色由组件自带的 variant 给，不另立一套色。 */
-function stateBadge(entry: PendingEntry): HTMLElement {
-  const badge = document.createElement('sl-badge');
-  badge.setAttribute('pill', '');
-  if (entry.overdue) {
-    badge.setAttribute('variant', 'danger');
-    badge.textContent = '已过期';
-  } else if (entry.handling === 'auto') {
-    badge.setAttribute('variant', 'neutral');
-    badge.textContent = '会自动完成';
-  } else {
-    badge.setAttribute('variant', 'warning');
-    badge.textContent = '要你做';
-  }
-  return badge;
-}
-
-/** 课程那一行：名字在左，这一门有几项要交在右。 */
-function courseHeading(name: string, count: number): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'group';
-  const title = document.createElement('strong');
-  title.textContent = name;
-  const badge = document.createElement('sl-badge');
-  badge.textContent = String(count);
-  row.append(title, badge);
-  return row;
-}
-
-/** 一项一行：标题、类别与状态、截止。可点的整行是链接。 */
-function entryRow(entry: PendingEntry): HTMLElement {
-  const row = document.createElement(entry.href === undefined ? 'div' : 'a');
-  row.className = 'item';
-  if (entry.href !== undefined) {
-    row.setAttribute('href', entry.href);
-    row.setAttribute('target', '_blank');
-    row.setAttribute('rel', 'noreferrer');
-  }
-
-  const title = document.createElement('span');
-  title.className = 'item-title';
-  title.textContent = entry.name;
-
-  const meta = document.createElement('span');
-  meta.className = 'item-meta';
-  const kind = document.createElement('sl-tag');
-  kind.setAttribute('size', 'small');
-  kind.textContent = KIND_LABEL[entry.kind];
-  meta.append(kind, stateBadge(entry));
-
-  const when = document.createElement('span');
-  when.className = 'item-when';
-  when.textContent = entry.deadline > 0 ? relativeDay(entry.deadline) : '';
-
-  row.append(title, meta, when);
-  return row;
 }
 
 /** 一句不需要被当成告警的说明。 */
@@ -300,10 +156,10 @@ export function renderPopup(
       const groups = byCourse(entries, Date.now());
       for (const group of groups) {
         parts.push(courseHeading(group.course, group.rows.length));
-        for (const entry of group.rows.slice(0, PER_COURSE)) parts.push(entryRow(entry));
+        for (const entry of group.rows.slice(0, PER_GROUP)) parts.push(entryRow(entry));
       }
 
-      const hidden = groups.reduce((sum, group) => sum + Math.max(0, group.rows.length - PER_COURSE), 0);
+      const hidden = groups.reduce((sum, group) => sum + Math.max(0, group.rows.length - PER_GROUP), 0);
       if (hidden > 0) {
         const more = document.createElement('small');
         more.textContent = `另有 ${hidden} 项没列出来，概览里能看全部。`;
