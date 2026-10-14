@@ -15,7 +15,8 @@
 import type { AnySendResponse, AppRequest, MessageHandlers, SendResponse } from '../../messages.ts';
 import type { PlatformTasks } from '@study-pilot/application';
 import { getRunState } from '../runtime/run-state';
-import { canStartRun, claimRun, releaseRun } from '../runtime/scheduler';
+import { canStartRun } from '@study-pilot/application';
+import { claimRun, releaseRun } from '../runtime/scheduler';
 import { beginRun, finishRun, getTaskState, touchRun } from '../runtime/task-state';
 
 /** 装配层给出的东西：各平台的处理器表与要跑的平台。 */
