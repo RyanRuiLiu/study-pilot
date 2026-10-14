@@ -170,8 +170,14 @@ export interface CourseStructure {
   units: CourseUnit[];
 }
 
-/** 由 `test` 字段派生的状态。 */
-export interface WorkStatus {
+/**
+ * 由 `test` 字段派生的**事实标志**。
+ *
+ * 与 app 消息层那个 `WorkStatus`（界面上一句状态文案，如「互评阶段」）不是一回事：
+ * 这里是四个布尔判据，供计划与文案层各自去解释。两者曾经同名，读代码的人
+ * 要靠所在文件才能分辨是哪个，因此这个叫 `WorkFlags`。
+ */
+export interface WorkFlags {
   /** 支持互评：`enableEvaluation === true` 且 `evaluateJudgeType != null` */
   reviewable: boolean;
   /** 已提交过：`usedTryCount > 0` 或 `userScore != null` */

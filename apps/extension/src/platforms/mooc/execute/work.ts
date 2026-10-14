@@ -34,6 +34,20 @@ export async function runQuiz(
   const base = { tid: action.work.tid, name: action.work.name, kind: action.kind } as const;
 
   /*
+   * 先读题库，再开卷。
+   *
+   * 取卷带 `aid = 0`，服务端据此为该用户**新建一份答题表单**——这一步已经落在
+   * 平台上了，撤不回来。把它放在题库核对之前，就会出现「开卷后发现答案凑不齐、
+   * 于是放弃」：那份卷还留着，用户自己去做时看到的是已经开好的卷子。
+   * 读取题库没有副作用，所以它先走。计划阶段对 `startOneSubmissionEvaluate`
+   * 用的是同一条判据（见 plan/work.ts 里的说明）。
+   */
+  const index = await bank.get(client, action.course.termId);
+  if (!index) {
+    return { ...base, status: 'failed', detail: '题库读取失败，无法核对答案' };
+  }
+
+  /*
    * 「开始测验」这一步也走接口，不需要人工点。
    * 页面上那个按钮做的事就是调取卷接口并传 aid = 0，
    * 服务端据此为该用户新建一份答题表单。
@@ -42,11 +56,6 @@ export async function runQuiz(
   const paper = await getQuizPaper(client, action.work.tid, 0);
   if (!paper.ok) {
     return { ...base, status: 'failed', detail: `取卷失败：${paper.error.message}` };
-  }
-
-  const index = await bank.get(client, action.course.termId);
-  if (!index) {
-    return { ...base, status: 'failed', detail: '题库读取失败，无法核对答案' };
   }
 
   const built = buildAnswers(paper.value, index);
@@ -186,9 +195,19 @@ export async function runReview(
   for (let index = 0; index < limit; index++) {
     const next = await nextSubmission(client, action.work.tid, evaluatorId);
     if (!next.ok) {
-      return completed > 0
-        ? { ...base, status: 'done', detail: `已评 ${completed} 份，后续取卷失败` }
-        : { ...base, status: 'failed', detail: `取待评答卷失败：${next.error.message}` };
+      /*
+       * 已经评了几份就如实报几份，但结局是 failed：配额没评够就不是完成。
+       * 记成 done 会让三处一起说谎——通知说「已完成」、本轮计数把它算进成功、
+       * 运行记录里那一行也标成绿。用户看到的是一个还差着份数的作业。
+       */
+      return {
+        ...base,
+        status: 'failed',
+        detail:
+          completed > 0
+            ? `已评 ${completed} 份，后续取卷失败：${next.error.message}`
+            : `取待评答卷失败：${next.error.message}`,
+      };
     }
 
     // 服务端不再分配属正常结束：配额已满，或已无人可评
@@ -197,9 +216,15 @@ export async function runReview(
 
     const result = await submitEvaluation(client, submission.evaluateId, action.work.tid, items);
     if (!result.ok) {
-      return completed > 0
-        ? { ...base, status: 'done', detail: `已评 ${completed} 份，后续提交失败` }
-        : { ...base, status: 'failed', detail: `提交互评失败：${result.error.message}` };
+      // 同上：评够之前的任何一次失败都不是完成
+      return {
+        ...base,
+        status: 'failed',
+        detail:
+          completed > 0
+            ? `已评 ${completed} 份，后续提交失败：${result.error.message}`
+            : `提交互评失败：${result.error.message}`,
+      };
     }
 
     completed++;

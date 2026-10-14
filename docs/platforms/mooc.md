@@ -45,7 +45,7 @@ background 中转」的前提不成立；`STUDY_INFO` 第三段是用户 id，�
 **不可区分**，代码里只能报「未登录」；**会话级 cookie 能活过服务端会话**（浏览器长期驻留、恢复上次页面
 都会把它留在盘上），「本地有 cookie」不是「服务端还认得你」的证据；**带凭据 GET 首页即可续期**，服务端
 接受持久凭证时三个 cookie 会被重新下发，看 `STUDY_SESS` 变没变即可判断——这就是官网「打开首页自动登录」
-的机制，实现见 [session.ts](../../apps/extension/src/platform/mooc/session.ts)。官网前端判断登录不看
+的机制，实现见 [session.ts](../../apps/extension/src/platforms/mooc/session.ts)。官网前端判断登录不看
 cookie（`_$isLogin` 读服务端渲染的 `window.webUser.loginId`），判断权在服务端。
 
 ## 4. DWR（互评通道）

@@ -35,11 +35,8 @@ import type { Settings } from '../../settings';
  *
  * 唯一 id 的副作用是通知堆积，所以发送前先按前缀清掉本类通知的旧条目，
  * 通知中心里始终只留最近一条。
- *
- * 前缀同时用于判断点击来源，见 background.ts 的 onClicked：
- * 判据要跟着 id 的生成规则走，不能写死某个具体值。
  */
-export const NOTIFICATION_PREFIX = 'study-pilot-';
+const NOTIFICATION_PREFIX = 'study-pilot-';
 
 /** 工作总结（后台做完什么、有什么临近截止）。 */
 const SUMMARY_PREFIX = `${NOTIFICATION_PREFIX}summary-`;

@@ -1,30 +1,25 @@
 /*
- * 弹窗布局。
- *
- * 只写「这一页怎么摆」：宽度、底色、分块之间的衔接。
- * 取值在 src/ui/tokens.css，控件在 src/ui/components.css，
- * Shoelace 变量映射在 src/ui/theme.css —— 这一份里不出现色值，也不再重复控件样式。
- *
- * 上一版有 384 行，其中大半是按钮、清单行、各种状态的样式；它们现在都在
- * 组件层里，弹窗这一层只剩下「288px 宽的一列」这件事。
+ * 弹窗的骨架：宽度与滚动区，其余都交给组件与官方主题。
  */
 
 body {
   margin: 0;
-  width: 288px;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font);
-  -webkit-font-smoothing: antialiased;
+  /*
+   * 360px。Chrome 给弹窗的上限是 800×600。
+   * 288 那一档放不下「组名 + 那句数量」，长课程名会被挤成两行。
+   */
+  width: 360px;
+  background: var(--sl-color-neutral-0);
 }
 
-/*
- * 定位上下文。
- *
- * 弹窗不自己管高度：顶栏、状态行、计数、清单、入口依次排下来，
- * 清单自己限制到 360px 并可滚动（见 components.css 的 .sp-list），
- * 因此弹窗不会超出浏览器给弹窗的上限。
- */
 .pop {
-  position: relative;
+  padding: var(--sl-spacing-small);
+}
+
+/* 顶栏与入口一直够得着，滚的是中间那一叠卡片 */
+.sp-stack {
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: var(--sl-spacing-small) 0;
 }

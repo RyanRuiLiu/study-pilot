@@ -13,10 +13,11 @@
 
 
 import { ensureAlarm } from '../src/background/runtime/alarms';
-import { whenNetRulesReady } from '../src/background/net-rules';
+import { whenNetRulesReady } from '../src/browser/net-rules';
 
 
-import { getTaskState, liveRunState } from '../src/background/runtime/scheduler';
+import { getTaskState, liveRunState, recordRunFailure } from '../src/background/runtime/scheduler';
+import { attachRunStatePort } from '../src/background/runtime/run-state';
 import { registerMessageHandler } from '../src/background/messages/router';
 import { createMoocPlatform } from '../src/platforms/mooc/platform.ts';
 import { registerBackgroundWiring } from '../src/background/wiring';
@@ -37,12 +38,12 @@ export default defineBackground(() => {
         const state = await getTaskState();
         return { state, live: liveRunState(state) };
       },
+      recordFailure: (message: string) => recordRunFailure(message),
     },
   });
 
   // 回调内包一层 try/catch 是有必要的：生产构建会把 console 替换为空函数，
   // 回调抛出异常时不会有任何输出，表现只是「监听器一个都没注册」。
-  // 把原因落到 storage，出问题时可以查出来。
   try {
     /*
      * 先把请求头规则装上，再注册其余逻辑。
@@ -59,8 +60,7 @@ export default defineBackground(() => {
      * 监听器注册并发进行，两者互不依赖；真正要发请求时，
      * 客户端里仍会 await whenNetRulesReady() 兜一次底。
      */
-    void whenNetRulesReady(mooc.wiring.requestRules ?? []);
-    void browser.storage.local.remove('backgroundError');
+    void whenNetRulesReady(mooc.wiring.requestRules);
 
     /*
      * 周期检查的安装时机有三个，缺一个都会漏：
@@ -75,12 +75,16 @@ export default defineBackground(() => {
      * ensureAlarm 是幂等的（先清后建），重复调用没有副作用。
      */
     void ensureAlarm();
+    // 运行状态的推送通道：页面打开时连上，关掉时自动断开，不需要轮询
+    browser.runtime.onConnect.addListener(attachRunStatePort);
   } catch (error) {
-    const detail =
-      error instanceof Error
-        ? `${error.name}: ${error.message}\n${error.stack ?? ''}`
-        : String(error);
-    void browser.storage.local.set({ backgroundError: detail });
+    /*
+     * 监听器一个都没注册上时，唯一能看见这件事的地方是界面。
+     *
+     * 生产构建把 console 换成空函数，所以这里不能只打印：失败记进运行状态，
+     * 由弹窗如实显示（判据与自动执行的失败共用同一条 `lastError`）。
+     */
+    void recordRunFailure(error instanceof Error ? error.message : String(error));
   }
 
   /*

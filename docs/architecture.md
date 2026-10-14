@@ -25,7 +25,7 @@ packages/core           纯函数：MD5、Result、FetchLike
 
 **凭证由调用方注入**（而不是 transport 读 cookie）有两个理由：同一套协议层要能同时跑在浏览器
 （读 cookie）与 Node（读测试夹具）里；凭证来源是宿主环境的知识，不是协议的知识。承载这件事的
-[session.ts](../apps/extension/src/platform/mooc/session.ts) 还负责会话恢复：平台的会话凭证是
+[session.ts](../apps/extension/src/platforms/mooc/session.ts) 还负责会话恢复：平台的会话凭证是
 会话级 cookie，关闭浏览器即失效，而服务端在收到带凭据的请求时会用持久凭证换回会话，因此
 `ensureSession` 在发现没有会话时先发一次请求尝试恢复，用户不必手动打开一次网页。
 
@@ -105,7 +105,7 @@ packages/core           纯函数：MD5、Result、FetchLike
 |---|---|
 | `packages/platform-<name>/` | 一个平台一个包。包内只放该平台的端点、类型、规则 |
 | `apps/extension/entrypoints/<name>.content.ts` | 一个平台一个内容脚本入口，按 URL 匹配注入 |
-| `apps/extension/src/platform/<name>/` | 该平台的宿主适配（凭证、地址解析）。与平台无关的放上一级 |
+| `apps/extension/src/browser/` | 外壳与浏览器 API 之间的一层：消息协议、请求头规则 |
 | `apps/extension/src/features/<name>/` | 该平台的页面内功能。通用件留在 `features/` 顶层 |
 | 配置 | 平台作为顶层键（`settings.<name>`），平台内再分前台与后台 |
 

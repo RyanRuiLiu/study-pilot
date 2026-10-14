@@ -14,7 +14,7 @@ import {
   formatTermRange,
   isUrgent,
   relativeDay,
-} from '../src/features/format';
+} from '../src/ui/format';
 
 describe('formatMonth', () => {
   it('正常时间戳输出 YYYY-MM', () => {

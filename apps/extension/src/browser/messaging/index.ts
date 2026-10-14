@@ -18,7 +18,7 @@ import type {
   PaperQuestion,
 } from '@study-pilot/platform-mooc';
 import type { Snapshot } from '../../platforms/mooc/read';
-import type { MoocSession } from '../mooc/session';
+import type { MoocSession } from '../../platforms/mooc/session';
 import type {
   JobRejection,
   QueryOutcome,
@@ -26,6 +26,7 @@ import type {
   TaskStatus,
 } from './envelope.ts';
 import type { PendingSummary, UnitDetail } from './mooc.ts';
+import type { RunState } from '../../background/runtime/run-state';
 
 // ---------- 请求 ----------
 
@@ -50,6 +51,10 @@ export type BackgroundRequest =
   | RefreshCoursesRequest
   | { type: 'RUN_SCHEDULED_TASKS' }
   | { type: 'TASK_STATE' }
+  /** 运行状态快照（进度、逐项记录、最近几轮）。实时性由端口推送保证 */
+  | { type: 'RUN_STATE' }
+  /** 请求停止某个平台的那一轮；在两项之间生效 */
+  | { type: 'STOP_PLATFORM_RUN'; platformId: string }
   | { type: 'PENDING_SUMMARY' }
   | { type: 'UNIT_DETAILS' }
   | { type: 'NOTIFY_SAMPLE' }
@@ -81,6 +86,8 @@ export interface ResponseMap {
     | { ok: false; reason: JobRejection; message?: string };
   RUN_SCHEDULED_TASKS: RunScheduledTasksResponse;
   TASK_STATE: TaskStatus;
+  RUN_STATE: RunState;
+  STOP_PLATFORM_RUN: { ok: true };
   PENDING_SUMMARY: QueryOutcome<PendingSummary>;
   UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
   NOTIFY_SAMPLE: { ok: true; hasContent: boolean };
@@ -95,8 +102,23 @@ export interface ResponseMap {
 export * from './envelope.ts';
 export * from './mooc.ts';
 
-/** 回响应给前台。形状由 ResponseMap 约束，这里只要求可调用。 */
-export type SendResponse = (response?: unknown) => void;
+/**
+ * 回响应给前台。
+ *
+ * 泛型参数是请求的 `type`，响应的形状因此由 `ResponseMap` 单向约束：
+ * 外壳里自己回的那一条（手动执行一轮）必须是 `SendResponse<'RUN_SCHEDULED_TASKS'>`，
+ * 回错字段编译期就红。曾经这里收的是 `unknown`，「形状由 ResponseMap 约束」
+ * 只是注释里的愿望——后台改了响应、协议类型没跟着改，两边都不报错。
+ *
+ * 平台处理器仍收宽松版本（它们按 type 分发，键在运行时才知道），
+ * 每条协议的实际形状由各自的响应测试钉住。
+ */
+export type SendResponse<K extends BackgroundRequest['type'] = BackgroundRequest['type']> = (
+  response: ResponseMap[K],
+) => void;
+
+/** 宽松的回响应入口，只用于分发处那一层。 */
+export type AnySendResponse = (response?: unknown) => void;
 
 /**
  * 一个消息处理器。
@@ -106,7 +128,7 @@ export type SendResponse = (response?: unknown) => void;
  */
 export type MessageHandler = (
   request: BackgroundRequest,
-  sendResponse: SendResponse,
+  sendResponse: AnySendResponse,
 ) => Promise<void>;
 
 /** 平台的处理器表：按请求 type 索引；\`*\` 是兜底（处理该平台自己的查询类请求）。 */

@@ -14,27 +14,25 @@
 
 import { getSettings } from '../../settings';
 
-/** alarm 名称。固定值，重复创建时先按名字清掉，保证幂等。 */
+/** alarm 名称。固定值：名称固定才能让「已装好且间隔正确」这一判据成立。 */
 const ALARM_NAME = 'study-pilot-check';
 
 /**
- * 确保周期检查已安装。
+ * 确保周期检查已装好，且间隔与设置一致。
  *
- * 幂等：先清掉同名的再建，因此每次启动与每次改设置都可以调用。
- * 间隔从设置里取，用户改过之后要重建才会生效。
+ * 只在「没有 alarm」或「间隔变了」时创建。官方文档写明同名再 `create` 会
+ * **取消旧的并由新的重新计时**，而这个函数每次后台被唤醒都要调用一次：
+ * 一个醒得比检查间隔更频繁的浏览器（打开一次平台页面就是一次）会把这次
+ * 检查永远推到下一个周期之后，看起来就像「定时检查不工作」。
  *
- * 失败时不抛错。装不上只是退回到「仅启动时检查」，功能仍可用，
- * 不该因此让整个后台起不来。
+ * alarms 是清单里声明过的权限，因此不再包 try/catch：真出错要让人看见，
+ * 静默返回等于把「定时检查已经死了」藏起来。
  */
 export async function ensureAlarm(): Promise<void> {
-  try {
-    const settings = await getSettings();
-    const minutes = settings.schedule.checkIntervalMinutes;
-    await browser.alarms.clear(ALARM_NAME);
-    browser.alarms.create(ALARM_NAME, { periodInMinutes: minutes });
-  } catch {
-    // 缺 alarms 权限时走到这里。不阻断其它功能
-  }
+  const minutes = (await getSettings()).schedule.checkIntervalMinutes;
+  const existing = await browser.alarms.get(ALARM_NAME);
+  if (existing?.periodInMinutes === minutes) return;
+  browser.alarms.create(ALARM_NAME, { periodInMinutes: minutes });
 }
 
 /**
@@ -44,11 +42,7 @@ export async function ensureAlarm(): Promise<void> {
  * 但一个已关闭却仍在定时唤醒的扩展会让人怀疑它到底停了没有。
  */
 export async function clearAlarm(): Promise<void> {
-  try {
-    await browser.alarms.clear(ALARM_NAME);
-  } catch {
-    // 同上，不阻断
-  }
+  await browser.alarms.clear(ALARM_NAME);
 }
 
 /** 这个 alarm 是不是我们的。监听器里用它过滤。 */

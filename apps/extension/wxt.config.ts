@@ -1,85 +1,24 @@
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'wxt';
+import { findChromeForTesting } from '../../scripts/probe/lib/chrome-path.mjs';
 
-/**
- * 调试宿主浏览器。
+/*
+ * 调试宿主浏览器：Chrome for Testing。
  *
- * 必须用 Chrome for Testing，不能用系统里的官方品牌版。依据是 Chrome 官方发布说明：
+ * 依据是 Chrome 官方发布说明——品牌版自 137 起移除了 `--load-extension`，且没有
+ * CDP 的 `Extensions` 域，加载未打包扩展会「假成功」（返回 id 但扩展并未装上，
+ * 打开是 ERR_BLOCKED_BY_CLIENT）。https://support.google.com/chrome/a/answer/10314655
  *
- *   Remove --load-extension command line switch
- *   为了提升安全性，官方品牌版自 Chrome 137 起移除了 --load-extension；
- *   未打包扩展改用 chrome://extensions 的「加载已解压的扩展程序」按钮；
- *   开发者仍可在 Chromium 与 Chrome For Testing 中使用该开关。
+ * 查找规则与探测启动器共用 `scripts/probe/lib/chrome-path.mjs`，不在这里重写一遍：
+ * 两处各写一份时，macOS 的路径已经漂开（一处返回 .app 目录，另一处返回其中的可执行文件）。
  *
- *   https://support.google.com/chrome/a/answer/10314655
- *
- * 安装：
- *   npx @puppeteer/browsers install chrome@stable --path ~/.cache/chrome-for-testing
+ * 找不到时这里**不**抛错。配置文件被读到的场合不只是开发模式——`wxt prepare`、构建、
+ * 类型检查与测试都要读它，把「缺调试浏览器」变成「整个仓库不能构建」是过头的，
+ * 也让 CI 必须先装一个浏览器才能跑测试。开发模式的硬要求由 `pnpm dev` 的
+ * 前置检查给出（见根 package.json 的 dev 脚本）。
  */
-const CHROME_FOR_TESTING_ROOT =
-  process.env.CHROME_FOR_TESTING_PATH ??
-  (process.env.USERPROFILE
-    ? `${process.env.USERPROFILE.replace(/\\/g, '/')}/.cache/chrome-for-testing`
-    : '');
-
-/** 扫描 Chrome for Testing 的安装目录，取版本号最大的一个。 */
-function findChromeForTesting(): string | undefined {
-  if (!CHROME_FOR_TESTING_ROOT) return undefined;
-
-  const chromeDir = `${CHROME_FOR_TESTING_ROOT}/chrome`;
-  if (!existsSync(chromeDir)) return undefined;
-
-  const versions = readdirSync(chromeDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort()
-    .reverse();
-
-  for (const version of versions) {
-    const candidates = [
-      `${chromeDir}/${version}/chrome-win64/chrome.exe`,
-      `${chromeDir}/${version}/chrome-win32/chrome.exe`,
-      `${chromeDir}/${version}/chrome-linux64/chrome`,
-      `${chromeDir}/${version}/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`,
-    ];
-    const hit = candidates.find((candidate) => existsSync(candidate));
-    if (hit) return hit;
-  }
-
-  return undefined;
-}
-
-/** 系统里的官方品牌版。仅用于给出安装提示，不作为调试宿主。 */
-const BRANDED_CANDIDATES = [
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  process.env.LOCALAPPDATA
-    ? process.env.LOCALAPPDATA + '/Google/Chrome/Application/chrome.exe'
-    : '',
-].filter((p) => Boolean(p));
-
 const chromeBinary = findChromeForTesting();
-
-if (!chromeBinary) {
-  const branded = BRANDED_CANDIDATES.find((p) => existsSync(p));
-  throw new Error(
-    [
-      '找不到 Chrome for Testing，无法以开发模式启动。',
-      '',
-      '系统里的官方品牌版 Chrome 自 Chrome 137 起移除了 --load-extension，',
-      '加载未打包扩展会失败（表现为扩展页面 ERR_BLOCKED_BY_CLIENT）。',
-      branded ? `  检测到品牌版：${branded}` : '',
-      '',
-      '请先安装 Chrome for Testing：',
-      '  npx @puppeteer/browsers install chrome@stable --path ~/.cache/chrome-for-testing',
-      '',
-      `查找位置：${CHROME_FOR_TESTING_ROOT}`,
-    ]
-      .filter(Boolean)
-      .join('\n'),
-  );
-}
 
 /**
  * 调试专用 Chrome 配置目录，固定在项目内以长期保留登录 Cookie。

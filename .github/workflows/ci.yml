@@ -1,0 +1,48 @@
+# 每个推送与 PR 都跑一遍本地门禁。
+#
+# 这个仓库的约束（依赖方向、写路径、文案、隐私、行数上限、变异测试）此前
+# 只有在开发者记得跑 `pnpm check:all` 时才生效。一个 AI 会话改完代码、跑绿了
+# 单元测试就提交，门禁里的任何一条都可能已经红了而没人看见——门禁的价值
+# 等于它被执行的频率。
+#
+# 步骤顺序按「便宜且能指出问题」在前：类型 → lint → 单测 → 覆盖率 → 门禁 → 构建 → 产物验证。
+# 需要 Chrome for Testing 的探测工具不在这里跑：那是本地调试手段，不进门禁。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm 版本取自 package.json 的 packageManager 字段，与本地一致
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      - run: pnpm -r test
+
+      # 覆盖率门槛写在 apps/extension/vitest.config.ts，不靠人记得看
+      - run: pnpm --filter @study-pilot/extension exec vitest run --coverage
+
+      - run: node scripts/probe/checks/check-all.mjs
+
+      - run: pnpm build
+
+    # 产物验证（scripts/probe/checks/verify-package.mjs）需要真的把扩展装进
+    # Chrome for Testing 并通过 CDP 读一遍，跑在本地发布流程里，不进这条流水线。

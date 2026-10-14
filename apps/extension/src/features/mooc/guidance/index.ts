@@ -14,7 +14,7 @@
  */
 
 import type { PaperQuestion } from '@study-pilot/platform-mooc';
-import { sendToBackground } from '../../../platform/messaging';
+import { sendToBackground } from '../../../browser/messaging';
 import { buildAnswerBlock } from './block.ts';
 import { ANSWER_MARK_ATTRIBUTE, answerSource } from './markers.ts';
 import { anchorOf, matchQuestions, normalizeItem, normalizePage, questionItems } from './page.ts';

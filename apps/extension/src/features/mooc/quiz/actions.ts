@@ -16,7 +16,7 @@
  * 两者都必须由用户主动点击触发，扩展不做任何自动执行。约束见 docs/development.md。
  */
 
-import { sendToBackground } from '../../../platform/messaging';
+import { sendToBackground } from '../../../browser/messaging';
 import { loadAnswerIndex } from './data.ts';
 import { collectQuestions, optionIdOf } from './options.ts';
 import { setBusy, type ActivePanel } from './panel.ts';

@@ -8,7 +8,7 @@
  */
 
 import { buildAnswerIndex, type AnswerIndex, type OpenQuizInfo } from '@study-pilot/platform-mooc';
-import { sendToBackground } from '../../../platform/messaging';
+import { sendToBackground } from '../../../browser/messaging';
 
 let cachedBank: { termId: number; index: AnswerIndex } | null = null;
 

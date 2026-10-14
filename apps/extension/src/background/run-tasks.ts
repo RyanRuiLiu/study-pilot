@@ -14,12 +14,23 @@ import type { PlanItem, PlatformTasks, RunOutcome } from '../platforms/types.ts'
 import {
   beginRun,
   canStartRun,
+  claimRun,
   clearAwaitingLogin,
   finishRun,
   getTaskState,
   markAwaitingLogin,
+  recordRunFailure,
+  releaseRun,
   touchRun,
 } from './runtime/scheduler';
+import {
+  beginPlatform,
+  completeItem,
+  enterItem,
+  finishPlatform,
+  isStopRequested,
+  takeStopRequest,
+} from './runtime/run-state';
 
 export interface SchedulerDeps {
   /**
@@ -35,10 +46,12 @@ export async function autoRun(deps: SchedulerDeps): Promise<void> {
   const settings = await getSettings();
   if (!settings.enabled) return;
 
-  const state = await getTaskState();
-  if (!canStartRun(state)) return;
-
   const now = Date.now();
+  const state = await getTaskState();
+  if (!canStartRun(state, now)) return;
+  // 上一轮仍在本进程里跑着（闹钟与登录变化可以同时到达）：不并发起第二轮
+  if (!claimRun()) return;
+
   /*
    * 因登录挂起的结论先记在这里，收尾之后才落盘。
    *
@@ -47,45 +60,96 @@ export async function autoRun(deps: SchedulerDeps): Promise<void> {
    */
   let suspendedLogin = false;
 
-  for (const platform of deps.platforms()) {
-    if (!(await platform.isReady())) {
-      suspendedLogin = true;
-      continue;
-    }
-    await clearAwaitingLogin();
-
-    await beginRun(now);
-    try {
-      /*
-       * 每一步之前刷新心跳。
-       *
-       * 一轮执行里有好几次网络往返。心跳过期会让界面把「正在跑」读成
-       * 「上次没结束」——那是用户最容易被误导的地方，他会以为扩展卡住了，
-       * 而实际上一切正常。刷心跳只是一次本地存储写入，相比一次接口调用
-       * 可以忽略。
-       */
-      await touchRun();
-
-      const plan = await platform.plan(now);
-      if (plan.needsLogin === true) suspendedLogin = true;
-
-      const items: PlanItem[] = [];
-      const outcomes: RunOutcome[] = [];
-      for (const item of plan.items) {
-        // 需要人到场确认的项不在这里做：无人值守时做不了，硬做就是替用户承诺
-        if (item.mode !== 'auto') continue;
-        items.push(item);
-        // 长动作（课件上报）会把心跳传进去：它自己按平台节奏刷新
-        outcomes.push(await platform.run(item, touchRun));
-        await touchRun();
+  try {
+    for (const platform of deps.platforms()) {
+      if (!(await platform.isReady())) {
+        suspendedLogin = true;
+        continue;
       }
+      await clearAwaitingLogin();
 
-      await platform.report(items, outcomes, now);
-    } finally {
-      await finishRun();
+      await beginRun(now);
+      try {
+        /*
+         * 每一步之前刷新心跳。
+         *
+         * 一轮执行里有好几次网络往返。心跳过期会让界面把「正在跑」读成
+         * 「上次没结束」——那是用户最容易被误导的地方，他会以为扩展卡住了，
+         * 而实际上一切正常。刷心跳只是一次本地存储写入，相比一次接口调用
+         * 可以忽略。
+         */
+        await touchRun();
+
+        const plan = await platform.plan(now);
+        if (plan.needsLogin === true) suspendedLogin = true;
+
+        // 需要人到场确认的项不在这里做：无人值守时做不了，硬做就是替用户承诺
+        const queue = plan.items.filter((entry) => entry.mode === 'auto');
+        const items: PlanItem[] = [];
+        const outcomes: RunOutcome[] = [];
+
+        // 总数先落定，界面立刻能画出「0 / 7」
+        await beginPlatform(platform.id, platform.name, queue.length, Date.now());
+        let stopped = false;
+        for (const item of queue) {
+          /*
+           * 停止只在两项之间生效。一项做到一半掐断会留下「卷已开、答案没交」
+           * 这种半提交状态，而账号上的成绩不可撤销。
+           */
+          if (isStopRequested(platform.id)) {
+            takeStopRequest(platform.id);
+            stopped = true;
+            break;
+          }
+          await enterItem(platform.id, platform.name, { course: item.group, title: item.title }, Date.now());
+          // 长动作（课件上报）会把心跳传进去：它自己按平台节奏刷新
+          const outcome = await platform.run(item, touchRun);
+          await completeItem(
+            platform.id,
+            platform.name,
+            { course: item.group, title: item.title },
+            outcome.status,
+            outcome.message ?? '',
+            Date.now(),
+          );
+          items.push(item);
+          outcomes.push(outcome);
+          await touchRun();
+        }
+
+        await platform.report(items, outcomes, now);
+
+        const firstFailure = outcomes.find((outcome) => outcome.status === 'failed');
+        await finishPlatform(
+          platform.id,
+          platform.name,
+          {
+            done: outcomes.filter((outcome) => outcome.status === 'done').length,
+            skipped: outcomes.filter((outcome) => outcome.status === 'skipped').length,
+            failed: outcomes.filter((outcome) => outcome.status === 'failed').length,
+            note: firstFailure?.message ?? '',
+            stopped,
+          },
+          Date.now(),
+        );
+      } finally {
+        await finishRun();
+      }
     }
-  }
 
-  // 已在 beginRun 之后收尾完毕，此刻落挂起标记不会再被 finishRun 抹掉
-  if (suspendedLogin) await markAwaitingLogin();
+    // 已在 beginRun 之后收尾完毕，此刻落挂起标记不会再被 finishRun 抹掉
+    if (suspendedLogin) await markAwaitingLogin();
+  } catch (error) {
+    /*
+     * 一轮的失败记下来，而不是向上抛。
+     *
+     * 调用它的是闹钟与登录事件，那里没有人在等一个答案；从前抛出去等于
+     * 扔进 `.catch(() => undefined)`，于是「读不到课程」「会话已失效」「平台
+     * 改了字段」三种情况在界面上都与「今天没有要做的事」一模一样。
+     * 界面只如实显示这一条记录，不自己推断任何原因。
+     */
+    await recordRunFailure(error instanceof Error ? error.message : String(error));
+  } finally {
+    releaseRun();
+  }
 }

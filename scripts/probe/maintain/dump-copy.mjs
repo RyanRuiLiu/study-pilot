@@ -22,7 +22,7 @@ const TARGETS = [
   'apps/extension/src/features',
   'apps/extension/src/background/reminder.ts',
   'apps/extension/src/background/work-status.ts',
-  'apps/extension/src/platform/messaging.ts',
+  'apps/extension/src/browser/messaging/index.ts',
 ];
 
 /** 中文串。够长才收录，滤掉单字与纯符号。 */

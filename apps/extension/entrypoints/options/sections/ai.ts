@@ -4,7 +4,7 @@
  * 从 options/main.ts 的 render() 搬出；表达式原样，只在开头取一次配置。
  */
 
-import { row, toggle, textInput, button, prose, section } from '../../../src/ui/form.ts';
+import { row, toggle, textInput, secretInput, button, prose, section } from '../../../src/ui/form.ts';
 import { bindSetting } from '../../../src/settings/page-write.ts';
 import { requestAiPermission, checkAiConnection } from '../actions.ts';
 import { current } from '../../../src/settings/page-state.ts';
@@ -40,7 +40,7 @@ export function aiSection(): HTMLElement {
       row(
         '密钥',
         '只存本机，不进日志、不进导出',
-        textInput(ai.apiKey, bindSetting<string>('ai.apiKey')),
+        secretInput(ai.apiKey, bindSetting<string>('ai.apiKey')),
       ),
       row(
         '主机权限',

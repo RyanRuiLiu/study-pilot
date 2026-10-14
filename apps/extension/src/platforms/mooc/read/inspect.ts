@@ -20,7 +20,7 @@ import {
   getEvaluationDetail,
   type MoocClient,
 } from '@study-pilot/platform-mooc';
-import { SessionExpiredError } from '../../../platform/mooc/session';
+import { SessionExpiredError } from '../session';
 import { snapshotStamp } from './storage.ts';
 import type { InspectCourse, Snapshot, SnapshotCourse, SnapshotWork } from './types.ts';
 
@@ -62,6 +62,11 @@ export async function inspect(
   const snapshotCourses: SnapshotCourse[] = [];
   let failures = 0;
   let authFailures = 0;
+  /*
+   * 第一条失败的具体原因。只报「全部 N 门都失败」等于把最有用的信息丢掉：
+   * 用户与排查者都分不清是会话、地址、签名还是平台改了字段。
+   */
+  let firstFailure = '';
 
   for (const course of courses) {
     const structure = await getCourseStructure(client, course.termId);
@@ -74,6 +79,9 @@ export async function inspect(
        */
       if (structure.error.kind === 'auth') authFailures++;
       failures++;
+      if (firstFailure === '') {
+        firstFailure = `课程 ${course.courseId}：${structure.error.kind} ${structure.error.message}`;
+      }
       continue;
     }
 
@@ -158,7 +166,7 @@ export async function inspect(
      * 由编排层区分，这里不下那个结论。
      */
     if (authFailures === courses.length) throw new SessionExpiredError();
-    throw new Error(`全部 ${failures} 门课程都读取失败`);
+    throw new Error(`全部 ${failures} 门课程都读取失败（${firstFailure}）`);
   }
 
   return { ...snapshotStamp(now), courses: snapshotCourses };

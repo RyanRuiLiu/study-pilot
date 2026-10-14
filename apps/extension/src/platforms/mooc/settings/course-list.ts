@@ -6,7 +6,7 @@
  */
 
 import { coursePageUrl, describeCourseMode } from '@study-pilot/platform-mooc';
-import { formatTermRange } from '../../../features/format';
+import { formatTermRange } from '../../../ui/format';
 import { checkbox, disclosure } from '../../../ui/form.ts';
 import { toggleCourse } from '../../../settings/page-write.ts';
 import { current } from '../../../settings/page-state.ts';
@@ -18,7 +18,6 @@ export function courseList(): HTMLElement {
 
   if (courses.length === 0) {
     const empty = document.createElement('div');
-    empty.className = 'sp-empty';
     empty.textContent = '尚未读取课程。请先点击上方的「读取课程列表」。';
     wrap.append(empty);
     return wrap;

@@ -1,224 +1,131 @@
 /*
- * 设置页布局。
+ * 主页面的骨架：只有尺寸与摆放，没有任何外观。
  *
- * 只写「这一页怎么摆」：宽度、两栏、页头、左栏吸顶、提示条、页脚。
- * 取值在 src/ui/tokens.css（由 main.ts 引入），控件在 src/ui/components.css，
- * Shoelace 的变量映射在 src/ui/theme.css —— 这一份里不出现控件样式，也不出现色值。
- *
- * 上一版有 751 行，其中大半是按钮、开关、输入框、课程列表与单元明细的样式；
- * 它们现在都在组件层里，这一层只剩下页面骨架。
- *
- * 层次的表达只有两种：
- *   实线 —— 换了一个话题（分区之间，见 components.css 的 .sp-section）
- *   虚线 —— 同一话题里的下一项（设置项之间，见 .sp-row）
+ * 标签页、卡片、表格容器、按钮、开关全部按 Shoelace 官方主题的样子用，
+ * 这里不覆盖它们的颜色、圆角、阴影，也不写 `::part()`。
+ * 留下的只有组件库不提供的那一件事：高度链——头部不动、面板占满剩余高度、
+ * 面板里再滚。
  */
 
-* { box-sizing: border-box; }
-
+html,
 body {
-  margin: 0;
-  min-height: 100vh;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: 14px;
-  line-height: 1.7;
-  -webkit-font-smoothing: antialiased;
+  height: 100%;
 }
 
-/* 极淡的点阵。给大片留白一点质感，不干扰阅读 */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image: radial-gradient(circle at 1px 1px, rgba(16, 24, 40, 0.035) 1px, transparent 0);
-  background-size: 22px 22px;
-}
-
-.shell {
-  position: relative;
-  max-width: 1080px;
+.app {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 56px 28px 96px;
+  background: var(--sl-color-neutral-0);
 }
 
-/*
- * 页头。左侧一道竖条，右侧标题与说明。
- *
- * 不再放「STUDYPILOT」那行大字距标签：它与标题挤在一起时像个杂斑，
- * 而扩展自身的名字在浏览器里已经写着，页头再说一遍没有新信息。
- * 页脚保留一处署名即可。
- */
-.masthead {
-  position: relative;
-  padding-left: 20px;
-  margin-bottom: 40px;
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sl-spacing-medium);
+  padding: var(--sl-spacing-small) var(--sl-spacing-medium);
+  border-bottom: var(--sl-panel-border-width) solid var(--sl-panel-border-color);
 }
 
-.masthead::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 4px;
-  background: var(--accent);
-}
-
-.masthead h1 {
+/* 状态那句跟在品牌后面，主操作推到最右 */
+.topbar .run-summary {
   margin: 0;
-  font-size: 36px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.01em;
 }
 
-.masthead .lede {
-  margin: 8px 0 0;
-  max-width: 44ch;
-  color: var(--ink-soft);
-  font-size: 13px;
+.topbar sl-button {
+  margin-left: auto;
 }
 
-/* ---------- 两栏 ---------- */
+.nav {
+  flex: 1;
+  min-height: 0;
+}
+
+.nav::part(base) {
+  height: 100%;
+}
+
+.nav::part(body) {
+  flex: 1;
+  min-height: 0;
+}
+
+.nav sl-tab-panel {
+  height: 100%;
+  overflow-y: auto;
+}
 
 /*
- * 左导航右内容。
- *
- * 导航列宽按最长的一项定：分区名最长是「执行与诊断」五个字，
- * 14px 字号下约 70px，加上左侧 14px 的竖线占位，132px 已有富余。
- * 先前给的 176px 是照着"猜一个够宽的数"来的，多出来的四十多像素
- * 全成了空白，正文列反而被压窄。
+ * 面板里那一层是组件的插槽，默认高度由内容决定。
+ * 不接上 100%，面板里的 `height: 100%` 就拿 auto 当参照，
+ * 于是内容把面板顶到三千多像素高，滚动又回到整页上。
  */
-.layout {
-  display: grid;
-  grid-template-columns: 132px minmax(0, 1fr);
-  align-items: start;
-  column-gap: 40px;
+.nav sl-tab-panel::part(base) {
+  height: 100%;
 }
 
-/* ---------- 左侧导航 ---------- */
+/* ---------- 概览：左树 + 右表 ---------- */
+
+.sp-overview,
+.sp-overview sl-split-panel {
+  height: 100%;
+}
+
+.sp-overview sl-split-panel {
+  --min: 200px;
+  --max: 42%;
+}
 
 /*
- * 吸顶。页面往下滚时它留在原处，这就是「不用滚到底才能看到」的实现。
- * top 由 JS 按页头实测高度写入，页头换行时不会挡住。
+ * 两栏都要肯缩到内容的最小宽度以下，否则长课程名会把右栏顶宽，
+ * 「得分」那一列被推到可视区外面。flex 项默认 min-width: auto。
  */
-.toc {
-  position: sticky;
-  top: var(--toc-top, 150px);
+.sp-overview sl-split-panel::part(start),
+.sp-overview sl-split-panel::part(end) {
+  min-width: 0;
+}
+
+.sp-side,
+.sp-main {
+  height: 100%;
+  min-width: 0;
+  overflow-y: auto;
+  /* 滚动条的位置先占好，最后一列不会被它压住，也不会在出现滚动条时横向抖一下 */
+  scrollbar-gutter: stable;
+}
+
+.sp-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: var(--sl-spacing-medium);
+  flex-wrap: wrap;
+  margin-bottom: var(--sl-spacing-small);
 }
 
-/*
- * 当前项的标记是左侧一道竖线，不是色块也不是加粗。
- * 竖线贴着文字，视线扫过时能顺着一条直线读下来；
- * 竖线位置始终留空，切换时文字不会横向跳动。
- */
-.toc a {
-  position: relative;
-  padding: 4px 0 4px 16px;
-  color: var(--ink-faint);
-  font-size: 14px;
-  line-height: 1.5;
-  text-decoration: none;
-  transition: color 0.12s ease;
-}
+/* ---------- 设置页脚与提示条 ---------- */
 
-.toc a::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 5px;
-  bottom: 5px;
-  width: 2px;
-  background: transparent;
-}
-
-.toc a:hover { color: var(--ink-soft); }
-.toc a.is-current { color: var(--ink); }
-.toc a.is-current::before { background: var(--accent); }
-.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* ---------- 左栏（导航 + 页脚操作） ---------- */
-
-/*
- * 这一栏整体吸顶：导航跟着滚，底部的恢复默认与版本号也就一起留在视野里。
- * 先前按钮在正文末尾的页脚里，要滚过六个分区才够得着。
- */
-.rail {
-  position: sticky;
-  top: var(--toc-top, 150px);
+.sp-settings-foot {
   display: flex;
-  flex-direction: column;
-  gap: 24px;
-  align-self: start;
+  align-items: center;
+  gap: var(--sl-spacing-medium);
+  margin-top: var(--sl-spacing-large);
 }
 
-/*
- * 恢复默认是整页范围的操作，与导航之间用一条细线分开——
- * 两者性质不同：上面是「去哪里」，下面是「对整份配置做什么」。
- */
-.rail-foot {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+.sp-version {
+  margin-left: auto;
 }
 
-/* 占满一栏，文字靠左与上面的导航对齐 */
-.sp-reset { width: 100%; }
-.sp-reset::part(base) { justify-content: flex-start; }
-
-/* 版本号。排查问题时最常要用，跟着左栏一起常驻 */
-.version {
-  margin: 0;
-  color: var(--ink-faint);
-  font-size: 12px;
-  letter-spacing: 0.02em;
+/* toast() 把它挂进 sl-toast-stack，位置由组件负责，这里只限宽 */
+#toast {
+  max-width: min(560px, 90vw);
 }
 
-/*
- * 提示条。浮在窗口底部居中，不占布局位置。
- *
- * 深底白字而不是主色：提示是「刚刚发生了什么」的通报，
- * 不是可点的东西，用主色会和按钮抢注意力。
- * 淡入时带一点位移，让它是「浮上来」而不是「突然出现」。
- */
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 28px;
-  z-index: 10;
-  transform: translate(-50%, 8px);
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
-  background: var(--ink);
-  color: var(--on-accent);
-  font-size: 13px;
-  line-height: 1.5;
-  white-space: nowrap;
-  box-shadow: 0 6px 20px rgba(16, 24, 40, 0.18);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+@media (max-width: 860px) {
+  .sp-overview sl-split-panel {
+    --min: 160px;
+    --max: 50%;
+  }
 }
-
-.toast.on { opacity: 1; transform: translate(-50%, 0); }
-
-/* 页脚署名。全站第二处也是最后一处用大字距的地方 */
-.colophon {
-  margin-top: 64px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
-  color: var(--ink-faint);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-}
-
-/* ---------- 隐藏 ---------- */
-
-.f-dn { display: none !important; }

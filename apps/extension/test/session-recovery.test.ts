@@ -9,7 +9,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { withSessionRecovery } from '../src/platforms/mooc/recovery.ts';
-import { SessionExpiredError } from '../src/platform/mooc/session';
+import { SessionExpiredError } from '../src/platforms/mooc/session';
 
 describe('withSessionRecovery', () => {
   it('第一次就成功：不碰续期，原样返回', async () => {

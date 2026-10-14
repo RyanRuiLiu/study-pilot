@@ -139,6 +139,32 @@ function stripAnchor(index: number): void {
   item.querySelector('.j-answer')?.remove();
 }
 
+/**
+ * 取一个注入块里「用户看得见的那一份」。
+ *
+ * 块的内容关在自己的 shadow root 里（见 src/features/isolated.ts），
+ * 宿主的 textContent 按 DOM 规定不含 shadow 内容——所以断言必须进到
+ * shadowRoot 里去取，否则测的是「外面看是个空壳」，那不是这里要验的事。
+ */
+function inside(block: Element | undefined | null): Element | ShadowRoot | undefined {
+  return block?.shadowRoot ?? block ?? undefined;
+}
+
+/**
+ * 取一个节点里全部文本。
+ *
+ * linkedom 的 shadow root 没有实现 `textContent`（返回 null），真实浏览器里
+ * 它是直接可用的。这里自己走一遍子节点，两边行为才一致——否则这条测试
+ * 断言的会是「读出来是空的」，而不是内容对不对。
+ */
+function textOf(node: Element | ShadowRoot | undefined | null): string {
+  if (!node) return '';
+  if (typeof node.textContent === 'string') return node.textContent;
+  return Array.from(node.childNodes)
+    .map((child) => (child.nodeType === 3 ? child.nodeValue ?? '' : textOf(child as Element)))
+    .join('');
+}
+
 /** 某道题上的注入块数量。 */
 function blockCountOf(item: Element): number {
   return item.querySelectorAll(ANSWER_BLOCK).length;
@@ -146,7 +172,7 @@ function blockCountOf(item: Element): number {
 
 /** 某道题上的注入块文本。 */
 function blockTextOf(item: Element): string {
-  return (item.querySelector(ANSWER_BLOCK)?.textContent ?? '').replace(/\s+/g, ' ');
+  return textOf(inside(item.querySelector(ANSWER_BLOCK))).replace(/\s+/g, ' ');
 }
 
 /**
@@ -181,7 +207,7 @@ function currentDocument(): Document {
 /** 页面上已注入的得分指导文本。 */
 function injectedTexts(): string[] {
   return Array.from(currentDocument().querySelectorAll(ANSWER_BLOCK)).map(
-    (block) => block.textContent ?? '',
+    (block) => textOf(inside(block)),
   );
 }
 
@@ -222,7 +248,12 @@ describe('换单元', () => {
 
     expect(injectedTexts()).toHaveLength(1);
     expect(injectedTexts()[0]).toContain('B 单元评分标准');
-    expect(currentDocument().body.textContent).not.toContain('A 单元评分标准');
+    // 看的是页面上真实存在的内容（含各块 shadow 里的），而不是 body.textContent：
+    // 后者按 DOM 规定不含 shadow 内容，拿它断言等于断言一句永远成立的话
+    const onPage = Array.from(currentDocument().querySelectorAll(ANSWER_BLOCK))
+      .map((block) => textOf(inside(block)))
+      .join(' ');
+    expect(onPage).not.toContain('A 单元评分标准');
   });
 
   it('旧单元的取卷结果迟到时，不能占住新单元的题目', async () => {
@@ -317,7 +348,7 @@ describe('评分依据的排版', () => {
 
     await injectGuidance(load, 100, 'homework');
 
-    const block = currentDocument().querySelector(ANSWER_BLOCK)!;
+    const block = inside(currentDocument().querySelector(ANSWER_BLOCK))!;
     const images = Array.from(block.querySelectorAll('img'));
     expect(images).toHaveLength(3);
 
@@ -338,17 +369,21 @@ describe('评分依据的排版', () => {
 
     await injectGuidance(load, 100, 'homework');
 
-    const block = currentDocument().querySelector(ANSWER_BLOCK)!;
-    const text = block.textContent ?? '';
+    const block = inside(currentDocument().querySelector(ANSWER_BLOCK))!;
+    const text = textOf(block);
     expect(text).toContain('满分 6 分');
     expect(text).toContain('满分 3 分');
     expect(text.indexOf('满分 6 分')).toBeLessThan(text.indexOf('满分 3 分'));
 
-    // 第二个评分点带分隔线，第一个不带
-    const points = Array.from(block.children).filter((child) => child.querySelector('img, p'));
+    /*
+     * 分隔线是官方的 sl-divider 元素，不再由样式表造一条虚线。
+     * 于是这里验结构：两个评分点之间确实插了一条分隔线，且第一条之前没有。
+     */
+    const points = Array.from(block.querySelectorAll('.point'));
     expect(points).toHaveLength(2);
-    expect(points[1]?.getAttribute('style') ?? '').toContain('border-top');
-    expect(points[0]?.getAttribute('style') ?? '').not.toContain('border-top');
+    const dividers = Array.from(block.querySelectorAll('sl-divider'));
+    expect(dividers).toHaveLength(1);
+    expect(dividers[0]?.previousElementSibling?.classList.contains('point')).toBe(true);
   });
 });
 

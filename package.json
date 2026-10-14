@@ -7,8 +7,9 @@
   "engines": {
     "node": ">=22"
   },
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
-    "dev": "pnpm --filter @study-pilot/extension dev",
+    "dev": "node scripts/verify/require-chrome-for-testing.mjs && pnpm --filter @study-pilot/extension dev",
     "build": "pnpm --filter @study-pilot/extension build",
     "package": "node scripts/package.mjs",
     "typecheck": "pnpm -r typecheck",

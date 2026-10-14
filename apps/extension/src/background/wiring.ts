@@ -49,13 +49,16 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
     else void clearAlarm();
   });
 
+  /*
+   * 浏览器启动时检查一次。
+   *
+   * `autoRun` 自己把失败记进运行状态（见 run-tasks.ts），因此这里不需要
+   * `.catch`：从前那两个吞掉异常的 catch 是「后台静默失败」的最后一环——
+   * 抛出来没人接，接了也不说，用户只能看到「今天什么都没发生」。
+   */
   browser.runtime.onStartup.addListener(() => {
     void ensureAlarm();
-    void runOnce().catch((error: unknown) => {
-      void browser.storage.local.set({
-        backgroundError: error instanceof Error ? error.message : String(error),
-      });
-    });
+    void runOnce();
   });
 
   /*
@@ -70,7 +73,7 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
    */
   browser.alarms.onAlarm.addListener((alarm) => {
     if (!isCheckAlarm(alarm)) return;
-    void runOnce().catch(() => undefined);
+    void runOnce();
   });
 
   /**
@@ -101,32 +104,21 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
   });
 
   /*
-   * 点击通知直接落到看板的单元明细。
+   * 点击通知落到主页面。
    *
-   * 通知说的就是「哪几项要处理」，点进去自然该看到那份清单，
-   * 而不是落到页面顶部再自己往下找。单元明细此前在设置页，已搬到看板
-   * （设置页只回答「它怎么运行」），锚点现在指 dashboard.html#platforms——各平台的分区
-   * 由平台自己的视图渲染，外壳没有平台专属的锚点，只有这个稳定的容器。
+   * 通知说的就是「哪几项要处理」，点进去自然该看到那份清单。锚点固定 `#overview`：
+   * 单元明细已经并进概览的那张表，而概览是主页面的第一个标签——两类通知落同一处，
+   * 不需要按通知种类分锚点，外壳也就不需要知道这条通知来自哪个平台
+   * （`notificationPrefix` 这个字段因此删掉了）。
+   *
+   * 早先这里按 `startsWith('deadline-reminder')` 判断要不要带锚点，而通知 id
+   * 是固定的 `study-pilot-summary`——条件永远为假，锚点一次都没生效过。
+   *
    * openOptionsPage 不接受锚点，只能用 tabs.create 指定完整地址；
    * tabs.create 不需要额外权限。
    */
-  browser.notifications.onClicked.addListener((notificationId) => {
-    /*
-     * 工作总结与示例通知都送到单元明细。
-     *
-     * 早先这里按 `startsWith('deadline-reminder')` 判断要不要带锚点，
-     * 而通知 id 是固定的 `study-pilot-summary`——条件永远为假，
-     * 锚点一次都没生效过，用户点通知总是落在页面顶部。
-     *
-     * 判据现在跟着 id 的生成规则走，而不是跟着某一个具体值走：
-     * 发送用的 id 每次都不一样（前缀加时间戳，见 reminder.ts），
-     * 任何等值比较都会立刻失效——这个坑不能踩第二次。
-     */
-    const anchor = deps.wiring.some((platform) => notificationId.startsWith(platform.notificationPrefix))
-      ? '#platforms'
-      : '';
-    const url = browser.runtime.getURL(`/dashboard.html${anchor}`);
-    void browser.tabs.create({ url });
+  browser.notifications.onClicked.addListener(() => {
+    void browser.tabs.create({ url: browser.runtime.getURL('/options.html#overview') });
   });
 
   /*

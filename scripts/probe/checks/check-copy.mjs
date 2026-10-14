@@ -139,17 +139,26 @@ const options = FILES.filter((f) => f.startsWith('apps/extension/entrypoints/opt
   .map((f) => sources.get(f) ?? '')
   .join('\n');
 /*
- * 设置页不再放「立即执行」（动作只留在弹窗与看板），因此断言跟着搬到弹窗的按钮上。
+ * 「立即执行」在弹窗与主页面顶栏各有一个：两处都要扫，且都必须真的找到，
+ *   少一处说明等于那个按钮没有说明。
  *
  * 要求不变：说明必须讲「拉最新状态后执行」这件事本身，不得罗列任务类别——
  * 逐条罗列会随功能增加而过时，这里出过两次错。
  */
-const popupBar = sources.get('apps/extension/entrypoints/popup/index.html') ?? '';
-const runNow = popupBar.match(/title="(立即执行[^"]*)"/);
+const pages = [
+  'apps/extension/entrypoints/popup/index.html',
+  'apps/extension/entrypoints/options/index.html',
+];
+const runNowTitles = pages
+  .map((file) => sources.get(file) ?? '')
+  .map((text) => text.match(/title="(立即执行[^"]*)"/))
+  .filter((match) => match !== null)
+  .map((match) => match[1]);
 record(
   '「立即执行」说明不逐条罗列任务类别',
-  !!runNow && !/(自动答题|自动互评|自动自评|自动完成课件|自动完成测验)/.test(runNow[1]),
-  runNow ? runNow[1] : '(未找到)',
+  runNowTitles.length === pages.length &&
+    runNowTitles.every((title) => !/(自动答题|自动互评|自动自评|自动完成课件|自动完成测验)/.test(title)),
+  runNowTitles.join(' / ') || '(未找到)',
 );
 
 /*
@@ -157,12 +166,21 @@ record(
  * 已由上面「界面文案」一节的检查覆盖，这里不重复断言。
  */
 
-/* 分区说明不能提到已经移走的内容。单元明细已独立成区。 */
-const executionDesc = options.match(/section\('execution',[^,]+,\s*'([^']+)'/);
+/*
+ * 说明不能提到已经移走的内容：单元明细已经并进概览那张表，得分就是「得分」列。
+ *
+ * 这条原先按 section('execution', …) 匹配那一个分区。分区改名之后条件恒为假，
+ * 检查既不报错也不真正生效——它找的是已经不存在的字。
+ * 现在扫主页面全部中文说明：任何一句里再出现「单元明细」这类说法都算失败，
+ * 与分区叫什么名字无关。
+ */
+const staleCopy = [...options.matchAll(/'([^']{8,})'/g)]
+  .map((m) => m[1])
+  .filter((text) => /单元明细|每个单元都要|逐单元明细/.test(text));
 record(
-  '「执行与诊断」说明未提及已移出的单元明细',
-  !!executionDesc && !executionDesc[1].includes('每个单元'),
-  executionDesc ? executionDesc[1] : '(未找到)',
+  '说明没有提到已移走的单元明细',
+  staleCopy.length === 0,
+  staleCopy.slice(0, 3).join(' / '),
 );
 
 // ---------- 4. 标点 ----------

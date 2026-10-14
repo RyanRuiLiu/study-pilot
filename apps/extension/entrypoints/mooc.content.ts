@@ -20,7 +20,7 @@
  */
 
 import { getSettings, watchSettings, type Settings } from '../src/settings';
-import { parseMoocLocation } from '../src/platform/mooc/url';
+import { parseWorkLocation } from '@study-pilot/platform-mooc';
 import {
   injectGuidance,
   loadQuestions,
@@ -52,7 +52,7 @@ export default defineContentScript({
      * 幂等：重复调用不会产生额外效果，因此可以被观察器反复触发。
      */
     function apply(): void {
-      const location = parseMoocLocation(window.location.href);
+      const location = parseWorkLocation(window.location.href);
       const enabled = settings.enabled;
       const foreground = settings.mooc.foreground;
 

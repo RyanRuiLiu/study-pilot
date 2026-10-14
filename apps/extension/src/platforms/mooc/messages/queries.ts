@@ -12,14 +12,14 @@ import {
   getQuizBank,
 } from '@study-pilot/platform-mooc';
 import { getSettings } from '../../../settings';
-import { ensureSession } from '../../../platform/mooc/session';
-import type { BackgroundRequest } from '../../../platform/messaging';
+import { ensureSession } from '../session';
+import type { BackgroundRequest } from '../../../browser/messaging';
 import { notifySample } from '../reminder';
 import { readSnapshot } from '../read';
 import { derivePlan } from '../plan';
 import { toPendingSummary, toUnitDetails } from '../to-messages';
 import { recoveryFailure, withSessionRecovery } from '../recovery.ts';
-import type { SendResponse } from '../../../platform/messaging';
+import type { SendResponse } from '../../../browser/messaging';
 import type { MoocMessageDeps } from './deps.ts';
 
 export async function handleQuery(

@@ -108,11 +108,16 @@ interface PlatformAdapter {
 
 - **选型：Shoelace / Web Awesome（Web Components）**。默认就有成品设计；shadow DOM 天然隔离——
   注入面板塞进慕课页时既不被动（宿主的 CSS 进不来）也不主动（我们的 CSS 不污染宿主）；无框架依赖。
-- **一处定义**：[tokens.css](../../apps/extension/src/ui/tokens.css) 是设计令牌，映射成 Shoelace 的
-  `--sl-*` 变量写在 [theme.css](../../apps/extension/src/ui/theme.css)；组件的构造与排版在
-  [index.ts](../../apps/extension/src/ui/index.ts) 与 [components.css](../../apps/extension/src/ui/components.css)，
-  只用类选择器，供 shadow DOM 复用。
-- **页面 CSS 只留布局**：页面不再自带控件样式。弹窗 384 → 30 行、设置页 751 → 224 行、看板 152 → 76 行。
+- **外观只有官方那一份**：入口 import 组件库自带的主题 `themes/light.css`，项目里**没有第二套
+  设计令牌**——不自定义色值、不改 `--sl-*`、不覆盖组件的 `::part()`。品牌图标那支青因此
+  不再决定界面颜色；它只出现在图标本身。
+- **组件的构造**在 [index.ts](../../apps/extension/src/ui/index.ts) 与
+  [form.ts](../../apps/extension/src/ui/form.ts)：状态行是 sl-alert、分组清单是 sl-card + sl-divider、
+  时间是 sl-tag、动作是 sl-button / sl-button-group、注入面板的容器也是 sl-card。
+- **只剩一份结构样式** [layout.css](../../apps/extension/src/ui/layout.css)：组件库没有表格组件，
+  也没有布局组件，因此原生 `<table>` 的样式、几处弹性排布、以及「把文档自身的字体与底色
+  接到官方令牌上」这一条留在里面。全文没有一个色值字面量。
+- **文字层级用原生语义**：`strong` / `small` / `h2` / `dl`，不再自写一套字号类。
 - **体积代价已接受**：Shoelace 让生产包增加约 80 kB，换来三页一致的成品视觉与隔离，值得。
 
 ## 7. 产品立场：默认是助手，代做是显式开启的高级功能
@@ -173,6 +178,25 @@ interface PlatformAdapter {
   语义不变。
 - **文件拆分**：全部源码文件 ≤300 行，由 `max-lines` 守着。
 - **课件按类型留下与真人一致的记录**，讨论留言由用户自己配置的 AI 生成。
+- **注入面隔离到 shadow root**：面板与得分指导各开自己的 shadow root，样式由
+  `panel.css` / `guidance.css` 以 `?inline` 文本注入，设计令牌同时挂在 `:root` 与 `:host`
+  上（自定义属性会一路继承进 shadow 树，注入件不必再带一份主题）。此前面板样式写在 TS 模板字符串里，取的是
+  `--sp-*` 那批**从未定义**的变量名，于是每处都落到硬编码兜底色，而其中
+  `#0d9488`、`#98a2b3` 正是令牌表里因对比度不合格被换掉的旧值。
+- **运行状态可回收**：`canStartRun` 与界面共用 `liveRunState` 一个判据。此前判据是
+  `runningSince === null`，而清掉它的 `finishRun` 活在已经死掉的进程里——一次强杀
+  就让后台永久静默。同一进程内的并发由 `claimRun` 挡（闹钟与登录事件会同时到达）。
+- **后台一轮的失败有出口**：`recordRunFailure` 把原因记进运行状态，弹窗如实显示。
+  此前是抛给 `.catch(() => undefined)`，「什么都没做」与「做失败了的」在界面上一样。
+- **协议形状由类型约束**：`SendResponse<K>` 按请求 type 收响应类型，手动执行那一轮
+  的响应形状回到单一来源（此前弹窗自己声明了一份本地 `RunSummary` 再 `as` 上去，
+  协议类型早就与实际内容不符）。
+- **app 内部分层交给工具**：`eslint-plugin-boundaries` 按路径给 app 立元素与方向
+  （外壳↛平台、平台↛页面与执行面、支撑层↛业务），packages 之外不再是无人检查的一万两千行。
+- **重复实现合并**：页面路由表（拼与解共用一张，住在平台包）、设计令牌、
+  Chrome for Testing 查找（`scripts/probe/lib/chrome-path.mjs` 一处）。
+- **测试环境用官方替身**：`WxtVitest` + `fakeBrowser`，定时器与存储因此可测
+  （`alarms.test.ts` 是这条路径上第一条真实测试）；覆盖率门槛写在 vitest 配置里。
 
 ## 11. 未完成
 
@@ -198,12 +222,15 @@ interface PlatformAdapter {
      （健康时 319 个），漏跑的测试会让变异体再次假存活。
 2. **`execute/work.ts` 的全文件变异分数未复核**：已补 35 项测试（`b656df9`），抽查 `work.ts:43-71`（runQuiz）为 39 变异体**全 killed**；全文件（219 变异体、约 6.5 分钟）的整体分数还没跑过。
    
-3. **注入面板 shadow DOM 化**：组件层已按「不依赖全局样式」写，面板本身仍按老方式注入宿主页面，
-   需要迁到自定义元素里。
-4. **设置页窄屏**：两栏布局在 720px 以下会挤，需要一档单栏断点。
+3. **自定义元素**：面板与得分指导已经关在 shadow root 里（见 §6 与 `src/features/isolated.ts`），
+   但仍是命令式构造。要不要进一步做成 `<study-pilot-panel>` 自定义元素，等第二个平台的
+   前台需求出现再定——现在没有第二个使用者。
 5. **第二个平台**：命名与归属约定已定（见 [architecture.md](../architecture.md) 第 3.5 节），
    等真实需求出现再落包。
-6. **看板刷新入口**：数据陈旧时目前只显示上次读取时间，是否给一个手动刷新按钮待定。
+5. **看板刷新入口**：已给（分区内一个「重读快照」，只读本地）。剩下的问题是数据陈旧时
+   是否要更醒目的提示。
+6. **平台处理器的响应类型**：外壳那一条已经由 `SendResponse<K>` 约束，平台处理器仍走
+   宽松分发（按 type 运行时才知道键），各条协议的实际形状靠各自的测试钉住。
 
 ## 12. 验收标准
 

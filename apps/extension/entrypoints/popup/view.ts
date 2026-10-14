@@ -10,12 +10,18 @@
  */
 
 import { MOOC_ORIGIN } from '@study-pilot/platform-mooc';
-import type { PendingEntry, PendingSummary, TaskStatus } from '../../src/platform/messaging';
-import { formatDateTime } from '../../src/features/format';
-import { actionRow, button, countLine, navBar, statusLine, taskList, taskRow, type Tone } from '../../src/ui';
+import type { PendingEntry, PendingSummary, TaskStatus } from '../../src/browser/messaging';
+import { formatDateTime } from '../../src/ui/format';
+import { actionRow, button, countLine, navBar, setStatusLine, statusLine, taskGroups, type Tone } from '../../src/ui';
 
-/** 这一屏只回答「现在先做哪几件」，多的不在这里铺开。 */
-const TOP_COUNT = 5;
+/**
+ * 一门课在这一屏里最多铺几张纸条。
+ *
+ * 弹窗只回答「现在先做哪几件」：三门课各欠七八项时，把二十条排在这里
+ * 等于让人滚半天，而滚完也记不住。每组三条足够看出这一组的形势，
+ * 剩下的由下面那句「另有 N 项」领去概览。
+ */
+const PER_COURSE = 3;
 
 export interface PopupData {
   /** 后台此刻的运行状态，由后台的 TASK_STATE 判定，界面不自己猜 */
@@ -33,11 +39,18 @@ export interface PopupData {
   staleList: boolean;
   /** 读取失败的原因；null 表示没有失败 */
   error: string | null;
+  /**
+   * 上一轮自动执行记下的失败原因；null 表示没有需要交代的失败。
+   *
+   * 由后台记录（`scheduler.recordRunFailure`），界面只负责显示。没有它的话，
+   * 「今天什么都没做」与「试了但失败了」看起来一样。
+   */
+  lastError: string | null;
 }
 
 export interface PopupHandlers {
-  /** 看板页地址，由入口用 runtime.getURL 给出 */
-  dashboardUrl: string;
+  /** 主页面（概览标签）地址，由入口用 runtime.getURL 给出 */
+  pageUrl: string;
   onSettings: () => void;
 }
 
@@ -46,6 +59,8 @@ export interface PopupView {
   setStatus: (text: string, tone: Tone) => void;
 }
 
+
+
 /**
  * 谁最紧要：已过截止的排在最后，其余按截止时间升序，没有截止的排在有截止的后面。
  *
@@ -53,20 +68,64 @@ export interface PopupView {
  * 而用户打开弹窗是要看「现在还能做什么」。它们仍然在清单里，
  * 加上日期本身就是提醒（见 format.ts 的相对说法）。
  */
-function byUrgency(entries: PendingEntry[], now: number): PendingEntry[] {
-  const rank = (entry: PendingEntry): [number, number] => {
-    if (entry.overdue) return [2, 0];
-    if (entry.deadline > 0 && entry.deadline < now) return [2, 0];
-    if (entry.deadline > 0) return [0, entry.deadline];
-    return [1, 0];
-  };
+function urgencyRank(entry: PendingEntry, now: number): [number, number] {
+  if (entry.overdue) return [2, 0];
+  if (entry.deadline > 0 && entry.deadline < now) return [2, 0];
+  if (entry.deadline > 0) return [0, entry.deadline];
+  return [1, 0];
+}
 
+function byUrgency(entries: PendingEntry[], now: number): PendingEntry[] {
   return [...entries].sort((left, right) => {
-    const [leftBucket, leftAt] = rank(left);
-    const [rightBucket, rightAt] = rank(right);
+    const [leftBucket, leftAt] = urgencyRank(left, now);
+    const [rightBucket, rightAt] = urgencyRank(right, now);
     if (leftBucket !== rightBucket) return leftBucket - rightBucket;
-    return leftAt - rightAt;
+    if (leftAt !== rightAt) return leftAt - rightAt;
+    return left.name.localeCompare(right.name, 'zh-Hans-CN');
   });
+}
+
+/** 一组：一门课和它欠着的那些事，外加「这一组排第几」的两个依据。 */
+interface CourseGroup {
+  course: string;
+  rows: PendingEntry[];
+  /** 这一组里最紧要那件事的档位与时刻，与 urgencyRank 同源；组间按它排 */
+  rank: number;
+  at: number;
+}
+
+/**
+ * 按课程分好组。
+ *
+ * 分组而不是排成一条按时间来的长清单，是因为这一屏要先回答「哪门课欠得多、
+ * 欠的是什么」；时间只在组内排序用。组的先后按各自最紧要的那件事排，
+ * 于是第一组永远是眼下最该看的课。
+ */
+function byCourse(entries: PendingEntry[], now: number): CourseGroup[] {
+  const grouped = new Map<string, CourseGroup>();
+
+  for (const entry of entries) {
+    const [rank, at] = urgencyRank(entry, now);
+    const group = grouped.get(entry.courseName);
+    if (group === undefined) {
+      grouped.set(entry.courseName, { course: entry.courseName, rows: [entry], rank, at });
+      continue;
+    }
+    group.rows.push(entry);
+    if (rank < group.rank || (rank === group.rank && at < group.at)) {
+      group.rank = rank;
+      group.at = at;
+    }
+  }
+
+  return [...grouped.values()]
+    .sort(
+      (left, right) =>
+        left.rank - right.rank ||
+        left.at - right.at ||
+        left.course.localeCompare(right.course, 'zh-Hans-CN'),
+    )
+    .map((group) => ({ ...group, rows: byUrgency(group.rows, now) }));
 }
 
 function statusText(data: PopupData): string {
@@ -77,6 +136,8 @@ function statusText(data: PopupData): string {
   }
   if (data.live === 'interrupted') return '上次运行未结束，下次检查时接着做';
   if (data.live === 'awaiting-login') return '等待登录，登录后接着完成';
+  // 后台记下的失败：原因照原文显示，界面不解释、也不改写成一个更好听的说法
+  if (data.lastError !== null) return `上次执行没有完成：${data.lastError}`;
   const fetchedAt = data.summary?.fetchedAt ?? 0;
   return fetchedAt > 0 ? `上次读取：${formatDateTime(fetchedAt)}` : '还没有读取过数据';
 }
@@ -99,7 +160,8 @@ export function renderPopup(
   data: PopupData,
   handlers: PopupHandlers,
 ): PopupView {
-  const parts: HTMLElement[] = [statusLine(statusText(data), { tone: statusTone(data) })];
+  const status = statusLine(statusText(data), { tone: statusTone(data) });
+  const parts: HTMLElement[] = [status];
 
   if (data.notLoggedIn) {
     parts.push(
@@ -112,36 +174,41 @@ export function renderPopup(
       ]),
     );
   } else if (data.error === null && data.summary !== null) {
-    const entries = byUrgency(data.summary.entries, Date.now());
+    const groups = byCourse(data.summary.entries, Date.now());
     parts.push(countLine(countParts(data.summary)));
     parts.push(
-      taskList(
-        entries.slice(0, TOP_COUNT).map((entry) =>
-          taskRow({ title: entry.name, due: entry.deadline, href: entry.href }),
-        ),
+      taskGroups(
+        groups.map((group) => ({
+          title: group.course,
+          count: `${group.rows.length} 项`,
+          rows: group.rows
+            .slice(0, PER_COURSE)
+            .map((entry) => ({ title: entry.name, due: entry.deadline, href: entry.href })),
+        })),
         '暂无待办。',
       ),
     );
+
+    const hidden = groups.reduce((sum, group) => sum + Math.max(0, group.rows.length - PER_COURSE), 0);
+    if (hidden > 0) {
+      const more = document.createElement('p');
+      more.textContent = `另有 ${hidden} 项没排在上面这些组里，概览那张表能看全部、也能按截止时间排。`;
+      parts.push(more);
+    }
   }
 
   parts.push(
     navBar([
-      button({ label: '看板', href: handlers.dashboardUrl, title: '打开看板：整体还剩什么' }),
+      button({ label: '概览', href: handlers.pageUrl, title: '打开概览：整体还剩什么' }),
       button({ label: '设置', onClick: handlers.onSettings, title: '打开设置：它怎么运行' }),
     ]),
   );
 
   root.replaceChildren(...parts);
-  return { setStatus: (text, tone) => setStatus(root, text, tone) };
+  return { setStatus: (text, tone) => setStatusLine(status, text, tone) };
 }
 
 /** 数据到达之前的过渡：状态行加一个转圈。 */
 export function renderLoading(root: HTMLElement, text: string): void {
   root.replaceChildren(statusLine(text, { loading: true }));
-}
-
-/** 就地改写状态行：只换那一行，清单与入口不动。 */
-function setStatus(root: HTMLElement, text: string, tone: Tone): void {
-  const current = root.querySelector('.sp-status');
-  if (current) current.replaceWith(statusLine(text, { tone }));
 }

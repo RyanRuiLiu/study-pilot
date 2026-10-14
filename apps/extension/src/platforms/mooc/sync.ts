@@ -9,10 +9,10 @@
 import { md5hex } from '@study-pilot/core';
 import { COURSE_TYPE, createMoocClient, getCourses, type CourseSummary, type MoocClient } from '@study-pilot/platform-mooc';
 import { getSettings, updateSettings } from '../../settings';
-import { readToken, renewSession, SessionExpiredError } from '../../platform/mooc/session';
+import { readToken, renewSession, SessionExpiredError } from './session';
 import { inspect, writeSnapshot, type InspectCourse, type Snapshot } from './read';
 import { mergeCourses } from './course-selection';
-import { whenNetRulesReady } from '../../background/net-rules';
+import { whenNetRulesReady } from '../../browser/net-rules';
 import { MOOC_REQUEST_RULES } from './net-rules.ts';
 
 export interface PlatformClient {
@@ -20,7 +20,6 @@ export interface PlatformClient {
   renew: () => Promise<boolean>;
 }
 
-export function createPlatformClient(): PlatformClient {
 /*
  * 平台以 Origin 判定来源，规则未生效时会回这句话。
  * 拿它当作「规则还没挂上网络栈」的信号。
@@ -43,39 +42,42 @@ async function looksLikeOriginRejection(res: Response): Promise<boolean> {
   }
 }
 
-const client = createMoocClient({
+export function createPlatformClient(): PlatformClient {
+  const client = createMoocClient({
+    /*
+     * 出站请求的第一步是确保改写 Origin 的规则已生效。
+     *
+     * whenNetRulesReady 只保证「规则已提交」，不保证「已挂上网络栈」——
+     * updateDynamicRules 是异步提交的。规则还没生效时发出去的请求会带着
+     * 扩展自身的 Origin，被平台回「非法跨域请求」。
+     * 实测这表现为：装好后第一次读取失败，要手动打开一次 MOOC 页面，
+     * 等 service worker 被唤醒、规则真正生效之后才正常。
+     *
+     * 因此这里再加一层：命中那个回绝就等一拍重发一次。
+     * 重发时规则一定已生效，不必猜要等多久——第一次失败本身就是判据。
+     *
+     * 为什么这对写请求也是安全的：回绝发生在服务端处理**之前**（Origin 不合格
+     * 就不进业务逻辑），第一次请求并没有改动任何数据，重发不是第二次提交。
+     */
+    fetch: async (input, init) => {
+      await whenNetRulesReady(MOOC_REQUEST_RULES);
+      const first = await fetch(input, init);
+      if (!(await looksLikeOriginRejection(first))) return first;
+
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      return fetch(input, init);
+    },
+    getToken: readToken,
+    md5: md5hex,
+  });
+
   /*
-   * 出站请求的第一步是确保改写 Origin 的规则已生效。
+   * 会话续期，供各读取路径在见到未登录形态后调用。
    *
-   * whenNetRulesReady 只保证「规则已提交」，不保证「已挂上网络栈」——
-   * updateDynamicRules 是异步提交的。规则还没生效时发出去的请求会带着
-   * 扩展自身的 Origin，被平台回「非法跨域请求」。
-   * 实测这表现为：装好后第一次读取失败，要手动打开一次 MOOC 页面，
-   * 等 service worker 被唤醒、规则真正生效之后才正常。
-   *
-   * 因此这里再加一层：命中那个回绝就等一拍重发一次。
-   * 重发时规则一定已生效，不必猜要等多久——第一次失败本身就是判据。
+   * 返回布尔而不是会话对象：调用点关心的只有「换到没有」，
+   * 换到之后一律重新读数据，而不是拿旧对象接着用。
    */
-  fetch: async (input, init) => {
-    await whenNetRulesReady(MOOC_REQUEST_RULES);
-    const first = await fetch(input, init);
-    if (!(await looksLikeOriginRejection(first))) return first;
-
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    return fetch(input, init);
-  },
-  getToken: readToken,
-  md5: md5hex,
-});
-
-/**
- * 会话续期，供各读取路径在见到未登录形态后调用。
- *
- * 返回布尔而不是会话对象：调用点关心的只有「换到没有」，
- * 换到之后一律重新读数据，而不是拿旧对象接着用。
- */
-const renew = async (): Promise<boolean> => (await renewSession()).renewed;
-
+  const renew = async (): Promise<boolean> => (await renewSession()).renewed;
 
   return { client, renew };
 }
@@ -88,8 +90,9 @@ const renew = async (): Promise<boolean> => (await renewSession()).renewed;
  *
  * 不做任何「多久之内不重复请求」的判断。节流由调用方负责，
  * 而且调用方本来就有更准确的依据：
- *   自动任务走 runBatchIfDue，它按 lastRunDate 判断今天是否已跑过；
- *   主动打开弹窗或设置页则是用户当下想看最新状态，本来就该请求。
+ *   自动执行   由 `plan.shouldRefresh` 决定值不值得拉（看快照里有没有能被
+ *              消灭的项，以及今天是否已完整拉过 `read.fetchedToday`）；
+ *   手动打开   无条件调，用户明确表达了现在想看。
  * 在数据层再加一层日期缓存，只是把同一个判断做两遍，
  * 还会出现两处判断不一致的隐患。
  */
@@ -160,16 +163,6 @@ export async function refreshCourses(client: MoocClient): Promise<
   return { ok: true, courses, byType };
 }
 
-/**
- * 浏览器启动时判断是否该执行一轮。
- *
- * 启动瞬间后台线程仍在初始化，按配置延迟一小段时间再开始，
- * 避免与页面加载争抢网络与 CPU。
- *
- * 未登录时不跳过而是挂起：登录凭证是会话级 cookie，关浏览器即失效，
- * 而触发时机恰是启动那一刻，用户通常还没登录。挂起之后由 cookie 变化
- * 触发补执行，见下方 onChanged。
- */
 /**
  * 拉取平台最新状态并落盘快照。
  *

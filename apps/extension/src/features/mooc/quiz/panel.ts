@@ -5,6 +5,7 @@
  * 否则本文件与 actions.ts 会互相引用成环。
  */
 
+import type SlButton from '@shoelace-style/shoelace/dist/components/button/button.js';
 import type { OpenQuizInfo } from '@study-pilot/platform-mooc';
 import { createPanel, panelButton, panelInfo, type PanelHandle } from '../../panel';
 import { STAGE_DESCRIPTIONS, type QuizStage } from '../quiz-stage';
@@ -34,8 +35,8 @@ export interface ActivePanel {
   hint: HTMLElement;
   /** 信息行的容器，由接口数据填充 */
   infoSlot: HTMLElement;
-  fillButton: HTMLButtonElement;
-  submitButton: HTMLButtonElement;
+  fillButton: SlButton;
+  submitButton: SlButton;
   options: QuizHelperOptions;
   stage: QuizStage;
   busy: boolean;
@@ -52,7 +53,6 @@ export function createActivePanel(options: QuizHelperOptions, actions: PanelActi
   const handle = createPanel({ id: PANEL_ID, title: '做题助手', width: 260 });
 
   const hint = document.createElement('div');
-  hint.className = 'sp-panel-hint';
 
   // 信息行由接口数据异步填充，先占位，避免面板出现时发生位移
   const infoSlot = document.createElement('div');
@@ -69,7 +69,13 @@ export function createActivePanel(options: QuizHelperOptions, actions: PanelActi
     infoLoaded: false,
   };
 
-  handle.body.append(infoSlot, hint, panel.fillButton, panel.submitButton);
+  handle.body.append(infoSlot, hint);
+
+  // 两个动作并排等宽：填充与提交是同一层的两个选择，不该上下读成两步
+  const buttonRow = document.createElement('div');
+  buttonRow.className = 'actions';
+  buttonRow.append(panel.fillButton, panel.submitButton);
+  handle.body.append(buttonRow);
   return panel;
 }
 

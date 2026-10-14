@@ -13,9 +13,9 @@ import {
   COURSE_TYPE,
   getCourses,
 } from '@study-pilot/platform-mooc';
-import type { BackgroundRequest, MessageHandler, MessageHandlers } from '../../../platform/messaging';
+import type { BackgroundRequest, MessageHandler, MessageHandlers } from '../../../browser/messaging';
 import type { MoocMessageDeps } from './deps.ts';
-import { ensureSession, renewSession } from '../../../platform/mooc/session';
+import { ensureSession, renewSession } from '../session';
 import { getSettings } from '../../../settings';
 import { recoveryFailure, withSessionRecovery } from '../recovery.ts';
 import { handleDashboard } from './dashboard.ts';
