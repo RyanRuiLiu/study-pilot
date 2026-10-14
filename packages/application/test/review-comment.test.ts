@@ -1,6 +1,6 @@
 
 import { describe, expect, it } from "vitest";
-import { normalize } from "@study-pilot/application";
+import { normalize } from '../src/index.ts';
 
 describe("评语兜底", () => {
   it("留空时退回默认值", () => {

@@ -14,10 +14,13 @@
     pnpm -r test            # 各包测试
     pnpm build              # 构建扩展（apps/extension/.output/chrome-mv3）
 
-两条冒烟（可选，第二条要本地已有登录会话）：
+三条冒烟（可选，后两条要本地已有登录会话）：
 
-    node node_modules/vitest/vitest.mjs run --root apps/extension test/plan-smoke.test.ts
+    node node_modules/vitest/vitest.mjs run --root packages/platform-mooc test/plan-smoke.test.ts
         # 证明计划逻辑不碰浏览器（用一个会抛异常的 browser 代理）
+
+    node node_modules/vitest/vitest.mjs run --root packages/platform-mooc test/headless.test.ts
+        # 证明整个策略层只认端口：假端口喂进去就能跑完「入会话 → 读 → 计划」
 
     node scripts/probe/lib/cookies.mjs
         # 从正在运行的浏览器导出慕课会话到 .probe/（只读、已被 git 忽略）

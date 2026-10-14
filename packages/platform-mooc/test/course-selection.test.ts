@@ -10,9 +10,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { CourseSummary } from '@study-pilot/platform-mooc';
-import { mergeCourses } from '@study-pilot/platform-mooc';
-import type { SelectedCourse } from '../src/settings';
+import type { CourseSummary } from '../src/types.ts';
+import { mergeCourses } from '../src/policy/course-selection.ts';
+import type { SelectedCourse } from '@study-pilot/application';
 
 /** 学期区间盖住当下的课程。按旧规则它会被自动勾上。 */
 const TERM_START = 1_700_000_000_000;

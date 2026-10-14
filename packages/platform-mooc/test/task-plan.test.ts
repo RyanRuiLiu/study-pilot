@@ -15,10 +15,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { CourseUnit } from '@study-pilot/platform-mooc';
-import { derivePlan, type Plan } from '@study-pilot/platform-mooc';
-import type { Snapshot, SnapshotCourse, SnapshotWork } from '@study-pilot/platform-mooc';
-import type { Settings } from '../src/settings';
+import type { CourseUnit } from '../src/types.ts';
+import { derivePlan, type Plan } from '../src/policy/plan/index.ts';
+import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/policy/read/types.ts';
+import type { Settings } from '@study-pilot/application';
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date(2026, 8, 26, 10, 0, 0).getTime();
