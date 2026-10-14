@@ -20,6 +20,78 @@ import { ANSWER_MARK_ATTRIBUTE, ANSWER_SOURCE_ATTRIBUTE, GUIDANCE_LABEL } from '
 const TEXT_NODE = 3;
 const ELEMENT_NODE = 1;
 
+/*
+ * 富文本按白名单净化。
+ *
+ * 为什么当作不可信：`msg` 是平台上的富文本（课程老师/助教可写），而块渲染在
+ * icourse163 页面自身的 DOM 里——不净化就等于在平台的源里执行它。旧的
+ * 「删几个标签 + 剥 on* 属性」管不住 javascript: 链接、object/form、
+ * style 里的 url() 信标这些，因此改成结构性白名单：
+ *
+ *   名单外、但文字可读的  → 拆掉元素本身，文字留下（链接、未知标签走这条）
+ *   整个丢弃            → 代码与控件类元素连内容一起丢（拿出来的只会是代码）
+ *   属性                → 除 img 的四个以外一律剥掉（含 style 与 on*）
+ *   URL                 → 只放行显式 https:（公式图都在平台 CDN 上）
+ */
+
+/** 允许保留的元素。其余元素拆掉留字，或按 DROPPED_TAGS 整体丢弃。 */
+const ALLOWED_TAGS = new Set([
+  'p', 'br', 'div', 'span',
+  'b', 'strong', 'i', 'em', 'u', 's', 'sub', 'sup', 'code', 'pre', 'blockquote',
+  'ul', 'ol', 'li',
+  'table', 'thead', 'tbody', 'tr', 'td', 'th',
+  'img',
+]);
+
+/** 每个元素允许保留的属性。img 的 src 另行做协议检查。 */
+const ALLOWED_ATTRS: Record<string, ReadonlySet<string>> = {
+  img: new Set(['src', 'alt', 'width', 'height']),
+};
+
+/** 整体丢弃（含内容）：代码、样式与控件类元素，文字内容没有可读价值。 */
+const DROPPED_TAGS = new Set([
+  'script', 'style', 'template', 'noscript', 'title', 'head',
+  'link', 'meta', 'base', 'iframe', 'frame', 'object', 'embed', 'applet',
+  'form', 'input', 'button', 'select', 'textarea', 'option',
+  'audio', 'video', 'source', 'track', 'canvas', 'svg', 'math',
+]);
+
+/** 只放行显式 https:。javascript:、data:、vbscript:、协议相对等一概拒绝。 */
+function safeUrl(raw: string): string | null {
+  const value = raw.trim();
+  return /^https:\/\//i.test(value) ? value : null;
+}
+
+function sanitizeTree(container: HTMLElement): void {
+  for (const element of Array.from(container.querySelectorAll<HTMLElement>('*'))) {
+    const tag = element.tagName.toLowerCase();
+
+    if (DROPPED_TAGS.has(tag)) {
+      element.remove();
+      continue;
+    }
+
+    if (!ALLOWED_TAGS.has(tag)) {
+      // 拆掉元素本身，文字与子节点留在原处——读起来还是完整的句子
+      element.replaceWith(...Array.from(element.childNodes));
+      continue;
+    }
+
+    const allowed = ALLOWED_ATTRS[tag];
+    for (const attribute of Array.from(element.attributes)) {
+      const name = attribute.name.toLowerCase();
+      if (tag === 'img' && name === 'src') {
+        const safe = safeUrl(attribute.value);
+        if (safe === null) element.removeAttribute('src');
+        else element.setAttribute('src', safe);
+        continue;
+      }
+      if (allowed?.has(name)) continue;
+      element.removeAttribute(attribute.name);
+    }
+  }
+}
+
 /** 富文本里夹带的零宽字符与方向控制符会干扰阅读，逐段去掉。 */
 function stripInvisible(node: Node): void {
   for (const child of Array.from(node.childNodes)) {
@@ -41,20 +113,14 @@ function stripInvisible(node: Node): void {
  * 「因为〔R_i〕很大，〔C_1〕示例片段乙〔f_L〕示例片段丙」
  * 会变成「因为很大，示例片段乙示例片段丙」，读者无从理解。
  *
- * 只做三件事：去掉可执行的节点与事件属性、把图片限制在块宽之内、
+ * 只做三件事：按白名单净化（见 ALLOWED_TAGS 一段）、把图片限制在块宽之内、
  * 清掉夹带的零宽字符。结构保持原样，因此段落的相对位置与站点一致。
  */
 export function renderRichText(html: string): HTMLElement {
   const container = document.createElement('div');
   container.innerHTML = html;
 
-  for (const node of container.querySelectorAll('script, style, link, iframe')) node.remove();
-
-  for (const element of container.querySelectorAll<HTMLElement>('*')) {
-    for (const attribute of Array.from(element.attributes)) {
-      if (/^on/i.test(attribute.name)) element.removeAttribute(attribute.name);
-    }
-  }
+  sanitizeTree(container);
 
   for (const image of container.querySelectorAll<HTMLImageElement>('img')) {
     image.loading = 'lazy';

