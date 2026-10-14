@@ -99,3 +99,22 @@ export interface ResponseMap {
 // 对外只留这一个入口，调用方不必知道内部如何分文件
 export * from './envelope.ts';
 export * from './mooc.ts';
+
+/** 回响应给前台。形状由 ResponseMap 约束，这里只要求可调用。 */
+export type SendResponse = (response?: unknown) => void;
+
+/**
+ * 一个消息处理器。
+ *
+ * 处理器由**平台**提供（外壳只负责按 type 分发），因此它拿到的是协议里的
+ * 请求对象与回响应入口，不认识外壳的其它东西。
+ */
+export type MessageHandler = (
+  request: BackgroundRequest,
+  sendResponse: SendResponse,
+) => Promise<void>;
+
+/** 平台的处理器表：按请求 type 索引；\`*\` 是兜底（处理该平台自己的查询类请求）。 */
+export type MessageHandlers = Partial<Record<BackgroundRequest['type'], MessageHandler>> & {
+  '*': MessageHandler;
+};

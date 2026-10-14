@@ -88,10 +88,10 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       return (await ensureSession()).loggedIn;
     },
 
-    async plan(now: number): Promise<PlanResult> {
+    async plan(now: number, options?: { force?: boolean }): Promise<PlanResult> {
       const settings = await getSettings();
       const courses = deps.selectedCourses(settings);
-      if (courses.length === 0) return { items: [] };
+      if (courses.length === 0) return { items: [], blocked: 'no-course' };
 
       let snapshot: Snapshot | null;
       try {
@@ -104,7 +104,9 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
        * 快照为空时 shouldRefresh 必定为真（没有快照什么都判断不了），
        * 因此这里同时判空只是为了把这条不变式写进代码，让分支里拿到确定的非空类型。
        */
-      if (snapshot !== null && !shouldRefresh(snapshot, settings, await snapshotIsFresh(now), now)) {
+      // 手动执行（force）跳过「今天已经拉过」这一关：用户点它就是要拿最新的
+      const fresh = options?.force === true ? false : await snapshotIsFresh(now);
+      if (snapshot !== null && !options?.force && !shouldRefresh(snapshot, settings, fresh, now)) {
         /*
          * 不必拉取：快照说没有能自动完成的事，且今天已经全量看过。
          * 用快照出提醒后结束——截止时间一旦发布就不会变，

@@ -16,11 +16,11 @@ import {
   getQuizPaper,
   type PaperQuestion,
 } from '@study-pilot/platform-mooc';
-import type { QueryOutcome } from '../../platform/messaging';
-import type { RouterDeps } from './router.ts';
+import type { QueryOutcome } from '../../../platform/messaging';
+import type { MoocMessageDeps } from './deps.ts';
 
 export async function handleUnitQuestions(
-  deps: RouterDeps,
+  deps: MoocMessageDeps,
   kind: 'homework' | 'exam',
   tid: number,
 ): Promise<QueryOutcome<PaperQuestion[]>> {

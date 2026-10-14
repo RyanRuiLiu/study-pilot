@@ -10,11 +10,11 @@
  * （走 UNIT_DETAILS），不在这条查询里。
  */
 
-import type { QueryOutcome } from '../../platform/messaging';
-import { readSnapshot, type Snapshot } from '../../platforms/mooc/read';
-import type { RouterDeps } from './router.ts';
+import type { QueryOutcome } from '../../../platform/messaging';
+import { readSnapshot, type Snapshot } from '../read';
+import type { MoocMessageDeps } from './deps.ts';
 
-export async function handleDashboard(_deps: RouterDeps): Promise<QueryOutcome<Snapshot | null>> {
+export async function handleDashboard(_deps: MoocMessageDeps): Promise<QueryOutcome<Snapshot | null>> {
   const snapshot = await readSnapshot();
   // 还没读过平台数据不是失败，是「还没跑过」；用 null 表示，不伪造一份带版本号的空快照
   return { status: 'ok', value: snapshot };
