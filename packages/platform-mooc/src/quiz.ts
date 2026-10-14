@@ -9,8 +9,8 @@
  * 3. 提交 `submitQuiz(paper)`：请求体 `{paperDto, preview}`，**answers 原样保留**
  *    （页面只对 `content` 做一次 emoji 清理），`submitType` 为 1。
  *
- * `saveDraft(paper)` 是可选旁路，提交不依赖它：实测草稿写入在真实账号上不生效
- * （见 docs/platforms/mooc.md 第 6.1 节），而提交体携带的 answers 有效——实测一次提交
+ * `saveDraft(paper)` 是可选旁路，提交不依赖它：实测草稿写入在真实账号上不生效，
+ * 而提交体携带的 answers 有效——实测一次提交
  * 13 道题全部计入成绩。早期文档「提交不携带答案、answers 为 null」与页面源码冲突，已作废。
  *
  * 答案匹配的难点：试卷题目的 id 与题库题目的 id 属于**不同空间**，
@@ -177,8 +177,7 @@ export function buildAnswers(
 
 // ---------- 写操作 ----------
 //
-// 以下两个函数会改变服务端状态。调用前请确认目标单元已过期且已提交，
-// 具体约束见 docs/development.md。
+// 以下两个函数会改变服务端状态。调用前请确认目标单元已过期且已提交。
 //
 // 请求体形态来自页面源码（core.js 偏移 1523207 的 COM_Cache_TestBaseCache）：
 //

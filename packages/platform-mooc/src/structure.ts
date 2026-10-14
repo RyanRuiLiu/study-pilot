@@ -55,7 +55,7 @@ interface RawLesson {
   units?: RawUnit[] | null;
 }
 
-/** 课件单元。字段含义见 docs/platforms/mooc.md 第 11.4 节。 */
+/** 课件单元（平台课程结构里的 units[]）。 */
 interface RawUnit {
   id?: number;
   contentId?: number;

@@ -48,20 +48,20 @@ export const ENDPOINTS = {
   /**
    * 学习相关配置。参数 {key:'mobile_config_web_server_config'}。
    * 返回的 `result` 是一个 JSON 字符串，含 `learnTimeUploadPeriod`
-   * （上报周期，秒）与 `videoHeartBeatPeriod`。见 docs/platforms/mooc.md 第 12.1 节
+   * （上报周期，秒）与 `videoHeartBeatPeriod`。
    */
   commonConfig: { bean: 'commonBean', method: 'obtain' }, // [实测]
 
   /**
    * [写操作] 把一个课件单元标记为已学。参数 {dto}，dto 的形状按单元类型而定。
-   * 报文、取值来源与实测结果见 docs/platforms/mooc.md
+   * 报文与取值来源均取自实测
    */
   completeUnit: { bean: 'courseRpcBean', method: 'saveMocContentLearn' }, // [实测]
 
   /** 取作业答卷（含参考答案）。参数 {tid, aid, evaluateId, withStdAnswerAndAnalyse, phase} */
   homeworkPaper: { bean: 'mocQuizRpcBean', method: 'getOpenHomeworkPaperDto' }, // [有样本]
 
-  /** [写操作] 保存测验草稿。参数 {paperDto, preview}。实测草稿写入在真实账号上不生效（见 docs/platforms/mooc.md 第 6.1 节），提交不依赖它 */
+  /** [写操作] 保存测验草稿。参数 {paperDto, preview}。实测草稿写入在真实账号上不生效，提交不依赖它 */
   saveDraft: { bean: 'mocQuizRpcBean', method: 'saveDraftAnswers' },
 
   /** [写操作] 提交测验。参数 {paperDto, preview}，其中 answers 原样保留、submitType 为 1 */
