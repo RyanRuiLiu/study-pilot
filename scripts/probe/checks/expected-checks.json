@@ -1,4 +1,10 @@
 {
+  "check-text-hygiene.mjs": [
+    "文本文件一律 LF（没有 CRLF）",
+    "文本文件不含控制字符（\\n 与 \\t 除外）",
+    "文本文件不带 BOM，且以换行结尾",
+    "代码文件不含隐形字符（零宽、非断行空格等）"
+  ],
   "check-release.mjs": [
     "项目说明（README.md）",
     "许可（LICENSE）",

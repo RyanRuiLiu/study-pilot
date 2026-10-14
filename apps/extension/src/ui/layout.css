@@ -23,6 +23,37 @@ sl-card {
 
 /* ---------- 排布 ---------- */
 
+/*
+ * 页头：品牌与主操作分居两端。
+ *
+ * 没有这一段时两者会挨在一起（组件自带的边距只保证内部间距，不负责两端的对齐），
+ * 弹窗顶部于是看起来像"文字被按钮压着"。
+ */
+.sp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sl-spacing-medium);
+  padding-bottom: var(--sl-spacing-small);
+  border-bottom: var(--sl-panel-border-width) solid var(--sl-panel-border-color);
+}
+
+.sp-brand {
+  font-weight: var(--sl-font-weight-semibold);
+}
+
+/*
+ * 一句不需要被当成告警的说明（例如「上次读取 …」）。
+ *
+ * sl-alert 是官方给的「一句状态说明」，但它是一条带底色的整块提示；用它装
+ * 每次打开都会出现的读取时间，弹窗顶部会多出一个没有信息量的盒子。
+ */
+.sp-note {
+  margin: 0;
+  color: var(--sl-color-neutral-600);
+  font-size: var(--sl-font-size-x-small);
+}
+
 .sp-stack {
   display: flex;
   flex-direction: column;

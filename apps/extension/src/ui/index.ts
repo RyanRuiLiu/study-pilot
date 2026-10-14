@@ -49,11 +49,6 @@ const ALERT_VARIANT: Record<Tone, 'neutral' | 'primary' | 'danger'> = {
  * 三种 variant 对应三种处境，深浅由主题给。`open` 常开、不给关闭按钮，
  * 因为它不是一条要人处理的提醒，而是这一屏此刻的事实。
  */
-/** 就地改写一条状态行：只换文字与 variant，不重挂元素（重挂会重播出场动画）。 */
-export function setStatusLine(status: HTMLElement, text: string, tone: Tone = 'idle'): void {
-  (status as unknown as { variant: string }).variant = ALERT_VARIANT[tone];
-  status.textContent = text;
-}
 
 export function statusLine(
   text: string,
@@ -121,6 +116,7 @@ export function button(options: ButtonOptions): HTMLElement {
  */
 export function countLine(parts: string[]): HTMLElement {
   const line = document.createElement('p');
+  line.className = 'sp-count';
   line.textContent = parts.join(' · ');
   return line;
 }

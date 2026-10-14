@@ -1,0 +1,69 @@
+# 给 AI 与人的工作约定（动手前读这一份）
+
+这份文件解决的是**同一类错误反复出现**的问题。原则一句话：
+
+> 每次踩到一种坑，就把它变成**机器检查**（门禁）或**改不动的默认值**（配置），
+> 而不是写进某次对话的注意事项里。靠记性是记不住第二天的。
+
+## 一、已经机器化的问题（别再靠自觉）
+
+| 问题 | 永久控制手段 | 谁在管 |
+|---|---|---|
+| 换行符 CRLF/LF、BOM、结尾无换行、隐形字符（零宽、非断行空格）、控制字符（如被转义写出的 U+000C） | **门禁**：`scripts/verify/check-text-hygiene.mjs`（4 项） | `check-all.mjs` 第 12 个脚本 |
+| 代码里的不规则空白（含 U+3000 全角空格） | ESLint `no-irregular-whitespace` | `check-eslint.mjs` |
+| 文件过长（>300 行）、术语别名、`any`、非空断言、`console` | ESLint 规则集 | `check-eslint.mjs` |
+| 文档里的链接与路径失效 | remark + `check-doc-refs.mjs` | `check-remark.mjs` |
+| 深链锚点在目标页不存在 | `check-anchors.mjs` | 同上 |
+| 版本号出现第二处字面量 | `check-version-literal.mjs` + syncpack | 同上 |
+| 未使用的导出/文件/依赖 | knip | `check-knip.mjs` |
+| 变更的生产代码没有测试约束 | Stryker（只跑相对 HEAD 变更的文件） | `check-mutation.mjs` |
+| 门禁项被悄悄删掉 | `expected-checks.json` 快照：项名对不上即失败 | `check-all.mjs` |
+
+**加/删门禁项时必须同步 `expected-checks.json`**，否则 `check-all.mjs` 会以「少了检查项」失败——
+这是故意的，防止有人为了让门禁变绿而删掉检查。
+
+`.gitattributes`（`* text=auto eol=lf`）与 `.editorconfig`（`end_of_line = lf`）是**默认值**，
+只在 git 检出/入库或编辑器愿意读它时生效；它们挡不住编辑器直接写坏工作区，所以还需要上表第一行的门禁。
+
+## 二、写脚本改文件时的硬规则（都是踩过的坑）
+
+1. **改文件优先用编辑工具**（read/edit/write）。用 shell 拼字符串做替换是最容易出错的路子。
+2. 必须写批量替换脚本时：
+   - **不要用 PowerShell 双引号字符串装补丁内容**：反引号 `` ` `` 在那里是转义符，
+     `` `f `` 会变成换页符、`` `n `` 会变成换行——字符串看起来没变，写出去的文件已经坏了；
+   - **中文引号（`“”`、`‘’`）不是 ASCII 引号**，放进 JS 字符串里会把字符串提前结束；
+     日志文本里宁可不加引号；
+   - 查找串用**换行无关**的写法（正则或先统一行尾），否则 CRLF/LF 不一致时静默匹配不上；
+   - 脚本要**容错**：能改的都改，最后统一报告哪些没匹配，而不是第一处不匹配就静默退出。
+3. **注释里不要出现 `*/` 序列**（例如写路径 `src/platforms/*/messages/`）——它会提前闭合块注释。
+   这类错误 tsc 会抓到，但抓到时你已经以为改完了。
+4. 用 `Set-Content -NoNewline` 之后**补一个结尾换行**；门禁的第一项就会因此失败。
+5. 删函数/删代码块时用**括号配对**从声明处切，别从"最近的 `/**`"往回切——那会把上面的函数一起带走。
+
+## 三、多工具协作的规矩
+
+- 本仓库可能同时被多个 AI 工具改。**改之前先看 `git status`**：工作区不干净时先弄清是谁的改动，
+  再决定提交、合入还是绕开；**不要静默回滚别人未提交的改动**。
+- **不要 `git add -A`**，除非确实要把整仓落盘（那也应当在提交信息里说明来源）。
+- 一轮改动做完就跑 `node scripts/probe/checks/check-all.mjs`（+ `pnpm -r test`），
+  并把**关键输出**贴出来，而不是说"应该没问题"。
+- 另一个工具（Qoder）的项目说明在 `QODER.md`；与本文件重叠的部分以本文件为准。
+
+## 四、平台侧的铁律（对真实账号的写操作）
+
+1. **考试不自动提交**：只有一次作答机会；可以填充与给出得分指导，提交必须由人点。
+2. **写只发生在执行面**：`src/background/`、`src/platforms/*/execute|messages/`。
+   内容脚本、三个页面、`src/ui`、`src/settings` 里出现写接口即门禁失败。
+3. **有副作用的调用排在所有只读之后**（例如取卷会新建答卷）。
+4. **代做类开关默认关闭**；页面内功能默认开启（判据：会不会自己动）。默认值由门禁读代码核对。
+5. 探测真实账号前按 `scripts/probe/README.md` 核对目标单元状态；未过期且未满分的单元是禁区。
+
+## 五、结构约定（唯一来源，别另立一份）
+
+- **平台自成一体**：`src/platforms/<平台>/` 自带 read / plan / execute / messages / board / settings，
+  以及装配点 `platform.ts`（交出 handlers / tasks / wiring）。
+- **外壳只做三件事**：调度（`src/background/run-tasks.ts`）、路由（`.../messages/router.ts`）、页面容器
+  （`entrypoints/`）。外壳不认识任何平台字段，跨平台只经 `src/platforms/types.ts` 的契约。
+- **契约只有三个半边**：`PlatformTasks`（跑什么）、`PlatformViews`（怎么看）、`PlatformSettings`（怎么配），
+  外加 `PlatformWiring`（外壳要观察的平台信号）与 `NetRuleSet`（请求头改写规则）。
+- 新增一个平台 = 实现这几个契约 + 在装配处加一行；不改调度、不改外壳、不改其它平台。

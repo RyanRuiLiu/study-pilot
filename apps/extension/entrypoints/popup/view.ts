@@ -12,7 +12,7 @@
 import { MOOC_ORIGIN } from '@study-pilot/platform-mooc';
 import type { PendingEntry, PendingSummary, TaskStatus } from '../../src/browser/messaging';
 import { formatDateTime } from '../../src/ui/format';
-import { actionRow, button, countLine, navBar, setStatusLine, statusLine, taskGroups, type Tone } from '../../src/ui';
+import { actionRow, button, countLine, navBar, statusLine, taskGroups, type Tone } from '../../src/ui';
 
 /**
  * 一门课在这一屏里最多铺几张纸条。
@@ -143,7 +143,11 @@ function statusText(data: PopupData): string {
 }
 
 function statusTone(data: PopupData): Tone {
-  if (data.error !== null || data.notLoggedIn) return 'error';
+  /*
+   * 上一次执行留下的失败也算「需要注意」：它有实际内容要说（平台回了什么错），
+   * 用一行灰色小字说出来会被当成背景信息划过去。平静状态只剩「上次读取 …」。
+   */
+  if (data.error !== null || data.notLoggedIn || data.lastError !== null) return 'error';
   return data.live === 'running' ? 'busy' : 'idle';
 }
 
@@ -154,15 +158,33 @@ function countParts(summary: PendingSummary): string[] {
   return parts;
 }
 
+/** 一句不需要被当成告警的说明。 */
+function note(text: string): HTMLElement {
+  const element = document.createElement('p');
+  element.className = 'sp-note';
+  element.textContent = text;
+  return element;
+}
+
+/**
+ * 状态那一句该长什么样。
+ *
+ * 平静状态（只是"上次读取 …"）用一行小字，不用 sl-alert：那是带底色的整块提示，
+ * 每次打开弹窗都弹出这么一块，只会把真正要看的清单往下挤。
+ * 忙碌、出错、需要登录时才用告警条——那时它确实要人注意。
+ */
+function statusElement(text: string, tone: Tone): HTMLElement {
+  return tone === 'idle' ? note(text) : statusLine(text, { tone });
+}
+
 /** 画整屏。取数失败或需要登录时不画清单：状态行已经说明了原因，清单谁都不信。 */
 export function renderPopup(
   root: HTMLElement,
   data: PopupData,
   handlers: PopupHandlers,
 ): PopupView {
-  const status = statusLine(statusText(data), { tone: statusTone(data) });
+  const status = statusElement(statusText(data), statusTone(data));
   const parts: HTMLElement[] = [status];
-
   if (data.notLoggedIn) {
     parts.push(
       actionRow([
@@ -175,7 +197,13 @@ export function renderPopup(
     );
   } else if (data.error === null && data.summary !== null) {
     const groups = byCourse(data.summary.entries, Date.now());
-    parts.push(countLine(countParts(data.summary)));
+
+    /*
+     * 一条都没有时不必再报一遍「共 0 项 · 会自动完成 0 · 需你处理 0」——
+     * 下面的空状态已经把话说完了，两处一起说等于什么也没说清楚。
+     */
+    if (data.summary.entries.length > 0) parts.push(countLine(countParts(data.summary)));
+
     parts.push(
       taskGroups(
         groups.map((group) => ({
@@ -192,6 +220,7 @@ export function renderPopup(
     const hidden = groups.reduce((sum, group) => sum + Math.max(0, group.rows.length - PER_COURSE), 0);
     if (hidden > 0) {
       const more = document.createElement('p');
+      more.className = 'sp-note';
       more.textContent = `另有 ${hidden} 项没排在上面这些组里，概览那张表能看全部、也能按截止时间排。`;
       parts.push(more);
     }
@@ -205,7 +234,21 @@ export function renderPopup(
   );
 
   root.replaceChildren(...parts);
-  return { setStatus: (text, tone) => setStatusLine(status, text, tone) };
+  /*
+   * 就地改写状态：整块重建而不是改属性。
+   *
+   * 状态会在「忙碌」与「平静」之间来回（跑完一轮就降回平静），两者的元素类型不同，
+   * 因此这里记住**当前**那一个再替换——否则第二次更新落在已经被换掉的旧元素上，
+   * 界面上什么都不会变。
+   */
+  let current = status;
+  return {
+    setStatus: (text, tone) => {
+      const next = statusElement(text, tone);
+      current.replaceWith(next);
+      current = next;
+    },
+  };
 }
 
 /** 数据到达之前的过渡：状态行加一个转圈。 */
