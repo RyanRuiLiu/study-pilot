@@ -73,11 +73,6 @@ export function stopRun(platformId: string) {
   return sendToBackground({ type: 'STOP_PLATFORM_RUN', platformId });
 }
 
-/** 发送一条示例通知，让用户看到实际会收到什么。 */
-export function notifySample() {
-  return sendToBackground({ type: 'NOTIFY_SAMPLE' });
-}
-
 /**
  * 立刻执行一轮。
  *

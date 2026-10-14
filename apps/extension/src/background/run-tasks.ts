@@ -117,7 +117,6 @@ export async function autoRun(deps: SchedulerDeps): Promise<void> {
           await touchRun();
         }
 
-        await platform.report(items, outcomes, now);
 
         const firstFailure = outcomes.find((outcome) => outcome.status === 'failed');
         await finishPlatform(

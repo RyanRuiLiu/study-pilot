@@ -97,9 +97,6 @@ function platform(
       calls.push(`run:${entry.id}`);
       return { status: 'done' };
     },
-    report: async (items) => {
-      calls.push(`report:${items.map((entry) => entry.id).join(',')}`);
-    },
   };
 }
 
@@ -198,12 +195,12 @@ describe('逐平台执行', () => {
     expect(other.calls.filter((call) => call.startsWith('run:'))).toEqual(['run:x']);
   });
 
-  it('报告拿到的是「执行过的项」与它们的结果，需要人到场的项不在里面', async () => {
+  it('只执行需要自动完成的项，需要人到场的项不碰', async () => {
     const mooc = platform('mooc', { items: [item('auto-1', 'auto'), item('manual-1', 'manual')] });
 
     await autoRun({ platforms: () => [mooc] });
 
-    expect(mooc.calls).toContain('report:auto-1');
+    expect(mooc.calls).toContain('run:auto-1');
     expect(mooc.calls.some((call) => call.includes('manual-1'))).toBe(false);
   });
 

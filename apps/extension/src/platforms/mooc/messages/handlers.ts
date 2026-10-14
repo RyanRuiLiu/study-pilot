@@ -12,7 +12,6 @@ import type { MessageHandlers } from '../../../protocol.ts';
 import type { MoocMessageDeps } from './deps.ts';
 import { coursesCommand } from './courses.ts';
 import { dashboardCommand } from './dashboard.ts';
-import { notifySampleCommand } from './notify-sample.ts';
 import { pendingCommand } from './pending.ts';
 import { refreshCoursesCommand } from './refresh-courses.ts';
 import { sessionCommand } from './session.ts';
@@ -27,7 +26,6 @@ export function moocHandlers(deps: MoocMessageDeps): MessageHandlers {
     PENDING_SUMMARY: pendingCommand(deps),
     UNIT_DETAILS: unitDetailsCommand(deps),
     DASHBOARD: dashboardCommand(),
-    NOTIFY_SAMPLE: notifySampleCommand(deps),
     TASK_STATE: taskStateCommand(deps),
     // 不是本平台的命令：交回外壳，由它决定怎么回（undefined 表示没人处理）
     '*': async (_request, sendResponse) => sendResponse(undefined),

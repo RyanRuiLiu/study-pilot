@@ -8,8 +8,6 @@
 import type { HostCapabilities } from '../platforms/types.ts';
 import { whenNetRulesReady } from './net-rules.ts';
 
-const NOTIFICATION_ICON = '/icon/128.png';
-
 export const browserCapabilities: HostCapabilities = {
   whenRequestRulesReady: (rules) => whenNetRulesReady(rules),
 
@@ -22,28 +20,4 @@ export const browserCapabilities: HostCapabilities = {
     }
   },
 
-  listNotifications: async () => {
-    try {
-      return Object.keys(await browser.notifications.getAll());
-    } catch {
-      return [];
-    }
-  },
-
-  clearNotification: async (id) => {
-    try {
-      await browser.notifications.clear(id);
-    } catch {
-      // 清不掉旧通知只是不够干净，不该挡住发送
-    }
-  },
-
-  showNotification: async (id, notice) => {
-    await browser.notifications.create(id, {
-      type: 'basic',
-      iconUrl: browser.runtime.getURL(NOTIFICATION_ICON),
-      title: notice.title,
-      message: notice.message,
-    });
-  },
 };

@@ -16,7 +16,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CourseUnit } from '@study-pilot/platform-mooc';
 import { derivePlan } from '../src/platforms/mooc/plan';
-import { composeNotice, noticeSettingsOf } from '../src/platforms/mooc/reminder';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/platforms/mooc/read';
 import { DEFAULT_SETTINGS } from '../src/settings/schema/index.ts';
 
@@ -104,10 +103,8 @@ describe('Node 里跑核心逻辑', () => {
     );
 
     let plan;
-    let notice;
     try {
       plan = derivePlan(snapshot, settings, NOW);
-      notice = composeNotice(plan, [], noticeSettingsOf(settings), NOW);
     } finally {
       (globalThis as { browser?: unknown }).browser = original;
     }
@@ -120,12 +117,9 @@ describe('Node 里跑核心逻辑', () => {
     }
     console.log(`需要你处理 ${plan.manual.length} 个：`);
     for (const item of plan.manual) console.log(`  - ${item.work.name}（${item.reason}）`);
-    console.log(`通知标题：${notice?.title ?? '（无）'}`);
-    console.log(`通知正文：\n${(notice?.message ?? '（无）').split('\n').map((line) => '  ' + line).join('\n')}`);
     console.log('——— 完 ———\n');
 
     // 计划里有未完成的课件单元与未提交的测验：应当被认出来
     expect(plan.auto.length).toBeGreaterThan(0);
-    expect(notice).not.toBeNull();
   });
 });
