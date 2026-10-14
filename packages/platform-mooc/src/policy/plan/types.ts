@@ -46,15 +46,14 @@ export interface ManualItem {
    *   homework-overdue      同上，但已过提交截止，平台不收
    *   quiz-overdue          测验过了截止，平台不允许开卷
    *   review-overdue        作业过了互评截止但没评够，会影响成绩
-   *   quiz-disabled         测验本可自动完成，但自动答题没开
-   *   review-disabled       互评本可自动完成，但自动互评没开
-   *   self-disabled         自评本可自动完成，但自动自评没开
    *   self-overdue          作业过了互评截止但自评没做，会影响成绩
    *   exam                  考试，尚未截止；扩展不自动作答
    *   exam-overdue          考试已过截止
    *
    * 曾经这里只有一个笼统的 task-disabled，于是界面无法判断被关掉的是
    * 哪一项，把它一律当成考试显示。分开之后每一条都能给出准确说法。
+   * 三个 *-disabled 后来也删了：它们存在的前提是「开关关着」，而开关已经没了——
+   * 没过截止的测验/互评/自评现在一律排进 auto，授权由点击那一刻给出。
    */
   reason:
     | 'homework-unsubmitted'
@@ -62,26 +61,15 @@ export interface ManualItem {
     | 'quiz-overdue'
     | 'review-overdue'
     | 'self-overdue'
-    | 'quiz-disabled'
-    | 'review-disabled'
-    | 'self-disabled'
     | 'exam'
     | 'exam-overdue';
 }
 
 export interface Plan {
-  /** 能自动完成的。为空表示这一轮不需要写平台 */
+  /** 能做的。为空表示这一轮不需要写平台 */
   auto: AutoAction[];
-  /** 只能人工的。用于提醒 */
+  /** 只能人工的。用于展示与提醒 */
   manual: ManualItem[];
-}
-
-/** 当前哪些自动任务开着。 */
-export interface TaskSwitches {
-  courseware: boolean;
-  quiz: boolean;
-  review: boolean;
-  self: boolean;
 }
 
 /**

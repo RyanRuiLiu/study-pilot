@@ -46,7 +46,7 @@ export function pendingCommand(deps: MoocMessageDeps): MessageHandler {
       }
       sendResponse({
         status: 'ok',
-        value: toPendingSummary(derivePlan(outcome.value, settings), settings.schedule.keepOverdueDays),
+        value: toPendingSummary(derivePlan(outcome.value, settings), settings.mooc.keepOverdueDays),
       } satisfies MoocResponseMap['PENDING_SUMMARY']);
     } catch (error) {
       sendResponse({

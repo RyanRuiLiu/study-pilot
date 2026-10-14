@@ -9,7 +9,7 @@
  * 命令：
  *   courses [--select <termId>]   去平台读课程列表；--select 把它勾上并写进配置（只读平台）
  *   pending                       读一遍并算出「要做什么」（可自动 / 需人工），只读
- *   run [--yes]                   预演这一轮会做什么；**加 --yes 才真的执行**（会写平台）
+ *   run [--yes] [--kind ...] [--course ...]   预演这一轮会做什么；**加 --yes 才真的执行**（会写平台）
  *
  * 为什么 run 默认是预演：写平台会改账号上的学习记录，且不可撤销。所以默认只把「要做什么」
  * 摆出来，真正动手必须显式给 --yes——这就是本载体的授权规则（扩展那边等价的是用户点按钮）。
@@ -30,13 +30,15 @@ import { createFileTaskStore } from './task-store.ts';
 const USAGE = `study-pilot（命令行载体）
 
   courses [--select <termId>]   去平台读课程列表；--select 把它勾上并写进配置（只读平台）
-  pending                       读一遍并算出要做什么（可自动 / 需人工），只读
+  pending                       读一遍并算出要做什么（能做 / 需人工），只读
   run [--yes]                   预演这一轮；加 --yes 才真的执行（会写平台）
 
 可选参数：
   --cookies <file>   浏览器导出的会话文件（默认 .probe/mooc-session.json）
   --config  <file>   配置文件（默认 .probe/cli-config.json）
   --state   <file>   运行状态文件（默认 .probe/cli-state.json）
+  --kind    <类,...> run 的范围：只做这些类别（courseware / quiz / review / self / homework / exam）
+  --course  <课程名> run 的范围：只做这一门课
   --yes              run 的授权旗标：没有它只预演，不写平台
 `;
 
@@ -46,6 +48,8 @@ interface Args {
   config: string;
   state: string;
   select: number | undefined;
+  kinds: string[] | undefined;
+  course: string | undefined;
   yes: boolean;
 }
 
@@ -56,6 +60,8 @@ function parseArgs(argv: string[]): Args {
     config: '.probe/cli-config.json',
     state: '.probe/cli-state.json',
     select: undefined,
+    kinds: undefined,
+    course: undefined,
     yes: false,
   };
   for (let i = 1; i < argv.length; i += 1) {
@@ -63,6 +69,12 @@ function parseArgs(argv: string[]): Args {
     const value = argv[i + 1];
     if (flag === '--yes') {
       args.yes = true;
+    } else if (flag === '--kind' && value !== undefined) {
+      args.kinds = value.split(',').filter((kind) => kind !== '');
+      i += 1;
+    } else if (flag === '--course' && value !== undefined) {
+      args.course = value;
+      i += 1;
     } else if (flag === '--cookies' && value !== undefined) {
       args.cookies = value;
       i += 1;
@@ -95,7 +107,7 @@ function reportRound(result: RoundResult, configPath: string): number {
       console.error(`没有勾选课程：先跑 courses --select <termId>（配置：${configPath}）`);
       return 3;
     case 'nothing-to-do':
-      console.log('没有可自动完成的事项');
+      console.log('没有可执行的事项');
       return 0;
     case 'finished': {
       console.log(`完成 ${result.done} 项，需你处理 ${result.manual} 项`);
@@ -104,9 +116,6 @@ function reportRound(result: RoundResult, configPath: string): number {
     }
     case 'failed':
       console.error(`这一轮失败：${result.message}`);
-      return 1;
-    case 'disabled':
-      console.error('这一轮没有执行');
       return 1;
   }
 }
@@ -158,7 +167,7 @@ async function main(): Promise<number> {
          * 只翻转 enabled——字段少一个都不会有编译错误，所以不手写结构体。
          */
         const current = await config.read();
-        const courses = current.mooc.background.courses.map((course) => ({
+        const courses = current.mooc.courses.map((course) => ({
           ...course,
           enabled: course.termId === args.select,
         }));
@@ -166,7 +175,7 @@ async function main(): Promise<number> {
           console.error(`平台返回的课程里没有 termId=${args.select as number}`);
           return 1;
         }
-        await config.update({ mooc: { background: { courses } } });
+        await config.update({ mooc: { courses } });
         console.log(`\n已把 termId=${args.select as number} 写进 ${args.config}`);
       }
       return 0;
@@ -184,20 +193,23 @@ async function main(): Promise<number> {
       }
       const auto = plan.items.filter((item) => item.mode === 'auto');
       const manual = plan.items.filter((item) => item.mode !== 'auto');
-      console.log(`可自动 ${auto.length} 项，需人工 ${manual.length} 项`);
-      for (const item of auto) console.log(`  [自动] ${item.group} · ${item.title}`);
-      for (const item of manual) console.log(`  [人工] ${item.group} · ${item.title}`);
+      console.log(`能做 ${auto.length} 项，需人工 ${manual.length} 项`);
+      for (const item of auto) console.log(`  [能做] ${item.group} · ${item.title}`);
+      for (const item of manual) console.log(`  [需人工] ${item.group} · ${item.title}`);
       if (auto.length === 0 && manual.length === 0) {
-        /*
-         * 两项都是 0 只说明「读回来的数据里没有未完成的项」——四个自动开关关着时，
-         * 待做但被关掉自动处理的项会进「需人工」，不会被丢掉，所以这里不会漏报。
-         */
-        console.log('（读回来的数据里没有未完成的项；四个自动开关是否打开，不影响这条结论）');
+        console.log('（读回来的数据里没有未完成的项）');
       }
       return 0;
     }
 
     case 'run': {
+      // 范围（--kind / --course）。给了就在预演与执行两侧同样生效——预演要如实
+      // 反映加 --yes 后会做什么，否则那个「摆出来给你看」的意义就没了
+      const selection =
+        args.kinds !== undefined || args.course !== undefined
+          ? { kinds: args.kinds, group: args.course }
+          : undefined;
+
       if (!args.yes) {
         /* 预演：读一遍，把「要做什么」摆出来，一个字都不写平台 */
         const plan = await runtime.tasks().plan(Date.now());
@@ -209,30 +221,32 @@ async function main(): Promise<number> {
           console.error(`没有勾选课程：先跑 courses --select <termId>（配置：${args.config}）`);
           return 3;
         }
-        const auto = plan.items.filter((item) => item.mode === 'auto');
-        const manual = plan.items.filter((item) => item.mode !== 'auto');
+        const inScope = (item: { kind: string; group: string }): boolean =>
+          (args.kinds === undefined || args.kinds.includes(item.kind)) &&
+          (args.course === undefined || item.group === args.course);
+        const auto = plan.items.filter((item) => item.mode === 'auto' && inScope(item));
+        const manual = plan.items.filter((item) => item.mode !== 'auto' && inScope(item));
         console.log(`预演（没有写平台）：这一轮会做 ${auto.length} 项，另有 ${manual.length} 项需你处理`);
-        for (const item of auto) console.log(`  [将自动] ${item.group} · ${item.title}`);
+        for (const item of auto) console.log(`  [将做] ${item.group} · ${item.title}`);
         for (const item of manual) console.log(`  [需人工] ${item.group} · ${item.title}`);
         console.log(
           auto.length === 0
-            ? '没有要自动做的事，因此加不加 --yes 都不会写平台。'
+            ? '没有要做的事，因此加不加 --yes 都不会写平台。'
             : '确认无误后加 --yes 真的执行（会改账号上的学习记录，不可撤销）。',
         );
         return 0;
       }
 
       /*
-       * 真的执行：手动模式（用户明确要求），状态落文件、进度打到标准输出。
+       * 真的执行：状态落文件、进度打到标准输出。
        * 用例自己判「能不能开始」（状态文件里的中断标记 / 本进程认领），这里不重复判。
        */
       const runner = createRunner({
         platforms: () => [runtime.tasks()],
-        config,
         tasks: createFileTaskStore(args.state),
         progress: createStdoutProgress(),
       });
-      return reportRound(await runner.runRound('manual'), args.config);
+      return reportRound(await runner.runRound(selection), args.config);
     }
 
     default:

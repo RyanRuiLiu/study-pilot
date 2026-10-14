@@ -1,17 +1,19 @@
 /*
  * 计划派生的完整组合测试。
  *
- * 这里要回答的是「每一种可能的状态 × 每一种开关组合，会发生什么」。
- * 组合数不少，逐一人工验证不可靠，所以写成参数化的表格：
- * 每一行是一个具体处境，右边写明它应当落到哪里。
+ * 这里要回答的是「每一种平台状态，会落到哪里」。组合数不少，逐一人工
+ * 验证不可靠，所以写成参数化的表格：每一行是一个具体处境，右边写明它
+ * 应当落到哪里。
  *
  * 为什么值得这么细
  * ----------------
  * 一个真实的作业会经历「未交 → 已交 → 互评期 → 互评期结束 → 出分」
- * 五个阶段，每个阶段里三个自动开关各有开关两种可能。少考虑一种，
- * 就会出现「界面上说会自动做、实际不会」或者「明明还能做却告诉用户
- * 已经放弃了」这类错误——而这两类错误用户都看不出来是 bug，
- * 只会以为扩展不好用。
+ * 五个阶段。少考虑一种，就会出现「界面上说能做、实际不会」或者
+ * 「明明还能做却告诉用户已经放弃了」这类错误——而这两类错误用户
+ * 都看不出来是 bug，只会以为扩展不好用。
+ *
+ * 开关已经不在了：没过截止的测验/互评/自评一律排进 auto，授权在点击那一刻
+ * （见 application 的 round.ts）。这份表格因此只描述平台事实。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -23,32 +25,12 @@ import type { Settings } from '@study-pilot/application';
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date(2026, 8, 26, 10, 0, 0).getTime();
 
-function settingsWith(switches: {
-  courseware?: boolean;
-  quiz?: boolean;
-  review?: boolean;
-  self?: boolean;
-}): Settings {
-  return {
-    enabled: true,
-    ai: { enabled: false, baseUrl: '', model: '', apiKey: '' },
-    mooc: {
-      background: {
-        autoCourseware: { enabled: switches.courseware ?? false },
-        autoQuiz: { enabled: switches.quiz ?? false },
-        autoReview: { enabled: switches.review ?? false, comment: 'x' },
-        autoSelfEvaluate: { enabled: switches.self ?? false },
-        courses: [],
-      },
-    },
-  } as unknown as Settings;
-}
-
-const NONE = settingsWith({});
-const ONLY_QUIZ = settingsWith({ quiz: true });
-const ONLY_REVIEW = settingsWith({ review: true });
-const ONLY_SELF = settingsWith({ self: true });
-const ALL = settingsWith({ quiz: true, review: true, self: true });
+/** 一份最小可用的设置：AI 关着（讨论单元因此不进计划）、没有课程、默认评语。 */
+const SETTINGS: Settings = {
+  version: 5,
+  ai: { enabled: false, baseUrl: '', model: '', apiKey: '' },
+  mooc: { courses: [], reviewComment: 'x', keepOverdueDays: 3 },
+};
 
 function work(overrides: Partial<SnapshotWork> & { tid: number }): SnapshotWork {
   return {
@@ -95,30 +77,17 @@ function shape(plan: Plan): string {
 // ---------- 测验 ----------
 
 describe('测验', () => {
-  const cases: Array<[string, Partial<SnapshotWork>, Settings, string]> = [
-    ['未做、未过截止、自动答题开', {}, ONLY_QUIZ, '自动:quiz'],
-    ['未做、未过截止、自动答题关', {}, NONE, '人工:quiz-disabled'],
-    ['未做、未过截止、只有互评开（无关）', {}, ONLY_REVIEW, '人工:quiz-disabled'],
-    [
-      '未做、已过截止、自动答题开',
-      { deadline: NOW - DAY },
-      ONLY_QUIZ,
-      '人工:quiz-overdue',
-    ],
-    [
-      '未做、已过截止、自动答题关',
-      { deadline: NOW - DAY },
-      NONE,
-      '人工:quiz-overdue',
-    ],
-    ['已做、有分', { submitted: true, score: 90 }, ALL, '空'],
-    ['已做、无分', { submitted: true }, ALL, '空'],
-    ['未做、无截止时间、自动答题开', { deadline: null }, ONLY_QUIZ, '自动:quiz'],
+  const cases: Array<[string, Partial<SnapshotWork>, string]> = [
+    ['未做、未过截止', {}, '自动:quiz'],
+    ['未做、已过截止', { deadline: NOW - DAY }, '人工:quiz-overdue'],
+    ['已做、有分', { submitted: true, score: 90 }, '空'],
+    ['已做、无分', { submitted: true }, '空'],
+    ['未做、无截止时间', { deadline: null }, '自动:quiz'],
   ];
 
-  for (const [name, patch, settings, expected] of cases) {
+  for (const [name, patch, expected] of cases) {
     it(`${name} → ${expected}`, () => {
-      const plan = derivePlan(snapshot([work({ tid: 1, ...patch })]), settings, NOW);
+      const plan = derivePlan(snapshot([work({ tid: 1, ...patch })]), SETTINGS, NOW);
       expect(shape(plan)).toBe(expected);
     });
   }
@@ -130,15 +99,14 @@ describe('作业（未提交）', () => {
   const hw = (patch: Partial<SnapshotWork> = {}) =>
     work({ tid: 2, type: 'homework', reviewable: true, ...patch });
 
-  const cases: Array<[string, Partial<SnapshotWork>, Settings, string]> = [
-    ['未交、未过截止、三个开关全开', {}, ALL, '人工:homework-unsubmitted'],
-    ['未交、未过截止、三个开关全关', {}, NONE, '人工:homework-unsubmitted'],
-    ['未交、已过截止', { deadline: NOW - DAY }, ALL, '人工:homework-overdue'],
+  const cases: Array<[string, Partial<SnapshotWork>, string]> = [
+    ['未交、未过截止', {}, '人工:homework-unsubmitted'],
+    ['未交、已过截止', { deadline: NOW - DAY }, '人工:homework-overdue'],
   ];
 
-  for (const [name, patch, settings, expected] of cases) {
+  for (const [name, patch, expected] of cases) {
     it(`${name} → ${expected}`, () => {
-      expect(shape(derivePlan(snapshot([hw(patch)]), settings, NOW))).toBe(expected);
+      expect(shape(derivePlan(snapshot([hw(patch)]), SETTINGS, NOW))).toBe(expected);
     });
   }
 });
@@ -155,61 +123,43 @@ describe('作业（已交、互评期内）', () => {
     evaluateEnd: NOW + 5 * DAY,
   };
 
-  const cases: Array<[string, Partial<SnapshotWork>, Settings, string]> = [
+  const cases: Array<[string, Partial<SnapshotWork>, string]> = [
     [
-      '互评未够、自评未做、自动互评开、自动自评开',
+      '互评未够、自评未做',
       { ...inWindow, evaluateDone: 2, evaluateTotal: 5, selfDone: false },
-      ALL,
       // 顺序是 quiz → self → review，自评在互评之前
       '自动:self+review',
     ],
     [
-      '互评未够、自评未做、两开关都关',
-      { ...inWindow, evaluateDone: 2, evaluateTotal: 5, selfDone: false },
-      ONLY_QUIZ,
-      '人工:review-disabled+self-disabled',
-    ],
-    [
-      '互评未够、自评已做、开关全开',
+      '互评未够、自评已做',
       { ...inWindow, evaluateDone: 0, evaluateTotal: 5, selfDone: true },
-      ALL,
       '自动:review',
     ],
     [
-      '互评已够、自评未做、开关全开',
+      '互评已够、自评未做',
       { ...inWindow, evaluateDone: 5, evaluateTotal: 5, selfDone: false },
-      ALL,
       '自动:self',
     ],
     [
       '互评已够、自评已做',
       { ...inWindow, evaluateDone: 5, evaluateTotal: 5, selfDone: true },
-      ALL,
       '空',
     ],
     [
       '这份作业不带互评、自评未做',
       { ...inWindow, reviewable: false, evaluateDone: 0, evaluateTotal: 0, selfDone: false },
-      ALL,
       '自动:self',
     ],
     [
       '配额未知（上次没查到，通常因请求失败）',
       { ...inWindow, evaluateDone: null, evaluateTotal: null, selfDone: null },
-      ALL,
       '空',
-    ],
-    [
-      '互评未够、自评未做、只开自动互评',
-      { ...inWindow, evaluateDone: 1, evaluateTotal: 3, selfDone: false },
-      ONLY_REVIEW,
-      '自动:review 人工:self-disabled',
     ],
   ];
 
-  for (const [name, patch, settings, expected] of cases) {
+  for (const [name, patch, expected] of cases) {
     it(`${name} → ${expected}`, () => {
-      expect(shape(derivePlan(snapshot([work({ tid: 2, ...patch })]), settings, NOW))).toBe(
+      expect(shape(derivePlan(snapshot([work({ tid: 2, ...patch })]), SETTINGS, NOW))).toBe(
         expected,
       );
     });
@@ -232,48 +182,37 @@ describe('作业（已交、互评期已过）', () => {
     evaluateEnd: NOW - 3 * DAY,
   };
 
-  const cases: Array<[string, Partial<SnapshotWork>, Settings, string]> = [
+  const cases: Array<[string, Partial<SnapshotWork>, string]> = [
     [
-      '没评够、开关全开（已做不了）',
+      '没评够（已做不了）',
       { ...past, evaluateDone: 1, evaluateTotal: 5, selfDone: true },
-      ALL,
       '人工:review-overdue',
     ],
     [
-      '没评够、开关全关（同样做不了）',
-      { ...past, evaluateDone: 1, evaluateTotal: 5, selfDone: true },
-      NONE,
-      '人工:review-overdue',
-    ],
-    [
-      '自评没做、开关全开（已做不了）',
+      '自评没做（已做不了）',
       { ...past, evaluateDone: 5, evaluateTotal: 5, selfDone: false },
-      ALL,
       '人工:self-overdue',
     ],
     [
       '没评够且自评没做',
       { ...past, evaluateDone: 0, evaluateTotal: 5, selfDone: false },
-      ALL,
       '人工:review-overdue+self-overdue',
     ],
     [
       '都做完了、有分',
       { ...past, evaluateDone: 5, evaluateTotal: 5, selfDone: true, score: 88 },
-      ALL,
       '空',
     ],
     [
       '都做完了、还没出分',
       { ...past, evaluateDone: 5, evaluateTotal: 5, selfDone: true },
-      ALL,
       '空',
     ],
   ];
 
-  for (const [name, patch, settings, expected] of cases) {
+  for (const [name, patch, expected] of cases) {
     it(`${name} → ${expected}`, () => {
-      expect(shape(derivePlan(snapshot([work({ tid: 2, ...patch })]), settings, NOW))).toBe(
+      expect(shape(derivePlan(snapshot([work({ tid: 2, ...patch })]), SETTINGS, NOW))).toBe(
         expected,
       );
     });
@@ -283,22 +222,22 @@ describe('作业（已交、互评期已过）', () => {
 // ---------- 考试 ----------
 
 describe('考试', () => {
-  it('未参加 → 归用户，不承诺自动', () => {
+  it('未参加 → 归用户，不承诺代做', () => {
     const exam = work({ tid: 3, type: 'exam-objective' });
-    expect(shape(derivePlan(snapshot([exam]), ALL, NOW))).toBe('人工:exam');
+    expect(shape(derivePlan(snapshot([exam]), SETTINGS, NOW))).toBe('人工:exam');
   });
 
   it('已参加 → 不出现', () => {
     const exam = work({ tid: 3, type: 'exam-objective', submitted: true });
-    expect(shape(derivePlan(snapshot([exam]), ALL, NOW))).toBe('空');
+    expect(shape(derivePlan(snapshot([exam]), SETTINGS, NOW))).toBe('空');
   });
 });
 
 // ---------- 多项共存 ----------
 
 describe('一份作业同时需要互评与自评', () => {
-  it('生成两条独立的事项，开关各自生效', () => {
-    const hw = work({
+  const hw = () =>
+    work({
       tid: 2,
       type: 'homework',
       submitted: true,
@@ -310,75 +249,38 @@ describe('一份作业同时需要互评与自评', () => {
       evaluateTotal: 5,
       selfDone: false,
     });
-    // 只开自评：互评归用户，自评自动
-    const plan = derivePlan(snapshot([hw]), ONLY_SELF, NOW);
-    expect(plan.auto.map((a) => a.kind)).toEqual(['self']);
-    expect(plan.manual.map((m) => m.reason)).toEqual(['review-disabled']);
+
+  it('生成两条独立的事项，都排进自动', () => {
+    const plan = derivePlan(snapshot([hw()]), SETTINGS, NOW);
+    expect(plan.auto.map((a) => a.kind)).toEqual(['self', 'review']);
+    expect(plan.manual).toEqual([]);
   });
 
   it('执行顺序上测验在前、自评居中、互评最后', () => {
     const quiz = work({ tid: 1 });
-    const hw = work({
-      tid: 2,
-      type: 'homework',
-      submitted: true,
-      reviewable: true,
-      deadline: NOW - DAY,
-      evaluateStart: NOW - DAY,
-      evaluateEnd: NOW + 5 * DAY,
-      evaluateDone: 0,
-      evaluateTotal: 5,
-      selfDone: false,
-    });
-    const plan = derivePlan(snapshot([hw, quiz]), ALL, NOW);
+    const plan = derivePlan(snapshot([hw(), quiz]), SETTINGS, NOW);
     expect(plan.auto.map((a) => a.kind)).toEqual(['quiz', 'self', 'review']);
   });
 });
 
-// ---------- 组合覆盖度自检 ----------
+// ---------- 计划的自洽 ----------
 
-describe('组合覆盖', () => {
-  it('三个开关的八种组合都能派生而不抛错', () => {
-    const combos = [
-      [false, false, false],
-      [true, false, false],
-      [false, true, false],
-      [false, false, true],
-      [true, true, false],
-      [true, false, true],
-      [false, true, true],
-      [true, true, true],
-    ];
-    const works = [
-      work({ tid: 1 }),
-      work({ tid: 2 }),
-      work({ tid: 3, type: 'exam-objective' }),
-      work({
-        tid: 4,
-        type: 'homework',
-        submitted: true,
-        reviewable: true,
-        deadline: NOW - DAY,
-        evaluateStart: NOW - DAY,
-        evaluateEnd: NOW + 5 * DAY,
-        evaluateDone: 1,
-        evaluateTotal: 5,
-        selfDone: false,
-      }),
-    ];
-    const snap = snapshot(works);
+describe('计划的自洽', () => {
+  it('每一项要么进 auto、要么进 manual，两半互斥；已完成的项两半都不进', () => {
+    const snap = snapshot([
+      work({ tid: 1 }), // 测验没交 → auto
+      work({ tid: 2, type: 'exam-objective' }), // 考试 → manual
+      work({ tid: 3, type: 'quiz', submitted: true }), // 已交 → 都不进
+      work({ tid: 4, type: 'homework' }), // 作业没交 → manual
+    ]);
+    const plan = derivePlan(snap, SETTINGS, NOW);
 
-    for (const [quiz, review, self] of combos) {
-      const plan = derivePlan(snap, settingsWith({ quiz, review, self }), NOW);
-      // 每一项要么在 auto 要么在 manual，不会两边都有，也不会消失
-      const autoIds = new Set(
-        plan.auto.flatMap((a) => (a.kind === 'courseware' ? [] : [`${a.work.tid}:${a.kind}`])),
-      );
-      for (const item of plan.manual) {
-        expect(autoIds.has(`${item.work.tid}:${item.reason}`)).toBe(false);
-      }
-      expect(plan.auto.length + plan.manual.length).toBeGreaterThan(0);
-    }
+    const autoTids = new Set(
+      plan.auto.flatMap((a) => (a.kind === 'courseware' ? [] : [a.work.tid])),
+    );
+    for (const item of plan.manual) expect(autoTids.has(item.work.tid)).toBe(false);
+    expect(plan.auto.map((a) => a.kind)).toEqual(['quiz']);
+    expect(plan.manual.map((m) => m.work.tid).sort()).toEqual([2, 4]);
   });
 });
 
@@ -400,14 +302,8 @@ function unitOf(overrides: Partial<CourseUnit> = {}): CourseUnit {
   };
 }
 
-describe('课件单元的自动完成', () => {
-  it('开关关闭时不进计划，也不进人工项——它不是待办', () => {
-    const plan = derivePlan(snapshot([], [unitOf()]), settingsWith({}), NOW);
-    expect(plan.auto).toHaveLength(0);
-    expect(plan.manual).toHaveLength(0);
-  });
-
-  it('开关打开时收下未完成且能上报的单元', () => {
+describe('课件单元', () => {
+  it('收下未完成且能上报的单元', () => {
     const plan = derivePlan(
       snapshot([], [
         unitOf({ unitId: 1 }),
@@ -419,7 +315,7 @@ describe('课件单元的自动完成', () => {
         // 文档只需一个请求，没有时长概念
         unitOf({ unitId: 5, contentType: 3, durationInSeconds: null }),
       ]),
-      settingsWith({ courseware: true }),
+      SETTINGS,
       NOW,
     );
 
@@ -429,13 +325,7 @@ describe('课件单元的自动完成', () => {
 
   it('课件排在最前面：一条请求就完事，先做完最便宜的', () => {
     const works = [work({ tid: 11 })];
-    const plan = derivePlan(
-      snapshot(works, [unitOf({ unitId: 1 })]),
-      settingsWith({ courseware: true, quiz: true }),
-      NOW,
-    );
+    const plan = derivePlan(snapshot(works, [unitOf({ unitId: 1 })]), SETTINGS, NOW);
     expect(plan.auto.map((a) => a.kind)).toEqual(['courseware', 'quiz']);
   });
-
 });
-

@@ -22,7 +22,6 @@ import type { CoursewareContext, TextGenerator } from '../courseware/index.ts';
 import type { MoocClient, MoocClientOptions } from '../client.ts';
 import { createPlatformClient, loadSnapshot, refreshCourses, type PlatformClient } from './sync.ts';
 import { createMoocTasks, type MoocRunDeps } from './tasks.ts';
-import { LOGIN_COOKIE } from './session.ts';
 import { MOOC_REQUEST_RULES } from './net-rules.ts';
 import type { InspectCourse, Snapshot } from './read/index.ts';
 
@@ -50,7 +49,7 @@ export interface MoocCarrierDeps {
 export interface MoocRuntime {
   /** 要跑一轮时的平台实例（现建：平台自己的本轮状态不跨轮残留） */
   tasks: () => PlatformTasks;
-  /** 外壳要观察的信号：登录凭证 cookie 与请求头规则 */
+  /** 外壳要观察的信号：请求头规则 */
   wiring: PlatformWiring;
   host: HostCapabilities;
   client: MoocClient;
@@ -71,7 +70,7 @@ export interface MoocRuntime {
  * 缺了它们的课程能读但点不进去，列出来只会让用户多点一次空链接。
  */
 export function selectedCourses(settings: Settings): InspectCourse[] {
-  return settings.mooc.background.courses
+  return settings.mooc.courses
     .filter((course) => course.enabled)
     .map((course) => ({
       termId: course.termId,
@@ -128,8 +127,6 @@ export function createMoocRuntime(carrier: MoocCarrierDeps): MoocRuntime {
     tasks: () => createMoocTasks(runDeps),
     wiring: {
       id: 'mooc',
-      // 登录信号（含「为什么不能用 NTESTUDYSI」）在 session.ts 一处定义
-      loginCookie: LOGIN_COOKIE,
       requestRules: MOOC_REQUEST_RULES,
     },
   };

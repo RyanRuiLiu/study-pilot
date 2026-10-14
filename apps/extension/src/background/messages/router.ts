@@ -5,8 +5,8 @@
  * （见各平台自己的 `messages/handlers.ts`），装配层把它们合并成一张表——
  * 因此新增平台不需要改这个文件。
  *
- * 唯一留在这里的业务是 RUN_SCHEDULED_TASKS（手动执行一轮）：流程不在这里——它和自动
- * 执行是同一个用例（@study-pilot/application 的 runRound），这里只把结局翻成消息响应。
+ * 唯一留在这里的业务是 RUN_SCHEDULED_TASKS（执行一轮）：流程不在这里——它是
+ * @study-pilot/application 的 runRound 用例，这里只把结局翻成消息响应。
  *
  * 分发约定：请求对象的 `type` 即分支名，响应形状由 messaging 的 ResponseMap
  * 定义；未识别的请求回 undefined，前台据此报「后台无响应」。
@@ -25,7 +25,7 @@ import { getRunState } from '../runtime/run-state';
 export interface RouterDeps {
   /** 各平台的处理器表（装配层合并后给出；`*` 是兜底） */
   handlers: MessageHandlers;
-  /** 「跑一轮」用例。手动与自动走同一个 runner，只是 mode 不同 */
+  /** 「跑一轮」用例 */
   runner: Runner;
 }
 
@@ -44,7 +44,7 @@ function respondToRound(result: RoundResult): RunScheduledTasksResponse {
     case 'no-course':
       return { ok: false, reason: 'NO_SELECTED_COURSE' };
     case 'nothing-to-do':
-      return { ok: true, done: 0, manual: 0, message: '没有可自动完成的事项' };
+      return { ok: true, done: 0, manual: 0, message: '没有可执行的事项' };
     case 'finished':
       return {
         ok: true,
@@ -54,9 +54,6 @@ function respondToRound(result: RoundResult): RunScheduledTasksResponse {
       };
     case 'failed':
       return { ok: false, reason: 'FETCH_FAILED', message: result.message };
-    case 'disabled':
-      // 手动执行不看总开关（用户明确要求），因此这条分支不该出现
-      return { ok: false, reason: 'FETCH_FAILED', message: '这一轮没有执行' };
   }
 }
 
@@ -70,7 +67,10 @@ export function registerMessageHandler(deps: RouterDeps): void {
         return;
       }
       if (request?.type === 'RUN_SCHEDULED_TASKS') {
-        sendResponse(respondToRound(await deps.runner.runRound('manual')));
+        // 范围原样交给用例：类别取值由平台定义，路由只搬运
+        const { kinds, group } = request;
+        const selection = kinds !== undefined || group !== undefined ? { kinds, group } : undefined;
+        sendResponse(respondToRound(await deps.runner.runRound(selection)));
         return;
       }
 

@@ -12,7 +12,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, type ConfigPort, type HostCapabilities, type Settings } from '@study-pilot/application';
+import { DEFAULT_SETTINGS, type ConfigPort, type HostCapabilities } from '@study-pilot/application';
 import { createMoocRuntime, createMoocTasks, type MoocRunDeps } from '../src/index.ts';
 import { SessionExpiredError } from '../src/policy/session.ts';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/policy/read/types.ts';
@@ -52,17 +52,6 @@ function snapshotWithQuiz(tid: number): Snapshot {
   return { courses: [course] };
 }
 
-/** 开关只开自动测验，其余关闭：这样「计划里有这一项」本身就是开关生效的证据。 */
-function settingsWithQuizOn(): Settings {
-  return {
-    ...DEFAULT_SETTINGS,
-    mooc: {
-      ...DEFAULT_SETTINGS.mooc,
-      background: { ...DEFAULT_SETTINGS.mooc.background, autoQuiz: { enabled: true } },
-    },
-  };
-}
-
 /** 宿主能力：只回答两个 cookie。真实实现要读浏览器的 cookie 库，这里给常量。 */
 const fakeHost: HostCapabilities = {
   whenRequestRulesReady: async () => {},
@@ -74,8 +63,8 @@ const fakeHost: HostCapabilities = {
 };
 
 const fakeConfig: ConfigPort = {
-  read: async () => settingsWithQuizOn(),
-  update: async () => settingsWithQuizOn(),
+  read: async () => DEFAULT_SETTINGS,
+  update: async () => DEFAULT_SETTINGS,
 };
 
 function deps(over: Partial<MoocRunDeps> = {}): MoocRunDeps {
@@ -215,12 +204,10 @@ describe('厂商装配不依赖任何 app 侧代码', () => {
 
     expect(touched).toEqual([]);
     expect(runtime.wiring.id).toBe('mooc');
-    // 登录信号必须是「登录后才下发」的那个，不能是访客也有的匿名 cookie
-    expect(runtime.wiring.loginCookie).toEqual({ name: 'STUDY_INFO', domain: 'icourse163.org' });
     expect(runtime.wiring.requestRules.length).toBeGreaterThan(0);
 
     // 纯的那两样可以直接断言：勾选课程的映射、以及没有生成器时的上下文
-    const settings = settingsWithQuizOn();
+    const settings = DEFAULT_SETTINGS;
     expect(runtime.selectedCourses(settings)).toEqual([]);
     expect(runtime.coursewareContext(settings).generateText).toBeUndefined();
 

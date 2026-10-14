@@ -10,14 +10,12 @@
 export type {
   AiSettings,
   MoocSettings,
-  ScheduleSettings,
   SelectedCourse,
   Settings,
 } from '@study-pilot/application';
 export {
   DEFAULT_AI,
   DEFAULT_MOOC,
-  DEFAULT_SCHEDULE,
   DEFAULT_SETTINGS,
   SETTINGS_VERSION,
   mergeWithBase,

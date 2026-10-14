@@ -4,15 +4,16 @@
  * 全是纯函数：状态进、状态出，不碰存储。存取由 `TaskStorePort` 负责（见 ports.ts），
  * 因此换载体时不会出现第二份状态机，测试也不用造假存储就能把每种迁移钉住。
  *
- * 只保留两件事：
+ * 只保留这一件事：
  *   runningSince   这一轮的开始时刻（防重入用，不是断点——没做过的事不需要
- *                  「接着」，下一轮检查会重新读到它们）
- *   awaitingLogin  是否因未登录而挂起，等登录后补一次
+ *                  「接着」，下次执行会重新读到它们）
  *
- * 早先还记过 lastRunDate、doneTids、pending 三样，现在都不需要了：执行与否由
- * 「这次读回来有没有可自动完成的项」决定，而每次都会重新读，所以「今天跑过没有」
+ * 早先还记过「因未登录挂起」——那是自动执行的补做机制，触发已随自动执行一起
+ * 删掉：现在未登录当场就答复调用方，没有「等登录后补一次」这回事。
+ * 更早还记过 lastRunDate、doneTids、pending 三样，也都不需要了：执行与否由
+ * 「这次读回来有没有要做的项」决定，而每次都会重新读，所以「今天跑过没有」
  * 不再是一个有意义的判据——它只会让新发布的作业在当天被跳过。同理，做过哪些
- * 也不必记，下一轮检查自然看不到它们。
+ * 也不必记，下次执行自然看不到它们。
  */
 
 import type { LiveRunState, TaskState } from './model.ts';
@@ -22,7 +23,6 @@ export const EMPTY_STATE: TaskState = {
   runningSince: null,
   heartbeatAt: null,
   lastFinishedAt: null,
-  awaitingLogin: false,
   lastError: null,
 };
 
@@ -43,9 +43,7 @@ const HEARTBEAT_TIMEOUT_MS = 120_000;
  * 显示「正在执行」，而实际什么都不会发生——状态与显示分离，用户无从判断。
  */
 export function liveRunState(state: TaskState, now: number = Date.now()): LiveRunState {
-  if (state.runningSince === null) {
-    return state.awaitingLogin ? 'awaiting-login' : 'idle';
-  }
+  if (state.runningSince === null) return 'idle';
 
   const beat = state.heartbeatAt ?? state.runningSince;
   return now - beat <= HEARTBEAT_TIMEOUT_MS ? 'running' : 'interrupted';
@@ -56,8 +54,8 @@ export function liveRunState(state: TaskState, now: number = Date.now()): LiveRu
  *
  * 只有「确实还在跑」才拦得住。中断的那一轮不算：它的线程早就不在了。
  * 判据曾经写成 `runningSince === null`，于是浏览器被强杀一次之后，那个没人
- * 清的残留标记会把后台永久锁死——每一轮 alarm 静默返回、手动执行永远回
- * ALREADY_RUNNING，而界面还在说「下次检查时接着做」。现在与界面共用
+ * 清的残留标记会把执行永久锁死——每次点执行都回 ALREADY_RUNNING，
+ * 而界面还在说「正在执行」。现在与界面共用
  * `liveRunState` 这一个判据，两边不会对同一份存储各说一套。
  */
 export function canStartRun(state: TaskState, now: number = Date.now()): boolean {
@@ -86,7 +84,6 @@ export function finishRun(state: TaskState, now: number = Date.now()): TaskState
     runningSince: null,
     heartbeatAt: null,
     lastFinishedAt: now,
-    awaitingLogin: false,
     // 这一轮正常结束了：上一轮的失败已经被它取代
     lastError: null,
   };
@@ -95,20 +92,10 @@ export function finishRun(state: TaskState, now: number = Date.now()): TaskState
 /**
  * 记下这一轮的失败原因。
  *
- * 自动执行跑在没有控制台可看的地方（生产构建把 console 换成空函数），
- * 也没有正在等的界面。不记下来的话，「今天什么都没做」与「试了但失败了」
- * 在界面上完全一样，而后者用户本来可以当场处理（重新登录、去设置里补地址）。
+ * 后台跑在没有控制台可看的地方（生产构建把 console 换成空函数）。不记下来的话，
+ * 「什么都没做」与「试了但失败了」在界面上完全一样，而后者用户本来可以当场处理
+ * （重新登录、去设置里补地址）。
  */
 export function recordRunFailure(state: TaskState, message: string, now: number = Date.now()): TaskState {
   return { ...state, lastError: message, lastFinishedAt: now };
-}
-
-/**
- * 标记或清除「因未登录而挂起」。
- *
- * 值没变就原样返回：调用方据此可以跳过一次无用的落盘（载体侧就是这么用的）。
- */
-export function setAwaitingLogin(state: TaskState, value: boolean): TaskState {
-  if (state.awaitingLogin === value) return state;
-  return { ...state, awaitingLogin: value };
 }

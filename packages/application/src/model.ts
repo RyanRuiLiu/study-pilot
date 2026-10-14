@@ -19,11 +19,17 @@ export interface PlanItem {
   title: string;
   /**
    * 谁来做。
-   *   auto      后台在本轮直接做完（调度只会调用这些）
+   *   auto      扩展在本轮直接做完（调度只会调用这些）
    *   assisted  需要人到场确认，调度不动它
    *   manual    只能人工，调度不动它
    */
   mode: 'auto' | 'assisted' | 'manual';
+  /**
+   * 类别。取值由平台定义（慕课是 quiz / review / self / homework / exam / courseware），
+   * 核心不解释它，只按调用方给的范围筛选（见 round.ts 的选范围）。
+   * 放核心是因为界面要能说「只做课件」「只做待办那几类」，而界面不许认识平台字段。
+   */
+  kind: string;
   payload: unknown;
 }
 
@@ -65,25 +71,17 @@ export interface TaskState {
   /** 最近一次正常结束的时间 */
   lastFinishedAt: number | null;
   /**
-   * 本轮因未登录而挂起，等待登录后补执行。
+   * 上一次执行留下、还没被说清楚的失败原因；null 表示没有。
    *
-   * 平台的登录凭证是会话级 cookie，关闭浏览器即失效。而触发时机恰是
-   * 「浏览器启动」，那一刻用户通常还没登录，因此不能简单地跳过——
-   * 那会让这一次执行机会白等到明天。这里记下挂起标记，登录后立刻补执行。
-   */
-  awaitingLogin: boolean;
-  /**
-   * 上一轮自动执行的失败原因；null 表示没有未交代清楚的失败。
-   *
-   * 一轮跑在没有控制台的地方时，不把这个记下来，「今天什么都没做」与
-   * 「今天试了但失败了」在界面上长得一模一样。一轮正常结束时清掉它：
+   * 一轮跑在没有控制台的地方时，不把这个记下来，「什么都没做」与
+   * 「试了但失败了」在界面上长得一模一样。一轮正常结束时清掉它：
    * 失败已经被这一轮的结果取代了。
    */
   lastError: string | null;
 }
 
 /** 此刻处于哪种状态。 */
-export type LiveRunState = 'idle' | 'running' | 'interrupted' | 'awaiting-login';
+export type LiveRunState = 'idle' | 'running' | 'interrupted';
 
 // ---------- 一轮的执行进度（给用户看的） ----------
 

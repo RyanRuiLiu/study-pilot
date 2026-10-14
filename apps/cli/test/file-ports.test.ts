@@ -42,7 +42,7 @@ describe('状态文件', () => {
   it('写进去再读回来是同一份', async () => {
     const file = tempFile();
     const store = createFileTaskStore(file);
-    const state = { ...EMPTY_STATE, runningSince: 123, awaitingLogin: true };
+    const state = { ...EMPTY_STATE, runningSince: 123, lastError: '上一轮失败' };
 
     await store.write(state);
 

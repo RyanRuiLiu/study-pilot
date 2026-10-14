@@ -77,7 +77,7 @@ function deps(): MoocRunDeps {
   return {
     host: fakeHost,
     config: {
-      read: async () => ({ mooc: { background: { autoReview: { comment: '按评分点逐项给分' } } } }) as never,
+      read: async () => ({ mooc: { reviewComment: '按评分点逐项给分' } }) as never,
       update: async () => ({}) as never,
     },
     client: {} as never,
@@ -133,6 +133,12 @@ describe('自动项的 id', () => {
     const { items } = await runRound(auto);
 
     expect(new Set(items.map((item) => item.id)).size).toBe(auto.length);
+  });
+
+  it('项的类别随计划一起来（界面按它筛执行范围）', async () => {
+    const { items } = await runRound([quizAction(101, '第一单元测验'), coursewareAction(9, '1.1 课程介绍')]);
+
+    expect(items.map((item) => item.kind)).toEqual(['quiz', 'courseware']);
   });
 });
 

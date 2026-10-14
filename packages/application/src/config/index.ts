@@ -1,42 +1,23 @@
 /*
  * 配置结构的装配点。
  *
- * 组织方式：平台在顶层，平台下是「后台」（与页面无关的任务）。
- * 新增平台时加一个同级的平台键即可，扩展侧功能代码通过 `Settings['mooc']` 这样的
- * 具体类型取用，不做通用抽象——只有一个平台时，通用抽象是负担不是资产。
- *
- * 安全默认按「是不是自动做」划线：后台任务在检查时自己就动了（`autoQuiz` /
- * `autoReview` / `autoSelfEvaluate` / `autoCourseware`），一律默认关闭。
+ * 组织方式：平台在顶层，平台下是它自己的设置；跨平台的只剩 version 与 ai。
+ * 新增平台时加一个同级的平台键即可，扩展侧功能代码通过 `Settings['mooc']`
+ * 这样的具体类型取用，不做通用抽象——通用抽象要等第二个平台真的出现。
  *
  * 各平台的类型与默认值在 `mooc.ts` / `ai.ts`，本文件只做根类型、版本与规范化。
  */
 
 import { DEFAULT_AI, type AiSettings } from './ai.ts';
 import { DEFAULT_MOOC, type MoocSettings } from './mooc.ts';
-import { DEFAULT_SCHEDULE, type ScheduleSettings } from './schedule.ts';
 
 export * from './ai.ts';
 export * from './mooc.ts';
-export * from './schedule.ts';
 
 export interface Settings {
   version: number;
-  /**
-   * 总开关。关闭后前台增强与后台任务都停止。
-   *
-   * **它就是唯一的启停开关，不做平台级启用位**：只有一个平台时，平台开关与它
-   * 表达同一件事，两个开关必然漂移；而"关掉某平台"到底停到什么程度（前台功能？
-   * 消息？它的设置分区？）在只有一个平台时定不下来。真出现第二个平台、且确实
-   * 需要只启用其中一个时再加——那时它是一个**范围收窄的总开关**，不是新概念。
-   */
-  enabled: boolean;
   mooc: MoocSettings;
   ai: AiSettings;
-  /**
-   * 调度（跨平台）：多久检查一次、过期项保留几天。
-   * 从 `mooc.background.schedule` 提升上来，见下面的迁移。
-   */
-  schedule: ScheduleSettings;
 }
 
 /**
@@ -47,26 +28,23 @@ export interface Settings {
  * 因此默认值的语义变了也要递增。
  *
  * 迁移分支只写已经发生过的：每个版本一段，各自只对带旧形状的存量数据生效。
+ * 链条按版本先后串在 `normalize` 里，一段的输出就是下一段的输入。
  *
  * 版本 4：删掉页面内功能的开关（`foreground`）与两个提醒开关
  * （`deadlineReminder` / `completionNotice`）——它们对应的功能已经不在代码里，
  * 键留着只会让界面渲染出一排不起作用的开关。删键不需要搬值：`mergeWithBase`
  * 只保留骨架里存在的键，存量数据里的旧键会被自然丢掉。
+ *
+ * 版本 5：删掉自动执行那一整套——总开关 `enabled`、四个 auto* 开关、
+ * `schedule.checkIntervalMinutes`；课程、互评评语、过期保留天数收进 `mooc` 顶层。
+ * 详见 `toManualShape`。
  */
-export const SETTINGS_VERSION = 4;
+export const SETTINGS_VERSION = 5;
 
 export const DEFAULT_SETTINGS: Settings = {
   version: SETTINGS_VERSION,
-  /**
-   * 总开关默认打开。
-   *
-   * 装上之后什么都不做会让人以为没生效。而它下面每个写操作各自默认关闭，
-   * 所以开着也不会替用户做任何事 —— 打开它只是让只读的提醒开始工作。
-   */
-  enabled: true,
   ai: DEFAULT_AI,
   mooc: DEFAULT_MOOC,
-  schedule: DEFAULT_SCHEDULE,
 };
 
 type Json = unknown;
@@ -105,6 +83,58 @@ function migrateScheduleToTopLevel(raw: Json): Json {
 }
 
 /**
+ * 版本 4 → 5 的迁移：从「后台自动执行」的形状收到「手动工具箱」的形状。
+ *
+ * 搬三样用户改过的东西：
+ *   mooc.background.courses             → mooc.courses
+ *   mooc.background.autoReview.comment  → mooc.reviewComment
+ *   schedule.keepOverdueDays            → mooc.keepOverdueDays
+ *
+ * 其余旧键（enabled、四个 auto* 开关、checkIntervalMinutes）没有去处：
+ * 它们对应的行为已经不在代码里。不搬不等于丢掉用户意图——写操作的同意
+ * 本来就不该预置在配置里，现在是每次点击表态。
+ */
+function toManualShape(raw: Json): Json {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+  const source = raw as Record<string, unknown>;
+
+  const mooc = source.mooc;
+  if (mooc === null || typeof mooc !== 'object' || Array.isArray(mooc)) return raw;
+  const moocRecord = mooc as Record<string, unknown>;
+  // 已经是新形状：不动它
+  if (!('background' in moocRecord)) return raw;
+
+  const background = moocRecord.background;
+  if (background === null || typeof background !== 'object' || Array.isArray(background)) {
+    return raw;
+  }
+  const backgroundRecord = background as Record<string, unknown>;
+
+  const review = backgroundRecord.autoReview;
+  const comment =
+    review !== null && typeof review === 'object' && !Array.isArray(review)
+      ? (review as Record<string, unknown>).comment
+      : undefined;
+
+  const schedule = source.schedule;
+  const keepOverdueDays =
+    schedule !== null && typeof schedule === 'object' && !Array.isArray(schedule)
+      ? (schedule as Record<string, unknown>).keepOverdueDays
+      : undefined;
+
+  const { background: _removed, ...restMooc } = moocRecord;
+  return {
+    ...source,
+    mooc: {
+      ...restMooc,
+      courses: backgroundRecord.courses,
+      ...(comment !== undefined ? { reviewComment: comment } : {}),
+      ...(keepOverdueDays !== undefined ? { keepOverdueDays } : {}),
+    },
+  };
+}
+
+/**
  * 以 `base` 为骨架合并 `patch`。
  *
  * - 对象：逐键递归，只保留 `base` 里存在的键
@@ -138,27 +168,25 @@ export function mergeWithBase<T>(base: T, patch: Json): T {
 /**
  * 把任意来源的数据规范成合法配置。
  *
+ * 迁移按版本先后串起来：每段只认自己接手的旧形状，输出交给下一段，
+ * 最后由 `mergeWithBase` 对着骨架收尾（旧键在这一步被自然丢掉）。
+ *
  * 除逐键合并之外，还有一处按语义兜底：互评评语不能为空。
  * 合并只做类型检查，而空串是合法的 string，会被原样采纳——平台在校验时
  * 会拒掉空评语，返回的错误却不指明是哪个字段，用户清空输入框之后就只看到
  * 一句「提交失败」。这里留空退回默认评语，设置页也标注了这一条。
  */
 export function normalize(raw: Json): Settings {
-  const merged = mergeWithBase(DEFAULT_SETTINGS, migrateScheduleToTopLevel(raw));
-  const review = merged.mooc.background.autoReview;
+  const migrated = toManualShape(migrateScheduleToTopLevel(raw));
+  const merged = mergeWithBase(DEFAULT_SETTINGS, migrated);
+  const comment = merged.mooc.reviewComment;
 
   return {
     ...merged,
     version: SETTINGS_VERSION,
     mooc: {
       ...merged.mooc,
-      background: {
-        ...merged.mooc.background,
-        autoReview: {
-          ...review,
-          comment: review.comment.trim() || DEFAULT_MOOC.background.autoReview.comment,
-        },
-      },
+      reviewComment: comment.trim() || DEFAULT_MOOC.reviewComment,
     },
   };
 }
