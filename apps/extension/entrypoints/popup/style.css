@@ -1,27 +1,25 @@
 /*
  * 弹窗的摆放。
  *
- * 只有"盒子怎么排"：颜色、圆角、阴影、字号、间距取值一律来自 Shoelace 官方主题
- * （light.css + --sl-* 变量），这里不写任何自画的视觉。整个文件没有色值、没有
- * border、没有 box-shadow、没有 font-size。
- *
- * 结构是一份目录：课程一行（名字 + 项数），下面每项一行（标题、类别与状态、截止）。
+ * 只有"盒子怎么排"：颜色、圆角、阴影、字号、间距取值一律来自 Shoelace 官方主题，
+ * 页面基础（限宽、居中、基准字号行高）由 layout.css 给（依据 webext-base-css）。
+ * 这里只写弹窗特有的两件事：宽度、以及比主页面更紧的留白。
  */
 
 body {
-  margin: 0;
   /*
    * 360px。Chrome 给弹窗的上限是 800×600；
    * 再窄「课程名 + 项数」会折行，再宽则一行里空得没道理。
    */
   width: 360px;
+  /* 弹窗比主页面窄，留白也小一档：主页面是 x-large/large，这里是 medium */
+  padding: var(--sl-spacing-medium);
 }
 
 .pop {
   display: flex;
   flex-direction: column;
   gap: var(--sl-spacing-small);
-  padding: var(--sl-spacing-small);
 }
 
 /* 顶行：品牌与主操作分居两端 */
@@ -38,6 +36,7 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: var(--sl-spacing-small);
+  padding-top: var(--sl-spacing-small);
 }
 
 /*
@@ -69,4 +68,5 @@ body {
   display: flex;
   align-items: center;
   gap: var(--sl-spacing-small);
+  padding-top: var(--sl-spacing-small);
 }

@@ -105,6 +105,7 @@ function byChapter(rows: OverviewRow[]): Map<string, OverviewRow[]> {
 /** 每次重画都重新问平台要一次数据（平台实现只读本地快照，不发请求）。 */
 export function mountOverview(platforms: PlatformViews[]): OverviewView {
   const host = document.createElement('div');
+  host.className = 'sp-stack';
 
   const filter = document.createElement('sl-select');
   filter.setAttribute('size', 'small');
