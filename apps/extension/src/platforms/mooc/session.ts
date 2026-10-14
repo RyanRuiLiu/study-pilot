@@ -17,6 +17,8 @@
  *    该格式由 `getQuizInfo` 返回的 `answererId` 交叉验证过（两处一致）。
  */
 
+import type { MoocHost } from './host.ts';
+
 const MOOC_ORIGIN = 'https://www.icourse163.org';
 
 export interface MoocSession {
@@ -28,13 +30,9 @@ export interface MoocSession {
   token: string;
 }
 
-async function readCookie(name: string): Promise<string> {
-  try {
-    const cookie = await browser.cookies.get({ url: MOOC_ORIGIN, name });
-    return cookie?.value ?? '';
-  } catch {
-    return '';
-  }
+/** 读一个 cookie。取值与容错都在宿主实现里（见 host.ts），这里只转交。 */
+function readCookie(host: MoocHost, name: string): Promise<string> {
+  return host.readCookie(name);
 }
 
 /** 解析 STUDY_INFO 得到用户 id。格式不符时返回 0。 */
@@ -44,10 +42,10 @@ function parseUserId(studyInfo: string): number {
   return Number.isFinite(id) && id > 0 ? id : 0;
 }
 
-async function readSession(): Promise<MoocSession> {
+async function readSession(host: MoocHost): Promise<MoocSession> {
   const [token, studyInfo] = await Promise.all([
-    readCookie('NTESSTUDYSI'),
-    readCookie('STUDY_INFO'),
+    readCookie(host, 'NTESSTUDYSI'),
+    readCookie(host, 'STUDY_INFO'),
   ]);
   const userId = parseUserId(studyInfo);
   return { loggedIn: userId > 0, userId, token };
@@ -76,8 +74,8 @@ async function readSession(): Promise<MoocSession> {
  * 已死的情形由 {@link renewSession} 处理——那里的判据是服务端的表态，
  * 不是本地的 cookie。
  */
-export async function ensureSession(): Promise<MoocSession> {
-  const current = await readSession();
+export async function ensureSession(host: MoocHost): Promise<MoocSession> {
+  const current = await readSession(host);
   if (current.loggedIn && current.token) return current;
 
   try {
@@ -87,7 +85,7 @@ export async function ensureSession(): Promise<MoocSession> {
     return current;
   }
 
-  return readSession();
+  return readSession(host);
 }
 
 /**
@@ -120,18 +118,20 @@ export class SessionExpiredError extends Error {
  * 只在已经看到「未登录形态」的响应之后调用。会话本来就活着时调用它，
  * 「未换发」会被误读成「登录失效」——它其实说明不了任何事。
  */
-export async function renewSession(): Promise<{ renewed: boolean; session: MoocSession }> {
-  const before = await readCookie('STUDY_SESS');
+export async function renewSession(
+  host: MoocHost,
+): Promise<{ renewed: boolean; session: MoocSession }> {
+  const before = await readCookie(host, 'STUDY_SESS');
   try {
     await fetch(`${MOOC_ORIGIN}/`, { credentials: 'include' });
   } catch {
-    return { renewed: false, session: await readSession() };
+    return { renewed: false, session: await readSession(host) };
   }
-  const after = await readCookie('STUDY_SESS');
-  return { renewed: after !== '' && after !== before, session: await readSession() };
+  const after = await readCookie(host, 'STUDY_SESS');
+  return { renewed: after !== '' && after !== before, session: await readSession(host) };
 }
 
 /** 读取令牌，供后台使用。 */
-export function readToken(): Promise<string> {
-  return readCookie('NTESSTUDYSI');
+export function readToken(host: MoocHost): Promise<string> {
+  return readCookie(host, 'NTESSTUDYSI');
 }

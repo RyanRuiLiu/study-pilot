@@ -22,6 +22,7 @@ import { OVERDUE_REASONS, derivePlan, type Plan } from './plan';
 import type { Snapshot } from './read';
 import type { ExecResult } from './execute';
 import type { Settings } from '../../settings';
+import type { MoocHost } from './host.ts';
 
 /*
  * 通知标识。
@@ -49,13 +50,11 @@ const SAMPLE_PREFIX = `${NOTIFICATION_PREFIX}sample-`;
  *
  * 按前缀匹配，因此旧版本留下的固定 id（`study-pilot-summary` 这种）也在范围内。
  */
-async function clearOutstanding(prefix: string): Promise<void> {
+async function clearOutstanding(host: MoocHost, prefix: string): Promise<void> {
   try {
-    const all = await browser.notifications.getAll();
+    const ids = await host.listNotifications();
     await Promise.all(
-      Object.keys(all)
-        .filter((id) => id.startsWith(prefix))
-        .map((id) => browser.notifications.clear(id)),
+      ids.filter((id) => id.startsWith(prefix)).map((id) => host.clearNotification(id)),
     );
   } catch {
     /*
@@ -220,13 +219,11 @@ export function composeNotice(
  * 清是为了不堆积，新 id 是为了让系统把它当成新通知弹出来，
  * 而不是把旧的那条改一行字。理由见文件上方 NOTIFICATION_PREFIX 的说明。
  */
-export async function notify(notice: Notice | null): Promise<boolean> {
+export async function notify(host: MoocHost, notice: Notice | null): Promise<boolean> {
   if (notice === null) return false;
 
-  await clearOutstanding(SUMMARY_PREFIX);
-  await browser.notifications.create(`${SUMMARY_PREFIX}${Date.now()}`, {
-    type: 'basic',
-    iconUrl: browser.runtime.getURL('/icon/128.png'),
+  await clearOutstanding(host, SUMMARY_PREFIX);
+  await host.showNotification(`${SUMMARY_PREFIX}${Date.now()}`, {
     title: notice.title,
     message: notice.message,
   });
@@ -246,6 +243,7 @@ export async function notify(notice: Notice | null): Promise<boolean> {
  * 不改动任何状态，也不写平台。
  */
 export async function notifySample(
+  host: MoocHost,
   snapshot: Snapshot | null,
   settings: Settings,
   now: number = Date.now(),
@@ -264,10 +262,8 @@ export async function notifySample(
 
   // 与 notify 同一套做法：先清掉上一条示例通知，再用新的 id 建一条。
   // 这个按钮会被反复点，第二次必须真的再弹一次。
-  await clearOutstanding(SAMPLE_PREFIX);
-  await browser.notifications.create(`${SAMPLE_PREFIX}${Date.now()}`, {
-    type: 'basic',
-    iconUrl: browser.runtime.getURL('/icon/128.png'),
+  await clearOutstanding(host, SAMPLE_PREFIX);
+  await host.showNotification(`${SAMPLE_PREFIX}${Date.now()}`, {
     title: notice?.title ?? 'Study Pilot：示例通知',
     message:
       notice?.message ??

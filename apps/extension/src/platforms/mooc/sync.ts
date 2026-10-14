@@ -10,6 +10,7 @@ import { md5hex } from '@study-pilot/core';
 import { COURSE_TYPE, createMoocClient, getCourses, type CourseSummary, type MoocClient } from '@study-pilot/platform-mooc';
 import { getSettings, updateSettings } from '../../settings';
 import { readToken, renewSession, SessionExpiredError } from './session';
+import type { MoocHost } from './host.ts';
 import { inspect, writeSnapshot, type InspectCourse, type Snapshot } from './read';
 import { mergeCourses } from './course-selection';
 import { whenNetRulesReady } from '../../browser/net-rules';
@@ -42,7 +43,7 @@ async function looksLikeOriginRejection(res: Response): Promise<boolean> {
   }
 }
 
-export function createPlatformClient(): PlatformClient {
+export function createPlatformClient(host: MoocHost): PlatformClient {
   const client = createMoocClient({
     /*
      * 出站请求的第一步是确保改写 Origin 的规则已生效。
@@ -67,7 +68,7 @@ export function createPlatformClient(): PlatformClient {
       await new Promise((resolve) => setTimeout(resolve, 400));
       return fetch(input, init);
     },
-    getToken: readToken,
+    getToken: () => readToken(host),
     md5: md5hex,
   });
 
@@ -77,7 +78,7 @@ export function createPlatformClient(): PlatformClient {
    * 返回布尔而不是会话对象：调用点关心的只有「换到没有」，
    * 换到之后一律重新读数据，而不是拿旧对象接着用。
    */
-  const renew = async (): Promise<boolean> => (await renewSession()).renewed;
+  const renew = async (): Promise<boolean> => (await renewSession(host)).renewed;
 
   return { client, renew };
 }

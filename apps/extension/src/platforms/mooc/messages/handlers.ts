@@ -34,7 +34,7 @@ import { handleSubmitQuiz } from './quiz.ts';
  */
 function sessionHandler(deps: MoocMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
-    const session = await ensureSession();
+    const session = await ensureSession(deps.host);
     if (!session.loggedIn) {
       sendResponse(session);
       return;
@@ -46,7 +46,7 @@ function sessionHandler(deps: MoocMessageDeps): MessageHandler {
       return;
     }
 
-    const { renewed, session: renewedSession } = await renewSession();
+    const { renewed, session: renewedSession } = await renewSession(deps.host);
     if (renewed) {
       const afterRenewal = await getCourses(deps.client, {
         courseType: COURSE_TYPE.MOOC,
@@ -89,7 +89,7 @@ export function moocHandlers(deps: MoocMessageDeps): MessageHandlers {
      * 登录入口，不再让「刷新加载不出」只能靠用户自己开官网破案。
      */
     REFRESH_COURSES: async (_request, sendResponse) => {
-      const session = await ensureSession();
+      const session = await ensureSession(deps.host);
       if (!session.loggedIn) {
         sendResponse({ ok: false, reason: 'NOT_LOGGED_IN' });
         return;
