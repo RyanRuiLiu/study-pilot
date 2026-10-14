@@ -1,0 +1,24 @@
+{
+  "name": "@study-pilot/cli",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "study-pilot": "./dist/main.mjs"
+  },
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --outfile=dist/main.mjs",
+    "start": "node dist/main.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@study-pilot/application": "workspace:*",
+    "@study-pilot/core": "workspace:*",
+    "@study-pilot/platform-mooc": "workspace:*",
+    "@study-pilot/transport": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "esbuild": "0.25.12",
+    "typescript": "^7.0.2"
+  }
+}

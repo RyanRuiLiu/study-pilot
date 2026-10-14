@@ -7,7 +7,7 @@
  */
 
 import { md5hex } from '@study-pilot/core';
-import { createMoocClient, type MoocClient } from '../client.ts';
+import { createMoocClient, type MoocClient, type MoocClientOptions } from '../client.ts';
 import { COURSE_TYPE } from '../endpoints.ts';
 import { getCourses } from '../courses.ts';
 import type { CourseSummary } from '../types.ts';
@@ -46,7 +46,16 @@ async function looksLikeOriginRejection(res: Response): Promise<boolean> {
   }
 }
 
-export function createPlatformClient(host: HostCapabilities): PlatformClient {
+/**
+ * 出站环境由载体给：默认用全局 fetch（扩展靠 declarativeNetRequest 把 Origin 与 Cookie
+ * 写到出站请求上），没有那层改写的载体（命令行、服务端）交一个自己设头的 fetch 进来。
+ * 其余逻辑（等规则就绪、命中「非法跨域」重发一次）两个载体共用。
+ */
+export function createPlatformClient(
+  host: HostCapabilities,
+  carrierFetch?: MoocClientOptions['fetch'],
+): PlatformClient {
+  const send = carrierFetch ?? fetch;
   const client = createMoocClient({
     /*
      * 出站请求的第一步是确保改写 Origin 的规则已生效。
@@ -65,11 +74,11 @@ export function createPlatformClient(host: HostCapabilities): PlatformClient {
      */
     fetch: async (input, init) => {
       await host.whenRequestRulesReady(MOOC_REQUEST_RULES);
-      const first = await fetch(input, init);
+      const first = await send(input, init);
       if (!(await looksLikeOriginRejection(first))) return first;
 
       await new Promise((resolve) => setTimeout(resolve, 400));
-      return fetch(input, init);
+      return send(input, init);
     },
     getToken: () => readToken(host),
     md5: md5hex,

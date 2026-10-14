@@ -31,17 +31,25 @@
 装到浏览器：chrome://extensions → 开发者模式 → 加载已解压的扩展程序 →
 选 apps/extension/.output/chrome-mv3。
 
+命令行载体（第二个载体，只读，用来证明核心不依赖扩展）：
+
+    pnpm --filter @study-pilot/cli build       # 打成 apps/cli/dist/main.mjs（esbuild，同扩展的构建方式）
+    node apps/cli/dist/main.mjs courses --cookies .probe/mooc-session.json --config .probe/cli-config.json
+        # 去平台读课程列表；加 --select <termId> 把它勾上并写进配置文件
+    node apps/cli/dist/main.mjs pending --cookies .probe/mooc-session.json --config .probe/cli-config.json
+        # 读一遍并算出要做什么（可自动 / 需人工），不改平台上的任何数据
+
 ## 目录
 
     packages/
       core/          小工具（md5、Result 等）
       transport/     慕课 DWR 传输：签名、请求、错误分类、节流
       platform-mooc/ 慕课一个包，两半：接口层（读课程/作业/测验、取卷、提交、评分）
-                     与策略层 policy/（会话、读取、计划、执行）
-      application/   载体无关的应用层：模型、端口、配置（纯逻辑，不碰浏览器/存储）
+                     与策略层 policy/（会话、读取、计划、执行、厂商装配）
+      application/   载体无关的应用层：模型、端口、配置、状态机、「跑一轮」用例
       ai/            OpenAI 兼容接口（讨论区留言用，可选）
     apps/extension/  载体一：浏览器扩展
-      src/adapters/   慕课的消息与视图适配器、本厂商的装配点
+      src/adapters/   慕课的消息与视图适配器、本载体补的那半装配
       src/background/ 调度与路由（跑什么、什么时候跑）、运行状态、定时
       src/browser/    宿主能力：cookie、请求头改写、运行状态推送
       src/settings/   配置落到浏览器存储（形状与规范化在 packages/application）
@@ -49,6 +57,11 @@
       src/ui-bridge.ts  界面唯一的取数入口
       entrypoints/    后台装配与弹窗/设置页
       test/           测试（boundaries.test.ts 是分层的机械核对）
+    apps/cli/        载体二：命令行
+      src/config-store.ts  配置端口落到一个 JSON 文件
+      src/host.ts          会话从浏览器导出的 cookie 文件读
+      src/fetch.ts         出站请求头自己设（命令行没有 declarativeNetRequest）
+      src/main.ts          命令：courses / pending（都只读）
 
 ## 边界与唯一的约定
 

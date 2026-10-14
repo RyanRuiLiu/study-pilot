@@ -1,0 +1,32 @@
+/*
+ * 出站环境（命令行载体）：自己把头设上。
+ *
+ * 扩展那一侧靠 declarativeNetRequest 把 Origin 与 Cookie 写到出站请求上；命令行没有那层，
+ * 于是这里按平台的要求补齐：
+ *   Cookie        浏览器里本来就有的那一串
+ *   Origin/Referer 必须指向平台自己的域名——实测：带扩展 Origin 的请求会被回 403「非法跨域请求」
+ *   User-Agent    平台的接口按常规浏览器 UA 判来源
+ *
+ * 类型与 @study-pilot/core 的 FetchLike 同形（(url, init) => Promise<Response>），
+ * 因此不需要为了一个类型多引一个包。
+ */
+
+import type { SessionFile } from './host.ts';
+
+const USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
+
+export function createHeaderFetch(session: SessionFile): (url: string, init?: RequestInit) => Promise<Response> {
+  const cookie = Object.entries(session.cookies)
+    .map(([name, value]) => `${name}=${value}`)
+    .join('; ');
+
+  return async (url, init) => {
+    const headers = new Headers(init?.headers);
+    headers.set('Cookie', cookie);
+    headers.set('Origin', session.origin);
+    headers.set('Referer', `${session.origin}/`);
+    headers.set('User-Agent', USER_AGENT);
+    return await fetch(url, { ...init, headers });
+  };
+}

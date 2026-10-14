@@ -19,7 +19,7 @@ import type {
 } from '@study-pilot/application';
 import type { CourseSummary } from '../types.ts';
 import type { CoursewareContext, TextGenerator } from '../courseware/index.ts';
-import type { MoocClient } from '../client.ts';
+import type { MoocClient, MoocClientOptions } from '../client.ts';
 import { createPlatformClient, loadSnapshot, refreshCourses, type PlatformClient } from './sync.ts';
 import { createMoocTasks, type MoocRunDeps } from './tasks.ts';
 import { MOOC_REQUEST_RULES } from './net-rules.ts';
@@ -31,6 +31,11 @@ export interface MoocCarrierDeps {
   config: ConfigPort;
   /** 把失败记进载体的运行状态（平台不反向依赖执行面，因此由载体注入） */
   recordFailure: (message: string) => Promise<void>;
+  /**
+   * 出站环境：不给就用全局 fetch（扩展那一侧靠 declarativeNetRequest 改写 Origin 与 Cookie）。
+   * 没有那层改写的载体（命令行、服务端）交一个自己设头的 fetch。
+   */
+  fetch?: MoocClientOptions['fetch'];
   /**
    * 文本生成器工厂：讨论单元的留言要用它。
    *
@@ -77,7 +82,7 @@ export function selectedCourses(settings: Settings): InspectCourse[] {
 }
 
 export function createMoocRuntime(carrier: MoocCarrierDeps): MoocRuntime {
-  const { client, renew }: PlatformClient = createPlatformClient(carrier.host);
+  const { client, renew }: PlatformClient = createPlatformClient(carrier.host, carrier.fetch);
 
   /*
    * 课件行为的上下文：只有一处来源——设置里的 AI 配置加上载体给的生成器工厂。
