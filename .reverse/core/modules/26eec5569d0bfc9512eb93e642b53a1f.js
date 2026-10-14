@@ -1,0 +1,4 @@
+EDU(
+  '26eec5569d0bfc9512eb93e642b53a1f',
+  '<div class="u-edu-h5player-controlwrap-live-mobile j-mliveControlwrap">    \n    <div class="m-controlbar-mobile j-mliveControlbar">\n        <div class="f-cb">\n            <a class="pbtnwrap j-pausePlayBtn f-fl">\n                <div class="pause-play-btn"></div>\n            </a>\n\n            <div class="f-fl liveinfo">\n                <h3 class="livetith f-thide j-liveh"></h3>\n                <p class="livetitp f-thide j-livep"></p>\n            </div>\n\n            <a class="pbtnwrap j-fullScreenBtn f-fr">\n                <div class="full-screen-btn"></div>\n            </a>\n\n            <a class="pbtnwrapsm j-reloadBtn f-fr">\n                <div class="reload-btn"></div>\n            </a>\n        </div>\n    </div>\n</div>\n',
+);

@@ -15,6 +15,7 @@
 export {
   createMoocClient,
   MOOC_ORIGIN,
+  BROWSER_USER_AGENT,
   type MoocClient,
   type MoocClientOptions,
 } from './client.ts';

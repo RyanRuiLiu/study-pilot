@@ -1,0 +1,4 @@
+EDU(
+  '8816e8759eb698f2ab784f0458989984',
+  '<div class="ux-video-player" id="j-video-player" ref=playerNode>\n\n    <!-- 提示 -->\n    {#if showTip}\n    <div class="ux-video-player_tip" r-class="{{\'ux-video-player_tip-wap\':isWap}}">\n        <!-- <div class="emid">\n            <div class="f-ib eic"></div>\n            <span class="f-ib" r-html={tipMsg}></span>\n        </div> -->\n        <div class="ux-video-player_tip-loading"></div>\n        <div class="ux-video-player_tip-action">\n            <p>为了更好播放体验，建议您下载使用<a href="//www.google.cn/chrome/" target="_blank">chrome最新浏览器</a></p>\n            <a class="reload btn" on-click={this._reload()}><i></i>重新加载</a>\n            <a class="feedback btn" href="//www.icourse163.org/about/contactus.htm#/contactus?type=4&playFeedback=1" target="_blank"><i></i>问题反馈</a>\n        </div>\n    </div>\n    {/if}\n</div>',
+);

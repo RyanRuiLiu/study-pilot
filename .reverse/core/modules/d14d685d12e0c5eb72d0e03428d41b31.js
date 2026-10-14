@@ -1,0 +1,4 @@
+EDU(
+  'd14d685d12e0c5eb72d0e03428d41b31',
+  '<div class="ux-urs-login-third third-login f-cb ">\n\t<span class=\'txt f-fl\'>{txt}</span>\n\t<div class="third-icons f-fr">\n\t\t{#list snsItems as sns}\n            <a class="third-link f-fl" href={sns.getHref() | addParams} data-log-act="click" data-log-data={sns.logData}>\n                <span class="f-ib icon {sns.class}" style="background-image: url({sns.icon})"></span>\n            </a>\n        {/list}\n\t</div>\n\n    <div class="scan-code f-fl" on-click={this.changeStatus(\'scanCode\')}>\n        <img class="scan-code_img"\n             src="//edu-image.nosdn.127.net/6ba8e4e10c1a44a88073992d87b4afcf.png?imageView&quality=100&thumbnail=72y72"\n             alt="二维码图标" />\n        <span class="scan-code_txt">手机扫码，安全登录</span>\n    </div>\n</div>\n',
+);

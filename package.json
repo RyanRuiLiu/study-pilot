@@ -14,9 +14,6 @@
     "build": "pnpm --filter @study-pilot/extension build",
     "dev": "pnpm --filter @study-pilot/extension dev"
   },
-  "devDependencies": {
-    "@shoelace-style/shoelace": "^2.20.1"
-  },
   "type": "module",
   "repository": {
     "type": "git",

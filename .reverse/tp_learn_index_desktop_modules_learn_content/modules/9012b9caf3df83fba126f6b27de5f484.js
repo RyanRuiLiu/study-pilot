@@ -1,0 +1,4 @@
+EDU(
+  '9012b9caf3df83fba126f6b27de5f484',
+  '<div class="u-appCallBanner f-cb">\n<img class="imgLogo f-fl" src="//edu-image.nosdn.127.net/02A8BDCF01CC96CA951BA4A71067B799.png?imageView&thumbnail=56y46&quality=100" alt="logo">\n{#if activityNotEnd}\n<div id="bannerFrame" >\n<div id="bannerPlay" class="play">\n<div class="txt f-fl">\n<p class="mooc">{startTimeText}至{endTimeText}</p>\n<p class="desc">下载APP赢kindle</p>\n</div>\n<div class="txt f-fl">\n<p class="mooc">中国大学MOOC</p>\n<p class="desc">海量免费名师名校课程</p>\n</div>\n<div class="txt f-fl">\n<p class="mooc">{startTimeText}至{endTimeText}</p>\n<p class="desc">下载APP赢kindle</p>\n</div>\n<div class="txt f-fl">\n<p class="mooc">中国大学MOOC</p>\n<p class="desc">海量免费名师名校课程</p>\n</div>\n</div>\n</div>\n{#else}\n<div class="txt f-fl">\n<p class="mooc">中国大学MOOC</p>\n<p class="desc">海量免费名师名校课程</p>\n</div>\n{/if}\n<div class="goBtn f-fr" on-click={this.handleOnOpen($event)}>打开APP</div>\n</div>',
+);

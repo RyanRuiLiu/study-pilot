@@ -1,0 +1,4 @@
+EDU(
+  '1f2b9ca39c6e17a3cd6d09fcb5df5854',
+  '<div class="ux-share-share-embedded">\n    <div class="ux-share_wrap f-cb">\n            <a class="ux-share_weixin ux-icon-wechat ux-share_solo f-fl f-pr" title="分享到微信" on-mouseenter={this.onHoverWechatShare()}>\n                <div class="ux-share_cnt f-f0 f-pa f-dn" r-class={{\'ux-share_up\':model==0, \'ux-share_down\':model==1}}>\n                    <img src="" ref="weixinImg" width="125" alt="分到到微信"/>\n                    <div class="ux-share_tip">用微信扫描二维码<br>分享至好友和朋友圈</div>\n                    <div class="ux-share_tipBg f-pa"></div>\n                    <div class="ux-share_tipTp f-pa"></div>\n                </div>\n            </a>\n            <a class="ux-share_sina ux-icon-weibo ux-share_solo f-fl" title="分享到新浪微博"  on-click={this.shareSina($event)}></a>\n            <a class="ux-share_qzone ux-icon-QQ ux-share_solo f-fl" title="分享到QQ空间" on-click={this.shareQzone($event)}></a>\n    </div>\n</div>\n',
+);

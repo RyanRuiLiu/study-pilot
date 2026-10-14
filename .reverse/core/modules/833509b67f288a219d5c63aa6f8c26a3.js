@@ -1,0 +1,4 @@
+EDU(
+  '833509b67f288a219d5c63aa6f8c26a3',
+  '<div class="u-dropdown {class}" z-dis={disabled} r-hide={!visible} ref="element">\n    <div class="dropdown_hd" on-click={this.toggle()}>\n        {#if this.$body}\n            {#inc this.$body}\n        {#else}\n            <a class="u-btn" title={title || \'下拉菜单\'}>{title || \'下拉菜单\'} <i class="u-icon u-icon-caret-down"></i></a>\n        {/if}\n    </div>\n    <div class="dropdown_bd" r-show={open} r-animation="on: enter; class: animated fadeInY fast; on: leave; class: animated fadeOutY fast;">\n        <ul class="m-listview">\n            {#list source as item}\n            <li z-dis={item.disabled} z-divider={item.divider} title={item.name} on-click={this.select(item)}>{#if @(itemTemplate)}{#inc @(itemTemplate)}{#else}{item.name}{/if}</li>\n            {/list}\n        </ul>\n    </div>\n</div>\n',
+);

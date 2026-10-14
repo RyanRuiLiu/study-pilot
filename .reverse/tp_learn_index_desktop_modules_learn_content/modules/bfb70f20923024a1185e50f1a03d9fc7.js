@@ -1,0 +1,4 @@
+EDU(
+  'bfb70f20923024a1185e50f1a03d9fc7',
+  '.ux-slider-switcher-content{-webkit-transform:translate(0, 0);-moz-transform:translate(0, 0);-ms-transform:translate(0, 0);-o-transform:translate(0, 0);transform:translate(0, 0);}.ux-slider-switcher-content-h{position:relative;display:-webkit-box;display:-moz-box;display:box;display:-webkit-flex;display:-moz-flex;display:-ms-flexbox;display:flex;-webkit-transition:-webkit-transform .3s;-moz-transition:-moz-transform .3s;transition:transform .3s;width:100%;height:100%;}.ux-slider-switcher-item-h{-webkit-flex-shrink:0;-moz-flex-shrink:0;flex-shrink:0;-ms-flex-negative:0;}.ux-slider-switcher-content-v{position:relative;-webkit-transition:-webkit-transform .3s;-moz-transition:-moz-transform .3s;transition:transform .3s;width:100%;height:100%;}.ux-slider-switcher{overflow:hidden;}',
+);

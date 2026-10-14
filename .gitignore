@@ -17,28 +17,14 @@ __pycache__/
 # 这些是调试过程的材料，不是项目内容，而且可能带着账号与课程数据。
 .probe/
 
-# 抓取的真实接口数据。同样不入库。
-# 领域测试用的是合成的结构样本（见 packages/*/test/），
-# 验的是「按 id 能否匹配上」这类结构性质，不需要真实题库。
-fixtures/
-
-# 逆向产物，用 pnpm probe:decompile 重新生成
-.reverse/
-
 # 临时 profile（调试时用，不入库）
 .tmp-profile/
 
-# 打包产物（由 pnpm package 生成）
+# 构建产物（apps/cli 的 esbuild 输出等）
 dist/
 
 # 临时文件
 .msg.txt
-
-# 变异测试（pnpm mutation）：报告是每次跑出来的结果，不是项目内容，不入库。
-# 沙箱默认放在 node_modules/.cache/stryker（node_modules 已整体忽略），
-# 这里再兜一层 Stryker 的旧默认目录名。
-reports/
-.stryker-tmp/
 
 # 测试覆盖率产物（vitest --coverage 生成），不是项目内容。
 coverage/

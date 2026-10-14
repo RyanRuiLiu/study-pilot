@@ -11,10 +11,8 @@
  * 因此不需要为了一个类型多引一个包。
  */
 
+import { BROWSER_USER_AGENT } from '@study-pilot/platform-mooc';
 import type { SessionFile } from './host.ts';
-
-const USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 
 export function createHeaderFetch(session: SessionFile): (url: string, init?: RequestInit) => Promise<Response> {
   const cookie = Object.entries(session.cookies)
@@ -26,7 +24,7 @@ export function createHeaderFetch(session: SessionFile): (url: string, init?: Re
     headers.set('Cookie', cookie);
     headers.set('Origin', session.origin);
     headers.set('Referer', `${session.origin}/`);
-    headers.set('User-Agent', USER_AGENT);
+    headers.set('User-Agent', BROWSER_USER_AGENT);
     return await fetch(url, { ...init, headers });
   };
 }

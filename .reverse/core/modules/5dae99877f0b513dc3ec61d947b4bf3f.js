@@ -1,0 +1,4 @@
+EDU(
+  '5dae99877f0b513dc3ec61d947b4bf3f',
+  '.ux-pager{text-align:center;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;font-size:14px}.ux-pager.z-hdn{display:none}.ux-pager_itm,.ux-pager_btn,.ux-pager_sep{margin:0 2px;display:inline-block;text-align:center}.ux-pager_itm>a,.ux-pager_itm>span,.ux-pager_btn>a,.ux-pager_btn>span,.ux-pager_sep>a,.ux-pager_sep>span{display:inline-block;-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box;text-decoration:none;padding:0 12px;min-width:6px;height:30px;line-height:30px}.ux-pager_itm>a,.ux-pager_btn>a,.ux-pager_sep>a{border:1px solid #ddd;border-radius:2px}.ux-pager>li.z-crt>a{color:white}.ux-pager>li.z-dis>a{cursor:not-allowed;color:#999}.ux-pager .th-bk-main-gh{color:#859295}.ux-pager .th-bk-main-gh:hover{color:#fff}.ux-pager__left{text-align:left}.ux-pager__right{text-align:right}\n/*# sourceMappingURL=component.css.map */\n',
+);

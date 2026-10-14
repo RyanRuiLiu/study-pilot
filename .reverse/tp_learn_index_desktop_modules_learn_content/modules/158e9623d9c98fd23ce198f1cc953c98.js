@@ -1,0 +1,1 @@
+EDU('158e9623d9c98fd23ce198f1cc953c98', { KEY_REFRESH: '刷新', KEY_LABEL: '图文', KEY_PAGE: '页' });

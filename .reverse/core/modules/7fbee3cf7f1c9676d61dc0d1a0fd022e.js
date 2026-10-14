@@ -1,0 +1,4 @@
+EDU(
+  '7fbee3cf7f1c9676d61dc0d1a0fd022e',
+  '<div class="u-richeditor-uploadCard">\n    <div class="tab">\n        <a class="f-ib tabitem j-tab"><span>$uploadImage</span></a>\n        <a class="f-ib tabitem j-tab"><span>$offSiteImage</span></a>\n        <image class="hideimage j-image"/>\n    </div>\n    <div class="cnt j-cnt">\n        <div class="f-pr uploadcon">\n            <div class="j-choosefile f-pa"></div>\n        </div>\n        <p class="desc j-desc"></p>\n    </div>\n    <div class="cnt j-cnt">\n        <div class="f-cb webcon">\n            <div class="f-fl txtwrap">\n                <input class="txt j-ipturl" type="text"/>\n            </div>$btn2_html_str\n        </div>\n        <p class="desc j-desc"></p>\n    </div>\n    <div class="error j-error"></div>\n</div>\n\n\n\n',
+);

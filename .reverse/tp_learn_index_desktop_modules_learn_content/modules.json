@@ -1,0 +1,2621 @@
+[
+  {
+    "hash": "ef64b877c64ed4138d4b703989241671",
+    "offset": 0,
+    "length": 726,
+    "file": "modules/ef64b877c64ed4138d4b703989241671.js",
+    "symbols": []
+  },
+  {
+    "hash": "39253eba71912d1492d6af7035e30738",
+    "offset": 727,
+    "length": 391,
+    "file": "modules/39253eba71912d1492d6af7035e30738.js",
+    "symbols": [
+      "recommendRPCBean.getRecommend",
+      "mocPromoFeedbackBean.contentFeedback"
+    ]
+  },
+  {
+    "hash": "023f6ad1232c688c37f05d531ca475da",
+    "offset": 1119,
+    "length": 279,
+    "file": "modules/023f6ad1232c688c37f05d531ca475da.js",
+    "symbols": [
+      "um-recommend-feedback-box",
+      "title",
+      "content",
+      "feedbackOption"
+    ]
+  },
+  {
+    "hash": "0caa45293ff72fb6f03781c0fb270351",
+    "offset": 1399,
+    "length": 1289,
+    "file": "modules/0caa45293ff72fb6f03781c0fb270351.js",
+    "symbols": []
+  },
+  {
+    "hash": "0236077441893c507217f02d62f60370",
+    "offset": 2689,
+    "length": 1950,
+    "file": "modules/0236077441893c507217f02d62f60370.js",
+    "symbols": []
+  },
+  {
+    "hash": "fc9b6f8caf107e0df9648422060c8ddf",
+    "offset": 4640,
+    "length": 252,
+    "file": "modules/fc9b6f8caf107e0df9648422060c8ddf.js",
+    "symbols": []
+  },
+  {
+    "hash": "5884d28f94b9d858d9c5ca557e9e831a",
+    "offset": 4893,
+    "length": 3513,
+    "file": "modules/5884d28f94b9d858d9c5ca557e9e831a.js",
+    "symbols": []
+  },
+  {
+    "hash": "188ce9e691d65335efaeff1ab170374e",
+    "offset": 8407,
+    "length": 4005,
+    "file": "modules/188ce9e691d65335efaeff1ab170374e.js",
+    "symbols": [
+      "um-recommend {class}",
+      "um-recommend_hd f-pr",
+      "um-recommend_hd_tlt",
+      "um-recommend_hd_toggle",
+      "um-recommend_hd_icon",
+      "um-recommend-list f-cb",
+      "um-recommend-list_item topic f-fl",
+      "um-recommend-list_item_feedback_btn",
+      "um-recommend-list_item_img f-fl",
+      "um-recommend-list_item_tag f-pa",
+      "um-recommend-list_item_wrap f-fl",
+      "um-recommend-list_item_name",
+      "um-recommend-list_item_school_info",
+      "um-recommend-list_item_teacher f-ib",
+      "um-recommend-list_item_heat f-pa",
+      "heat",
+      "um-recommend-list_item_count f-pa",
+      "hot"
+    ]
+  },
+  {
+    "hash": "8d55ca9f1d73879fdbef5e2d30797f6e",
+    "offset": 12414,
+    "length": 3426,
+    "file": "modules/8d55ca9f1d73879fdbef5e2d30797f6e.js",
+    "symbols": []
+  },
+  {
+    "hash": "ebe210c8c771158d609dfded929fb0ed",
+    "offset": 15841,
+    "length": 290,
+    "file": "modules/ebe210c8c771158d609dfded929fb0ed.js",
+    "symbols": []
+  },
+  {
+    "hash": "efe50979c5575c995dcae42ffc49d80a",
+    "offset": 16132,
+    "length": 357,
+    "file": "modules/efe50979c5575c995dcae42ffc49d80a.js",
+    "symbols": []
+  },
+  {
+    "hash": "43ca3a6e5c0d4e451a1e94128b6aff00",
+    "offset": 16490,
+    "length": 953,
+    "file": "modules/43ca3a6e5c0d4e451a1e94128b6aff00.js",
+    "symbols": []
+  },
+  {
+    "hash": "3b4b0bfe96b6f18b5667d392a02a8f9d",
+    "offset": 17444,
+    "length": 244,
+    "file": "modules/3b4b0bfe96b6f18b5667d392a02a8f9d.js",
+    "symbols": []
+  },
+  {
+    "hash": "5b1a46f551ade5cafa27284058ba7da2",
+    "offset": 17689,
+    "length": 340,
+    "file": "modules/5b1a46f551ade5cafa27284058ba7da2.js",
+    "symbols": []
+  },
+  {
+    "hash": "d87ba35ddeb76d66f2d96b19b755fea3",
+    "offset": 18030,
+    "length": 1695,
+    "file": "modules/d87ba35ddeb76d66f2d96b19b755fea3.js",
+    "symbols": []
+  },
+  {
+    "hash": "4506823daf61ad0e7db0db8ecc157b4c",
+    "offset": 19726,
+    "length": 242,
+    "file": "modules/4506823daf61ad0e7db0db8ecc157b4c.js",
+    "symbols": []
+  },
+  {
+    "hash": "8e2e477f7b9e6e134cfe14f830c66a52",
+    "offset": 19969,
+    "length": 5115,
+    "file": "modules/8e2e477f7b9e6e134cfe14f830c66a52.js",
+    "symbols": [
+      "COM_Cache_CourseCtCache",
+      "COM_Cache",
+      "courseBean.getLastLearnedMocTermDto",
+      "courseBean.getMocTermDto",
+      "courseRpcBean.saveMocContentLearn",
+      "courseBean.saveMocContentLearn",
+      "zhiXuanAdsBean.judgeZhiXuanAdsShowStatusByTermId",
+      "zhiXuanAdsBean.showClose",
+      "mocLessonUnitBean.listMocVideoAiSegmentInfoDto",
+      "adminTermCertifiedBean.getMocPreviewVideoSegmentInfoDto",
+      "mocAdminTermCertifiedBean.listUnitAIStatus"
+    ]
+  },
+  {
+    "hash": "e78bb439e23b5c380ffb5b269896d6bf",
+    "offset": 25085,
+    "length": 387,
+    "file": "modules/e78bb439e23b5c380ffb5b269896d6bf.js",
+    "symbols": [
+      "wapUnitUI",
+      "m-recimg canlick f-pr",
+      "hdImg",
+      "u-title f-f0",
+      "unitName",
+      "time",
+      "bottom f-f0 f-pf"
+    ]
+  },
+  {
+    "hash": "5289c798a728525273713946bf73de90",
+    "offset": 25473,
+    "length": 4435,
+    "file": "modules/5289c798a728525273713946bf73de90.js",
+    "symbols": [
+      "VideoPlayer",
+      "UIBase"
+    ]
+  },
+  {
+    "hash": "9012b9caf3df83fba126f6b27de5f484",
+    "offset": 29909,
+    "length": 935,
+    "file": "modules/9012b9caf3df83fba126f6b27de5f484.js",
+    "symbols": [
+      "u-appCallBanner f-cb",
+      "imgLogo f-fl",
+      "play",
+      "txt f-fl",
+      "mooc",
+      "desc",
+      "goBtn f-fr"
+    ]
+  },
+  {
+    "hash": "59d2c9ad64cda0355517ea4ff7ff6908",
+    "offset": 30845,
+    "length": 1851,
+    "file": "modules/59d2c9ad64cda0355517ea4ff7ff6908.js",
+    "symbols": []
+  },
+  {
+    "hash": "6de20ab3cb8a0113ff59f8fdde6145dd",
+    "offset": 32698,
+    "length": 780,
+    "file": "modules/6de20ab3cb8a0113ff59f8fdde6145dd.js",
+    "symbols": [
+      "COM_Cache_commonCache"
+    ]
+  },
+  {
+    "hash": "892e35f71d7ab44fd31b760aa99d9fa9",
+    "offset": 33479,
+    "length": 1291,
+    "file": "modules/892e35f71d7ab44fd31b760aa99d9fa9.js",
+    "symbols": [
+      "VideoPlayer"
+    ]
+  },
+  {
+    "hash": "68471111cd34db27f540f48b62615eb2",
+    "offset": 34771,
+    "length": 321,
+    "file": "modules/68471111cd34db27f540f48b62615eb2.js",
+    "symbols": []
+  },
+  {
+    "hash": "ab2bbf87ffa27a1f06950bbbc9c81788",
+    "offset": 35093,
+    "length": 1695,
+    "file": "modules/ab2bbf87ffa27a1f06950bbbc9c81788.js",
+    "symbols": []
+  },
+  {
+    "hash": "72082ce7fa131d8e62eb43521a683cd9",
+    "offset": 36789,
+    "length": 2338,
+    "file": "modules/72082ce7fa131d8e62eb43521a683cd9.js",
+    "symbols": [
+      "CommonDialog"
+    ]
+  },
+  {
+    "hash": "a1e9192d3b72c40040dedd10cf047fc7",
+    "offset": 39128,
+    "length": 11311,
+    "file": "modules/a1e9192d3b72c40040dedd10cf047fc7.js",
+    "symbols": [
+      "LessonNormal",
+      "UIBase",
+      "COM_Cache_CourseCtCache",
+      "CommonDialog",
+      "tag aiStatus",
+      "lsicon f-thide '+(e.viewStatus?",
+      "logo",
+      "f-icon lsicon '+(e.viewStatus?",
+      "tag '+(e.viewStatus?"
+    ]
+  },
+  {
+    "hash": "aa604eee72c30e4ab47131b0e65592a7",
+    "offset": 50440,
+    "length": 4338,
+    "file": "modules/aa604eee72c30e4ab47131b0e65592a7.js",
+    "symbols": [
+      "LessonQuiz",
+      "UIBase",
+      "CommonDialog",
+      "PreviewStatus"
+    ]
+  },
+  {
+    "hash": "1787c38a11a8e8184385e7783942c142",
+    "offset": 54779,
+    "length": 4993,
+    "file": "modules/1787c38a11a8e8184385e7783942c142.js",
+    "symbols": [
+      "LessonHomework",
+      "UIBase",
+      "CommonDialog",
+      "PreviewStatus"
+    ]
+  },
+  {
+    "hash": "8e9c53b98e22fa9419ebaabd0dd2b334",
+    "offset": 59773,
+    "length": 4318,
+    "file": "modules/8e9c53b98e22fa9419ebaabd0dd2b334.js",
+    "symbols": [
+      "ChapterNormal",
+      "UIBase",
+      "LessonQuiz",
+      "LessonHomework",
+      "LessonNormal",
+      "CommonDialog",
+      "PreviewStatus"
+    ]
+  },
+  {
+    "hash": "b5a950f651fa0961e0eaec9b66523521",
+    "offset": 64092,
+    "length": 4021,
+    "file": "modules/b5a950f651fa0961e0eaec9b66523521.js",
+    "symbols": [
+      "ChapterExam",
+      "UIBase",
+      "CommonDialog",
+      "PreviewStatus"
+    ]
+  },
+  {
+    "hash": "c1ba0a8ce6586f97db89350042a33ef5",
+    "offset": 68114,
+    "length": 3291,
+    "file": "modules/c1ba0a8ce6586f97db89350042a33ef5.js",
+    "symbols": [
+      "ChapterList",
+      "UIBase",
+      "ChapterNormal",
+      "ChapterExam"
+    ]
+  },
+  {
+    "hash": "c05dd632e9d52734ddcf7eb505e23cb0",
+    "offset": 71406,
+    "length": 3380,
+    "file": "modules/c05dd632e9d52734ddcf7eb505e23cb0.js",
+    "symbols": [
+      "m-joinQa {hasJoin?\\'hasJoin\\':\\'\\'}",
+      "m-joinQa-btn",
+      "svg-arrow",
+      "m-joinQa-content",
+      "m-joinQa-content-ul"
+    ]
+  },
+  {
+    "hash": "4c8e3e49726e9626bdaa4895f1b1e5e4",
+    "offset": 74788,
+    "length": 1413,
+    "file": "modules/4c8e3e49726e9626bdaa4895f1b1e5e4.js",
+    "symbols": []
+  },
+  {
+    "hash": "d1b339d8b948d535e1ceb88c9586d7da",
+    "offset": 76202,
+    "length": 2089,
+    "file": "modules/d1b339d8b948d535e1ceb88c9586d7da.js",
+    "symbols": [
+      "init"
+    ]
+  },
+  {
+    "hash": "1e48b10ef446f27504f14c515b0f3e54",
+    "offset": 78292,
+    "length": 60,
+    "file": "modules/1e48b10ef446f27504f14c515b0f3e54.js",
+    "symbols": []
+  },
+  {
+    "hash": "65b898d277b0f056d537f0e2df45ff78",
+    "offset": 78353,
+    "length": 801,
+    "file": "modules/65b898d277b0f056d537f0e2df45ff78.js",
+    "symbols": []
+  },
+  {
+    "hash": "dc47c0cbd3590b02fac495009e67774a",
+    "offset": 79155,
+    "length": 281,
+    "file": "modules/dc47c0cbd3590b02fac495009e67774a.js",
+    "symbols": [
+      "ux-check-switcher",
+      "ux-check-switcher-text",
+      "ux-check-switcher-round"
+    ]
+  },
+  {
+    "hash": "d1c7a1711a7eef9ea73cb9f0398b5208",
+    "offset": 79437,
+    "length": 707,
+    "file": "modules/d1c7a1711a7eef9ea73cb9f0398b5208.js",
+    "symbols": []
+  },
+  {
+    "hash": "1ee4132d3e572b8c83dffd6ef72c5208",
+    "offset": 80145,
+    "length": 224,
+    "file": "modules/1ee4132d3e572b8c83dffd6ef72c5208.js",
+    "symbols": []
+  },
+  {
+    "hash": "c97c700cbe5cc1ac9fa112564f3f7655",
+    "offset": 80370,
+    "length": 292,
+    "file": "modules/c97c700cbe5cc1ac9fa112564f3f7655.js",
+    "symbols": [
+      "music-unit",
+      "qr-code",
+      "tips"
+    ]
+  },
+  {
+    "hash": "5ec29e5d3fbad2e25432a399e9a70ab0",
+    "offset": 80663,
+    "length": 295,
+    "file": "modules/5ec29e5d3fbad2e25432a399e9a70ab0.js",
+    "symbols": []
+  },
+  {
+    "hash": "de02e8d2bf60bf98f3242e97cb4dc007",
+    "offset": 80959,
+    "length": 325,
+    "file": "modules/de02e8d2bf60bf98f3242e97cb4dc007.js",
+    "symbols": []
+  },
+  {
+    "hash": "bc0e480fd32a7febbef6f6a9aec53542",
+    "offset": 81285,
+    "length": 374,
+    "file": "modules/bc0e480fd32a7febbef6f6a9aec53542.js",
+    "symbols": []
+  },
+  {
+    "hash": "72d45d4792047bd62a782346c4fcadc1",
+    "offset": 81660,
+    "length": 254,
+    "file": "modules/72d45d4792047bd62a782346c4fcadc1.js",
+    "symbols": []
+  },
+  {
+    "hash": "12b528595f4682da0afb7aaeb9b572e0",
+    "offset": 81915,
+    "length": 1079,
+    "file": "modules/12b528595f4682da0afb7aaeb9b572e0.js",
+    "symbols": [
+      "isLiveExist",
+      "liveName",
+      "liveDateTime",
+      "memberNum",
+      "shareTitle",
+      "shareTopic",
+      "shareDesc",
+      "sharePic",
+      "shareUrl",
+      "liveStatus",
+      "presenterUrl",
+      "presenterProfileImageUrl",
+      "presenterName",
+      "lesson-live-wrapper",
+      "main-area f-f0 liveExist",
+      "liveWrap",
+      "unitContentBox f-pr",
+      "livePresenter f-pr f-cb",
+      "main-area liveNotExist f-f0"
+    ]
+  },
+  {
+    "hash": "395bdf4ab3827a145e12c5bb9dcbb9ec",
+    "offset": 82995,
+    "length": 4157,
+    "file": "modules/395bdf4ab3827a145e12c5bb9dcbb9ec.js",
+    "symbols": []
+  },
+  {
+    "hash": "52bf85fbe934b39a8dab83a207ee9f33",
+    "offset": 87154,
+    "length": 727,
+    "file": "modules/52bf85fbe934b39a8dab83a207ee9f33.js",
+    "symbols": [
+      "linkStylesToggle",
+      "presenterProfileImageUrl",
+      "live-presenter-info-wrapper {class}",
+      "{$$linkStylesToggle}",
+      "presenter inline-block",
+      "presenter-image",
+      "presenterInfo inline-block",
+      "presenterName f-fcgreen",
+      "nickName",
+      "tag",
+      "schoolName",
+      "content inline-block"
+    ]
+  },
+  {
+    "hash": "74ce2067e0a1851eee7f46b2d51ce722",
+    "offset": 87882,
+    "length": 1586,
+    "file": "modules/74ce2067e0a1851eee7f46b2d51ce722.js",
+    "symbols": []
+  },
+  {
+    "hash": "052bb5990dd9f04804c028e7faa9809d",
+    "offset": 89469,
+    "length": 784,
+    "file": "modules/052bb5990dd9f04804c028e7faa9809d.js",
+    "symbols": [
+      "linkStylesToggle",
+      "presenterProfileImageUrl"
+    ]
+  },
+  {
+    "hash": "afe426fdcae7b771cb970d9ab5a70a3f",
+    "offset": 90254,
+    "length": 102,
+    "file": "modules/afe426fdcae7b771cb970d9ab5a70a3f.js",
+    "symbols": [
+      "live-wrap-wrapper polyv"
+    ]
+  },
+  {
+    "hash": "52a5c99cd736ff9eb728dcd2051013b3",
+    "offset": 90357,
+    "length": 2948,
+    "file": "modules/52a5c99cd736ff9eb728dcd2051013b3.js",
+    "symbols": []
+  },
+  {
+    "hash": "238589f971b1494b164029770fa923b4",
+    "offset": 93306,
+    "length": 1063,
+    "file": "modules/238589f971b1494b164029770fa923b4.js",
+    "symbols": [
+      "md-live-pc",
+      "md-live-pc_player f-pa",
+      "md-live-pc_right f-pa",
+      "md-live-pc_deleted f-pa j-deleted",
+      "md-live-pc_deleted_mid f-pa",
+      "md-live-pc_deleted_ic ux-icon-sad f-fl",
+      "md-live-pc_deleted_rcon f-fl",
+      "md-live-pc_deleted_bt",
+      "md-live-pc_deleted_in"
+    ]
+  },
+  {
+    "hash": "95505edb0cbde6bef675ad0664625223",
+    "offset": 94370,
+    "length": 7616,
+    "file": "modules/95505edb0cbde6bef675ad0664625223.js",
+    "symbols": []
+  },
+  {
+    "hash": "23eaf7797ac8fd05d371386cb5fce7ff",
+    "offset": 101987,
+    "length": 5771,
+    "file": "modules/23eaf7797ac8fd05d371386cb5fce7ff.js",
+    "symbols": [
+      "ux-live-pc-player f-pa",
+      "ux-live-pc-player_playerbox f-pa",
+      "ux-live-pc-player_playerbox_videobox",
+      "ux-live-pc-player_status",
+      "ux-live-pc-player_status_tbar f-pa",
+      "ux-live-pc-player_status_tbar_bg",
+      "ux-live-pc-player_status_tbar_w f-pa",
+      "ux-live-pc-player_status_tbar_h3",
+      "ux-live-pc-player_status_tbar_p",
+      "th-fc8"
+    ]
+  },
+  {
+    "hash": "df04c050718b1699e45eb7d76893c32f",
+    "offset": 107760,
+    "length": 1572,
+    "file": "modules/df04c050718b1699e45eb7d76893c32f.js",
+    "symbols": []
+  },
+  {
+    "hash": "e71dc3be9cd207b262db571dc93abf68",
+    "offset": 109333,
+    "length": 224,
+    "file": "modules/e71dc3be9cd207b262db571dc93abf68.js",
+    "symbols": []
+  },
+  {
+    "hash": "3baac7dd3a4f3fc21e3b476eaa33dd96",
+    "offset": 109558,
+    "length": 428,
+    "file": "modules/3baac7dd3a4f3fc21e3b476eaa33dd96.js",
+    "symbols": [
+      "um-user-answer-sheet",
+      "answersheet-entry-wrap",
+      "entry question-entry",
+      "entry answer-entry"
+    ]
+  },
+  {
+    "hash": "3f7e13933db824dc4e3ab51f27e7e980",
+    "offset": 109987,
+    "length": 1326,
+    "file": "modules/3f7e13933db824dc4e3ab51f27e7e980.js",
+    "symbols": []
+  },
+  {
+    "hash": "ae3c1f8bf7a436af80c6fd95f3e56020",
+    "offset": 111314,
+    "length": 549,
+    "file": "modules/ae3c1f8bf7a436af80c6fd95f3e56020.js",
+    "symbols": [
+      "ux-component-modal-slideModal {class}",
+      "mask",
+      "container",
+      "wrapper",
+      "btn",
+      "th-fc5 caret"
+    ]
+  },
+  {
+    "hash": "a3f370baeea30d540921f3d6084096e8",
+    "offset": 111864,
+    "length": 1781,
+    "file": "modules/a3f370baeea30d540921f3d6084096e8.js",
+    "symbols": []
+  },
+  {
+    "hash": "2334d2d972df9316ff24a1d267677759",
+    "offset": 113646,
+    "length": 853,
+    "file": "modules/2334d2d972df9316ff24a1d267677759.js",
+    "symbols": []
+  },
+  {
+    "hash": "093e495cf234b7e82e0b95621a2f7c83",
+    "offset": 114500,
+    "length": 237,
+    "file": "modules/093e495cf234b7e82e0b95621a2f7c83.js",
+    "symbols": [
+      "um-user-answer-sheet-question-modal_cnt"
+    ]
+  },
+  {
+    "hash": "74f4daf406cf2f4b5bc788dd2bf3addc",
+    "offset": 114738,
+    "length": 332,
+    "file": "modules/74f4daf406cf2f4b5bc788dd2bf3addc.js",
+    "symbols": []
+  },
+  {
+    "hash": "60cc6a5ffd372d7583828f1789b7537d",
+    "offset": 115071,
+    "length": 1076,
+    "file": "modules/60cc6a5ffd372d7583828f1789b7537d.js",
+    "symbols": [
+      "um-user-answer-sheet-question-list-wrap",
+      "pagination",
+      "page th-fc4",
+      "content",
+      "btn-left",
+      "btn-right"
+    ]
+  },
+  {
+    "hash": "51c72d064fb9a1ab6601cc85ebb21a90",
+    "offset": 116148,
+    "length": 1557,
+    "file": "modules/51c72d064fb9a1ab6601cc85ebb21a90.js",
+    "symbols": []
+  },
+  {
+    "hash": "b0465c0f3ae90fb128794aabddeb5082",
+    "offset": 117706,
+    "length": 174,
+    "file": "modules/b0465c0f3ae90fb128794aabddeb5082.js",
+    "symbols": [
+      "ux-slider-switcher {class}"
+    ]
+  },
+  {
+    "hash": "8d85cbe91f6b00f2420ce9e39c82fc5f",
+    "offset": 117882,
+    "length": 828,
+    "file": "modules/8d85cbe91f6b00f2420ce9e39c82fc5f.js",
+    "symbols": []
+  },
+  {
+    "hash": "81571a82bcaef5fff7faa9428fa963c8",
+    "offset": 118711,
+    "length": 225,
+    "file": "modules/81571a82bcaef5fff7faa9428fa963c8.js",
+    "symbols": []
+  },
+  {
+    "hash": "dc40156b3ab1b6a72101d826f903a411",
+    "offset": 118937,
+    "length": 359,
+    "file": "modules/dc40156b3ab1b6a72101d826f903a411.js",
+    "symbols": []
+  },
+  {
+    "hash": "da6ca8bcc9c1dd3a612d821f55756246",
+    "offset": 119297,
+    "length": 400,
+    "file": "modules/da6ca8bcc9c1dd3a612d821f55756246.js",
+    "symbols": []
+  },
+  {
+    "hash": "119d6a86c6c59b9578016faca428790d",
+    "offset": 119698,
+    "length": 150,
+    "file": "modules/119d6a86c6c59b9578016faca428790d.js",
+    "symbols": []
+  },
+  {
+    "hash": "7b9afd7e5e50d03911d654e4387c6246",
+    "offset": 119849,
+    "length": 119,
+    "file": "modules/7b9afd7e5e50d03911d654e4387c6246.js",
+    "symbols": []
+  },
+  {
+    "hash": "bc941246d2a905df5cd9a0df777e435b",
+    "offset": 119969,
+    "length": 610,
+    "file": "modules/bc941246d2a905df5cd9a0df777e435b.js",
+    "symbols": [
+      "option-wrapper",
+      "right-answer-wrapper"
+    ]
+  },
+  {
+    "hash": "1d91763552878dbc823b7b3502dfa0e4",
+    "offset": 120580,
+    "length": 3092,
+    "file": "modules/1d91763552878dbc823b7b3502dfa0e4.js",
+    "symbols": []
+  },
+  {
+    "hash": "0fd8827c50ed61c823e81a9616b748ce",
+    "offset": 123673,
+    "length": 237,
+    "file": "modules/0fd8827c50ed61c823e81a9616b748ce.js",
+    "symbols": []
+  },
+  {
+    "hash": "290ddb0fa4eb1c4998e979124ad33c3b",
+    "offset": 123911,
+    "length": 644,
+    "file": "modules/290ddb0fa4eb1c4998e979124ad33c3b.js",
+    "symbols": [
+      "option-wrapper",
+      "right-answer-wrapper"
+    ]
+  },
+  {
+    "hash": "843ebf04b036db65d5a924384e314e1e",
+    "offset": 124556,
+    "length": 3230,
+    "file": "modules/843ebf04b036db65d5a924384e314e1e.js",
+    "symbols": []
+  },
+  {
+    "hash": "4a54f225fe2c22cb0ec9efccd1ac92c6",
+    "offset": 127787,
+    "length": 242,
+    "file": "modules/4a54f225fe2c22cb0ec9efccd1ac92c6.js",
+    "symbols": []
+  },
+  {
+    "hash": "480450a6d7e7e4c1178196d2c84b329d",
+    "offset": 128030,
+    "length": 2316,
+    "file": "modules/480450a6d7e7e4c1178196d2c84b329d.js",
+    "symbols": [
+      "um-user-answer-sheet-question-fill-in",
+      "fill-in-question-edit f-cb",
+      "fill-in-item f-fl",
+      "fill-in-question-view f-cb",
+      "fill-in-question-view_answers",
+      "f-cb fill-in-question-view_answer",
+      "fill-in-question-view_myAnswer f-fl",
+      "fill-in-question-view_rightAnswer f-fl"
+    ]
+  },
+  {
+    "hash": "3a5c429845f16255eda2d1892010ce00",
+    "offset": 130347,
+    "length": 2257,
+    "file": "modules/3a5c429845f16255eda2d1892010ce00.js",
+    "symbols": []
+  },
+  {
+    "hash": "380c4cdc6b0470f5a96ecbd3f14eccac",
+    "offset": 132605,
+    "length": 308,
+    "file": "modules/380c4cdc6b0470f5a96ecbd3f14eccac.js",
+    "symbols": []
+  },
+  {
+    "hash": "ecda170843969623fadb54552d7a6475",
+    "offset": 132914,
+    "length": 1170,
+    "file": "modules/ecda170843969623fadb54552d7a6475.js",
+    "symbols": []
+  },
+  {
+    "hash": "2cd0713ca3f7316037039001853e4802",
+    "offset": 134085,
+    "length": 276,
+    "file": "modules/2cd0713ca3f7316037039001853e4802.js",
+    "symbols": []
+  },
+  {
+    "hash": "8dc5cf20baed1bbff3af83cc8e30ef99",
+    "offset": 134362,
+    "length": 376,
+    "file": "modules/8dc5cf20baed1bbff3af83cc8e30ef99.js",
+    "symbols": []
+  },
+  {
+    "hash": "150eae2c89b3fc74e500623a4ba54647",
+    "offset": 134739,
+    "length": 430,
+    "file": "modules/150eae2c89b3fc74e500623a4ba54647.js",
+    "symbols": []
+  },
+  {
+    "hash": "f6aa11897b23412c018c8650b8423a20",
+    "offset": 135170,
+    "length": 442,
+    "file": "modules/f6aa11897b23412c018c8650b8423a20.js",
+    "symbols": [
+      "header f-cb",
+      "myRecord th-fs2 th-fc5 f-fl",
+      "rightAnswer th-fs2 th-fc5 f-fl",
+      "myAnswer th-fs2 th-fc5 f-fl"
+    ]
+  },
+  {
+    "hash": "6c17abdc4167ba8ae5918406f0f58160",
+    "offset": 135613,
+    "length": 1501,
+    "file": "modules/6c17abdc4167ba8ae5918406f0f58160.js",
+    "symbols": []
+  },
+  {
+    "hash": "3664e566b35568de1ed127b5a134fffa",
+    "offset": 137115,
+    "length": 353,
+    "file": "modules/3664e566b35568de1ed127b5a134fffa.js",
+    "symbols": [
+      "um-user-answer-sheet-answer-list {class}",
+      "seq th-fs2 th-fc5"
+    ]
+  },
+  {
+    "hash": "b5d42a6ebc7e70d727df0b442e842326",
+    "offset": 137469,
+    "length": 895,
+    "file": "modules/b5d42a6ebc7e70d727df0b442e842326.js",
+    "symbols": []
+  },
+  {
+    "hash": "e43a9d9ee1a0342951e8f6255b4e9a2c",
+    "offset": 138366,
+    "length": 274,
+    "file": "modules/e43a9d9ee1a0342951e8f6255b4e9a2c.js",
+    "symbols": []
+  },
+  {
+    "hash": "52ed6e3df1f2290794b5ae5b3f7e446a",
+    "offset": 138641,
+    "length": 379,
+    "file": "modules/52ed6e3df1f2290794b5ae5b3f7e446a.js",
+    "symbols": []
+  },
+  {
+    "hash": "864d370e2f6d40783480b6bc6ebae0d7",
+    "offset": 139021,
+    "length": 1357,
+    "file": "modules/864d370e2f6d40783480b6bc6ebae0d7.js",
+    "symbols": []
+  },
+  {
+    "hash": "24fc459b087ee4ceba5d8a9ad4a32482",
+    "offset": 140379,
+    "length": 570,
+    "file": "modules/24fc459b087ee4ceba5d8a9ad4a32482.js",
+    "symbols": [
+      "EventTarget"
+    ]
+  },
+  {
+    "hash": "7466ca8f1087578f6a02a7ef42f6a280",
+    "offset": 140950,
+    "length": 1415,
+    "file": "modules/7466ca8f1087578f6a02a7ef42f6a280.js",
+    "symbols": []
+  },
+  {
+    "hash": "ca643d30a76212dcbe62390e2a0e3054",
+    "offset": 142366,
+    "length": 1826,
+    "file": "modules/ca643d30a76212dcbe62390e2a0e3054.js",
+    "symbols": [
+      "CustomEvent"
+    ]
+  },
+  {
+    "hash": "f657f10b7466ef69e5081338d923dc35",
+    "offset": 144193,
+    "length": 754,
+    "file": "modules/f657f10b7466ef69e5081338d923dc35.js",
+    "symbols": []
+  },
+  {
+    "hash": "61de5e0e5129c3d919aa4e0086972fa5",
+    "offset": 144948,
+    "length": 1528,
+    "file": "modules/61de5e0e5129c3d919aa4e0086972fa5.js",
+    "symbols": [
+      "icon-edu-live-handup-empty",
+      "ux-icon ux-icon-wrong"
+    ]
+  },
+  {
+    "hash": "7b3ed6ca37be00bcd9b45e0cef3dc606",
+    "offset": 146477,
+    "length": 10169,
+    "file": "modules/7b3ed6ca37be00bcd9b45e0cef3dc606.js",
+    "symbols": []
+  },
+  {
+    "hash": "4cf786a7353cf1e9776f73fa1204c7b7",
+    "offset": 156647,
+    "length": 1021,
+    "file": "modules/4cf786a7353cf1e9776f73fa1204c7b7.js",
+    "symbols": [
+      "um-live-interactive-process",
+      "um-live-interactive-process_options",
+      "um-live-interactive-process_opt",
+      "icon-edu-live-camera-empty",
+      "icon-edu-live-microphone-empty"
+    ]
+  },
+  {
+    "hash": "51930e6e7760297b47b8f64f0aef4fe3",
+    "offset": 157669,
+    "length": 4359,
+    "file": "modules/51930e6e7760297b47b8f64f0aef4fe3.js",
+    "symbols": []
+  },
+  {
+    "hash": "2cd31b69273f8eaef051521582664008",
+    "offset": 162030,
+    "length": 235,
+    "file": "modules/2cd31b69273f8eaef051521582664008.js",
+    "symbols": []
+  },
+  {
+    "hash": "53341ee840b3b128f705d2b577117815",
+    "offset": 162266,
+    "length": 81,
+    "file": "modules/53341ee840b3b128f705d2b577117815.js",
+    "symbols": []
+  },
+  {
+    "hash": "1217725aa1f7c67daf8018ca27120adc",
+    "offset": 162348,
+    "length": 347,
+    "file": "modules/1217725aa1f7c67daf8018ca27120adc.js",
+    "symbols": []
+  },
+  {
+    "hash": "c05b94d8b8af4a92dbf100784275e06c",
+    "offset": 162696,
+    "length": 1382,
+    "file": "modules/c05b94d8b8af4a92dbf100784275e06c.js",
+    "symbols": [
+      "CustomEvent"
+    ]
+  },
+  {
+    "hash": "917969e471dbd9892e5b0a78d5790a16",
+    "offset": 164079,
+    "length": 223,
+    "file": "modules/917969e471dbd9892e5b0a78d5790a16.js",
+    "symbols": [
+      "um-watermark f-pa",
+      "um-watermark_content"
+    ]
+  },
+  {
+    "hash": "1925c3ef31a1cf16520111ad0ed1fec7",
+    "offset": 164303,
+    "length": 234,
+    "file": "modules/1925c3ef31a1cf16520111ad0ed1fec7.js",
+    "symbols": []
+  },
+  {
+    "hash": "91163032df3d891ca0bf8ef59449cd10",
+    "offset": 164538,
+    "length": 1609,
+    "file": "modules/91163032df3d891ca0bf8ef59449cd10.js",
+    "symbols": []
+  },
+  {
+    "hash": "911e04f713dbd1fbca1bda173610d1fd",
+    "offset": 166148,
+    "length": 12449,
+    "file": "modules/911e04f713dbd1fbca1bda173610d1fd.js",
+    "symbols": []
+  },
+  {
+    "hash": "fb78d041e85c491672c79e6b5811080c",
+    "offset": 178598,
+    "length": 754,
+    "file": "modules/fb78d041e85c491672c79e6b5811080c.js",
+    "symbols": [
+      "um-live-live-interactive-player",
+      "um-live-live-interactive-player_root"
+    ]
+  },
+  {
+    "hash": "e420c16a974d4b23bc9166bf35fdd805",
+    "offset": 179353,
+    "length": 1465,
+    "file": "modules/e420c16a974d4b23bc9166bf35fdd805.js",
+    "symbols": []
+  },
+  {
+    "hash": "b49f06ed95dcc6350bf21af46520e05f",
+    "offset": 180819,
+    "length": 238,
+    "file": "modules/b49f06ed95dcc6350bf21af46520e05f.js",
+    "symbols": []
+  },
+  {
+    "hash": "9824bfb5f1cf9c4d591bbb1618386800",
+    "offset": 181058,
+    "length": 10728,
+    "file": "modules/9824bfb5f1cf9c4d591bbb1618386800.js",
+    "symbols": []
+  },
+  {
+    "hash": "f73c8a5163d7e0cd718c84e6f6e30262",
+    "offset": 191787,
+    "length": 1290,
+    "file": "modules/f73c8a5163d7e0cd718c84e6f6e30262.js",
+    "symbols": [
+      "um-live-live-pc {bodyClass}",
+      "um-live-live-pc_right f-pa {rightClass}",
+      "um-live-live-pc_right_notice f-pa",
+      "um-live-live-pc_right_mircophone f-pa",
+      "um-live-live-pc_right_chat f-pa",
+      "um-live-live-pc_deleted f-pa",
+      "um-live-live-pc_deleted_mid f-pa",
+      "um-live-live-pc_deleted_rcon f-fl",
+      "um-live-live-pc_deleted_bt",
+      "um-live-live-pc_deleted_in"
+    ]
+  },
+  {
+    "hash": "023602ed5ba8cec9301ac6a19449427b",
+    "offset": 193079,
+    "length": 1763,
+    "file": "modules/023602ed5ba8cec9301ac6a19449427b.js",
+    "symbols": []
+  },
+  {
+    "hash": "7317cf5208f3eb4283a0622965da7dca",
+    "offset": 194843,
+    "length": 429,
+    "file": "modules/7317cf5208f3eb4283a0622965da7dca.js",
+    "symbols": []
+  },
+  {
+    "hash": "098dabe9992b32df749962703d6bda43",
+    "offset": 195273,
+    "length": 1496,
+    "file": "modules/098dabe9992b32df749962703d6bda43.js",
+    "symbols": []
+  },
+  {
+    "hash": "fed2a7787616f1c847df896918b515b5",
+    "offset": 196770,
+    "length": 389,
+    "file": "modules/fed2a7787616f1c847df896918b515b5.js",
+    "symbols": []
+  },
+  {
+    "hash": "6f662c68416d97c376fb7e135752a301",
+    "offset": 197160,
+    "length": 1276,
+    "file": "modules/6f662c68416d97c376fb7e135752a301.js",
+    "symbols": [
+      "mocLiveRoomContentRpcBean.getPolyvChannelInfo",
+      "mocLiveRoomContentRpcBean.getPolyvChannelToken",
+      "MocLiveRoomContentRpcBean.getChatRoomMemberNum",
+      "mocLiveRoomContentRpcBean.getLiveRoomInfo",
+      "mocLiveRoomContentRpcBean.getPolyvDircetAuthParm"
+    ]
+  },
+  {
+    "hash": "051638d0f2bc4e591e7a6a850e191ac4",
+    "offset": 198437,
+    "length": 3646,
+    "file": "modules/051638d0f2bc4e591e7a6a850e191ac4.js",
+    "symbols": []
+  },
+  {
+    "hash": "3ecf81caf77a883249e06e8a2db0829c",
+    "offset": 202084,
+    "length": 114,
+    "file": "modules/3ecf81caf77a883249e06e8a2db0829c.js",
+    "symbols": []
+  },
+  {
+    "hash": "11935d395143b5b43959ed94ae7c82b9",
+    "offset": 202199,
+    "length": 6009,
+    "file": "modules/11935d395143b5b43959ed94ae7c82b9.js",
+    "symbols": []
+  },
+  {
+    "hash": "41c553fd382cad2e5ee783a75cdd3d16",
+    "offset": 208209,
+    "length": 2258,
+    "file": "modules/41c553fd382cad2e5ee783a75cdd3d16.js",
+    "symbols": [
+      "f-f0 live-subscription",
+      "live-subscription__box__status",
+      "live-subscription__box__status__title",
+      "live-subscription__box__subscribe",
+      "{subscribing ? \\'\\' : \\'hidden\\'}",
+      "live-subscription__box__subscribe__tip",
+      "live-subscription__box__subscribe__btn",
+      "live-subscription__box__intro-wrapper"
+    ]
+  },
+  {
+    "hash": "5e2ca770538e93f47464faa1e375da86",
+    "offset": 210468,
+    "length": 5199,
+    "file": "modules/5e2ca770538e93f47464faa1e375da86.js",
+    "symbols": []
+  },
+  {
+    "hash": "2d049fbc26f142d58c4f7b43ab6d59d0",
+    "offset": 215669,
+    "length": 364,
+    "file": "modules/2d049fbc26f142d58c4f7b43ab6d59d0.js",
+    "symbols": []
+  },
+  {
+    "hash": "7f08ac1c542b8db57d3789fb54c2f8ae",
+    "offset": 216034,
+    "length": 560,
+    "file": "modules/7f08ac1c542b8db57d3789fb54c2f8ae.js",
+    "symbols": [
+      "f-f0 live-subscription",
+      "live-subscription__box no-live-intro",
+      "live-subscription__box__status",
+      "live-subscription__box__status__title"
+    ]
+  },
+  {
+    "hash": "56703fe23c2ac5d714004ced1de322c3",
+    "offset": 216595,
+    "length": 2637,
+    "file": "modules/56703fe23c2ac5d714004ced1de322c3.js",
+    "symbols": []
+  },
+  {
+    "hash": "7d54152970cd710e0efa53a37a1e2c95",
+    "offset": 219233,
+    "length": 1200,
+    "file": "modules/7d54152970cd710e0efa53a37a1e2c95.js",
+    "symbols": [
+      "input-wrapper",
+      "um-modal_ft",
+      "um-modal-btn cancel-btn",
+      "um-modal-btn ok-btn"
+    ]
+  },
+  {
+    "hash": "87e551382d039d13eaf55d62f0709535",
+    "offset": 220434,
+    "length": 782,
+    "file": "modules/87e551382d039d13eaf55d62f0709535.js",
+    "symbols": []
+  },
+  {
+    "hash": "1ad7d62a1e0adc91007d90f53b36a3ab",
+    "offset": 221217,
+    "length": 525,
+    "file": "modules/1ad7d62a1e0adc91007d90f53b36a3ab.js",
+    "symbols": [
+      "live-pc-player_status",
+      "ux-live-pc-player_status",
+      "ux-live-pc-player_status_tbar f-pa",
+      "ux-live-pc-player_status_tbar_bg",
+      "ux-live-pc-player_status_tbar_w f-pa",
+      "ux-live-pc-player_status_tbar_h3",
+      "ux-live-pc-player_status_tbar_p"
+    ]
+  },
+  {
+    "hash": "0d8bf1a3f5ec3708344fd90355416fcc",
+    "offset": 221743,
+    "length": 42,
+    "file": "modules/0d8bf1a3f5ec3708344fd90355416fcc.js",
+    "symbols": []
+  },
+  {
+    "hash": "f2389227e456e3ea56d0bf34ceb8fad4",
+    "offset": 221786,
+    "length": 294,
+    "file": "modules/f2389227e456e3ea56d0bf34ceb8fad4.js",
+    "symbols": []
+  },
+  {
+    "hash": "dbfa45f69ec334f263c861c5ef022851",
+    "offset": 222081,
+    "length": 705,
+    "file": "modules/dbfa45f69ec334f263c861c5ef022851.js",
+    "symbols": [
+      "live-pc-player_status",
+      "ux-live-mobile-player_status",
+      "ux-live-mobile-player_status f-pa",
+      "ux-live-mobile-player_status_bg f-pr",
+      "ux-live-mobile-player_status_bg_img",
+      "ux-live-mobile-player_status_twrap f-pa",
+      "ux-live-mobile-player_status_tbig",
+      "ux-live-mobile-player_status_tinfo"
+    ]
+  },
+  {
+    "hash": "4b30096a83e85b1ab9fa8bf215eb923b",
+    "offset": 222787,
+    "length": 94,
+    "file": "modules/4b30096a83e85b1ab9fa8bf215eb923b.js",
+    "symbols": []
+  },
+  {
+    "hash": "9da0c5f9c3384f5bf831188567dfa7e9",
+    "offset": 222882,
+    "length": 294,
+    "file": "modules/9da0c5f9c3384f5bf831188567dfa7e9.js",
+    "symbols": []
+  },
+  {
+    "hash": "0f41af6787ffe3a4069dbd1559a55c3d",
+    "offset": 252578,
+    "length": 6817,
+    "file": "modules/0f41af6787ffe3a4069dbd1559a55c3d.js",
+    "symbols": [
+      "isNarrowScreen"
+    ]
+  },
+  {
+    "hash": "7ce31ec96c87c1843c1a31ab1f65c11a",
+    "offset": 259396,
+    "length": 1583,
+    "file": "modules/7ce31ec96c87c1843c1a31ab1f65c11a.js",
+    "symbols": [
+      "isNarrowScreen",
+      "ux-mooc-polyv-live__unlogin",
+      "menu-tab",
+      "menu-content"
+    ]
+  },
+  {
+    "hash": "b47171ad54c753b88eb2b2433608e0ee",
+    "offset": 260980,
+    "length": 2506,
+    "file": "modules/b47171ad54c753b88eb2b2433608e0ee.js",
+    "symbols": []
+  },
+  {
+    "hash": "aae6e059722698fd6c1e787c74837e08",
+    "offset": 263487,
+    "length": 291,
+    "file": "modules/aae6e059722698fd6c1e787c74837e08.js",
+    "symbols": []
+  },
+  {
+    "hash": "2bd79248584c9681e369d4f4c0395fcb",
+    "offset": 263779,
+    "length": 5608,
+    "file": "modules/2bd79248584c9681e369d4f4c0395fcb.js",
+    "symbols": [
+      "joinStatus",
+      "showTripleScreen"
+    ]
+  },
+  {
+    "hash": "ee319749cb1a4fb40557c321ad3ea842",
+    "offset": 269388,
+    "length": 1236,
+    "file": "modules/ee319749cb1a4fb40557c321ad3ea842.js",
+    "symbols": [
+      "live-info-head-wrapper",
+      "unitTitle f-pr",
+      "name",
+      "liveInfo f-fl",
+      "liveInfo__presenter__avatar",
+      "presenterName f-fcgreen",
+      "liveInfo__presenter__name",
+      "liveInfo__presenter__tag",
+      "liveInfo__time",
+      "u-icon-clock2",
+      "u-icon-person",
+      "share f-fr"
+    ]
+  },
+  {
+    "hash": "c345769186d8a7be2b72bf33d3150cd4",
+    "offset": 270625,
+    "length": 2226,
+    "file": "modules/c345769186d8a7be2b72bf33d3150cd4.js",
+    "symbols": []
+  },
+  {
+    "hash": "14ccab79839aac2dd9b426816a7215bb",
+    "offset": 272852,
+    "length": 1083,
+    "file": "modules/14ccab79839aac2dd9b426816a7215bb.js",
+    "symbols": [
+      "showMember",
+      "presenterProfileImageUrl"
+    ]
+  },
+  {
+    "hash": "6a55482e5dbb028d0889d49da80296ae",
+    "offset": 273936,
+    "length": 5676,
+    "file": "modules/6a55482e5dbb028d0889d49da80296ae.js",
+    "symbols": [
+      "isLiveExist",
+      "memberNum",
+      "liveName",
+      "liveDateTime",
+      "presenterUrl",
+      "presenterProfileImageUrl",
+      "presenterName",
+      "schoolUrl",
+      "schoolName",
+      "liveDesc",
+      "shareTitle",
+      "shareTopic",
+      "shareDesc",
+      "sharePic",
+      "shareUrl",
+      "liveStatus",
+      "shouldHideShare",
+      "isCloudLive"
+    ]
+  },
+  {
+    "hash": "088051b8c61eef3a38d043e6c637cbb0",
+    "offset": 279613,
+    "length": 1450,
+    "file": "modules/088051b8c61eef3a38d043e6c637cbb0.js",
+    "symbols": [
+      "mocLiveRoomContentRpcBean.getLiveRoomInfo",
+      "mocLiveRoomContentRpcBean.getChatroomAddr"
+    ]
+  },
+  {
+    "hash": "126d23b5ac6aef1dd83e84a4a70524a3",
+    "offset": 281064,
+    "length": 5591,
+    "file": "modules/126d23b5ac6aef1dd83e84a4a70524a3.js",
+    "symbols": [
+      "CommonMailDialog",
+      "Window",
+      "COM_Cache_MemberCache",
+      "BaseInputUI",
+      "FeedBackUI",
+      "f-fc6 j-title title f-f0",
+      "j-cnt cnt f-f0 f-fs14",
+      "j-add f-cb add",
+      "f-fl",
+      "j-addFb f-fl",
+      "f-cb btns",
+      "j-right-txt",
+      "f-fr j-left gotoLearn f-f0 f-fs18",
+      "j-left-txt",
+      "icn icn-success",
+      "m-commonMailDialog f-cb",
+      "all j-all f-fl"
+    ]
+  },
+  {
+    "hash": "1c23b43dfd9c054559909485b4169fa4",
+    "offset": 286656,
+    "length": 1589,
+    "file": "modules/1c23b43dfd9c054559909485b4169fa4.js",
+    "symbols": [
+      "COM_Cache_CourseCache",
+      "COM_Cache_MemberCache"
+    ]
+  },
+  {
+    "hash": "206d700f30c20776732fe89f2c364cde",
+    "offset": 288246,
+    "length": 672,
+    "file": "modules/206d700f30c20776732fe89f2c364cde.js",
+    "symbols": []
+  },
+  {
+    "hash": "a73e7ee2eea7fb7073b1b0af2916f224",
+    "offset": 288919,
+    "length": 640,
+    "file": "modules/a73e7ee2eea7fb7073b1b0af2916f224.js",
+    "symbols": [
+      "video-segment-list {className}",
+      "close",
+      "video-segment-list_title",
+      "video-segment-list_container",
+      "video-segment-list_item",
+      "video-segment-list_item-content",
+      "video-segment-list_item-title",
+      "video-segment-list_item-time"
+    ]
+  },
+  {
+    "hash": "19695dad3d68d9d9f834e6ee98a30ba4",
+    "offset": 289560,
+    "length": 4797,
+    "file": "modules/19695dad3d68d9d9f834e6ee98a30ba4.js",
+    "symbols": []
+  },
+  {
+    "hash": "d7bf69989e546759b84529160c7674fa",
+    "offset": 294358,
+    "length": 284,
+    "file": "modules/d7bf69989e546759b84529160c7674fa.js",
+    "symbols": []
+  },
+  {
+    "hash": "e364e2057bc7983da4625c72cc14d9f4",
+    "offset": 294643,
+    "length": 739,
+    "file": "modules/e364e2057bc7983da4625c72cc14d9f4.js",
+    "symbols": [
+      "toNext"
+    ]
+  },
+  {
+    "hash": "0572dc0c820204407037e85aabdf8dc4",
+    "offset": 295383,
+    "length": 462,
+    "file": "modules/0572dc0c820204407037e85aabdf8dc4.js",
+    "symbols": [
+      "segment-mask-guide_item",
+      "title",
+      "info",
+      "btn"
+    ]
+  },
+  {
+    "hash": "776bdabcf062ad60baaac68225ecbed3",
+    "offset": 295846,
+    "length": 1344,
+    "file": "modules/776bdabcf062ad60baaac68225ecbed3.js",
+    "symbols": []
+  },
+  {
+    "hash": "35f84d81ad6ae92f28bbb591b632b6c0",
+    "offset": 297191,
+    "length": 284,
+    "file": "modules/35f84d81ad6ae92f28bbb591b632b6c0.js",
+    "symbols": []
+  },
+  {
+    "hash": "36ed33f3975bcc23db0b3cc5eda647b1",
+    "offset": 297476,
+    "length": 2138,
+    "file": "modules/36ed33f3975bcc23db0b3cc5eda647b1.js",
+    "symbols": [
+      "fullscreen",
+      "ShowInfoModal",
+      "top"
+    ]
+  },
+  {
+    "hash": "2981bf58d3649d6d19c33eac9604953c",
+    "offset": 299615,
+    "length": 706,
+    "file": "modules/2981bf58d3649d6d19c33eac9604953c.js",
+    "symbols": [
+      "fullscreen",
+      "ShowInfoModal",
+      "top",
+      "test-richText-info",
+      "close",
+      "test-richText-modal",
+      "title",
+      "desc",
+      "btn"
+    ]
+  },
+  {
+    "hash": "82caaf84ec4930d607a7da19cde80713",
+    "offset": 300322,
+    "length": 13033,
+    "file": "modules/82caaf84ec4930d607a7da19cde80713.js",
+    "symbols": []
+  },
+  {
+    "hash": "6822705a15f3a92045e363766de57848",
+    "offset": 313357,
+    "length": 285,
+    "file": "modules/6822705a15f3a92045e363766de57848.js",
+    "symbols": []
+  },
+  {
+    "hash": "1dd142e7e2a6aba9b1774b6eb5e86fa7",
+    "offset": 313643,
+    "length": 430,
+    "file": "modules/1dd142e7e2a6aba9b1774b6eb5e86fa7.js",
+    "symbols": [
+      "um-recommend-modal_cnt f-pr",
+      "um-recommend-modal_cnt_img"
+    ]
+  },
+  {
+    "hash": "a549ee0b822aa576bd7b7723a557ff9d",
+    "offset": 314074,
+    "length": 2152,
+    "file": "modules/a549ee0b822aa576bd7b7723a557ff9d.js",
+    "symbols": []
+  },
+  {
+    "hash": "ed62f685fa709ca7ffa67901d2faf840",
+    "offset": 316227,
+    "length": 1399,
+    "file": "modules/ed62f685fa709ca7ffa67901d2faf840.js",
+    "symbols": []
+  },
+  {
+    "hash": "ecd59ff8d09a183ad64d245b3081fdb9",
+    "offset": 317627,
+    "length": 243,
+    "file": "modules/ecd59ff8d09a183ad64d245b3081fdb9.js",
+    "symbols": []
+  },
+  {
+    "hash": "1085a79200eae1cc393e9fb1c5b9ac45",
+    "offset": 317871,
+    "length": 7219,
+    "file": "modules/1085a79200eae1cc393e9fb1c5b9ac45.js",
+    "symbols": [
+      "ChoiceQuestionUI",
+      "BaseType",
+      "m-choiceQuestion u-questionItem",
+      "j-title title f-cb",
+      "position f-fl",
+      "qaDescription f-fl f-cb",
+      "qaIndex j-qaindex f-fl f-dn",
+      "qaCate j-qacate f-fl",
+      "f-richEditorText j-richTxt",
+      "qaMark j-qamark f-fr f-dn",
+      "j-aiQuery aiQuery f-dn",
+      "scoreLabel f-fr f-dn j-scoreLabel",
+      "j-choicebox",
+      "dan",
+      "duo",
+      "pan",
+      "u-icon-correct",
+      "u-icon-wrong"
+    ]
+  },
+  {
+    "hash": "f31031c2cc1deb44691c723fd75b2bd3",
+    "offset": 325091,
+    "length": 8436,
+    "file": "modules/f31031c2cc1deb44691c723fd75b2bd3.js",
+    "symbols": [
+      "FillBlankUI",
+      "BaseType",
+      "BaseInputUI",
+      "m-FillBlank examMode u-questionItem f-pr",
+      "j-title title f-cb",
+      "position f-fl",
+      "qaDescription f-fl f-cb",
+      "qaIndex j-qaindex f-fl f-dn",
+      "qaCate j-qacate f-fl",
+      "f-richEditorText j-richTxt",
+      "qaMark j-qamark f-fr f-dn",
+      "scoreLabel f-fr f-dn j-scoreLabel",
+      "f-cb inputArea",
+      "f-fl j-input input",
+      "score f-fr f-fn j-score",
+      "analysisInfo f-dn j-analysis",
+      "pan",
+      "f-f0 tt1",
+      "f-f0 tt2",
+      "j-global-ai-question-entry",
+      "j-triggerLockScore",
+      "f-icon u-icon-correct",
+      "f-icon u-icon-wrong"
+    ]
+  },
+  {
+    "hash": "69e1c387d1f075b36fd909b21836f8b2",
+    "offset": 333529,
+    "length": 1964,
+    "file": "modules/69e1c387d1f075b36fd909b21836f8b2.js",
+    "symbols": [
+      "QuestionItem",
+      "Event",
+      "ChoiceQuestionUI",
+      "AnalysisQuestionUI",
+      "FillBlankUI"
+    ]
+  },
+  {
+    "hash": "726a7dcda1df09970835f707b7b82c44",
+    "offset": 335494,
+    "length": 3267,
+    "file": "modules/726a7dcda1df09970835f707b7b82c44.js",
+    "symbols": [
+      "InsetVideoAnchorUI",
+      "UIBase",
+      "LoginDialog",
+      "QuestionItem",
+      "f-af",
+      "insetCt j-insetCt",
+      "u-btn u-btn-default submit j-submit",
+      "u-btn u-btn-default cont j-continue"
+    ]
+  },
+  {
+    "hash": "9f1797f8fce69be4524346a82910b5e7",
+    "offset": 338762,
+    "length": 596,
+    "file": "modules/9f1797f8fce69be4524346a82910b5e7.js",
+    "symbols": []
+  },
+  {
+    "hash": "23df9936459ce00fd8c2c782b7cf7c8d",
+    "offset": 339359,
+    "length": 27154,
+    "file": "modules/23df9936459ce00fd8c2c782b7cf7c8d.js",
+    "symbols": [
+      "VideoUnit",
+      "UIBase",
+      "LoginDialog",
+      "COM_Cache_CourseCtCache",
+      "COM_Cache_commonCache",
+      "InsetVideoAnchorUI"
+    ]
+  },
+  {
+    "hash": "78c5fa6a9e6887b200fd30c7e7e4ff5d",
+    "offset": 366514,
+    "length": 2203,
+    "file": "modules/78c5fa6a9e6887b200fd30c7e7e4ff5d.js",
+    "symbols": [
+      "LessonBreadCrumb",
+      "UIBase",
+      "DropListSelect"
+    ]
+  },
+  {
+    "hash": "0e333ec44c0b303a47a48ae755ccb373",
+    "offset": 368718,
+    "length": 429,
+    "file": "modules/0e333ec44c0b303a47a48ae755ccb373.js",
+    "symbols": []
+  },
+  {
+    "hash": "b86535cf4593184fbfbdb719d41c3b83",
+    "offset": 369148,
+    "length": 1492,
+    "file": "modules/b86535cf4593184fbfbdb719d41c3b83.js",
+    "symbols": [
+      "ux-watermark_item f-thide"
+    ]
+  },
+  {
+    "hash": "dfb69f6053ff766807b472a7b5767a2e",
+    "offset": 370641,
+    "length": 2372,
+    "file": "modules/dfb69f6053ff766807b472a7b5767a2e.js",
+    "symbols": [
+      "PdfReader",
+      "EventTarget"
+    ]
+  },
+  {
+    "hash": "04114f69dda271a25460e2c2080630c8",
+    "offset": 373014,
+    "length": 1218,
+    "file": "modules/04114f69dda271a25460e2c2080630c8.js",
+    "symbols": []
+  },
+  {
+    "hash": "52d3d71916301eac2362f321943cb736",
+    "offset": 374233,
+    "length": 1595,
+    "file": "modules/52d3d71916301eac2362f321943cb736.js",
+    "symbols": []
+  },
+  {
+    "hash": "b0a021b0ab86a5e78ae95a65ac08dc03",
+    "offset": 375829,
+    "length": 146,
+    "file": "modules/b0a021b0ab86a5e78ae95a65ac08dc03.js",
+    "symbols": [
+      "ux-edu-pdfviewer f-pa j-body",
+      "sliderWrapper j-sliderwrap"
+    ]
+  },
+  {
+    "hash": "7fa96f408f6a2f4553810864c19b8774",
+    "offset": 375976,
+    "length": 1097,
+    "file": "modules/7fa96f408f6a2f4553810864c19b8774.js",
+    "symbols": []
+  },
+  {
+    "hash": "f0e047b70228ef4514444ceb678b01da",
+    "offset": 377074,
+    "length": 398,
+    "file": "modules/f0e047b70228ef4514444ceb678b01da.js",
+    "symbols": []
+  },
+  {
+    "hash": "c6ac68abc784a45c1aa600db388ebcc3",
+    "offset": 377473,
+    "length": 988,
+    "file": "modules/c6ac68abc784a45c1aa600db388ebcc3.js",
+    "symbols": []
+  },
+  {
+    "hash": "6c55c98e8114721018ba02bb36e9a7da",
+    "offset": 378462,
+    "length": 275,
+    "file": "modules/6c55c98e8114721018ba02bb36e9a7da.js",
+    "symbols": []
+  },
+  {
+    "hash": "0ae40beefbe61a7436a36d54d2e96075",
+    "offset": 378738,
+    "length": 276,
+    "file": "modules/0ae40beefbe61a7436a36d54d2e96075.js",
+    "symbols": []
+  },
+  {
+    "hash": "8d55582df3233e044f632a8de8faa4a2",
+    "offset": 379015,
+    "length": 3218,
+    "file": "modules/8d55582df3233e044f632a8de8faa4a2.js",
+    "symbols": []
+  },
+  {
+    "hash": "066e4c8da2c00fde47a845832a3121f4",
+    "offset": 382234,
+    "length": 6468,
+    "file": "modules/066e4c8da2c00fde47a845832a3121f4.js",
+    "symbols": []
+  },
+  {
+    "hash": "ae4ab8cf92c001207f476c97db0b65c2",
+    "offset": 388703,
+    "length": 548,
+    "file": "modules/ae4ab8cf92c001207f476c97db0b65c2.js",
+    "symbols": []
+  },
+  {
+    "hash": "c713e1ea371d7be585e8229c82c025f6",
+    "offset": 389252,
+    "length": 132,
+    "file": "modules/c713e1ea371d7be585e8229c82c025f6.js",
+    "symbols": []
+  },
+  {
+    "hash": "e83a00cddb870f1d80ccdcf07ebe03b4",
+    "offset": 389385,
+    "length": 5893,
+    "file": "modules/e83a00cddb870f1d80ccdcf07ebe03b4.js",
+    "symbols": []
+  },
+  {
+    "hash": "86267b0a351fbf3dc9c26799ec16c180",
+    "offset": 395279,
+    "length": 2107,
+    "file": "modules/86267b0a351fbf3dc9c26799ec16c180.js",
+    "symbols": []
+  },
+  {
+    "hash": "baf808aaf7dbe832091bb0b38c759bb0",
+    "offset": 397387,
+    "length": 155,
+    "file": "modules/baf808aaf7dbe832091bb0b38c759bb0.js",
+    "symbols": [
+      "ux-edu-pdfthumbnailviewer f-pa j-body",
+      "sliderWrapper j-sliderwrap"
+    ]
+  },
+  {
+    "hash": "cf3c1180c76cb43acffd8e7251417a90",
+    "offset": 397543,
+    "length": 663,
+    "file": "modules/cf3c1180c76cb43acffd8e7251417a90.js",
+    "symbols": []
+  },
+  {
+    "hash": "e2585f9b03f9ebe40fef9dd6b2fdd434",
+    "offset": 398207,
+    "length": 4656,
+    "file": "modules/e2585f9b03f9ebe40fef9dd6b2fdd434.js",
+    "symbols": []
+  },
+  {
+    "hash": "483bf8142e40c3ea54fa30040a4071eb",
+    "offset": 402864,
+    "length": 3898,
+    "file": "modules/483bf8142e40c3ea54fa30040a4071eb.js",
+    "symbols": []
+  },
+  {
+    "hash": "bfb9f9ce3f7c1168b4f7f00e799858d0",
+    "offset": 406763,
+    "length": 1535,
+    "file": "modules/bfb9f9ce3f7c1168b4f7f00e799858d0.js",
+    "symbols": []
+  },
+  {
+    "hash": "64c1ccae8de58fecf6d0475407fc5551",
+    "offset": 408299,
+    "length": 1824,
+    "file": "modules/64c1ccae8de58fecf6d0475407fc5551.js",
+    "symbols": []
+  },
+  {
+    "hash": "8b3037c016b81c2866ad092beeeac865",
+    "offset": 410124,
+    "length": 2971,
+    "file": "modules/8b3037c016b81c2866ad092beeeac865.js",
+    "symbols": []
+  },
+  {
+    "hash": "b8a080e680aec6214d4fc7f460f56254",
+    "offset": 413096,
+    "length": 1433,
+    "file": "modules/b8a080e680aec6214d4fc7f460f56254.js",
+    "symbols": []
+  },
+  {
+    "hash": "ace54cbf8138d8966d0eb9bdc81de612",
+    "offset": 414530,
+    "length": 2682,
+    "file": "modules/ace54cbf8138d8966d0eb9bdc81de612.js",
+    "symbols": []
+  },
+  {
+    "hash": "4f6ee3a19a77f970026bfa623db7def7",
+    "offset": 417213,
+    "length": 1922,
+    "file": "modules/4f6ee3a19a77f970026bfa623db7def7.js",
+    "symbols": []
+  },
+  {
+    "hash": "eb38dfb19c29fff2d7ed7e478819143e",
+    "offset": 419136,
+    "length": 2655,
+    "file": "modules/eb38dfb19c29fff2d7ed7e478819143e.js",
+    "symbols": []
+  },
+  {
+    "hash": "06bf5c992404120aa89a086dd93a60aa",
+    "offset": 421792,
+    "length": 821,
+    "file": "modules/06bf5c992404120aa89a086dd93a60aa.js",
+    "symbols": []
+  },
+  {
+    "hash": "fc3273513654082669a4cda1da469bfa",
+    "offset": 422614,
+    "length": 8227,
+    "file": "modules/fc3273513654082669a4cda1da469bfa.js",
+    "symbols": []
+  },
+  {
+    "hash": "158e9623d9c98fd23ce198f1cc953c98",
+    "offset": 430842,
+    "length": 86,
+    "file": "modules/158e9623d9c98fd23ce198f1cc953c98.js",
+    "symbols": []
+  },
+  {
+    "hash": "733feb78734253f0e1c4b2476cc4c5af",
+    "offset": 430929,
+    "length": 91,
+    "file": "modules/733feb78734253f0e1c4b2476cc4c5af.js",
+    "symbols": []
+  },
+  {
+    "hash": "5364246a3bfbcb6c6c3fa8463abdeb15",
+    "offset": 431021,
+    "length": 88,
+    "file": "modules/5364246a3bfbcb6c6c3fa8463abdeb15.js",
+    "symbols": []
+  },
+  {
+    "hash": "ddda2d7d2ae8dce4ee882d69bb14653e",
+    "offset": 431110,
+    "length": 293,
+    "file": "modules/ddda2d7d2ae8dce4ee882d69bb14653e.js",
+    "symbols": []
+  },
+  {
+    "hash": "01a0da73e099cf4c90e828992736e017",
+    "offset": 431404,
+    "length": 60,
+    "file": "modules/01a0da73e099cf4c90e828992736e017.js",
+    "symbols": []
+  },
+  {
+    "hash": "862facc8f6747520ad48ac596770e983",
+    "offset": 431465,
+    "length": 93,
+    "file": "modules/862facc8f6747520ad48ac596770e983.js",
+    "symbols": []
+  },
+  {
+    "hash": "5d0cf5af0c4acc2a272b10e23f61baec",
+    "offset": 431559,
+    "length": 3622,
+    "file": "modules/5d0cf5af0c4acc2a272b10e23f61baec.js",
+    "symbols": []
+  },
+  {
+    "hash": "4d3cfbb4bed6c67be301f1e9b3644213",
+    "offset": 435182,
+    "length": 282,
+    "file": "modules/4d3cfbb4bed6c67be301f1e9b3644213.js",
+    "symbols": []
+  },
+  {
+    "hash": "bfb70f20923024a1185e50f1a03d9fc7",
+    "offset": 435465,
+    "length": 828,
+    "file": "modules/bfb70f20923024a1185e50f1a03d9fc7.js",
+    "symbols": []
+  },
+  {
+    "hash": "8711c9a7b8f533cb8176393befe31458",
+    "offset": 436294,
+    "length": 331,
+    "file": "modules/8711c9a7b8f533cb8176393befe31458.js",
+    "symbols": []
+  },
+  {
+    "hash": "254c5b8a40141587415605c2e42e133a",
+    "offset": 436626,
+    "length": 2684,
+    "file": "modules/254c5b8a40141587415605c2e42e133a.js",
+    "symbols": []
+  },
+  {
+    "hash": "6081445e5c998ebe5e57f2bcb627f557",
+    "offset": 439311,
+    "length": 2510,
+    "file": "modules/6081445e5c998ebe5e57f2bcb627f557.js",
+    "symbols": [
+      "ux-h5pdfreader",
+      "ux-h5pdfreader-loading f-pa",
+      "ux-h5pdfreader_loadingwrap f-pa",
+      "ux-h5pdfreader_loadingwrap_loading f-pa",
+      "ux-h5pdfreader_error f-pa j-error",
+      "emid",
+      "f-ib eic",
+      "f-ib j-error-txt",
+      "bwarp",
+      "reloadbtn f-ib j-error-reload",
+      "ux-h5pdfreader_container f-pr th-bg1",
+      "ux-h5pdfreader_container_viewer",
+      "ux-h5pdfreader_container_slide f-pa",
+      "ux-h5pdfreader_container_footer f-pa"
+    ]
+  },
+  {
+    "hash": "e535bb768ffb8a028ece874ffeebb0f3",
+    "offset": 441822,
+    "length": 5609,
+    "file": "modules/e535bb768ffb8a028ece874ffeebb0f3.js",
+    "symbols": []
+  },
+  {
+    "hash": "f3c978e3c32c114b58a219233836be9b",
+    "offset": 447433,
+    "length": 222,
+    "file": "modules/f3c978e3c32c114b58a219233836be9b.js",
+    "symbols": []
+  },
+  {
+    "hash": "e8bee5584e29d89e8858dec9daa50a83",
+    "offset": 447656,
+    "length": 2008,
+    "file": "modules/e8bee5584e29d89e8858dec9daa50a83.js",
+    "symbols": []
+  },
+  {
+    "hash": "9a3981cd00ad7256f987a9decbfcf125",
+    "offset": 449665,
+    "length": 2527,
+    "file": "modules/9a3981cd00ad7256f987a9decbfcf125.js",
+    "symbols": [
+      "ux-h5pdfreader",
+      "ux-h5pdfreader_loadingwrap f-pa",
+      "ux-h5pdfreader_loadingwrap_loading f-pa",
+      "ux-h5pdfreader_error f-pa",
+      "emid",
+      "f-ib eic",
+      "f-ib",
+      "bwarp",
+      "reloadbtn f-ib",
+      "ux-h5pdfreader_container",
+      "ux-h5pdfreader_container_viewer",
+      "ux-h5pdfreader_container_viewer_wrap",
+      "ux-h5pdfreader_container_bigprev",
+      "ux-h5pdfreader_container_bignext",
+      "ux-h5pdfreader_container_thumb",
+      "ux-h5pdfreader_container_thumb_bg",
+      "ux-h5pdfreader_container_thumb_con",
+      "ux-h5pdfreader_container_footer",
+      "ux-h5pdfreader_container_footer_pages",
+      "ux-h5pdfreader_container_footer_pages_in"
+    ]
+  },
+  {
+    "hash": "bee889190495379e804d0e83a214d6d0",
+    "offset": 452193,
+    "length": 9135,
+    "file": "modules/bee889190495379e804d0e83a214d6d0.js",
+    "symbols": []
+  },
+  {
+    "hash": "81b035387ac51d97fe5f678c9cb319fa",
+    "offset": 461330,
+    "length": 222,
+    "file": "modules/81b035387ac51d97fe5f678c9cb319fa.js",
+    "symbols": []
+  },
+  {
+    "hash": "b58c1bf9b04ca2c75c6e48cf3ad0b4d0",
+    "offset": 461553,
+    "length": 5043,
+    "file": "modules/b58c1bf9b04ca2c75c6e48cf3ad0b4d0.js",
+    "symbols": [
+      "PdfReader",
+      "j-reload"
+    ]
+  },
+  {
+    "hash": "14426dd507849334f792797ec270f5b5",
+    "offset": 466597,
+    "length": 377,
+    "file": "modules/14426dd507849334f792797ec270f5b5.js",
+    "symbols": [
+      "ux-pdf-reader",
+      "ux-pdf-reader_tip",
+      "{{\\'ux-pdf-reader_tip-wap\\':isWap}}",
+      "emid",
+      "f-ib eic",
+      "f-ib"
+    ]
+  },
+  {
+    "hash": "9fe62422102bcef9db0f33b769510f23",
+    "offset": 466975,
+    "length": 1683,
+    "file": "modules/9fe62422102bcef9db0f33b769510f23.js",
+    "symbols": []
+  },
+  {
+    "hash": "053423f7ca87a51880dfaefb4f9a31f5",
+    "offset": 468659,
+    "length": 220,
+    "file": "modules/053423f7ca87a51880dfaefb4f9a31f5.js",
+    "symbols": []
+  },
+  {
+    "hash": "89a20d6e04a4ff5b168f1faa46d80b1a",
+    "offset": 468880,
+    "length": 1785,
+    "file": "modules/89a20d6e04a4ff5b168f1faa46d80b1a.js",
+    "symbols": [
+      "PdfReader",
+      "UIBase"
+    ]
+  },
+  {
+    "hash": "84117c1b0fcf34c8802d9f0946d1869e",
+    "offset": 470666,
+    "length": 2833,
+    "file": "modules/84117c1b0fcf34c8802d9f0946d1869e.js",
+    "symbols": [
+      "PdfUnit",
+      "UIBase",
+      "COM_Cache_CourseCtCache"
+    ]
+  },
+  {
+    "hash": "be679cde8e87d7a4d28f9f32f4ee35ac",
+    "offset": 473500,
+    "length": 1766,
+    "file": "modules/be679cde8e87d7a4d28f9f32f4ee35ac.js",
+    "symbols": [
+      "RichTextUnit",
+      "UIBase",
+      "COM_Cache_CourseCtCache"
+    ]
+  },
+  {
+    "hash": "fb689a88a2915cc7060dce11733a426e",
+    "offset": 475267,
+    "length": 5917,
+    "file": "modules/fb689a88a2915cc7060dce11733a426e.js",
+    "symbols": [
+      "BasePool",
+      "UIBase",
+      "Pager",
+      "m-basepool f-cb",
+      "j-list",
+      "m-data-lists f-cb f-pr j-data-list",
+      "u-pager f-pr j-data-pager",
+      "j-none empty",
+      "f-f0 f-fc9 j-none-txt f-ib"
+    ]
+  },
+  {
+    "hash": "a328147ec582fd1a85c9f0beb695bb31",
+    "offset": 481185,
+    "length": 1621,
+    "file": "modules/a328147ec582fd1a85c9f0beb695bb31.js",
+    "symbols": [
+      "Quiz_Question_Pool",
+      "BasePool",
+      "QuestionItem"
+    ]
+  },
+  {
+    "hash": "e7089a68b20be110ce888f1374a52bfb",
+    "offset": 482807,
+    "length": 5176,
+    "file": "modules/e7089a68b20be110ce888f1374a52bfb.js",
+    "symbols": [
+      "TestUnit",
+      "UIBase",
+      "COM_Cache_CourseCache",
+      "COM_Cache_MemberCache",
+      "COM_Cache_QuizCache",
+      "COM_Cache_CourseCtCache",
+      "LoginDialog",
+      "CommonMailDialog",
+      "Quiz_Question_Pool"
+    ]
+  },
+  {
+    "hash": "e8fb5373e2239362823bb77f6fc2ce39",
+    "offset": 487984,
+    "length": 6279,
+    "file": "modules/e8fb5373e2239362823bb77f6fc2ce39.js",
+    "symbols": [
+      "COM_Cache_ForumDetailCache",
+      "COM_Cache"
+    ]
+  },
+  {
+    "hash": "8eb6c5c05557c81b78bf50f441e3f28c",
+    "offset": 494264,
+    "length": 1841,
+    "file": "modules/8eb6c5c05557c81b78bf50f441e3f28c.js",
+    "symbols": [
+      "COM_Cache_ForumDetailCache",
+      "LoginDialog"
+    ]
+  },
+  {
+    "hash": "ebe2d3cb30fd968a4110767d27b2041a",
+    "offset": 496106,
+    "length": 1180,
+    "file": "modules/ebe2d3cb30fd968a4110767d27b2041a.js",
+    "symbols": [
+      "fullSiteBanBtnText",
+      "courseDiscussBanBtnText",
+      "showMail",
+      "title",
+      "mail",
+      "changeBanStatus"
+    ]
+  },
+  {
+    "hash": "4f45e0706d883c527f7222548953087d",
+    "offset": 497287,
+    "length": 703,
+    "file": "modules/4f45e0706d883c527f7222548953087d.js",
+    "symbols": [
+      "title",
+      "showMail",
+      "mail",
+      "changeBanStatus",
+      "fullSiteBanBtnText",
+      "courseDiscussBanBtnText",
+      "ban-user-modal",
+      "ban-user-modal_title",
+      "ban-user-modal_username",
+      "ban-user-modal_buttons",
+      "ban-user-modal_buttons_email",
+      "u-icon-email",
+      "ban-user-modal_buttons_left-btn",
+      "ban-user-modal_buttons_right-btn"
+    ]
+  },
+  {
+    "hash": "b5937ade69b006e73bb019e5f83d9513",
+    "offset": 497991,
+    "length": 15577,
+    "file": "modules/b5937ade69b006e73bb019e5f83d9513.js",
+    "symbols": []
+  },
+  {
+    "hash": "57e9f440d9661b56030650b673056e36",
+    "offset": 513570,
+    "length": 407,
+    "file": "modules/57e9f440d9661b56030650b673056e36.js",
+    "symbols": []
+  },
+  {
+    "hash": "391bade1f824c8724e734dc7a3557f36",
+    "offset": 513978,
+    "length": 3998,
+    "file": "modules/391bade1f824c8724e734dc7a3557f36.js",
+    "symbols": [
+      "UserItem",
+      "UIBase",
+      "anonyInfo j-anonyInfo",
+      "userInfo j-userInfo",
+      "f-fc6",
+      "f-fcgreen"
+    ]
+  },
+  {
+    "hash": "865336bdee3def2e90e635383cc1e284",
+    "offset": 517977,
+    "length": 434,
+    "file": "modules/865336bdee3def2e90e635383cc1e284.js",
+    "symbols": []
+  },
+  {
+    "hash": "7c0f38757da06c54ce1062cbacb9b5c1",
+    "offset": 518412,
+    "length": 4055,
+    "file": "modules/7c0f38757da06c54ce1062cbacb9b5c1.js",
+    "symbols": [
+      "VoteItem",
+      "UIBase",
+      "COM_Cache_ForumDetailCache",
+      "LoginDialog",
+      "f-cb",
+      "up f-fl j-up",
+      "num f-fl f-thide j-num",
+      "down f-fl j-down"
+    ]
+  },
+  {
+    "hash": "bbd38ff49a9c39da32c8f35626316f21",
+    "offset": 522468,
+    "length": 3794,
+    "file": "modules/bbd38ff49a9c39da32c8f35626316f21.js",
+    "symbols": [
+      "ManageItem",
+      "UIBase",
+      "f-cb",
+      "f-fl bd",
+      "f-fl f-fc9 manBtn"
+    ]
+  },
+  {
+    "hash": "bbb7d6117a4fc9e146e67adf883521d6",
+    "offset": 526263,
+    "length": 3034,
+    "file": "modules/bbb7d6117a4fc9e146e67adf883521d6.js",
+    "symbols": [
+      "EditItem",
+      "UIBase",
+      "m-edititem",
+      "editwrap",
+      "j-edittxt edittxt",
+      "j-hint hint",
+      "editopt f-cb",
+      "j-edit-btn u-btn u-btn-primary editbtn",
+      "j-btn-text",
+      "j-close-btn f-fc9 cancelbtn"
+    ]
+  },
+  {
+    "hash": "7832f00c56a132c163eeaae343444dd9",
+    "offset": 529298,
+    "length": 824,
+    "file": "modules/7832f00c56a132c163eeaae343444dd9.js",
+    "symbols": [
+      "COM_Cache_ReportCache",
+      "COM_Cache"
+    ]
+  },
+  {
+    "hash": "c30834300a1390e7ec4f8432fef9123b",
+    "offset": 530123,
+    "length": 2939,
+    "file": "modules/c30834300a1390e7ec4f8432fef9123b.js",
+    "symbols": [
+      "ReportDialog",
+      "Window",
+      "COM_Cache_ReportCache",
+      "FeedBackUI",
+      "EditItem",
+      "m-reportDialog",
+      "j-reportedit reportedit",
+      "j-feedback feedback"
+    ]
+  },
+  {
+    "hash": "f89bf7955a392302db95e1359fe83de6",
+    "offset": 533063,
+    "length": 16295,
+    "file": "modules/f89bf7955a392302db95e1359fe83de6.js",
+    "symbols": [
+      "PostItem",
+      "UIBase",
+      "COM_Cache_ForumDetailCache",
+      "COM_Cache_commonCache",
+      "ReportDialog",
+      "LoginDialog",
+      "CommonDialog",
+      "UserItem",
+      "VoteItem",
+      "ManageItem",
+      "f-cb",
+      "j-title title f-fl",
+      "f-cb f-fr j-tagBox",
+      "u-forumtag u-forumtag1 j-tagTopNode",
+      "u-forumtag j-tagAgreeNode",
+      "u-forumtag j-tagSolveNode",
+      "u-forumtag j-tagTeacherNode",
+      "content f-richEditorText j-content",
+      "infobar f-cb",
+      "j-infoBox",
+      "f-fl name j-name",
+      "f-fl f-fc9 time j-time",
+      "f-fl f-fc9 j-fromUnitBox",
+      "j-fromUnit f-fcgreen",
+      "optbar f-cb",
+      "j-share f-fl",
+      "f-cb f-fr optBox j-optBox",
+      "f-fl j-editDivider divider",
+      "f-fl f-fc9 editBtn j-editBtn",
+      "f-fl divider",
+      "f-fl f-fc9 editBtn j-reportBtn",
+      "f-fl j-manBox",
+      "f-fr votebox j-vote",
+      "replyBtn u-btn u-btn-sm j-replyBtn f-fr",
+      "first j-followInner",
+      "second j-followInner",
+      "secHvr j-followInner"
+    ]
+  },
+  {
+    "hash": "831c24e8616de4f54d6f34150ec7747d",
+    "offset": 549359,
+    "length": 4632,
+    "file": "modules/831c24e8616de4f54d6f34150ec7747d.js",
+    "symbols": [
+      "RichEditItem",
+      "UIBase",
+      "LoginDialog",
+      "ui-richEditor f-cb f-pr",
+      "rich-wrap",
+      "rich-editor j-richeditor",
+      "rich-opt f-cb",
+      "j-anony f-fl",
+      "j-anonycheck",
+      "j-close-btn cancelbtn f-fc9 f-fr",
+      "unlogin j-unloginbox",
+      "autowrap f-cb",
+      "f-fl"
+    ]
+  },
+  {
+    "hash": "919745c60678236fdf2cbf9d4a1b416e",
+    "offset": 553992,
+    "length": 1361,
+    "file": "modules/919745c60678236fdf2cbf9d4a1b416e.js",
+    "symbols": [
+      "AddReply",
+      "RichEditItem",
+      "COM_Cache_ForumDetailCache",
+      "CommonDialog"
+    ]
+  },
+  {
+    "hash": "ea3f5e83db4dc94c1e618ff6219e35d5",
+    "offset": 555354,
+    "length": 7847,
+    "file": "modules/ea3f5e83db4dc94c1e618ff6219e35d5.js",
+    "symbols": [
+      "DetailInfoItem",
+      "UIBase",
+      "COM_Cache_ForumDetailCache",
+      "ReportDialog",
+      "ManageItem",
+      "UserItem",
+      "VoteItem",
+      "m-detailInfoItem f-pr",
+      "tagCt f-cb j-tagBox",
+      "u-forumtag u-forumtag1 j-tagTopNode",
+      "u-forumtag j-tagAgreeNode",
+      "f-richEditorText j-content",
+      "bar f-cb",
+      "f-fl name j-name",
+      "f-fl f-fc9 time j-time",
+      "f-fr j-manBox",
+      "f-fr f-fc9 opt delBtn j-reportBtn",
+      "f-fr divider",
+      "f-fr f-fc9 opt delBtn j-delBtn",
+      "j-delDivider f-fr divider",
+      "f-fr f-fc9 opt cmtBtn j-cmtBtn",
+      "j-cmtDivider f-fr divider",
+      "f-fr votebox j-vote"
+    ]
+  },
+  {
+    "hash": "a234059e7f4c350dd8920f68f370bdc9",
+    "offset": 563202,
+    "length": 3899,
+    "file": "modules/a234059e7f4c350dd8920f68f370bdc9.js",
+    "symbols": [
+      "AddComment",
+      "UIBase",
+      "COM_Cache_ForumDetailCache",
+      "LoginDialog",
+      "RichEditItem",
+      "CommonDialog",
+      "small j-unlogbox",
+      "j-loginbtn loginbtn",
+      "small j-logupbox",
+      "j-logdownbox"
+    ]
+  },
+  {
+    "hash": "5c2a91c71128fa627b0f43cdbb2ea6c7",
+    "offset": 567102,
+    "length": 1887,
+    "file": "modules/5c2a91c71128fa627b0f43cdbb2ea6c7.js",
+    "symbols": [
+      "CommentItem",
+      "UIBase",
+      "COM_Cache_ForumDetailCache",
+      "CommonDialog",
+      "DetailInfoItem"
+    ]
+  },
+  {
+    "hash": "ba24f6842569f3bad309e01524f2ffbd",
+    "offset": 568990,
+    "length": 1561,
+    "file": "modules/ba24f6842569f3bad309e01524f2ffbd.js",
+    "symbols": [
+      "CommentPool",
+      "BasePool",
+      "COM_Cache_ForumDetailCache",
+      "CommentItem"
+    ]
+  },
+  {
+    "hash": "a3819abcbce305738ac672636dcc946d",
+    "offset": 570552,
+    "length": 2808,
+    "file": "modules/a3819abcbce305738ac672636dcc946d.js",
+    "symbols": [
+      "CommentWrapper",
+      "UIBase",
+      "AddComment",
+      "CommentPool",
+      "m-commentWrapper f-pr f-cb",
+      "wrap f-fr",
+      "m-comment-pool j-commentpool",
+      "m-add-comment j-addcomment",
+      "j-triangle triangle"
+    ]
+  },
+  {
+    "hash": "8dea050de02418ce18f537ea58c033a2",
+    "offset": 573361,
+    "length": 3746,
+    "file": "modules/8dea050de02418ce18f537ea58c033a2.js",
+    "symbols": [
+      "ReplyItem",
+      "UIBase",
+      "COM_Cache_ForumDetailCache",
+      "CommonDialog",
+      "CommentWrapper",
+      "DetailInfoItem",
+      "f-pr"
+    ]
+  },
+  {
+    "hash": "d550f98719e03a495e71e818d9e95af6",
+    "offset": 577108,
+    "length": 1899,
+    "file": "modules/d550f98719e03a495e71e818d9e95af6.js",
+    "symbols": [
+      "ReplyPool",
+      "BasePool",
+      "COM_Cache_ForumDetailCache",
+      "ReplyItem"
+    ]
+  },
+  {
+    "hash": "0a60a58976df980417d408dd43f51aac",
+    "offset": 579008,
+    "length": 3276,
+    "file": "modules/0a60a58976df980417d408dd43f51aac.js",
+    "symbols": [
+      "TalkSortItem",
+      "UIBase",
+      "j-time double",
+      "divider",
+      "j-vote single"
+    ]
+  },
+  {
+    "hash": "1f83f8e3c9352095fd466c5ef180fb8d",
+    "offset": 582285,
+    "length": 2769,
+    "file": "modules/1f83f8e3c9352095fd466c5ef180fb8d.js",
+    "symbols": [
+      "COM_Cache_ForumCache",
+      "COM_Cache"
+    ]
+  },
+  {
+    "hash": "ec5f286cece29e66b88a702d2943a530",
+    "offset": 585055,
+    "length": 6030,
+    "file": "modules/ec5f286cece29e66b88a702d2943a530.js",
+    "symbols": [
+      "ForumDetailUI",
+      "UIBase",
+      "COM_Cache_ForumDetailCache",
+      "COM_Cache_ForumCache",
+      "PostItem",
+      "TalkSortItem",
+      "ReplyPool",
+      "AddReply",
+      "j-post",
+      "j-banState",
+      "rinfobox f-cb",
+      "j-reply-info f-fl",
+      "j-reply-sort f-fr",
+      "j-reply-all allbox",
+      "j-reply-add"
+    ]
+  },
+  {
+    "hash": "7872629f0fb778433629a1d520d03d44",
+    "offset": 591086,
+    "length": 2104,
+    "file": "modules/7872629f0fb778433629a1d520d03d44.js",
+    "symbols": [
+      "ForumUnit",
+      "UIBase",
+      "COM_Cache_CourseCtCache",
+      "ForumDetailUI"
+    ]
+  },
+  {
+    "hash": "f8d67315026aca254304d36bea9d9d34",
+    "offset": 593191,
+    "length": 20897,
+    "file": "modules/f8d67315026aca254304d36bea9d9d34.js",
+    "symbols": [
+      "LessonDetailUI",
+      "UIBase",
+      "COM_Cache_CourseCtCache",
+      "COM_Cache_CourseCache",
+      "CommonDialog",
+      "VideoUnit",
+      "LessonBreadCrumb",
+      "PdfUnit",
+      "RichTextUnit",
+      "TestUnit",
+      "ForumUnit",
+      "LoginDialog",
+      "f-icon",
+      "f-fl",
+      "'+a+'",
+      "unit-name",
+      "pdf-helplink",
+      "u-helplink u-helplinkpdf",
+      "f-fcgreen",
+      "j-downpdf downpdf u-btn u-btn-sm ",
+      "j-downtxt downpdf u-btn u-btn-sm f-fr",
+      "u-btn u-btn-default f-fr"
+    ]
+  },
+  {
+    "hash": "aa787b31fae1d6b4be87937316849923",
+    "offset": 614089,
+    "length": 7045,
+    "file": "modules/aa787b31fae1d6b4be87937316849923.js",
+    "symbols": [
+      "LearnContent",
+      "Module",
+      "COM_Cache_CourseCtCache",
+      "ChapterList",
+      "SpocMoocSplit",
+      "LessonDetailUI",
+      "CommonDialog"
+    ]
+  }
+]

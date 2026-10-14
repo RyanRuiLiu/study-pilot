@@ -20,12 +20,35 @@
 import type { HostCapabilities } from '@study-pilot/application';
 import { MOOC_ORIGIN } from '../client.ts';
 
+/**
+ * 三个 cookie 的名字。**全项目只有这一处写字面量**：读会话、续期时比对、
+ * 外壳观察的登录信号，用的都是这一组。改名字只改这里。
+ */
+export const SESSION_COOKIES = {
+  /** 未登录时就有（32 位匿名会话）；`.rpc` 的 csrfKey、DWR 的 httpSessionId */
+  token: 'NTESSTUDYSI',
+  /** 登录后下发；值里带 userId（`邮箱|8|<userId>|时间戳`） */
+  info: 'STUDY_INFO',
+  /** 登录后下发；服务端会话。续期成没成，靠它的值变没变判断 */
+  sess: 'STUDY_SESS',
+} as const;
+
+/**
+ * 外壳要观察的登录信号。
+ *
+ * 为什么是 `STUDY_INFO` 而不是 `NTESSTUDYSI`：后者在访客状态下也会下发（见上面的表），
+ * 拿它当信号会在没人登录时补跑一轮——这是实测踩过的坑。
+ *
+ * domain 是 cookie 查询用的可注册域（不带 www），与 `MOOC_ORIGIN` 同域。
+ */
+export const LOGIN_COOKIE = { name: SESSION_COOKIES.info, domain: 'icourse163.org' } as const;
+
 export interface MoocSession {
   /** 是否处于登录态 */
   loggedIn: boolean;
   /** 登录用户 id；未登录为 0 */
   userId: number;
-  /** NTESSTUDYSI 的值；可能为空串 */
+  /** 会话令牌（`SESSION_COOKIES.token`）的值；可能为空串 */
   token: string;
 }
 
@@ -43,8 +66,8 @@ function parseUserId(studyInfo: string): number {
 
 async function readSession(host: HostCapabilities): Promise<MoocSession> {
   const [token, studyInfo] = await Promise.all([
-    readCookie(host, 'NTESSTUDYSI'),
-    readCookie(host, 'STUDY_INFO'),
+    readCookie(host, SESSION_COOKIES.token),
+    readCookie(host, SESSION_COOKIES.info),
   ]);
   const userId = parseUserId(studyInfo);
   return { loggedIn: userId > 0, userId, token };
@@ -120,17 +143,17 @@ export class SessionExpiredError extends Error {
 export async function renewSession(
   host: HostCapabilities,
 ): Promise<{ renewed: boolean; session: MoocSession }> {
-  const before = await readCookie(host, 'STUDY_SESS');
+  const before = await readCookie(host, SESSION_COOKIES.sess);
   try {
     await fetch(`${MOOC_ORIGIN}/`, { credentials: 'include' });
   } catch {
     return { renewed: false, session: await readSession(host) };
   }
-  const after = await readCookie(host, 'STUDY_SESS');
+  const after = await readCookie(host, SESSION_COOKIES.sess);
   return { renewed: after !== '' && after !== before, session: await readSession(host) };
 }
 
 /** 读取令牌，供后台使用。 */
 export function readToken(host: HostCapabilities): Promise<string> {
-  return readCookie(host, 'NTESSTUDYSI');
+  return readCookie(host, SESSION_COOKIES.token);
 }

@@ -1,0 +1,9 @@
+EDU(
+  'f85d7120c48724ce3338aa4501f72ed5',
+  function (e, t, n) {
+    return e.$extends({ name: 'ux-button', css: n, template: t });
+  },
+  'f2e9412c2d62267362ed253d13a4286e',
+  'ddeeff737752542e3e8f92db0642e337',
+  'f5dc0c54dde52b63c5d7964d8c6ebaec',
+);
