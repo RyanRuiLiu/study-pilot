@@ -87,6 +87,7 @@ export * from './policy/net-rules.ts';
 export * from './policy/course-selection.ts';
 export * from './policy/sync.ts';
 export * from './policy/tasks.ts';
+export * from './policy/assembly.ts';
 
 export {
   getHomeworkInfo,

@@ -13,7 +13,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, type ConfigPort, type HostCapabilities, type Settings } from '@study-pilot/application';
-import { createMoocTasks, type MoocRunDeps } from '../src/index.ts';
+import { createMoocRuntime, createMoocTasks, type MoocRunDeps } from '../src/index.ts';
 import { SessionExpiredError } from '../src/policy/session.ts';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/policy/read/types.ts';
 
@@ -194,5 +194,40 @@ describe('策略层不碰宿主（只用端口）', () => {
 
     await expect(tasks.plan(NOW)).rejects.toThrow('网络断了');
     expect(touched).toEqual([]);
+  });
+});
+
+/*
+ * 厂商装配（createMoocRuntime）也在包里，因此第二个载体不必抄那段装配。
+ * 这一条只验它「给载体能力就能造出来」，不跑网络：读路径本身在上面那些用例里。
+ */
+describe('厂商装配不依赖任何 app 侧代码', () => {
+  it('只给宿主能力与配置端口，就能造出运行件与外壳信号', () => {
+    const notifier: string[] = [];
+    const runtime = createMoocRuntime({
+      host: fakeHost,
+      config: fakeConfig,
+      recordFailure: async (message) => {
+        notifier.push(message);
+      },
+      // 故意不注入文本生成器：讨论单元于是进人工，执行层也不假装成功
+    });
+
+    expect(touched).toEqual([]);
+    expect(runtime.wiring.id).toBe('mooc');
+    // 登录信号必须是「登录后才下发」的那个，不能是访客也有的匿名 cookie
+    expect(runtime.wiring.loginCookie).toEqual({ name: 'STUDY_INFO', domain: 'icourse163.org' });
+    expect(runtime.wiring.requestRules.length).toBeGreaterThan(0);
+
+    // 纯的那两样可以直接断言：勾选课程的映射、以及没有生成器时的上下文
+    const settings = settingsWithQuizOn();
+    expect(runtime.selectedCourses(settings)).toEqual([]);
+    expect(runtime.coursewareContext(settings).generateText).toBeUndefined();
+
+    // 平台实例现建，且装配交出来的那几个口都在
+    expect(runtime.tasks().id).toBe('mooc');
+    expect(typeof runtime.loadSnapshot).toBe('function');
+    expect(typeof runtime.refreshCourses).toBe('function');
+    expect(typeof runtime.renew).toBe('function');
   });
 });
