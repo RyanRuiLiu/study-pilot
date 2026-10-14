@@ -15,7 +15,8 @@
 import type { AnySendResponse, AppRequest, MessageHandlers, SendResponse } from '../../messages.ts';
 import type { PlatformTasks } from '../../platforms/types.ts';
 import { getRunState } from '../runtime/run-state';
-import { beginRun, canStartRun, claimRun, finishRun, getTaskState, releaseRun, touchRun } from '../runtime/scheduler';
+import { canStartRun, claimRun, releaseRun } from '../runtime/scheduler';
+import { beginRun, finishRun, getTaskState, touchRun } from '../runtime/task-state';
 
 /** 装配层给出的东西：各平台的处理器表与要跑的平台。 */
 export interface RouterDeps {

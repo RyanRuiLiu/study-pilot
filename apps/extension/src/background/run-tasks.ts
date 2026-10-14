@@ -11,18 +11,16 @@
 
 import { getSettings } from '../settings';
 import type { PlatformTasks } from '../platforms/types.ts';
+import { canStartRun, claimRun, releaseRun } from './runtime/scheduler';
 import {
   beginRun,
-  canStartRun,
-  claimRun,
   clearAwaitingLogin,
   finishRun,
   getTaskState,
   markAwaitingLogin,
   recordRunFailure,
-  releaseRun,
   touchRun,
-} from './runtime/scheduler';
+} from './runtime/task-state';
 import {
   beginPlatform,
   completeItem,

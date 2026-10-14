@@ -12,14 +12,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  canStartRun,
-  claimRun,
-  EMPTY_STATE,
-  liveRunState,
-  releaseRun,
-  type TaskState,
-} from '../src/background/runtime/scheduler';
+import { canStartRun, claimRun, liveRunState, releaseRun } from '../src/background/runtime/scheduler';
+import { EMPTY_STATE } from '../src/background/runtime/task-state';
+import type { TaskState } from '../src/protocol.ts';
 
 const NOW = 1_700_000_000_000;
 const MINUTE = 60 * 1000;

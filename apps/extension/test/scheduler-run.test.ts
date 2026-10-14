@@ -14,19 +14,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/settings', () => ({ getSettings: vi.fn() }));
-vi.mock('../src/background/runtime/scheduler', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/background/runtime/scheduler')>();
-  return {
-    ...actual,
-    getTaskState: vi.fn(),
-    beginRun: vi.fn(),
-    touchRun: vi.fn(),
-    finishRun: vi.fn(),
-    clearAwaitingLogin: vi.fn(),
-    markAwaitingLogin: vi.fn(),
-    recordRunFailure: vi.fn(),
-  };
-});
+vi.mock('../src/background/runtime/task-state', () => ({
+  getTaskState: vi.fn(),
+  beginRun: vi.fn(),
+  touchRun: vi.fn(),
+  finishRun: vi.fn(),
+  clearAwaitingLogin: vi.fn(),
+  markAwaitingLogin: vi.fn(),
+  recordRunFailure: vi.fn(),
+}));
 
 import { autoRun } from '../src/background/run-tasks';
 import { getSettings } from '../src/settings';
@@ -38,7 +34,7 @@ import {
   markAwaitingLogin,
   recordRunFailure,
   touchRun,
-} from '../src/background/runtime/scheduler';
+} from '../src/background/runtime/task-state';
 import type { PlanItem, PlatformTasks } from '../src/platforms/types.ts';
 
 const getSettingsMock = vi.mocked(getSettings);

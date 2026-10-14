@@ -8,7 +8,7 @@
 
 import { clearAlarm, ensureAlarm, isCheckAlarm } from './runtime/alarms';
 import { watchSettings } from '../settings';
-import { getTaskState } from './runtime/scheduler';
+import { getTaskState } from './runtime/task-state';
 import type { PlatformTasks, PlatformWiring } from '../platforms/types.ts';
 import { autoRun } from './run-tasks.ts';
 
