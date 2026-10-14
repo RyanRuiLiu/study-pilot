@@ -1,30 +1,21 @@
 /*
- * 慕课的装配点。
+ * 慕课在本载体上的装配点。
  *
- * 外壳（`entrypoints/background.ts`）只调这一个函数，不再直接 import 平台的
- * read / plan / execute —— 那几样是慕课的内部实现，换平台时不该牵动外壳。
- *
- * 这里把平台需要的外界能力拼好后，交出两样东西：
- *   handlers  消息处理器表（交给外壳的路由）
- *   tasks()   要跑一轮时的平台实例（每次现建，避免本轮状态跨轮残留）
+ * 厂商那半（客户端怎么建、哪些课程算勾选、讨论单元要不要文本能力、登录 cookie 叫什么）
+ * 在 @study-pilot/platform-mooc 的 createMoocRuntime 里——那是慕课的事实，第二个载体
+ * 不必抄一遍。这里只补两件本载体的事：
+ *   1. 文本生成器用的是扩展侧的 AI 用例（提示词与重试在 apps/extension/src/ai/）；
+ *   2. 消息处理器表（消息的形状是本载体的契约，平台不认它）。
  */
 
-import type { CoursewareContext } from '@study-pilot/platform-mooc';
+import { createMoocRuntime } from '@study-pilot/platform-mooc';
+import type { ConfigPort, HostCapabilities, PlatformTasks, PlatformWiring } from '@study-pilot/application';
 import { createTextGenerator } from '../../ai';
 import type { MessageHandlers } from '../../protocol.ts';
-import type { ConfigPort, HostCapabilities, PlatformWiring } from '@study-pilot/application';
-import type { Settings } from '../../settings';
-import type { PlatformTasks } from '@study-pilot/application';
 import type { MoocMessageDeps } from './messages/deps.ts';
 import { moocHandlers } from './messages/handlers.ts';
-import type { InspectCourse } from '@study-pilot/platform-mooc';
-import { createPlatformClient, createMoocTasks, loadSnapshot, MOOC_REQUEST_RULES, refreshCourses } from '@study-pilot/platform-mooc';
 
-/**
- * 外壳给出的东西：只有它自己拥有的能力。
- *
- * host 是宿主能力（cookie 读取、系统通知）；客户端与会话续期由本平台自己建。
- */
+/** 本载体给出的东西：只有它自己拥有的能力。 */
 export interface MoocEnv {
   host: HostCapabilities;
   /** 配置端口：由载体实现（扩展侧是浏览器存储，命令行侧是文件） */
@@ -32,68 +23,28 @@ export interface MoocEnv {
   shell: MoocMessageDeps['shell'];
 }
 
-/**
- * 课件行为的上下文。
- *
- * 只有一处来源：设置里的 AI 配置。没配齐时 `generateText` 为 undefined，
- * 而讨论单元本来就不会进计划（`isCompletable` 的 `needs:'text'`），
- * 所以这里不做任何替代——真到了执行层而没有生成器，行为会如实返回失败。
- */
-function coursewareContext(settings: Settings): CoursewareContext {
-  return { generateText: createTextGenerator(settings) };
-}
-
-/**
- * 当前勾选参与任务的课程。
- *
- * 只取已勾选且带完整定位信息的：拼跳转地址需要 courseId 与 schoolShortName，
- * 缺了它们的课程能读但点不进去，列出来只会让用户多点一次空链接。
- */
-function selectedCourses(settings: Settings): InspectCourse[] {
-  return settings.mooc.background.courses
-    .filter((course) => course.enabled)
-    .map((course) => ({
-      termId: course.termId,
-      courseId: course.courseId,
-      schoolShortName: course.schoolShortName,
-      mode: course.mode,
-      name: course.name,
-    }));
-}
-
 export interface MoocPlatform {
   handlers: MessageHandlers;
-  /** 要跑一轮时的平台实例（现建，见上面的说明） */
+  /** 要跑一轮时的平台实例（现建，避免本轮状态跨轮残留） */
   tasks: () => PlatformTasks;
-  /** 外壳要观察的信号：登录 cookie 与通知前缀 */
+  /** 外壳要观察的信号：登录凭证 cookie 与请求头规则 */
   wiring: PlatformWiring;
 }
 
 export function createMoocPlatform(env: MoocEnv): MoocPlatform {
-  const { client, renew } = createPlatformClient(env.host);
-  const deps: MoocMessageDeps = {
+  const runtime = createMoocRuntime({
     host: env.host,
-    client,
-    renew,
-    refreshCourses: () => refreshCourses(client, env.config),
-    loadSnapshot: (courses, userId) => loadSnapshot(client, courses, userId),
-    selectedCourses,
-    coursewareContext,
-    shell: env.shell,
-  };
+    config: env.config,
+    recordFailure: env.shell.recordFailure,
+    textGenerator: createTextGenerator,
+  });
 
+  // 消息处理器要的就是运行件那几样，加上外壳自己的运行状态口
+  const deps: MoocMessageDeps = { ...runtime, shell: env.shell };
 
   return {
     handlers: moocHandlers(deps),
-    tasks: () => createMoocTasks({ ...deps, config: env.config, recordFailure: env.shell.recordFailure }),
-    /*
-     * 登录后才下发的是 STUDY_INFO 与 STUDY_SESS；NTESTUDYSI 在访客状态下也有，
-     * 不能当登录信号（见 packages/platform-mooc/src/policy/session.ts 的 cookie 分工表）。
-     */
-    wiring: {
-      id: 'mooc',
-      loginCookie: { name: 'STUDY_INFO', domain: 'icourse163.org' },
-      requestRules: MOOC_REQUEST_RULES,
-    },
+    tasks: runtime.tasks,
+    wiring: runtime.wiring,
   };
 }
