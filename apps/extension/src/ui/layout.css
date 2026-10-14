@@ -1,11 +1,12 @@
 /*
- * 结构层：只有布局，没有外观。
+ * 摆放层：只有"盒子怎么排"。
  *
- * 外观一律是 Shoelace 官方主题（themes/light.css）给的那一份：颜色、圆角、阴影、
- * 控件尺寸、间距尺度都不在这里改写。整个文件没有任何色值，也没有任何
- * `::part()` 覆盖——只处理组件库不提供的那两件事：
- *   1. 把文档本身的字体与底色接到官方令牌上（否则页面是 16px 衬线 + 白底）；
- *   2. 表格与弹性排布。Shoelace 没有表格组件，也没有布局组件。
+ * 外观——颜色、圆角、阴影、字号、每个间距的取值——一律来自 Shoelace 官方主题。
+ * 这个文件里没有 border、没有 box-shadow、没有 font-size / font-weight 的自定值；
+ * 只做 display / grid / flex / gap / 宽度 / 溢出，以及把文档本身的字体与底色接到
+ * 官方令牌上（否则页面是浏览器默认的 16px 衬线体 + 白底）。
+ *
+ * 组件自带的外观一律不动，也不写 ::part() 覆盖。
  */
 
 body {
@@ -13,7 +14,6 @@ body {
   background: var(--sl-color-neutral-100);
   color: var(--sl-color-neutral-900);
   font-family: var(--sl-font-sans);
-  font-size: var(--sl-font-size-small);
 }
 
 /* sl-card 默认 inline-block，页面里的卡片要占满一行 */
@@ -21,128 +21,35 @@ sl-card {
   display: block;
 }
 
-/* ---------- 排布 ---------- */
-
-/*
- * 页头：品牌与主操作分居两端。
- *
- * 没有这一段时两者会挨在一起（组件自带的边距只保证内部间距，不负责两端的对齐），
- * 弹窗顶部于是看起来像"文字被按钮压着"。
- */
-.sp-top {
+/* 顶上的操作条：筛选、按钮、来源说明排成一行，窄了自动折行 */
+.sp-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sl-spacing-medium);
-  padding-bottom: var(--sl-spacing-small);
-  border-bottom: var(--sl-panel-border-width) solid var(--sl-panel-border-color);
+  gap: var(--sl-spacing-small);
+  flex-wrap: wrap;
 }
 
-.sp-brand {
-  font-weight: var(--sl-font-weight-semibold);
-}
-
-/*
- * 一句不需要被当成告警的说明（例如「上次读取 …」）。
- *
- * sl-alert 是官方给的「一句状态说明」，但它是一条带底色的整块提示；用它装
- * 每次打开都会出现的读取时间，弹窗顶部会多出一个没有信息量的盒子。
- */
-.sp-note {
-  margin: 0;
-  color: var(--sl-color-neutral-600);
-  font-size: var(--sl-font-size-x-small);
-}
-
+/* 纵向堆叠：详情里一块一块往下排 */
 .sp-stack {
   display: flex;
   flex-direction: column;
-  gap: var(--sl-spacing-medium);
+  gap: var(--sl-spacing-small);
 }
 
+/* 横向一行：控件与它旁边的文字 */
 .sp-line {
   display: flex;
   align-items: center;
   gap: var(--sl-spacing-small);
 }
 
+/* 占满剩余宽度，且肯被压缩（长标题不会把右边挤出去） */
 .sp-fill {
   flex: 1;
   min-width: 0;
 }
 
-/* ---------- 表格 ---------- */
-
-.sp-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--sl-font-size-small);
-}
-
-.sp-table th,
-.sp-table td {
-  padding: var(--sl-spacing-x-small) var(--sl-spacing-small);
-  text-align: left;
-  vertical-align: top;
-  border-bottom: var(--sl-panel-border-width) solid var(--sl-panel-border-color);
-  overflow-wrap: anywhere;
-}
-
-.sp-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 0;
-  background: var(--sl-color-neutral-50);
-  text-align: left;
-}
-
-.sp-table thead th sl-button::part(base) {
-  width: 100%;
-  justify-content: inherit;
-}
-
-.sp-table th.num,
-.sp-table td.num {
-  text-align: right;
-}
-
-.sp-table tbody tr:hover {
-  background: var(--sl-color-neutral-50);
-}
-
-/*
- * 概览那张表定宽：列的位置不随内容长短跳动。
- * 剩下的空间给「项目」——它是唯一需要读完整的字段。
- */
-.sp-table-fixed {
-  table-layout: fixed;
-}
-
-.sp-table-fixed th[data-key="course"] {
-  width: 15%;
-}
-
-.sp-table-fixed th[data-key="kind"],
-.sp-table-fixed th[data-key="mode"] {
-  width: 9%;
-}
-
-.sp-table-fixed th[data-key="state"] {
-  width: 17%;
-}
-
-.sp-table-fixed th[data-key="dueAt"],
-.sp-table-fixed th[data-key="score"] {
-  width: 12%;
-}
-
-/* ---------- 设置项 ---------- */
-
-/*
- * 一行设置项：左边名称与说明，右边控件。
- * 名称与说明的文字外观走浏览器默认（strong / small），这里只摆放位置。
- */
+/* 设置项一行：说明在左、控件在右 */
 .sp-row {
   display: flex;
   align-items: center;
@@ -152,4 +59,22 @@ sl-card {
 
 .sp-row-control {
   flex: none;
+}
+
+/*
+ * 概览里的一项：标题占满剩余宽度，类别、状态、补充信息依次靠右。
+ * minmax(0, 1fr) 是让长标题肯被压缩而不是把右边挤出可视区。
+ */
+.sp-item-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: baseline;
+  gap: var(--sl-spacing-small);
+  text-decoration: none;
+  color: inherit;
+}
+
+/* 日期与得分按等宽数字排，长短不一时不左右跳 */
+.sp-item-when {
+  font-variant-numeric: tabular-nums;
 }
