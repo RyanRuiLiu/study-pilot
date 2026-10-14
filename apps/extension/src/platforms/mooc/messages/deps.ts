@@ -3,17 +3,17 @@
  *
  * 与 `MoocRunDeps` 的差别是它多一组 `shell`：凡属于外壳的东西（运行状态、
  * 把失败记进状态）**由外壳注入，平台不反向 import 执行面**——类型是 type-only
- * （运行时不产生依赖），值是外壳给的。这条方向由 eslint-plugin-boundaries 守着。
+ * （运行时不产生依赖），值是外壳给的。
  */
 
 import type { CourseSummary, CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
-import type { LiveRunState, TaskState } from '../../../background/runtime/scheduler';
+import type { LiveRunState, TaskState } from '../../../protocol.ts';
 import type { Settings } from '../../../settings';
 import type { InspectCourse, Snapshot } from '../read';
 import type { HostCapabilities } from '../../types.ts';
 
 export interface MoocMessageDeps {
-  /** 宿主能力（cookie、通知）——平台自己不碰 browser.*，由外壳实现 */
+  /** 宿主能力（cookie）——平台自己不碰 browser.*，由外壳实现 */
   host: HostCapabilities;
   client: MoocClient;
   /** 会话续期；返回是否真的续上了 */
