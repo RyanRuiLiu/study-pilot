@@ -73,6 +73,7 @@ function tasksOf(auto: AutoAction[]) {
  * 通知相关的方法本来就被 vi.mock 掉，不会真的走到。
  */
 const fakeHost: MoocHost = {
+  whenRequestRulesReady: async () => {},
   readCookie: async () => '',
   listNotifications: async () => [],
   clearNotification: async () => {},

@@ -13,7 +13,7 @@ import { readToken, renewSession, SessionExpiredError } from './session';
 import type { MoocHost } from './host.ts';
 import { inspect, writeSnapshot, type InspectCourse, type Snapshot } from './read';
 import { mergeCourses } from './course-selection';
-import { whenNetRulesReady } from '../../browser/net-rules';
+
 import { MOOC_REQUEST_RULES } from './net-rules.ts';
 
 export interface PlatformClient {
@@ -61,7 +61,7 @@ export function createPlatformClient(host: MoocHost): PlatformClient {
      * 就不进业务逻辑），第一次请求并没有改动任何数据，重发不是第二次提交。
      */
     fetch: async (input, init) => {
-      await whenNetRulesReady(MOOC_REQUEST_RULES);
+      await host.whenRequestRulesReady(MOOC_REQUEST_RULES);
       const first = await fetch(input, init);
       if (!(await looksLikeOriginRejection(first))) return first;
 

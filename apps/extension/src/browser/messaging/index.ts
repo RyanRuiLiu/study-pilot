@@ -105,6 +105,24 @@ export interface ResponseMap {
 export * from './envelope.ts';
 export * from './mooc.ts';
 
+type RequestOf<K extends BackgroundRequest['type']> = Extract<BackgroundRequest, { type: K }>;
+
+/**
+ * 向后台发送请求。返回类型由 `type` 推导，调用方不需要写类型断言。
+ *
+ * 放在这个文件而不是 envelope.ts：它要用 ResponseMap，而 envelope 只装与请求无关的形状；
+ * 两者分开之后，envelope 不再 import index，原本的循环依赖随之消失。
+ */
+export async function sendToBackground<K extends BackgroundRequest['type']>(
+  request: RequestOf<K>,
+): Promise<ResponseMap[K]> {
+  const response = (await browser.runtime.sendMessage(request)) as ResponseMap[K] | undefined;
+  if (response === undefined) {
+    throw new Error(`后台未处理该请求：${request.type}`);
+  }
+  return response;
+}
+
 /**
  * 回响应给前台。
  *

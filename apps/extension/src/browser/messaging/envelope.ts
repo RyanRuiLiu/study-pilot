@@ -6,8 +6,8 @@
  * 这一层（信封、拒绝原因、发送入口）不需要改。
  */
 
-import type { LiveRunState, TaskState } from '../../background/runtime/scheduler';
-import type { BackgroundRequest, ResponseMap } from './index.ts';
+/* 协议的形状在 src/protocol.ts（两端都要用）；这里只做转出，调用方的 import 不变。 */
+export * from '../../protocol.ts';
 
 /**
  * 一次查询的结果。
@@ -113,40 +113,6 @@ export type RunScheduledTasksResponse =
     }
   | { ok: false; reason: JobRejection };
 
-/**
- * 后台任务的持久状态。
- *
- * 直接复用 scheduler 的类型，避免两处定义漂移——界面按它渲染，
- * 字段少一个就会显示错。
- */
-type TaskStateSnapshot = TaskState;
-
-/**
- * 后台此刻的状态。
- *
- * `live` 由后台判定（见 scheduler.liveRunState），界面只负责显示。
- * 界面不自己拿 `state.runningSince !== null` 去猜：那个字段在浏览器被强杀后
- * 会留着没人清，猜的结果是弹窗一直显示「正在执行」，而实际什么都没发生。
- */
-export interface TaskStatus {
-  state: TaskStateSnapshot;
-  live: LiveRunState;
-}
 
 
-type RequestOf<K extends BackgroundRequest['type']> = Extract<BackgroundRequest, { type: K }>;
-
-/**
- * 向后台发送请求。
- *
- * 返回类型由 `type` 推导，因此调用方不需要写类型断言。
- */
-export async function sendToBackground<K extends BackgroundRequest['type']>(
-  request: RequestOf<K>,
-): Promise<ResponseMap[K]> {
-  const response = (await browser.runtime.sendMessage(request)) as ResponseMap[K] | undefined;
-  if (response === undefined) {
-    throw new Error(`后台未处理该请求：${request.type}`);
-  }
-  return response;
-}
+/* sendToBackground 放在 index.ts：它要用 ResponseMap，与协议类型同处装配点，避免循环。 */

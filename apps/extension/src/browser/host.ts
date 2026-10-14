@@ -5,12 +5,15 @@
  * 平台自己只认 host.ts 里的接口。换宿主（命令行、测试替身）时，实现换这个文件即可。
  */
 
+import { whenNetRulesReady } from './net-rules.ts';
 import type { MoocHost } from '../platforms/mooc/host.ts';
 
 const MOOC_ORIGIN = 'https://www.icourse163.org';
 const NOTIFICATION_ICON = '/icon/128.png';
 
 export const browserMoocHost: MoocHost = {
+  whenRequestRulesReady: (rules) => whenNetRulesReady(rules),
+
   readCookie: async (name) => {
     try {
       const cookie = await browser.cookies.get({ url: MOOC_ORIGIN, name });
