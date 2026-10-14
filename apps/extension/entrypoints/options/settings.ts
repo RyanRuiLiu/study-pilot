@@ -15,7 +15,7 @@ import { getSettings, resetSettings } from '../../src/settings';
 import { setCurrent, setRender, setToast } from '../../src/settings/page-state.ts';
 import { moocSettings } from '../../src/platforms/mooc/settings.ts';
 import { button } from '../../src/ui';
-import { inlineSection, sectionTitle } from '../../src/ui/form.ts';
+import type { SettingsSection } from '../../src/platforms/types.ts';
 import { aiSection } from './sections/ai.ts';
 import { scheduleSection } from './sections/schedule.ts';
 
@@ -25,7 +25,7 @@ export interface SettingsView {
 }
 
 /** 分区顺序的规则：各平台自己的分区在前，外壳的通用分区在后。 */
-function sections(): HTMLElement[] {
+function sections(): SettingsSection[] {
   return [...moocSettings.render(), scheduleSection(), aiSection()];
 }
 
@@ -54,10 +54,23 @@ export function mountSettings(toast: (text: string) => void): SettingsView {
 
     for (const section of sections()) {
       const details = document.createElement('sl-details');
-      details.setAttribute('summary', sectionTitle(section));
+      details.id = section.id;
+      details.setAttribute('summary', section.title);
       // 默认展开：设置项是来读的，不是要用户先去点开才知道里面有什么
       details.setAttribute('open', '');
-      details.append(inlineSection(section));
+
+      const body = document.createElement('div');
+      body.className = 'sp-stack';
+
+      /* 分区说明不属于任何控件，因此作为正文第一段；没有就不写空段落。 */
+      if (section.description !== '') {
+        const lede = document.createElement('p');
+        lede.textContent = section.description;
+        body.append(lede);
+      }
+
+      body.append(...section.controls);
+      details.append(body);
       host.append(details);
     }
 

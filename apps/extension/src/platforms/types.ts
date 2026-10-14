@@ -109,11 +109,24 @@ export interface PlatformWiring {
  * 外壳只把它们排进设置页并参与同一套左侧导航。读写配置走 app 层的
  * `src/settings`（外壳与平台共用），因此平台不需要反向依赖外壳。
  */
+/**
+ * 一个设置分区：标题、这一段是干什么的、以及里面的控件。
+ *
+ * 控件自带 label 与 help-text（见 src/ui/form.ts），因此外面不再套一层
+ * 「左标题说明 + 右控件」的自画行——那等于把组件自带的能力重做一遍。
+ */
+export interface SettingsSection {
+  id: string;
+  title: string;
+  description: string;
+  controls: HTMLElement[];
+}
+
 export interface PlatformSettings {
   id: string;
   name: string;
   /** 渲染本平台的设置分区（可多节）。每节须是 `.sp-section`，带 id 与标题 */
-  render(): HTMLElement[];
+  render(): SettingsSection[];
 }
 
 /** 前台半个契约：看板里属于本平台的那一块。 */

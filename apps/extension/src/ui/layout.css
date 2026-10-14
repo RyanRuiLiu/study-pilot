@@ -50,16 +50,7 @@ sl-card {
 }
 
 /* 设置项一行：说明在左、控件在右 */
-.sp-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sl-spacing-medium);
-  padding: var(--sl-spacing-small) 0;
-}
 
-.sp-row-control {
-  flex: none;
-}
 
 /*
  * 概览里的一项：标题占满剩余宽度，类别、状态、补充信息依次靠右。

@@ -7,17 +7,20 @@
 import { sendToBackground } from '../../../browser/messaging';
 import { button } from '../../../ui/form.ts';
 
+/** 这一行说的是登录状态：名目写进文字里，界面上就不必再挂一个自画的标题。 */
+const LOGIN_STATE = '登录状态：读取中';
+
 export function sessionBadge(): HTMLElement {
   const wrap = document.createElement('div');
-  wrap.className = 'sp-session';
+  wrap.className = 'sp-line';
 
   const element = document.createElement('span');
-  element.className = 'sp-session-state';
   element.id = 'session-badge';
-  element.textContent = '读取中';
+  element.textContent = LOGIN_STATE;
+  element.setAttribute('title', '需要登录才能读取你在平台上的课程与作业');
 
   const login = button({ label: '前往登录', href: 'https://www.icourse163.org/', outline: true });
-  login.classList.add('f-dn');
+  login.setAttribute('hidden', '');
 
   const refresh = button({
     label: '刷新',
@@ -25,7 +28,7 @@ export function sessionBadge(): HTMLElement {
     title: '重新向平台核对登录状态，会话可疑时自动尝试恢复',
     onClick: () => {
       refresh.setAttribute('disabled', '');
-      element.textContent = '读取中';
+      element.textContent = LOGIN_STATE;
       void readSessionInto(element, login).finally(() => {
         refresh.removeAttribute('disabled');
       });
@@ -61,12 +64,13 @@ export let syncSessionBadge: (() => void) | null = null;
 async function readSessionInto(el: HTMLElement, login: HTMLElement): Promise<void> {
   try {
     const session = await sendToBackground({ type: 'SESSION' });
-    el.textContent = session.loggedIn ? '已登录' : '未登录';
+    el.textContent = session.loggedIn ? '登录状态：已登录' : '登录状态：未登录';
     // 已登录时不需要跳转入口
-    login.classList.toggle('f-dn', session.loggedIn);
+    if (session.loggedIn) login.setAttribute('hidden', '');
+    else login.removeAttribute('hidden');
   } catch {
-    el.textContent = '读取失败';
-    login.classList.remove('f-dn');
+    el.textContent = '登录状态：读取失败';
+    login.removeAttribute('hidden');
   }
 }
 
