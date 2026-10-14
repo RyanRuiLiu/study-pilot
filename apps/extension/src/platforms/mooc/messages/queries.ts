@@ -76,7 +76,7 @@ export async function handleQuery(
               running: true,
               value: toPendingSummary(
                 plan,
-                settingsForPending.mooc.background.schedule.keepOverdueDays,
+                settingsForPending.schedule.keepOverdueDays,
               ),
             });
             break;
@@ -107,7 +107,7 @@ export async function handleQuery(
               status: 'ok',
               value: toPendingSummary(
                 derivePlan(snapshot, settingsForPending),
-                settingsForPending.mooc.background.schedule.keepOverdueDays,
+                settingsForPending.schedule.keepOverdueDays,
               ),
             });
           } catch (error) {

@@ -16,9 +16,11 @@
 
 import { DEFAULT_AI, type AiSettings } from './ai.ts';
 import { DEFAULT_MOOC, type MoocSettings } from './mooc.ts';
+import { DEFAULT_SCHEDULE, type ScheduleSettings } from './schedule.ts';
 
 export * from './ai.ts';
 export * from './mooc.ts';
+export * from './schedule.ts';
 
 export interface Settings {
   version: number;
@@ -26,6 +28,11 @@ export interface Settings {
   enabled: boolean;
   mooc: MoocSettings;
   ai: AiSettings;
+  /**
+   * 调度（跨平台）：多久检查一次、过期项保留几天。
+   * 从 `mooc.background.schedule` 提升上来，见下面的迁移。
+   */
+  schedule: ScheduleSettings;
 }
 
 /**
@@ -35,9 +42,9 @@ export interface Settings {
  * 补一段迁移——存储里存的是值，没有「用户改过」与「默认填的」之分，
  * 因此默认值的语义变了也要递增。
  *
- * 现在只有 1，所以没有迁移分支：不为还没发生的事写一个永不执行的判断。
+ * 迁移分支只写已经发生过的：每个版本一段，各自只对带旧形状的存量数据生效。
  */
-export const SETTINGS_VERSION = 2;
+export const SETTINGS_VERSION = 3;
 
 export const DEFAULT_SETTINGS: Settings = {
   version: SETTINGS_VERSION,
@@ -50,6 +57,7 @@ export const DEFAULT_SETTINGS: Settings = {
   enabled: true,
   ai: DEFAULT_AI,
   mooc: DEFAULT_MOOC,
+  schedule: DEFAULT_SCHEDULE,
 };
 
 type Json = unknown;
@@ -80,6 +88,39 @@ function migrateGuidanceKey(raw: Json): Json {
 
   const { homeworkAnswers, ...rest } = foregroundRecord;
   return { ...source, mooc: { ...moocRecord, foreground: { ...rest, guidance: homeworkAnswers } } };
+}
+
+/**
+ * 版本 2 → 3 的迁移：调度配置由 `mooc.background.schedule` 提升到顶层。
+ *
+ * 为什么不搬旧值：间隔与保留天数是用户实际调过的（有人会调小间隔、把保留天数设 0），
+ * 不搬就会静默回到默认值——而这两个值直接影响「什么时候发请求」和「还报不报过期项」。
+ */
+function migrateScheduleToTopLevel(raw: Json): Json {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+  const source = raw as Record<string, unknown>;
+  // 已经是新形状：不动它
+  if ('schedule' in source) return raw;
+
+  const mooc = source.mooc;
+  if (mooc === null || typeof mooc !== 'object' || Array.isArray(mooc)) return raw;
+  const moocRecord = mooc as Record<string, unknown>;
+
+  const background = moocRecord.background;
+  if (background === null || typeof background !== 'object' || Array.isArray(background)) {
+    return raw;
+  }
+  const backgroundRecord = background as Record<string, unknown>;
+
+  const legacy = backgroundRecord.schedule;
+  if (legacy === null || typeof legacy !== 'object' || Array.isArray(legacy)) return raw;
+
+  const { schedule: _moved, ...restBackground } = backgroundRecord;
+  return {
+    ...source,
+    schedule: legacy,
+    mooc: { ...moocRecord, background: restBackground },
+  };
 }
 
 /**
@@ -122,7 +163,7 @@ export function mergeWithBase<T>(base: T, patch: Json): T {
  * 一句「提交失败」。这里留空退回默认评语，设置页也标注了这一条。
  */
 export function normalize(raw: Json): Settings {
-  const merged = mergeWithBase(DEFAULT_SETTINGS, migrateGuidanceKey(raw));
+  const merged = mergeWithBase(DEFAULT_SETTINGS, migrateScheduleToTopLevel(migrateGuidanceKey(raw)));
   const review = merged.mooc.background.autoReview;
 
   return {

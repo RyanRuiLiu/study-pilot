@@ -54,3 +54,32 @@ describe('版本 1 → 2 的设置迁移', () => {
     );
   });
 });
+
+/*
+ * 版本 2 → 3：调度配置由 `mooc.background.schedule` 提升到顶层。
+ *
+ * 必须搬旧值：间隔与保留天数是用户实际调过的，不搬就会静默回到默认值，
+ * 而这两个值直接影响「什么时候发请求」和「还报不报过期项」。
+ */
+describe('版本 2 → 3 的设置迁移', () => {
+  const legacy = { version: 2, mooc: { background: { schedule: { checkIntervalMinutes: 7, keepOverdueDays: 0 } } } };
+
+  it('旧位置的调度值搬到顶层，用户调过的值不丢', () => {
+    const settings = normalize(legacy);
+    expect(settings.schedule).toEqual({ checkIntervalMinutes: 7, keepOverdueDays: 0 });
+    expect('schedule' in settings.mooc.background).toBe(false);
+  });
+
+  it('顶层已有调度配置时以它为准', () => {
+    const settings = normalize({
+      ...legacy,
+      schedule: { checkIntervalMinutes: 11, keepOverdueDays: 5 },
+    });
+    expect(settings.schedule).toEqual({ checkIntervalMinutes: 11, keepOverdueDays: 5 });
+  });
+
+  it('没有旧键时用默认值', () => {
+    expect(normalize({}).schedule).toEqual(DEFAULT_SETTINGS.schedule);
+    expect(normalize(null).schedule.checkIntervalMinutes).toBe(30);
+  });
+});

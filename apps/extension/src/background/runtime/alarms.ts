@@ -29,7 +29,7 @@ const ALARM_NAME = 'study-pilot-check';
 export async function ensureAlarm(): Promise<void> {
   try {
     const settings = await getSettings();
-    const minutes = settings.mooc.background.schedule.checkIntervalMinutes;
+    const minutes = settings.schedule.checkIntervalMinutes;
     await browser.alarms.clear(ALARM_NAME);
     browser.alarms.create(ALARM_NAME, { periodInMinutes: minutes });
   } catch {

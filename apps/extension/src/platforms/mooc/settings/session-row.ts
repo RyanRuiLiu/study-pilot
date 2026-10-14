@@ -4,9 +4,7 @@
  * 从明细区再分出：两者没有共用状态，唯一的关系是都显示在设置页顶部。
  * syncSessionBadge 随之留在这里——它由渲染登录行时赋值。
  */
-import { getSettings } from '../../../settings';
 import { sendToBackground } from '../../../platform/messaging';
-import { describeRunState } from '../../../background/runtime/scheduler';
 import { button } from '../../../ui/form.ts';
 
 export function sessionBadge(): HTMLElement {
@@ -72,27 +70,3 @@ async function readSessionInto(el: HTMLElement, login: HTMLElement): Promise<voi
   }
 }
 
-/**
- * 上次运行时间。
- *
- * 显示的是最近一次检查完成的时刻，不是「下次什么时候执行」——
- * 后者取决于用户何时打开浏览器以及 30 分钟的定时器，给不出确切时间。
- * 而「上次什么时候跑过」是可回答的，也正是用户想确认的：
- * 它到底有没有在工作。
- */
-export function lastRunHint(): HTMLElement {
-  const el = document.createElement('span');
-  el.className = 'sp-hint';
-  el.id = 'last-run-hint';
-  el.textContent = '读取中';
-
-  void Promise.all([getSettings(), sendToBackground({ type: 'TASK_STATE' })])
-    .then(([settings, status]) => {
-      el.textContent = settings.enabled ? describeRunState(status.state) : 'Study Pilot 已停用';
-    })
-    .catch(() => {
-      el.textContent = '读取失败';
-    });
-
-  return el;
-}
