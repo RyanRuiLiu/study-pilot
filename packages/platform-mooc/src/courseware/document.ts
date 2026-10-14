@@ -6,7 +6,7 @@
  * index, pageNum, lastLearnTime, learnedVideoTimeCount: 距上次上报的秒数}`。
  * 平台据此得到「浏览时长」与进度（进度 = 当前页 ÷ 总页数）。
  *
- * 实测（docs/platforms/mooc.md 第 12.4 节）：
+ * 实测：
  *   - 进度确实按页码推进：报第 1 页 → 1/7，报第 7 页 → 7/7；
  *   - `learnedVideoTimeCount` 记的是**上报的秒数**，不是真实间隔——
  *     7 页各报 30 秒、真实只花 20 秒，平台记为 4 分钟。

@@ -34,7 +34,7 @@ import { createThrottle, type Throttle } from './throttle.ts';
 
 /**
  * 平台响应信封。
- * 字段取自实测的响应结构（抓取产物不入库，结论记在 docs/platforms/mooc.md）。
+ * 字段取自实测的响应结构（抓取产物不入库）。
  */
 export interface RpcEnvelope<T = unknown> {
   code: number;

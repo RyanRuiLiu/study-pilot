@@ -79,7 +79,7 @@ function toSummary(raw: RawCourse): CourseSummary {
  * 课程列表的未登录形态判定，getCourses 与 getCoursesWithTrace 共用。
  *
  * 内层 result 为 `null` 时平台在说「我不认得你」；空数组才是
- * 「认得，但确实没有课程」（实测 2026-10-03，见 docs/platforms/mooc.md 3.1）。
+ * 「认得，但确实没有课程」（实测 2026-10-03）。
  * 吞掉 null 当空列表，失效会话就会被上层当成「确实没有课程」。
  */
 function authedCourseList(
