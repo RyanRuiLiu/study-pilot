@@ -31,24 +31,33 @@
 ## 目录
 
     packages/
-      core/          小工具（md5 等）
-      transport/     慕课 DWR 传输：签名、请求、错误分类
-      platform-mooc/ 慕课接口：读课程/作业/测验、取卷、完成上报、评分
+      core/          小工具（md5、Result 等）
+      transport/     慕课 DWR 传输：签名、请求、错误分类、节流
+      platform-mooc/ 慕课一个包，两半：接口层（读课程/作业/测验、取卷、提交、评分）
+                     与策略层 policy/（会话、读取、计划、执行）
+      application/   载体无关的应用层：模型、端口、配置（纯逻辑，不碰浏览器/存储）
       ai/            OpenAI 兼容接口（讨论区留言用，可选）
-    apps/extension/  浏览器扩展
-      src/background/ 调度与路由（跑什么、什么时候跑）
-      src/platforms/  平台装配（把 platform-mooc 接进后台）
-      src/browser/    扩展能力：消息、请求头改写、运行状态推送
-      src/settings/   配置读写
-      entrypoints/    弹窗与主页面
-      test/           测试
+    apps/extension/  载体一：浏览器扩展
+      src/adapters/   慕课的消息与视图适配器、本厂商的装配点
+      src/background/ 调度与路由（跑什么、什么时候跑）、运行状态、定时
+      src/browser/    宿主能力：cookie、请求头改写、运行状态推送
+      src/settings/   配置落到浏览器存储（形状与规范化在 packages/application）
+      src/ai/         AI 用例：提示词与生成器（把 packages/ai 接给策略层）
+      src/ui-bridge.ts  界面唯一的取数入口
+      entrypoints/    后台装配与弹窗/设置页
+      test/           测试（boundaries.test.ts 是分层的机械核对）
 
-## 唯一的约定
+## 边界与唯一的约定
 
-**界面只经 src/ui-bridge.ts 访问核心**，不许 import src/platforms、src/background、
+**界面只经 src/ui-bridge.ts 访问核心**，不许 import src/adapters、src/background、
 src/browser、src/settings。这是"界面可以换人重写、核心可以独立跑"的全部地基。
 
-写操作只允许出现在 src/background/ 与 src/platforms/ 里；考试提交永远由人触发。
+分层边界不止这一条，其余写在 `apps/extension/test/boundaries.test.ts` 里，跑
+`pnpm -r test` 就会核对（6 条）：包内不出现 browser/wxt；包的相对 import 不许跑出本包；
+应用层不认识任何厂商；厂商适配器不直接用宿主全局；各载体之间互不依赖；文件级循环为 0。
+
+改平台数据的写操作只在 packages/* 的执行面与触发它的 src/{background,adapters}/ 里发生；
+考试提交永远由人触发。
 
 ## 数据从哪来
 
