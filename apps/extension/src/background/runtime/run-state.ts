@@ -4,7 +4,7 @@
  * 每一步该记什么在 @study-pilot/application 的 progress.ts（纯函数）。这里只有：
  *   1. 实现 ProgressPort：读一份、写一份并推给已打开的页面；
  *   2. 接界面端口（谁在看就推给谁）；
- *   3. 留几个顺手方法，供执行面按顺序调用。
+ *   3. 给界面留一个读口（端口建立时先回一份）。
  *
  * 界面端口用结构声明：@wxt-dev/browser 没有导出可用的端口类型名，而这里只用到
  * 两个成员，按结构声明比硬凑一个命名空间路径更准。
@@ -16,16 +16,7 @@ interface RunStatePort {
   onDisconnect: { addListener(listener: () => void): void };
 }
 
-import {
-  EMPTY_PROGRESS,
-  beginPlatform as migrateBeginPlatform,
-  completeItem as migrateCompleteItem,
-  enterItem as migrateEnterItem,
-  finishPlatform as migrateFinishPlatform,
-  type ProgressPort,
-  type RunItemStatus,
-  type RunState,
-} from '@study-pilot/application';
+import { EMPTY_PROGRESS, type ProgressPort, type RunState } from '@study-pilot/application';
 import { KEYS } from '../../keys.ts';
 import { RUN_STATE_PORT } from '../../protocol.ts';
 
@@ -43,13 +34,13 @@ async function read(): Promise<RunState> {
  */
 const ports = new Set<RunStatePort>();
 
-/** 落盘并推送。每个变更函数都以它收尾，保证「看到的」与「存下的」是同一份。 */
+/** 落盘并推送。应用层每变一次都经过它，保证「看到的」与「存下的」是同一份。 */
 async function publish(state: RunState): Promise<void> {
   await browser.storage.local.set({ [KEY]: state });
   for (const port of ports) port.postMessage(state);
 }
 
-/** 进度端口：应用层与厂商适配器通过它读写，不直接碰存储。 */
+/** 进度端口：应用层通过它读写，不直接碰存储。 */
 export const progressStore: ProgressPort = { snapshot: read, publish };
 
 /** 供界面取当前状态（端口建立时先回一份，之后靠推送）。 */
@@ -65,36 +56,4 @@ export function attachRunStatePort(port: RunStatePort): void {
     ports.delete(port);
   });
   void getRunState().then((state) => port.postMessage(state));
-}
-
-/** 开始一个平台的一轮：总数先落定，界面立刻能显示「0 / 7」。 */
-export async function beginPlatform(id: string, name: string, total: number, now: number): Promise<void> {
-  await publish(migrateBeginPlatform(await read(), { id, name }, total, now));
-}
-
-/** 当前项变了：先记上一条的终态，再写下正在做的这一条。 */
-export async function enterItem(
-  id: string,
-  name: string,
-  item: { course: string; title: string },
-  now: number,
-): Promise<void> {
-  await publish(migrateEnterItem(await read(), { id, name }, item, now));
-}
-
-/** 一项做完：把那条 running 换成终态，并把计数加一。 */
-export async function completeItem(
-  id: string,
-  name: string,
-  item: { course: string; title: string },
-  status: Exclude<RunItemStatus, 'running'>,
-  detail: string,
-  now: number,
-): Promise<void> {
-  await publish(migrateCompleteItem(await read(), { id, name }, item, status, detail, now));
-}
-
-/** 一个平台跑完：换回空闲。 */
-export async function finishPlatform(id: string, name: string): Promise<void> {
-  await publish(migrateFinishPlatform(await read(), { id, name }));
 }

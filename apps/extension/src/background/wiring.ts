@@ -2,29 +2,28 @@
  * 后台的启动装配：安装时建定时器、总开关变化时同步、启动与闹钟触发执行、
  * 以及登录状态变化时的处理。
  *
- * 从 entrypoints/background.ts 移出（它原本在 autoRun 之后）。主体原样搬运，
- * 开头把 deps 解构成同名局部变量。
+ * 触发属于载体：什么时候该跑是这里的知识（浏览器启动、定时、登录后补跑）。
+ * 「跑一轮」本身不在这里——它是 @study-pilot/application 的 runRound 用例，
+ * 装配层把接好端口的 runner 交进来。
  */
 
 import { clearAlarm, ensureAlarm, isCheckAlarm } from './runtime/alarms';
 import { watchSettings } from '../settings';
 import { getTaskState } from './runtime/task-state';
-import type { PlatformTasks, PlatformWiring } from '@study-pilot/application';
-import { autoRun } from './run-tasks.ts';
+import type { PlatformWiring } from '@study-pilot/application';
 
 /**
- * 装配只需要「有哪些平台」与「各平台的信号」。
- * 装配层知道平台清单，调度层与外壳都不认识它们。
+ * 装配需要「跑一轮」这个动作，与「各平台的信号」。
+ * 载体不认识平台实例是谁造的，也不认识平台名字。
  */
 export interface WiringDeps {
-  platforms: () => PlatformTasks[];
+  /** 跑一轮（自动）。返回的结局没人等，失败由用例自己记进状态 */
+  runRound: () => Promise<unknown>;
   /** 各平台的信号（登录凭证 cookie）。外壳按清单遍历，不认平台名字 */
   wiring: PlatformWiring[];
 }
 
 export function registerBackgroundWiring(deps: WiringDeps): void {
-  // 要跑哪些平台由装配层给出（调度层不认识它们）；实例由各平台的工厂现建
-  const runOnce = (): Promise<void> => autoRun({ platforms: deps.platforms });
   /*
    * 周期检查：安装时建一次。
    *
@@ -40,7 +39,7 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
    * 总开关变化时同步定时器。
    *
    * 关掉总开关之后不该再有后台活动，包括这个定时空转。
-   * autoRun 进来会检查开关并立刻返回，所以空转本身无害；
+   * runRound 进来会检查开关并立刻返回，所以空转本身无害；
    * 但一个「已关闭却仍在定时唤醒」的扩展会让用户怀疑它到底停了没有，
    * 而定时器的建与清本来就是一句话的事。
    */
@@ -52,13 +51,13 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
   /*
    * 浏览器启动时检查一次。
    *
-   * `autoRun` 自己把失败记进运行状态（见 run-tasks.ts），因此这里不需要
-   * `.catch`：从前那两个吞掉异常的 catch 是「后台静默失败」的最后一环——
-   * 抛出来没人接，接了也不说，用户只能看到「今天什么都没发生」。
+   * 用例自己把失败记进状态，因此这里不需要 `.catch`：从前那两个吞掉异常的
+   * catch 是「后台静默失败」的最后一环——抛出来没人接，接了也不说，
+   * 用户只能看到「今天什么都没发生」。
    */
   browser.runtime.onStartup.addListener(() => {
     void ensureAlarm();
-    void runOnce();
+    void deps.runRound();
   });
 
   /*
@@ -68,12 +67,12 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
    * 没有它，界面只能说「下次启动浏览器时处理」——而用户会问
    * 做作业不该依赖重启浏览器。
    *
-   * 间隔见 alarms.ts。监听器本身不做判断，交给 autoRun：
-   * 它自己会看总开关、是否正在执行、有没有登录、以及值不值得拉取。
+   * 间隔见 alarms.ts。监听器本身不做判断，交给用例：
+   * 它自己会看总开关、是否正在执行、有没有登录。
    */
   browser.alarms.onAlarm.addListener((alarm) => {
     if (!isCheckAlarm(alarm)) return;
-    void runOnce();
+    void deps.runRound();
   });
 
   /**
@@ -99,14 +98,11 @@ export function registerBackgroundWiring(deps: WiringDeps): void {
       if (change.removed) return;
       const state = await getTaskState();
       if (!state.awaitingLogin) return;
-      await runOnce();
+      await deps.runRound();
     })();
   });
 
   /*
-   * 消息路由在 src/background/messages/router.ts。
-   *
-   * 传进去的是入口创建的那些东西（客户端、会话续期、快照读取）；
-   * 路由本身不认识它们的来历。
+   * 消息路由在 src/background/messages/router.ts。它拿到的是同一张处理器表与同一个 runner。
    */
 }

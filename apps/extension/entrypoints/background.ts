@@ -18,7 +18,9 @@ import { whenNetRulesReady } from '../src/browser/net-rules';
 
 import { liveRunState } from '@study-pilot/application';
 import { getTaskState, recordRunFailure } from '../src/background/runtime/task-state';
-import { attachRunStatePort } from '../src/background/runtime/run-state';
+import { attachRunStatePort, progressStore } from '../src/background/runtime/run-state';
+import { taskStore } from '../src/background/runtime/task-state';
+import { createRunner } from '@study-pilot/application';
 import { registerMessageHandler } from '../src/background/messages/router';
 import { createMoocPlatform } from '../src/adapters/mooc/platform.ts';
 import { browserCapabilities } from '../src/browser/capabilities.ts';
@@ -98,9 +100,19 @@ export default defineBackground(() => {
    * 传进各模块后，它们不认识这些值的来历；入口只负责把它们配好。
    */
 
-  registerMessageHandler({
-    handlers: mooc.handlers,
+  /*
+   * 「跑一轮」用例 + 本载体的三个端口实现。
+   *
+   * 触发器（启动、闹钟、登录）、消息路由拿到的是同一个 runner：谁都不认识存储，
+   * 也不认识平台实例是谁造的。平台实例每次现建，本轮状态不跨轮残留。
+   */
+  const runner = createRunner({
     platforms: () => [mooc.tasks()],
+    config: configStore,
+    tasks: taskStore,
+    progress: progressStore,
   });
-  registerBackgroundWiring({ platforms: () => [mooc.tasks()], wiring: [mooc.wiring] });
+
+  registerMessageHandler({ handlers: mooc.handlers, runner });
+  registerBackgroundWiring({ runRound: () => runner.runRound('auto'), wiring: [mooc.wiring] });
 });
