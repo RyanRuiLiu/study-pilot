@@ -8,7 +8,8 @@
   "scripts": {
     "build": "esbuild src/main.ts --bundle --platform=node --format=esm --outfile=dist/main.mjs",
     "start": "node src/main.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@study-pilot/application": "workspace:*",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@types/node": "20.19.43",
     "esbuild": "0.25.12",
+    "vitest": "5.0.4",
     "typescript": "^7.0.2"
   }
 }

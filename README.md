@@ -31,12 +31,15 @@
 装到浏览器：chrome://extensions → 开发者模式 → 加载已解压的扩展程序 →
 选 apps/extension/.output/chrome-mv3。
 
-命令行载体（第二个载体，只读，用来证明核心不依赖扩展）：
+命令行载体（第二个载体；courses / pending 只读，run 默认预演）：
 
     node apps/cli/src/main.ts courses --cookies .probe/mooc-session.json --config .probe/cli-config.json
         # 去平台读课程列表；加 --select <termId> 把它勾上并写进配置文件
     node apps/cli/src/main.ts pending --cookies .probe/mooc-session.json --config .probe/cli-config.json
         # 读一遍并算出要做什么（可自动 / 需人工），不改平台上的任何数据
+    node apps/cli/src/main.ts run --cookies .probe/mooc-session.json --config .probe/cli-config.json
+        # 预演这一轮会做什么；**加 --yes 才真的执行**——写平台会改账号上的学习记录且不可撤销，
+        # 所以默认只摆出来，动手必须显式授权（扩展那边等价的是用户点按钮）
 
 直接跑 TS 即可：Node 22+ 会剥掉类型，而包内的相对导入都带 .ts 扩展名，因此不经打包也能加载。
 要单文件分发时再打包：pnpm --filter @study-pilot/cli build → apps/cli/dist/main.mjs（esbuild）。
