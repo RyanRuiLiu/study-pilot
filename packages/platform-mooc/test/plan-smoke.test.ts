@@ -62,7 +62,7 @@ function course(): SnapshotCourse {
     works: [
       work(1),
       work(2, { submitted: true, reviewable: true, evaluateDone: 1, evaluateTotal: 3 }),
-      // 考试只能人工处理（扩展不代提交），因此它会进「需要你处理」并出现在通知里
+      // 考试只能人工处理（扩展不代提交），因此它会进「需要你处理」显示在界面上
       work(3, { type: 'exam-objective', name: '期中考试', deadline: NOW + 3 * HOUR }),
     ],
     units: [unit(1, 1), unit(2, 0.4)],
@@ -75,19 +75,8 @@ const snapshot: Snapshot = {
 
 describe('Node 里跑核心逻辑', () => {
   it('不碰浏览器也能算出计划', () => {
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      enabled: true,
-      mooc: {
-        ...DEFAULT_SETTINGS.mooc,
-        background: {
-          ...DEFAULT_SETTINGS.mooc.background,
-          autoCourseware: { enabled: true },
-          autoQuiz: { enabled: true },
-          autoReview: { enabled: true, comment: 'x' },
-        },
-      },
-    };
+    // 默认设置即可：能力开关已经不在了，能做的都会排进来
+    const settings = DEFAULT_SETTINGS;
 
     const original = (globalThis as { browser?: unknown }).browser;
     (globalThis as { browser?: unknown }).browser = new Proxy(

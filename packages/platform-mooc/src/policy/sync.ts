@@ -164,9 +164,7 @@ export async function refreshCourses(client: MoocClient, config: ConfigPort): Pr
 
   await config.update({
     mooc: {
-      background: {
-        courses: mergeCourses(settings.mooc.background.courses, courses),
-      },
+      courses: mergeCourses(settings.mooc.courses, courses),
     },
   });
 

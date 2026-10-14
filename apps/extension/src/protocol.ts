@@ -27,20 +27,11 @@ export interface TaskState {
   /** 最近一次正常结束的时间 */
   lastFinishedAt: number | null;
   /**
-   * 本轮因未登录而挂起，等待登录后补执行。
+   * 上一次执行留下、还没被说清楚的失败原因；null 表示没有。
    *
-   * 平台的登录凭证是会话级 cookie，关闭浏览器即失效。
-   * 而触发时机恰是「浏览器启动」，那一刻用户通常还没登录，因此不能
-   * 简单地跳过——那会让这一次执行机会白等到明天。这里记下挂起标记，
-   * 登录后立刻补执行。
-   */
-  awaitingLogin: boolean;
-  /**
-   * 上一轮自动执行的失败原因；null 表示没有未交代清楚的失败。
-   *
-   * 后台一轮跑在 service worker 里，出错时既没有控制台可看（生产构建把 console
-   * 换成空函数），也没有弹窗可等。不把这个记下来，「今天什么都没做」与
-   * 「今天试了但失败了」在界面上长得一模一样。
+   * 后台跑在 service worker 里，出错时既没有控制台可看（生产构建把 console
+   * 换成空函数），也没有弹窗可等。不把这个记下来，「什么都没做」与
+   * 「试了但失败了」在界面上长得一模一样。
    *
    * 一轮正常结束时由 `finishRun` 清掉：失败已经被这一轮的结果取代了。
    */
@@ -48,7 +39,7 @@ export interface TaskState {
 }
 
 /** 后台此刻处于哪种状态。 */
-export type LiveRunState = 'idle' | 'running' | 'interrupted' | 'awaiting-login';
+export type LiveRunState = 'idle' | 'running' | 'interrupted';
 
 
 
@@ -70,8 +61,6 @@ export type QueryOutcome<T> =
 /** 任务被拒绝的原因。后台自行校验，前台的检查只是提前提示。 */
 export type JobRejection =
   | 'FETCH_FAILED'
-  | 'DISABLED_GLOBAL'
-  | 'DISABLED_TASK'
   | 'NO_SELECTED_COURSE'
   | 'NOT_LOGGED_IN'
   | 'ALREADY_RUNNING'
@@ -82,8 +71,6 @@ export const RUN_STATE_PORT = 'run-state';
 
 /** 拒绝原因对应的用户可读说明（对这个联合是穷尽的）。 */
 export const REJECTION_MESSAGES: Record<JobRejection, string> = {
-  DISABLED_GLOBAL: '总开关已关闭，请先在设置中启用',
-  DISABLED_TASK: '没有开启任何后台任务，请先在设置中打开至少一项',
   NO_SELECTED_COURSE: '没有可执行的课程，请先选择参与任务的课程',
   NOT_LOGGED_IN: '尚未登录，请先在浏览器里登录课程平台的账号',
   ALREADY_RUNNING: '正在执行，请稍后再试',

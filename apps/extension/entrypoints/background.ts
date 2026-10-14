@@ -1,42 +1,29 @@
 /**
  * 扩展后台（Service Worker）。
  *
- * 本文件只做装配：创建客户端、注册消息路由与启动触发。
- * 任务逻辑位于 `src/background/`，配置门禁由任务自身强制。
+ * 本文件只做装配：创建平台、注册消息路由与运行状态推送通道。
+ * 任务逻辑位于 `src/background/` 与各平台。
  *
- * 运行模型：浏览器启动时与定时检查时各跑一轮，登录后补跑一次——触发都写在
- * `src/background/wiring.ts`。判据与「跑一轮」的流程在 @study-pilot/application
- * （state.ts 判「此刻能不能开始」，round.ts 是那个用例）。
+ * 运行模型：只有人点按钮时才执行（弹窗的「立即执行」、设置页的「快速完成」、
+ * 命令行的 run）——这里没有任何自动触发，没有闹钟，也没有定时检查。
+ * 「此刻能不能开始」与「跑一轮」的流程在 @study-pilot/application
+ * （state.ts 是判据，round.ts 是用例）。
  */
 
-
-
-
-
-import { ensureAlarm } from '../src/background/runtime/alarms';
-import { whenNetRulesReady } from '../src/browser/net-rules';
-
-
-import { liveRunState } from '@study-pilot/application';
-import { getTaskState, recordRunFailure } from '../src/background/runtime/task-state';
-import { attachRunStatePort, progressStore } from '../src/background/runtime/run-state';
-import { taskStore } from '../src/background/runtime/task-state';
-import { createRunner } from '@study-pilot/application';
-import { registerMessageHandler } from '../src/background/messages/router';
+import { createRunner, liveRunState } from '@study-pilot/application';
 import { createMoocPlatform } from '../src/adapters/mooc/platform.ts';
+import { whenNetRulesReady } from '../src/browser/net-rules';
 import { browserCapabilities } from '../src/browser/capabilities.ts';
+import { registerMessageHandler } from '../src/background/messages/router';
+import { attachRunStatePort, progressStore } from '../src/background/runtime/run-state';
+import { getTaskState, recordRunFailure, taskStore } from '../src/background/runtime/task-state';
 import { configStore } from '../src/settings';
-import { registerBackgroundWiring } from '../src/background/wiring';
-
-
-
-
 
 export default defineBackground(() => {
   /*
    * 平台。外壳只调工厂，不碰平台的内部实现（read / plan / execute / 处理器）。
    *
-   * 将来加第二个平台：再调一次它自己的工厂，把它并进 handlers、wiring 与 platforms 清单。
+   * 将来加第二个平台：再调一次它自己的工厂，把它并进 handlers 与 platforms 清单。
    */
   const mooc = createMoocPlatform({
     host: browserCapabilities,
@@ -70,19 +57,6 @@ export default defineBackground(() => {
      */
     void whenNetRulesReady(mooc.wiring.requestRules);
 
-    /*
-     * 周期检查的安装时机有三个，缺一个都会漏：
-     *
-     *   onInstalled   装好扩展的那一刻。此时浏览器不会重启，
-     *                 onStartup 不会触发，不定时器就永远建不起来
-     *   onStartup     每次浏览器启动。重建一次，顺带修正可能被清掉的定时器
-     *   这里          后台被唤醒时。MV3 的 service worker 会被回收再拉起，
-     *                 拉起后内存里的东西都没了，而定时器本身是持久的，
-     *                 所以这里只是兜底
-     *
-     * ensureAlarm 是幂等的（先清后建），重复调用没有副作用。
-     */
-    void ensureAlarm();
     // 运行状态的推送通道：页面打开时连上，关掉时自动断开，不需要轮询
     browser.runtime.onConnect.addListener(attachRunStatePort);
   } catch (error) {
@@ -90,30 +64,22 @@ export default defineBackground(() => {
      * 监听器一个都没注册上时，唯一能看见这件事的地方是界面。
      *
      * 生产构建把 console 换成空函数，所以这里不能只打印：失败记进运行状态，
-     * 由弹窗如实显示（判据与自动执行的失败共用同一条 `lastError`）。
+     * 由弹窗如实显示（与「上一次执行出错」共用同一条 `lastError`）。
      */
     void recordRunFailure(error instanceof Error ? error.message : String(error));
   }
 
   /*
-   * 客户端与其余协作方。
+   * 「跑一轮」用例 + 本载体的两个端口实现。
    *
-   * 传进各模块后，它们不认识这些值的来历；入口只负责把它们配好。
-   */
-
-  /*
-   * 「跑一轮」用例 + 本载体的三个端口实现。
-   *
-   * 触发器（启动、闹钟、登录）、消息路由拿到的是同一个 runner：谁都不认识存储，
-   * 也不认识平台实例是谁造的。平台实例每次现建，本轮状态不跨轮残留。
+   * 消息路由拿到的是这个 runner：它不认识存储，也不认识平台实例是谁造的。
+   * 平台实例每次现建，本轮状态不跨轮残留。
    */
   const runner = createRunner({
     platforms: () => [mooc.tasks()],
-    config: configStore,
     tasks: taskStore,
     progress: progressStore,
   });
 
   registerMessageHandler({ handlers: mooc.handlers, runner });
-  registerBackgroundWiring({ runRound: () => runner.runRound('auto'), wiring: [mooc.wiring] });
 });

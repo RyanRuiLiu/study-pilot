@@ -16,7 +16,7 @@ import { ensureSession, SessionExpiredError } from './session.ts';
 import { withSessionRecovery } from './recovery.ts';
 import type { PlanItem, PlanResult, PlatformTasks, RunOutcome } from '@study-pilot/application';
 import { executeActions } from './execute/index.ts';
-import { derivePlan, type Plan } from './plan/index.ts';
+import { derivePlan, type ManualItem, type Plan } from './plan/index.ts';
 import type { InspectCourse, Snapshot } from './read/index.ts';
 
 /** 平台跑一轮需要的外界能力。全由入口创建后注入，平台自己不碰浏览器全局。 */
@@ -54,6 +54,23 @@ function titleOf(action: Plan['auto'][number]): string {
   return action.kind === 'courseware' ? action.unit.name : action.work.name;
 }
 
+/**
+ * 人工项的原因 → 核心要的类别字符串。
+ *
+ * 与自动项的 kind 取同一套词：界面按类别筛执行范围、按类别算「待你处理」的
+ * 计数，两半必须是同一个意思——否则「只做待办那几类」会漏掉人工项，
+ * 数字也会对不上。
+ */
+const MANUAL_KINDS: Record<ManualItem['reason'], string> = {
+  'homework-unsubmitted': 'homework',
+  'homework-overdue': 'homework',
+  'quiz-overdue': 'quiz',
+  'review-overdue': 'review',
+  'self-overdue': 'self',
+  exam: 'exam',
+  'exam-overdue': 'exam',
+};
+
 /** 计划 → 调度层的项。做法与顺序都是慕课自己的判断，调度层只挑 auto 的执行。 */
 function toItems(plan: Plan): PlanItem[] {
   return [
@@ -62,6 +79,7 @@ function toItems(plan: Plan): PlanItem[] {
       group: action.course.courseName,
       title: titleOf(action),
       mode: 'auto' as const,
+      kind: action.kind,
       payload: action,
     })),
     ...plan.manual.map((item) => ({
@@ -69,6 +87,7 @@ function toItems(plan: Plan): PlanItem[] {
       group: item.course.courseName,
       title: item.work.name,
       mode: 'manual' as const,
+      kind: MANUAL_KINDS[item.reason],
       payload: item,
     })),
   ];
@@ -142,7 +161,7 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
         deps.client,
         [action as Parameters<typeof executeActions>[1][number]],
         session.userId,
-        settings.mooc.background.autoReview.comment,
+        settings.mooc.reviewComment,
         heartbeat,
         deps.coursewareContext(settings),
       );

@@ -41,8 +41,8 @@ export { WORK_STATUS } from './adapters/mooc/messages/payload.ts';
 
 /** 外壳自己的命令。 */
 export type ShellRequest =
-  /** 手动执行一轮 */
-  | { type: 'RUN_SCHEDULED_TASKS' }
+  /** 执行一轮。kinds / group 是范围（见 application 的 RunSelection），不给就是全部 */
+  | { type: 'RUN_SCHEDULED_TASKS'; kinds?: string[]; group?: string }
   /** 后台此刻在不在跑、上一轮记下的失败 */
   | { type: 'TASK_STATE' }
   /** 运行状态快照（进度与逐项记录） */

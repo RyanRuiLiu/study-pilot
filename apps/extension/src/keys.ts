@@ -13,6 +13,4 @@ export const KEYS = {
   taskState: 'study-pilot:task-state',
   /** 运行状态（进度与逐项记录） */
   runState: 'study-pilot:run-state',
-  /** 定时检查的闹钟名 */
-  checkAlarm: 'study-pilot-check',
 } as const;

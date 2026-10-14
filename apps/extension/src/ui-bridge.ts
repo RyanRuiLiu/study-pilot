@@ -69,13 +69,17 @@ export function getRunState() {
  * 三个回调都由界面决定怎么显示：状态文字、按钮可用性、结束后要不要重读数据。
  * 写入只发生在后台（见 README 的约定），界面只是发起。
  */
-export function runNow(handlers: {
-  setStatus: (text: string, tone: 'idle' | 'busy' | 'error') => void;
-  setEnabled: (enabled: boolean) => void;
-  /** 结束后要不要重读数据；界面里是同步的一行也允许 */
-  refresh: () => void | Promise<void>;
-}): Promise<void> {
-  return runOnce({ ...handlers, refresh: async () => handlers.refresh() });
+export function runNow(
+  handlers: {
+    setStatus: (text: string, tone: 'idle' | 'busy' | 'error') => void;
+    setEnabled: (enabled: boolean) => void;
+    /** 结束后要不要重读数据；界面里是同步的一行也允许 */
+    refresh: () => void | Promise<void>;
+  },
+  /** 执行范围：类别与课程。课件区给 kinds: ['courseware'] 与某一门课；不给表示全部 */
+  scope?: { kinds?: string[]; group?: string },
+): Promise<void> {
+  return runOnce({ ...handlers, refresh: async () => handlers.refresh() }, scope);
 }
 
 /** 订阅运行状态推送。返回退订函数。 */

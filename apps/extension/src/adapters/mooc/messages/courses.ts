@@ -13,7 +13,7 @@ export function coursesCommand(): MessageHandler {
   return async (_request, sendResponse) => {
     const settings = await getSettings();
     sendResponse(
-      settings.mooc.background.courses.map((course) => ({
+      settings.mooc.courses.map((course) => ({
         courseId: 0,
         name: course.name,
         termId: course.termId,
