@@ -6,7 +6,7 @@
  * 判据变化改这里。对外仍从 `structure.ts` 导出，导入方不必改。
  */
 
-import type { CourseWork, WorkStatus } from './types.ts';
+import type { CourseWork, WorkFlags } from './types.ts';
 
 /**
  * 由 `test` 字段派生状态。
@@ -25,7 +25,7 @@ import type { CourseWork, WorkStatus } from './types.ts';
  *
  *   - 考试的 `trytime` 相当于作业的 `totalTryCount`，同义不同名。
  */
-export function deriveStatus(work: CourseWork, now: number = Date.now()): WorkStatus {
+export function deriveStatus(work: CourseWork, now: number = Date.now()): WorkFlags {
   const test = work.test;
   const start = test.evaluateStart ?? null;
   const end = test.evaluateEnd ?? null;

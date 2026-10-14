@@ -1,0 +1,124 @@
+/*
+ * 结构层：只有布局，没有外观。
+ *
+ * 外观一律是 Shoelace 官方主题（themes/light.css）给的那一份：颜色、圆角、阴影、
+ * 控件尺寸、间距尺度都不在这里改写。整个文件没有任何色值，也没有任何
+ * `::part()` 覆盖——只处理组件库不提供的那两件事：
+ *   1. 把文档本身的字体与底色接到官方令牌上（否则页面是 16px 衬线 + 白底）；
+ *   2. 表格与弹性排布。Shoelace 没有表格组件，也没有布局组件。
+ */
+
+body {
+  margin: 0;
+  background: var(--sl-color-neutral-100);
+  color: var(--sl-color-neutral-900);
+  font-family: var(--sl-font-sans);
+  font-size: var(--sl-font-size-small);
+}
+
+/* sl-card 默认 inline-block，页面里的卡片要占满一行 */
+sl-card {
+  display: block;
+}
+
+/* ---------- 排布 ---------- */
+
+.sp-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sl-spacing-medium);
+}
+
+.sp-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sl-spacing-small);
+}
+
+.sp-fill {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- 表格 ---------- */
+
+.sp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sl-font-size-small);
+}
+
+.sp-table th,
+.sp-table td {
+  padding: var(--sl-spacing-x-small) var(--sl-spacing-small);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: var(--sl-panel-border-width) solid var(--sl-panel-border-color);
+  overflow-wrap: anywhere;
+}
+
+.sp-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0;
+  background: var(--sl-color-neutral-50);
+  text-align: left;
+}
+
+.sp-table thead th sl-button::part(base) {
+  width: 100%;
+  justify-content: inherit;
+}
+
+.sp-table th.num,
+.sp-table td.num {
+  text-align: right;
+}
+
+.sp-table tbody tr:hover {
+  background: var(--sl-color-neutral-50);
+}
+
+/*
+ * 概览那张表定宽：列的位置不随内容长短跳动。
+ * 剩下的空间给「项目」——它是唯一需要读完整的字段。
+ */
+.sp-table-fixed {
+  table-layout: fixed;
+}
+
+.sp-table-fixed th[data-key="course"] {
+  width: 15%;
+}
+
+.sp-table-fixed th[data-key="kind"],
+.sp-table-fixed th[data-key="mode"] {
+  width: 9%;
+}
+
+.sp-table-fixed th[data-key="state"] {
+  width: 17%;
+}
+
+.sp-table-fixed th[data-key="dueAt"],
+.sp-table-fixed th[data-key="score"] {
+  width: 12%;
+}
+
+/* ---------- 设置项 ---------- */
+
+/*
+ * 一行设置项：左边名称与说明，右边控件。
+ * 名称与说明的文字外观走浏览器默认（strong / small），这里只摆放位置。
+ */
+.sp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sl-spacing-medium);
+  padding: var(--sl-spacing-small) 0;
+}
+
+.sp-row-control {
+  flex: none;
+}

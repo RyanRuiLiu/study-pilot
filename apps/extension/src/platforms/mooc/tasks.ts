@@ -10,7 +10,7 @@
  */
 
 import type { CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
-import { ensureSession } from '../../platform/mooc/session';
+import { ensureSession, SessionExpiredError } from './session';
 import { withSessionRecovery } from './recovery.ts';
 import { getSettings, type Settings } from '../../settings';
 import type { PlanItem, PlanResult, PlatformTasks, RunOutcome } from '../types.ts';
@@ -30,6 +30,8 @@ export interface MoocRunDeps {
   loadSnapshot: (courses: InspectCourse[], userId: number) => Promise<Snapshot>;
   selectedCourses: (settings: Settings) => InspectCourse[];
   coursewareContext: (settings: Settings) => CoursewareContext;
+  /** 失败记进外壳的运行状态（平台不反向依赖执行面，这是注入进来的端口） */
+  recordFailure: (message: string) => Promise<void>;
 }
 
 /**
@@ -46,9 +48,15 @@ async function snapshotIsFresh(now: number): Promise<boolean> {
   }
 }
 
-/** 项的 id：课件按单元、其余按工作项，两者字段不同，因此各自取名。 */
+/**
+ * 项的 id：课件按单元、其余按工作项，两者字段不同，因此各自取名。
+ *
+ * id 是「哪一项的结果」的唯一凭据：`run` 按它落结果、`report` 按它取结果。
+ * 这里少写一个插值（曾经两项都只回 `work-`），一轮里的工作项就会共用同一条
+ * 结果，通知里「做了什么」全部错位到最后一项。
+ */
 function idOf(action: Plan['auto'][number]): string {
-  return action.kind === 'courseware' ? `courseware-` : `work-`;
+  return action.kind === 'courseware' ? `courseware-${action.unit.unitId}` : `work-${action.work.tid}`;
 }
 
 /** 项的标题：同样按类别取（课件用单元名，其余用工作项名）。 */
@@ -61,12 +69,14 @@ function toItems(plan: Plan): PlanItem[] {
   return [
     ...plan.auto.map((action) => ({
       id: idOf(action),
+      group: action.course.courseName,
       title: titleOf(action),
       mode: 'auto' as const,
       payload: action,
     })),
     ...plan.manual.map((item) => ({
       id: `manual-${item.work.tid}`,
+      group: item.course.courseName,
       title: item.work.name,
       mode: 'manual' as const,
       payload: item,
@@ -121,8 +131,26 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       const session = await ensureSession();
       if (!session.loggedIn) return { items: [], needsLogin: true };
 
-      // 课程列表先刷新：勾选的课程可能变动，而后续读取按它进行
-      await deps.refreshCourses().catch(() => undefined);
+      /*
+       * 课程列表先刷新：勾选的课程可能变动，而后续读取按它进行。
+       *
+       * 刷新失败不中止本轮（本轮用的勾选来自设置），但**如实记下来**——
+       * 从前这里是 `.catch(() => undefined)`，「少了一类课程」与「什么都没读到」
+       * 在界面上与成功一模一样。
+       *
+       * 会话失效是例外：它留给下一步 `withSessionRecovery` 统一处置
+       * （先续期再重读，救不回来才挂起等登录），这里不重复判一次。
+       */
+      let refreshFailure: string | null = null;
+      try {
+        const refreshed = await deps.refreshCourses();
+        if (!refreshed.ok) refreshFailure = refreshed.message;
+      } catch (error) {
+        if (!(error instanceof SessionExpiredError)) {
+          refreshFailure = error instanceof Error ? error.message : String(error);
+        }
+      }
+      if (refreshFailure !== null) await deps.recordFailure(`课程列表未刷新：${refreshFailure}`);
 
       /*
        * 快照读取带会话恢复。

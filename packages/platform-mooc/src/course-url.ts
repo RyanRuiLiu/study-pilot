@@ -49,6 +49,72 @@ export function coursePageUrl(course: {
 }
 
 /**
+ * 学习页里的作答区。
+ *
+ * 与 `SnapshotWork['type']` 里的工作项类型同一套叫法，测验、作业与两种考试。
+ */
+export type WorkKind = 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective';
+
+/** 页面上认出来的位置：四类作答区之外统一算 `other`。 */
+export type WorkView = WorkKind | 'other';
+
+/**
+ * 作答区的路由段。
+ *
+ * **一张表两处用**：拼地址（`workPageUrl`）与认地址（`parseWorkLocation`）。
+ * 路由是平台的事实，出现一次就该只写一次——此前拼接与解析各有一份字面量，
+ * 加考试路由时只有拼接那份跟着改了，解析靠人记得同步。
+ */
+const WORK_ROUTE: Record<WorkKind, string> = {
+  quiz: 'learn/quiz',
+  homework: 'learn/hw',
+  'exam-objective': 'learn/examObject',
+  'exam-subjective': 'learn/examSubjective',
+};
+
+/** 页面地址里认出来的位置。 */
+export interface WorkLocation {
+  /** 课程学期 id，来自查询串的 tid */
+  termId: number | null;
+  view: WorkView;
+  /** 测验、作业或考试 id，来自 hash 查询串的 id */
+  contentId: number | null;
+}
+
+function toPositiveNumber(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * 解析学习页地址。接受字符串参数以便测试。
+ *
+ * 页面形态（实测）：
+ *   /learn/{course}?tid={termId}#/learn/{view}?id={id}
+ *   /spoc/learn/{course}?tid={termId}#/learn/{view}?id={id}
+ * 课程学期 id 在查询串里，视图与内容 id 在 hash 里。
+ *
+ * 考试的两种形态都带 eid，但这里不解析它：取卷走的是与测验同一套接口，
+ * 用 id 当 tid 就能拿到卷子（实测主观题考试返回 subjectiveQList 含 judgeDtos，
+ * 客观题考试返回 objectiveQList），eid 只是页面导航用。
+ */
+export function parseWorkLocation(href: string): WorkLocation {
+  const url = new URL(href);
+  const termId = toPositiveNumber(url.searchParams.get('tid'));
+
+  const hash = url.hash.replace(/^#\/?/, '');
+  const [path, query] = hash.split('?');
+  const contentId = toPositiveNumber(new URLSearchParams(query ?? '').get('id'));
+
+  const entry = (Object.entries(WORK_ROUTE) as Array<[WorkKind, string]>).find(
+    ([, route]) => route === path,
+  );
+
+  return { termId, view: entry?.[0] ?? 'other', contentId };
+}
+
+/**
  * 拼具体测验、作业或考试的地址。
  *
  * 课程页内部用 hash 路由，实测页面上的链接形如：
@@ -77,21 +143,20 @@ export function workPageUrl(
     mode: number;
     termId: number;
   },
-  kind: 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective',
+  kind: WorkKind,
   testId: number,
   examId?: number,
 ): string {
   const base = coursePageUrl(course);
+  const route = WORK_ROUTE[kind];
 
   if (kind === 'exam-objective' || kind === 'exam-subjective') {
     if (!examId) return `${base}#/learn/examlist`;
-    const route = kind === 'exam-objective' ? 'examObject' : 'examSubjective';
     const type = kind === 'exam-objective' ? '&examType=0' : '';
-    return `${base}#/learn/${route}?eid=${examId}&id=${testId}${type}`;
+    return `${base}#/${route}?eid=${examId}&id=${testId}${type}`;
   }
 
-  const section = kind === 'quiz' ? 'quiz' : 'hw';
-  return `${base}#/learn/${section}?id=${testId}`;
+  return `${base}#/${route}?id=${testId}`;
 }
 
 /**

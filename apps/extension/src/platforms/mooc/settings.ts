@@ -9,15 +9,10 @@
 import type { PlatformSettings } from '../types.ts';
 import { accountSection } from './settings/account.ts';
 import { foregroundSection } from './settings/foreground.ts';
-import { syncSessionBadge } from './settings/session-row.ts';
 import { tasksSection } from './settings/tasks.ts';
 
 export const moocSettings: PlatformSettings = {
   id: 'mooc',
   name: '中国大学 MOOC',
   render: () => [accountSection(), tasksSection(), foregroundSection()],
-  // 登录行由 accountSection 渲染时注册的钩子刷新（外壳只负责喊一声）
-  onLoginChanged: () => {
-    syncSessionBadge?.();
-  },
 };

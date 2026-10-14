@@ -10,21 +10,13 @@
 // 用法：node scripts/probe/run/reload-ext.mjs [扩展目录]
 
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { Session, browserVersion } from '../lib/cdp.mjs';
+import { DEFAULT_EXT_DIR, loadUnpacked } from '../lib/ext-id.mjs';
 
-const ROOT = path.resolve(fileURLToPath(new URL('../../..', import.meta.url)));
-const dir = path.resolve(process.argv[2] ?? path.join(ROOT, 'apps/extension/.output/chrome-mv3'));
-
-const version = await browserVersion();
-const browser = await Session.open(version.webSocketDebuggerUrl);
+const dir = path.resolve(process.argv[2] ?? DEFAULT_EXT_DIR);
 
 try {
-  const result = await browser.send('Extensions.loadUnpacked', { path: dir });
-  console.log(`已重新加载扩展：${result?.id ?? '(未返回 id)'}`);
+  console.log(`已重新加载扩展：${(await loadUnpacked(dir)) ?? '(未返回 id)'}`);
 } catch (error) {
   console.log(`重新加载失败：${String(error)}`);
   console.log('若提示找不到 Extensions 域，说明当前浏览器是品牌版，需改用 Chrome for Testing。');
 }
-
-browser.close();

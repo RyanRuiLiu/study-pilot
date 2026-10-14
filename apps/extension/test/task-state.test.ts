@@ -12,7 +12,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { EMPTY_STATE, liveRunState, type TaskState } from '../src/background/runtime/scheduler';
+import {
+  canStartRun,
+  claimRun,
+  EMPTY_STATE,
+  liveRunState,
+  releaseRun,
+  type TaskState,
+} from '../src/background/runtime/scheduler';
 
 const NOW = 1_700_000_000_000;
 const MINUTE = 60 * 1000;
@@ -66,5 +73,53 @@ describe('后台此刻的状态', () => {
   it('一轮结束后回到空闲，残留的心跳不影响判断', () => {
     expect(liveRunState(state({ runningSince: null, heartbeatAt: NOW }), NOW)).toBe('idle');
     expect(liveRunState(state({ runningSince: null, heartbeatAt: NOW }), NOW)).not.toBe('running');
+  });
+});
+
+/*
+ * 「能不能开始一轮」与「界面显示什么」必须共用上面这一套判据。
+ * 两者曾经各算各的：界面用带心跳的 liveRunState，执行用 `runningSince === null`，
+ * 于是界面能看出「上一轮已经不在了」，执行却仍然被同一个标记拦住——
+ * 一次强杀就把后台永久锁死，而弹窗还在说「下次检查时接着做」。
+ */
+describe('能否开始一轮', () => {
+  it('空闲与等登录都可以开始', () => {
+    expect(canStartRun(state(), NOW)).toBe(true);
+    expect(canStartRun(state({ awaitingLogin: true }), NOW)).toBe(true);
+  });
+
+  it('确实还在跑时不许开始第二轮', () => {
+    expect(canStartRun(state({ runningSince: NOW - 800, heartbeatAt: NOW - 800 }), NOW)).toBe(false);
+    expect(canStartRun(state({ runningSince: NOW - 1000 }), NOW)).toBe(false);
+  });
+
+  it('中断的残留标记不再拦住下一轮', () => {
+    expect(
+      canStartRun(state({ runningSince: NOW - 10 * MINUTE, heartbeatAt: NOW - 10 * MINUTE }), NOW),
+    ).toBe(true);
+    expect(canStartRun(state({ runningSince: NOW - 10 * MINUTE }), NOW)).toBe(true);
+  });
+
+  it('与 liveRunState 同判据：说 interrupted 的就一定能开始', () => {
+    for (const over of [
+      {},
+      { awaitingLogin: true },
+      { runningSince: NOW - 800, heartbeatAt: NOW - 800 },
+      { runningSince: NOW - 10 * MINUTE, heartbeatAt: NOW - 10 * MINUTE },
+      { runningSince: NOW, heartbeatAt: NOW, awaitingLogin: true },
+    ]) {
+      const s = state(over);
+      expect(canStartRun(s, NOW)).toBe(liveRunState(s, NOW) !== 'running');
+    }
+  });
+});
+
+describe('本进程内的执行权', () => {
+  it('一轮没结束前，第二个触发源拿不到执行权', () => {
+    expect(claimRun()).toBe(true);
+    expect(claimRun()).toBe(false);
+    releaseRun();
+    expect(claimRun()).toBe(true);
+    releaseRun();
   });
 });

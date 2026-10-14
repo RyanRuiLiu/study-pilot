@@ -5,9 +5,9 @@
  * 这边是「改配置」（开关、输入框、设置项一行、分区与卡片）。两份都在组件层，
  * 同样不认识业务：值由调用方给，改动经回调交回。
  *
- * 控件一律用 Shoelace 的自定义元素（开关、输入框、折叠、勾选框），
- * 成品外观由它自带；这里的类只定布局与间距，取色在 tokens.css。
- * shadow root 里没有我们文档上的全局样式，因此每个类自带所需，不依赖宿主。
+ * 控件一律用 Shoelace 的自定义元素（开关、输入框、折叠、勾选框、卡片、标签），
+ * 成品外观由官方主题给；这里剩下的类只管把组件摆成一行、给出官方间距。
+ * 文字层级用原生语义（strong / small / h2 / dl），不再自写一套字号。
  *
  * sl-input 的类型里有一个与 DOM 声明冲突的 autocorrect 字段，因此两个输入框
  * 交回时收成 HTMLElement（这一层对外只承诺「一个元素」，页面拿到的就是它）。
@@ -27,18 +27,20 @@ export function row(name: string, note: string, ...controls: HTMLElement[]): HTM
   const element = document.createElement('div');
   element.className = 'sp-row';
 
+  /*
+   * 名称与说明不写自己的类：`<strong>` 与 `<small>` 的粗细与字号由浏览器给。
+   * 这一层只负责把「文字 + 控件」摆成一行。
+   */
   const text = document.createElement('div');
-  text.className = 'sp-row-text';
+  text.className = 'sp-fill';
 
-  const nameEl = document.createElement('div');
-  nameEl.className = 'sp-row-name';
+  const nameEl = document.createElement('strong');
   nameEl.textContent = name;
 
-  const noteEl = document.createElement('div');
-  noteEl.className = 'sp-row-note';
+  const noteEl = document.createElement('small');
   noteEl.textContent = note;
 
-  text.append(nameEl, noteEl);
+  text.append(nameEl, document.createElement('br'), noteEl);
 
   const control = document.createElement('div');
   control.className = 'sp-row-control';
@@ -51,7 +53,6 @@ export function row(name: string, note: string, ...controls: HTMLElement[]): HTM
 /** 开关。 */
 export function toggle(value: boolean, onChange: (next: boolean) => void): HTMLElement {
   const element = document.createElement('sl-switch');
-  element.className = 'sp-switch';
   element.checked = value;
   element.addEventListener('sl-change', () => onChange(element.checked));
   return element;
@@ -72,7 +73,6 @@ export function numberInput(
   onChange: (next: number) => void,
 ): HTMLElement {
   const element = document.createElement('sl-input');
-  element.className = 'sp-field sp-field-num';
   element.setAttribute('type', 'number');
   element.setAttribute('min', String(min));
   element.setAttribute('max', String(max));
@@ -80,7 +80,6 @@ export function numberInput(
 
   const suffix = document.createElement('span');
   suffix.setAttribute('slot', 'suffix');
-  suffix.className = 'sp-field-unit';
   suffix.textContent = unit;
   element.append(suffix);
 
@@ -96,7 +95,23 @@ export function numberInput(
 /** 文本输入框。 */
 export function textInput(value: string, onChange: (next: string) => void): HTMLElement {
   const element = document.createElement('sl-input');
-  element.className = 'sp-field';
+  element.value = value;
+  element.addEventListener('sl-change', () => onChange(element.value));
+  return element as unknown as HTMLElement;
+}
+
+/**
+ * 密钥一类需要默认遮住的输入。
+ *
+ * 用 `sl-input` 自带的 `password-toggle`（眼睛图标与可访问名称都由组件给），
+ * 不自写显隐按钮：那等于把组件已经做好的事再做一遍，还容易漏掉焦点与标签。
+ * 关闭自动填充：这是扩展自己的密钥，不该被密码管理器填进别的东西。
+ */
+export function secretInput(value: string, onChange: (next: string) => void): HTMLElement {
+  const element = document.createElement('sl-input');
+  element.type = 'password';
+  element.setAttribute('password-toggle', '');
+  element.setAttribute('autocomplete', 'off');
   element.value = value;
   element.addEventListener('sl-change', () => onChange(element.value));
   return element as unknown as HTMLElement;
@@ -109,7 +124,6 @@ export function checkbox(
   onChange: (next: boolean) => void,
 ): HTMLElement {
   const element = document.createElement('sl-checkbox');
-  element.className = 'sp-checkbox';
   element.checked = value;
   element.setAttribute('title', title);
   element.addEventListener('sl-change', () => onChange(element.checked));
@@ -119,7 +133,6 @@ export function checkbox(
 /** 折叠区。标题本身就是概要，展开后是内容。 */
 export function disclosure(summary: string, children: HTMLElement[]): HTMLElement {
   const element = document.createElement('sl-details');
-  element.className = 'sp-disclosure';
   element.setAttribute('summary', summary);
   element.append(...children);
   return element;
@@ -132,27 +145,30 @@ export function disclosure(summary: string, children: HTMLElement[]): HTMLElemen
  * 不放随设置变化的数字：值该由控件自己说，两处同时显示两个数字反而要猜哪个生效。
  */
 export function platform(title: string, origin: string, rows: HTMLElement[]): HTMLElement {
-  const element = document.createElement('div');
-  element.className = 'sp-card';
+  const card = document.createElement('sl-card');
 
   const head = document.createElement('div');
-  head.className = 'sp-card-head';
+  head.slot = 'header';
+  head.className = 'sp-line';
 
   const name = document.createElement('h3');
-  name.className = 'sp-card-title';
+  name.className = 'sp-fill'
   name.textContent = title;
   head.append(name);
 
   // 传空串表示这张卡片不需要标签，不给占位符凑数
-  if (origin) {
-    const tag = document.createElement('span');
-    tag.className = 'sp-card-tag';
+  if (origin !== '') {
+    const tag = document.createElement('sl-tag');
+    tag.size = 'small';
+    tag.variant = 'neutral';
     tag.textContent = origin;
     head.append(tag);
   }
 
-  element.append(head, ...rows);
-  return element;
+  const body = document.createElement('div');
+  body.append(...rows);
+  card.append(head, body);
+  return card;
 }
 
 /**
@@ -162,15 +178,13 @@ export function platform(title: string, origin: string, rows: HTMLElement[]): HT
  * 每一条都是「一个名目 + 一段说明」，读屏软件也能正确念出配对关系。
  */
 export function prose(items: Array<{ term: string; text: string }>): HTMLElement {
+  // 名目与说明的配对由 dl/dt/dd 表达，外观交给浏览器默认与官方主题的字体
   const list = document.createElement('dl');
-  list.className = 'sp-prose';
 
   for (const { term, text } of items) {
     const dt = document.createElement('dt');
-    dt.className = 'sp-prose-term';
     dt.textContent = term;
     const dd = document.createElement('dd');
-    dd.className = 'sp-prose-text';
     dd.textContent = text;
     list.append(dt, dd);
   }
@@ -182,7 +196,7 @@ export function prose(items: Array<{ term: string; text: string }>): HTMLElement
  * 一个设置分区。
  *
  * 不加编号：编号只在内容本身是序列时才有意义，而设置分区之间没有先后顺序。
- * 层次由标题字号与分区之间的留白给出。id 用于左侧导航的跳转与当前位置判定。
+ * 层次由标题字号与分区之间的留白给出。
  */
 export function section(
   id: string,
@@ -191,17 +205,46 @@ export function section(
   blocks: HTMLElement[],
 ): HTMLElement {
   const element = document.createElement('section');
-  element.className = 'sp-section';
   element.id = id;
 
   const heading = document.createElement('h2');
-  heading.className = 'sp-section-title';
   heading.textContent = title;
 
   const lede = document.createElement('p');
-  lede.className = 'sp-section-desc';
   lede.textContent = desc;
 
   element.append(heading, lede, ...blocks);
+  parts.set(element, { title, heading });
+  return element;
+}
+
+/**
+ * 分区生成时记住的两样东西：标题文字与标题元素。
+ *
+ * 标题元素要记下来是因为标签导航会把分区里的标题摘掉（标签上已经写着这一类叫什么），
+ * 摘掉之后仍然要能说出这一类叫什么。用 WeakMap 而不是回 DOM 里查：
+ * 那样等于把「标题在哪」这件事绑到一个 class 名上，改了样式就断。
+ */
+const parts = new WeakMap<HTMLElement, { title: string; heading: HTMLElement }>();
+
+function ofSection(element: HTMLElement): { title: string; heading: HTMLElement } {
+  const found = parts.get(element);
+  if (found === undefined) throw new Error('这个元素不是 section() 生成的分区');
+  return found;
+}
+
+/** 分区标题文字。设置页的二级标签用它当标签名，因此不存在第二份标题清单。 */
+export function sectionTitle(element: HTMLElement): string {
+  return ofSection(element).title;
+}
+
+/**
+ * 把分区改成「放在标签面板里的样子」：摘掉它自己的标题。
+ *
+ * 标题与标签重复出现在同一屏里，是两句话抢着说同一件事。留白由 `.sp-section`
+ * 自己给，不再分两种形态。
+ */
+export function inlineSection(element: HTMLElement): HTMLElement {
+  ofSection(element).heading.remove();
   return element;
 }

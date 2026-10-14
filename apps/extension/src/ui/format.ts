@@ -28,8 +28,6 @@ const MONTH_LABEL = [
   '12月',
 ];
 
-const WEEKDAY_LABEL = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-
 /** 补零到两位。 */
 function pad(value: number): string {
   return String(value).padStart(2, '0');
@@ -73,27 +71,25 @@ export function formatDateTime(timestamp: number): string {
 }
 
 /**
- * 日期，形如「9月30日 周三」。
- *
- * 用于弹窗的待办：那里已经有一行给出「还有几天」，
- * 这一行用来核对具体是哪天，因此星期比时刻有用。
+ * 时刻，形如「20:00」。只被 dueLine 用，因此不导出：
+ * 单独显示一个时刻的地方（注入面板那种）要的是「明天 20:00」整句，不是这一半。
  */
-export function formatDate(timestamp: number): string {
-  if (timestamp <= 0) return '';
-  const date = new Date(timestamp);
-  return `${MONTH_LABEL[date.getMonth() + 1]}${date.getDate()}日 ${WEEKDAY_LABEL[date.getDay()]}`;
-}
-
-/**
- * 时刻，形如「20:00」。
- *
- * 单独给出是因为弹窗把它与相对说法拼在同一行（「3 天后 20:00」），
- * 而相对说法来自另一个函数。
- */
-export function formatClock(timestamp: number): string {
+function formatClock(timestamp: number): string {
   if (timestamp <= 0) return '';
   const date = new Date(timestamp);
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * 截止那一行的说法：「还剩几天」加「几点」，形如「明天 20:00」。
+ *
+ * 这一条以前在弹窗与看板上各拼一遍，两处各自决定顺序与分隔。
+ * 拼法收在这里之后，改措辞只有一处要动。没有截止时间时返回空串，
+ * 调用方据此把这一格留空——「无截止时间」写进表格里只是占地方。
+ */
+export function dueLine(timestamp: number): string {
+  if (timestamp <= 0) return '';
+  return `${relativeDay(timestamp)} ${formatClock(timestamp)}`;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -121,7 +117,7 @@ export function daysBetween(from: number, to: number): number {
  * 相对说法。它是待办那一屏的主信息，给出「还剩几天」的直观判断。
  *
  * 学生看到日期要先做一次心算（今天几号、还剩几天），看到「明天」不用。
- * 所以主行放相对说法，确切日期退到副行（见 formatDate）。
+ * 因此待办那一行的说法由 dueLine 给出：相对说法在前，时刻在后。
  */
 export function relativeDay(deadline: number): string {
   if (deadline <= 0) return '无截止时间';

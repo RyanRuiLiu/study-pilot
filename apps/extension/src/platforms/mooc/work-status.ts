@@ -11,7 +11,7 @@
  * 而事实不会。
  */
 
-import { WORK_STATUS, type WorkStatus } from '../../platform/messaging';
+import { WORK_STATUS, type WorkStatus } from '../../browser/messaging';
 import type { SnapshotWork } from './read';
 
 /**

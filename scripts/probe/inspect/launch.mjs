@@ -35,70 +35,14 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browserVersion, waitForCdp } from '../lib/cdp.mjs';
+// 浏览器查找只有一处实现，与 wxt.config.ts 共用（见 chrome-path.mjs 的头注释）
+import { chromeForTestingRoot, findBrandedChrome, findChromeForTesting } from '../lib/chrome-path.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('../../..', import.meta.url)));
-
-/** Chrome for Testing 的安装根目录。 */
-function chromeForTestingRoot() {
-  const base =
-    process.env.CHROME_FOR_TESTING_PATH ??
-    (process.env.USERPROFILE
-      ? path.join(process.env.USERPROFILE, '.cache', 'chrome-for-testing')
-      : '');
-  return base;
-}
-
-/**
- * 找 Chrome for Testing 的可执行文件。
- *
- * 官方工具按 `<root>/chrome/<platform-version>/chrome-<platform>/chrome.exe`
- * 布局安装，版本号会随升级变化，因此这里扫描目录而不是写死版本。
- */
-function findChromeForTesting() {
-  const root = chromeForTestingRoot();
-  if (!root || !existsSync(root)) return null;
-
-  const chromeDir = path.join(root, 'chrome');
-  if (!existsSync(chromeDir)) return null;
-
-  // 取版本号最大的一个
-  const versions = readdirSync(chromeDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort()
-    .reverse();
-
-  for (const version of versions) {
-    const candidates = [
-      path.join(chromeDir, version, 'chrome-win64', 'chrome.exe'),
-      path.join(chromeDir, version, 'chrome-win32', 'chrome.exe'),
-      path.join(chromeDir, version, 'chrome-linux64', 'chrome'),
-      path.join(chromeDir, version, 'chrome-mac-x64', 'Google Chrome for Testing.app'),
-    ];
-    for (const candidate of candidates) {
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-
-  return null;
-}
-
-/** 系统里的品牌版 Chrome。它不支持 --load-extension，只在没装 CfT 时作为退路。 */
-function findBrandedChrome() {
-  const candidates = [
-    'C:/Program Files/Google/Chrome/Application/chrome.exe',
-    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-    process.env.LOCALAPPDATA
-      ? path.join(process.env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe')
-      : '',
-  ].filter(Boolean);
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
-}
 
 function parseArgs(argv) {
   const out = { port: 9222, headless: false, kill: false };

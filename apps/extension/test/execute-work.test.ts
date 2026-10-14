@@ -5,6 +5,7 @@
  * 而是每条路的结局与说法：
  *
  *   - 题库覆盖不全时一道都不提交（部分作答只会拿到低分，不如留给用户）
+ *   - 会在服务端留下痕迹的调用（开卷、占配额）排在所有无副作用读取之后
  *   - 只有提交成功才报 done，detail 里的数字与实际提交的内容一致
  *   - 提交失败如实报 failed，不把失败说成「已完成」
  *   - 互评按服务端给的剩余份数评够即止，不多评也不中途放弃
@@ -201,34 +202,12 @@ beforeEach(() => {
 // ---------- 测验 ----------
 
 describe('runQuiz：自动完成一份单元测验', () => {
-  it('取卷失败：如实报失败，不读题库、不提交', async () => {
-    vi.mocked(getQuizPaper).mockResolvedValue(fail('HTTP 403'));
-
-    const result = await runQuiz(client, workAction('quiz'), new BankCache());
-
-    expect(result).toEqual({
-      tid: TID,
-      name: '第一单元测验',
-      kind: 'quiz',
-      status: 'failed',
-      detail: '取卷失败：HTTP 403',
-    });
-    expect(getQuizBank).not.toHaveBeenCalled();
-    expect(submitQuiz).not.toHaveBeenCalled();
-  });
-
-  it('取卷用 aid = 0：这一步同时就是页面上的「开始测验」', async () => {
-    vi.mocked(getQuizPaper).mockResolvedValue(fail('停在这里'));
-
-    await runQuiz(client, workAction('quiz'), new BankCache());
-
-    expect(getQuizPaper).toHaveBeenCalledWith(client, TID, 0);
-  });
-
-  it('题库读取失败：报失败，不提交', async () => {
-    vi.mocked(getQuizPaper).mockResolvedValue(
-      ok(quizPaper({ objectiveQList: objectiveQuestion(11, [101]) })),
-    );
+  /*
+   * 顺序本身是一条约束：取卷带 `aid = 0`，服务端会为此**新建一份答题表单**，
+   * 这一步撤不回来。所以任何带副作用的调用都排在题库核对之后——
+   * 「读不到答案所以放弃」不该先把用户的卷子开出来。
+   */
+  it('题库读不到时不开卷：服务端新建的答卷收不回来', async () => {
     vi.mocked(getQuizBank).mockResolvedValue(fail('题库接口 500'));
 
     const result = await runQuiz(client, workAction('quiz'), new BankCache());
@@ -240,7 +219,33 @@ describe('runQuiz：自动完成一份单元测验', () => {
       status: 'failed',
       detail: '题库读取失败，无法核对答案',
     });
+    expect(getQuizPaper).not.toHaveBeenCalled();
     expect(submitQuiz).not.toHaveBeenCalled();
+  });
+
+  it('取卷失败：如实报失败，不提交', async () => {
+    vi.mocked(getQuizBank).mockResolvedValue(ok([bankQuestion(1, [[101, true]])]));
+    vi.mocked(getQuizPaper).mockResolvedValue(fail('HTTP 403'));
+
+    const result = await runQuiz(client, workAction('quiz'), new BankCache());
+
+    expect(result).toEqual({
+      tid: TID,
+      name: '第一单元测验',
+      kind: 'quiz',
+      status: 'failed',
+      detail: '取卷失败：HTTP 403',
+    });
+    expect(submitQuiz).not.toHaveBeenCalled();
+  });
+
+  it('取卷用 aid = 0：这一步同时就是页面上的「开始测验」', async () => {
+    vi.mocked(getQuizBank).mockResolvedValue(ok([bankQuestion(1, [[101, true]])]));
+    vi.mocked(getQuizPaper).mockResolvedValue(fail('停在这里'));
+
+    await runQuiz(client, workAction('quiz'), new BankCache());
+
+    expect(getQuizPaper).toHaveBeenCalledWith(client, TID, 0);
   });
 
   it('题库覆盖不全：一道都不提交，并说明跳过的原因', async () => {
@@ -694,8 +699,9 @@ describe('runReview：自动完成一份作业的互评', () => {
 
     const result = await runReview(...args);
 
-    expect(result.status).toBe('done');
-    expect(result.detail).toBe('已评 1 份，后续取卷失败');
+    // 配额没评够就不是完成：结局是 failed，detail 里保留已经评了几份
+    expect(result.status).toBe('failed');
+    expect(result.detail).toBe('已评 1 份，后续取卷失败：分配接口 500');
   });
 
   it('提交互评失败、一份都没评：failed', async () => {
@@ -721,8 +727,8 @@ describe('runReview：自动完成一份作业的互评', () => {
 
     const result = await runReview(...args);
 
-    expect(result.status).toBe('done');
-    expect(result.detail).toBe('已评 1 份，后续提交失败');
+    expect(result.status).toBe('failed');
+    expect(result.detail).toBe('已评 1 份，后续提交失败：评分接口 400');
   });
 
   it('配额大得异常时按循环上限停下，不空转也不谎报评够', async () => {

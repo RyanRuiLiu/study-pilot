@@ -6,7 +6,7 @@
  * 就成环了。这里只放「谁都需要、但谁都不拥有」的四个东西。
  */
 
-import type { Settings } from './';
+import type { Settings } from '.';
 
 /** 当前配置。由入口与落盘处更新；各处只读。 */
 export let current: Settings;

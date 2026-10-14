@@ -1,9 +1,24 @@
 /*
  * 通用浮动面板。
  *
- * 提供统一的外观与交互：可拖动、可最小化、无关闭按钮。
+ * 提供统一的结构与交互：可拖动、可最小化、无关闭按钮。
  * 位置状态不持久化，页面刷新后回到默认位置。
+ *
+ * 面板与得分指导都注入到慕课页面里，因此都关在 shadow root 中（见 isolated.ts）。
+ * 调用方拿到的 `body` 已经在 shadow root 里面，往里 append 的元素自动被隔离。
+ *
+ * 这一块的外观同样是组件给的：卡片是 sl-card，标题条上的按钮是 sl-button，
+ * 底部状态行是 sl-alert，动作排是 sl-button。样式文件只管位置与等宽
+ * （见 panel.css），不画颜色与边框。
  */
+
+import '@shoelace-style/shoelace/dist/components/alert/alert.js';
+import '@shoelace-style/shoelace/dist/components/button/button.js';
+import '@shoelace-style/shoelace/dist/components/card/card.js';
+
+import type SlButton from '@shoelace-style/shoelace/dist/components/button/button.js';
+import panelStyles from './panel.css?inline';
+import { attachIsolated } from './isolated.ts';
 
 const PANEL_MIN_WIDTH = 220;
 
@@ -22,162 +37,62 @@ export interface PanelOptions {
 export interface PanelHandle {
   root: HTMLElement;
   body: HTMLElement;
-  /** 更新状态行文本 */
+  /** 更新状态行文本；空串表示此刻没有要说的事 */
   setStatus: (text: string) => void;
   destroy: () => void;
 }
 
-/** 面板样式。一次性注入，避免每个面板重复定义。 */
-const STYLE_ID = 'study-pilot-panel-style';
-
-function ensureStyle(): void {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = `
-    .sp-panel {
-      position: fixed;
-      box-sizing: border-box;
-      background: var(--sp-paper2, #ffffff);
-      border: 1px solid var(--sp-line, #e4e7ec);
-      border-radius: 14px;
-      box-shadow: 0 10px 30px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.06);
-      font-size: 13px;
-      color: var(--sp-ink, #101828);
-      z-index: 2147483647;
-      overflow: hidden;
-      user-select: none;
-    }
-    .sp-panel-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 9px 10px 9px 14px;
-      background: var(--sp-accent, #0d9488);
-      color: #fff;
-      font-weight: 600;
-      cursor: move;
-    }
-    .sp-panel-title {
-      font-size: 13px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .sp-panel-min {
-      flex: none;
-      width: 24px;
-      height: 24px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      border: none;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.18);
-      color: #fff;
-      cursor: pointer;
-      font: inherit;
-      line-height: 1;
-    }
-    .sp-panel-min:hover { background: rgba(255, 255, 255, 0.32); }
-    .sp-panel-body { padding: 12px; box-sizing: border-box; }
-    .sp-panel-hint {
-      font-size: 12px;
-      line-height: 1.6;
-      color: var(--sp-ink-faint, #98a2b3);
-      margin-bottom: 10px;
-    }
-    .sp-panel-status {
-      padding: 10px 12px;
-      border-top: 1px solid var(--sp-line, #e4e7ec);
-      font-size: 12px;
-      line-height: 1.6;
-      color: var(--sp-ink-soft, #475467);
-      user-select: text;
-      word-break: break-all;
-    }
-    .sp-panel-button {
-      display: block;
-      width: 100%;
-      box-sizing: border-box;
-      margin: 0 0 8px;
-      padding: 10px 14px;
-      font: inherit;
-      font-size: 13px;
-      font-weight: 600;
-      color: #fff;
-      border: 1px solid transparent;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .sp-panel-button:disabled { opacity: 0.6; cursor: not-allowed; }
-    .sp-panel-button[data-kind="fill"] { background: var(--sp-accent, #0d9488); }
-    .sp-panel-button[data-kind="submit"] { background: #0f766e; }
-    .sp-panel-info {
-      margin-bottom: 10px;
-      padding: 8px 10px;
-      background: var(--sp-paper3, #f9fafb);
-      border: 1px solid var(--sp-line, #e4e7ec);
-      border-radius: 8px;
-      font-size: 12px;
-      line-height: 1.7;
-      color: var(--sp-ink-soft, #475467);
-      user-select: text;
-    }
-    .sp-panel-info-row { display: flex; justify-content: space-between; gap: 10px; }
-    .sp-panel-info-row > span:first-child { color: var(--sp-ink-faint, #98a2b3); flex: none; }
-    .sp-panel-info-row > span:last-child { text-align: right; word-break: break-all; }
-    .sp-panel-info-row[data-warn="1"] > span:last-child { color: #d92d20; font-weight: 600; }
-  `;
-  document.head.append(style);
-}
-
 /** 创建面板。同 id 的面板已存在时先移除旧节点。 */
 export function createPanel(options: PanelOptions): PanelHandle {
-  ensureStyle();
   document.getElementById(options.id)?.remove();
 
   const root = document.createElement('div');
   root.id = options.id;
-  root.className = 'sp-panel';
   root.style.right = `${options.right ?? 24}px`;
   root.style.top = `${Math.round((options.topRatio ?? 0.3) * 100)}%`;
   root.style.width = `${Math.max(PANEL_MIN_WIDTH, options.width ?? 260)}px`;
+  const shadow = attachIsolated(root, panelStyles);
 
-  const bar = document.createElement('div');
-  bar.className = 'sp-panel-bar';
+  const card = document.createElement('sl-card');
+
+  const head = document.createElement('div');
+  head.slot = 'header';
+  head.className = 'head';
 
   const title = document.createElement('span');
-  title.className = 'sp-panel-title';
+  title.className = 'head-title';
   title.textContent = options.title;
 
-  const minimize = document.createElement('button');
-  minimize.type = 'button';
-  minimize.className = 'sp-panel-min';
-  minimize.textContent = '\u2013';
+  const minimize = document.createElement('sl-button');
+  minimize.size = 'small';
+  minimize.textContent = '收起';
   minimize.setAttribute('aria-label', '最小化');
 
   const body = document.createElement('div');
-  body.className = 'sp-panel-body';
 
-  // 状态行由面板自己管理并固定在底部，调用方不需要关心它的位置
-  const status = document.createElement('div');
-  status.className = 'sp-panel-status';
-  status.textContent = '';
+  /*
+   * 状态行是 sl-alert：它本来就是「一句此刻的事实」这个语义。
+   * 没有事要报的时候整条不占位——空着的提示条会让人以为还在等结果。
+   */
+  const status = document.createElement('sl-alert');
+  status.variant = 'neutral';
+  status.open = true;
+  status.hidden = true;
+  status.style.marginTop = 'var(--sl-spacing-small)';
 
   let minimized = false;
   minimize.addEventListener('click', () => {
     minimized = !minimized;
-    body.style.display = minimized ? 'none' : 'block';
-    status.style.display = minimized ? 'none' : 'block';
-    minimize.textContent = minimized ? '\u25a1' : '\u2013';
+    body.hidden = minimized;
+    status.hidden = minimized || status.textContent === '';
+    minimize.textContent = minimized ? '展开' : '收起';
   });
+  // 按钮在标题条里，而标题条是拖动区：点按钮不该把面板拖着走
   minimize.addEventListener('mousedown', (event) => event.stopPropagation());
 
-  bar.append(title, minimize);
-  root.append(bar, body, status);
+  head.append(title, minimize);
+  card.append(head, body, status);
+  shadow.append(card);
   document.body.append(root);
 
   // 拖动：起点时把 right 定位换算成 left，之后只用 left/top
@@ -200,7 +115,7 @@ export function createPanel(options: PanelOptions): PanelHandle {
     dragging = false;
   };
 
-  bar.addEventListener('mousedown', (event) => {
+  head.addEventListener('mousedown', (event) => {
     const rect = root.getBoundingClientRect();
     dragging = true;
     root.style.right = 'auto';
@@ -221,6 +136,7 @@ export function createPanel(options: PanelOptions): PanelHandle {
     body,
     setStatus(text: string) {
       status.textContent = text;
+      status.hidden = text === '' || minimized;
     },
     destroy() {
       window.removeEventListener('mousemove', onMouseMove);
@@ -230,52 +146,48 @@ export function createPanel(options: PanelOptions): PanelHandle {
   };
 }
 
-/** 创建一个面板内的按钮。 */
+/**
+ * 面板里的一个动作。
+ *
+ * 两种处境对应组件库的两种 variant：`fill` 是「填进去但还没交」，
+ * `submit` 是「交给平台」——后者用 success，让两个动作在颜色上就分得开。
+ */
 export function panelButton(
   label: string,
   kind: 'fill' | 'submit',
   onClick: () => void,
-): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'sp-panel-button';
-  button.dataset.kind = kind;
-  button.textContent = label;
-  button.addEventListener('click', onClick);
-  return button;
+): SlButton {
+  const element = document.createElement('sl-button');
+  element.variant = kind === 'submit' ? 'success' : 'primary';
+  element.textContent = label;
+  element.addEventListener('click', onClick);
+  return element;
 }
 
 /** 信息行的一项。 */
 export interface PanelInfoItem {
   label: string;
   value: string;
-  /** 是否为需要注意的取值，例如已过截止时间 */
-  warn?: boolean;
 }
 
 /**
- * 创建面板内的信息行。
+ * 面板内的信息行。
  *
- * 数据来自接口，只做展示。返回的元素可以放在面板任意位置，
- * 也支持后续替换子节点来更新内容。
+ * 数据来自接口，只做展示。用原生 `<dl>`：一个名目配一个值，
+ * 语义与外观都由浏览器与主题的默认值给，这里不加任何样式类。
  */
 export function panelInfo(items: PanelInfoItem[]): HTMLElement {
-  const box = document.createElement('div');
-  box.className = 'sp-panel-info';
+  const box = document.createElement('dl');
+  box.style.margin = '0';
 
   for (const item of items) {
-    const row = document.createElement('div');
-    row.className = 'sp-panel-info-row';
-    if (item.warn) row.dataset.warn = '1';
-
-    const label = document.createElement('span');
+    const label = document.createElement('dt');
     label.textContent = item.label;
 
-    const value = document.createElement('span');
+    const value = document.createElement('dd');
     value.textContent = item.value;
 
-    row.append(label, value);
-    box.append(row);
+    box.append(label, value);
   }
 
   return box;

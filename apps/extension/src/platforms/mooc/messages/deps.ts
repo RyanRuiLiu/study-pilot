@@ -1,9 +1,9 @@
 /*
  * 慕课的消息处理器需要的外界能力。
  *
- * 与 `MoocRunDeps` 的差别是它多一组 `shell`：诊断要把「运行状态」与「已装的
- * 请求头规则条数」如实报出来，而这两样属于外壳。**由外壳注入、平台不反向 import**
- * —— 类型来自外壳（type-only，运行时不产生依赖），值是外壳给的。
+ * 与 `MoocRunDeps` 的差别是它多一组 `shell`：凡属于外壳的东西（运行状态、
+ * 把失败记进状态）**由外壳注入，平台不反向 import 执行面**——类型是 type-only
+ * （运行时不产生依赖），值是外壳给的。这条方向由 eslint-plugin-boundaries 守着。
  */
 
 import type { CourseSummary, CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
@@ -22,9 +22,11 @@ export interface MoocMessageDeps {
   loadSnapshot: (courses: InspectCourse[], userId: number) => Promise<Snapshot>;
   selectedCourses: (settings: Settings) => InspectCourse[];
   coursewareContext: (settings: Settings) => CoursewareContext;
-  /** 外壳自己的能力。诊断要如实报告它们，因此由外壳注进来。 */
+  /** 外壳自己的能力：界面显示的是它给出的状态，平台不自己判断「在不在跑」。 */
   shell: {
     /** 执行状态：原始状态 + 人话结论 */
     runState: () => Promise<{ state: TaskState; live: LiveRunState }>;
+    /** 把一轮的失败如实记进运行状态，由弹窗显示 */
+    recordFailure: (message: string) => Promise<void>;
   };
 }

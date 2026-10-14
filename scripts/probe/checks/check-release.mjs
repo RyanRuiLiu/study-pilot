@@ -250,9 +250,9 @@ const SINGLE_SOURCE = new Map([
   ['AI_TASKS', 'apps/extension/src/ai/index.ts'],
   ['GUIDANCE_LABEL', 'apps/extension/src/features/mooc/guidance/markers.ts'],
   ['ANSWER_MARK_ATTRIBUTE', 'apps/extension/src/features/mooc/guidance/markers.ts'],
-  ['REJECTION_MESSAGES', 'apps/extension/src/platform/messaging/envelope.ts'],
-  ['WORK_STATUS', 'apps/extension/src/platform/messaging/mooc.ts'],
-  ['PendingKind', 'apps/extension/src/platform/messaging/mooc.ts'],
+  ['REJECTION_MESSAGES', 'apps/extension/src/browser/messaging/envelope.ts'],
+  ['WORK_STATUS', 'apps/extension/src/browser/messaging/mooc.ts'],
+  ['PendingKind', 'apps/extension/src/browser/messaging/mooc.ts'],
 ]);
 
 const DECLARATION = /^export (?:const|type|interface|function|class) (\w+)/gm;
@@ -289,31 +289,42 @@ console.log('（由 eslint 标准规则负责，见 scripts/verify/check-eslint.
 //
 // 内容脚本与后台是两个执行上下文，各自建的客户端各有节流器、互不知情。
 // 写入只要散到两边，就可能并发打到平台并撞上并发限制（-2）。
-// 因此写接口只允许出现在 src/background/ 下。
+//
+// 按**执行面**划线：平台的写接口只允许出现在后台的三条路上——调度
+// （src/background/）、平台的执行模块（platforms/*/execute/）、后台的
+// 消息处理器（platforms/*/messages/）。上一版只扫了 src/features 与内容脚本，
+// 等于把「弹窗里冒出一个提交调用」这类问题留在规则之外；现在扫整个 app，
+// 执行面之外出现即失败。
+//
+// 名称表取自平台包的真实写入口。`nextSubmission`（平台的
+// startOneSubmissionEvaluate）也在其中：它不写成绩，但会在服务端占走一份
+// 待评答卷，属于撤不回来的那类调用。
 
 console.log('');
 console.log('=== 写入路径 ===');
 
-const WRITE_APIS = /\b(submitQuiz|saveDraft|submitEvaluation|completeUnit)\s*\(/;
+const WRITE_APIS = /\b(submitQuiz|saveDraft|submitEvaluation|completeUnit|nextSubmission)\s*\(/;
+const EXECUTION_PLANE =
+  /^apps\/extension\/(src\/(background|platforms\/[^/]+\/(?:execute|messages))\/|entrypoints\/background\.ts$)/;
 const writeHits = [];
 for (const file of [
-  ...collect(join(ROOT, 'apps/extension/src/features'), (n) => n.endsWith('.ts')),
-  ...collect(join(ROOT, 'apps/extension/entrypoints'), (n) => n.endsWith('.content.ts')),
+  ...collect(join(ROOT, 'apps/extension/src'), (n) => n.endsWith('.ts')),
+  ...collect(join(ROOT, 'apps/extension/entrypoints'), (n) => n.endsWith('.ts')),
 ]) {
   if (/[\\/]test[\\/]/.test(file)) continue;
-  const text = readFileSync(file, 'utf8');
-  if (WRITE_APIS.test(text)) writeHits.push(rel(file));
+  const path = rel(file);
+  if (EXECUTION_PLANE.test(path)) continue;
+  if (WRITE_APIS.test(readFileSync(file, 'utf8'))) writeHits.push(path);
 }
 record('写接口只出现在后台', writeHits.length === 0, writeHits.slice(0, 4).join('  '));
 
 /*
- * 内容脚本也不该建客户端：两个上下文各有一个节流器时互不知情，
- * 并发发请求会撞平台的并发限制。数据一律经消息向后台取。
+ * 入口页面也不该各自建客户端：多个上下文各有一个节流器时互不知情，
+ * 并发发请求会撞平台的并发限制。要平台数据就向后台发消息，那边只有一个客户端。
  */
-const contentScripts = collect(join(ROOT, 'apps/extension/entrypoints'), (n) => n.endsWith('.content.ts'));
-const clientHits = contentScripts.filter((file) =>
-  readFileSync(file, 'utf8').includes('createMoocClient'),
-);
+const clientHits = collect(join(ROOT, 'apps/extension/entrypoints'), (n) =>
+  n.endsWith('.ts'),
+).filter((file) => readFileSync(file, 'utf8').includes('createMoocClient'));
 record('内容脚本不建客户端', clientHits.length === 0, clientHits.map(rel).join('  '));
 
 // ---------- 13. 术语 ----------

@@ -4,7 +4,7 @@
  * 从 options/main.ts 按原有分节搬出。
  */
 
-import { getSettings, updateSettings } from './';
+import { getSettings, updateSettings } from '.';
 import { current, setCurrent } from './page-state.ts';
 
 

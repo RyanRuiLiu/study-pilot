@@ -10,7 +10,7 @@
  * （走 UNIT_DETAILS），不在这条查询里。
  */
 
-import type { QueryOutcome } from '../../../platform/messaging';
+import type { QueryOutcome } from '../../../browser/messaging';
 import { readSnapshot, type Snapshot } from '../read';
 import type { MoocMessageDeps } from './deps.ts';
 

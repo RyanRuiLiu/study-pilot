@@ -63,7 +63,7 @@ function course(termId: number) {
 describe('inspect 的会话失效记账', () => {
   it('全部课程都是未登录形态：抛 SessionExpiredError，而不是交出空快照', async () => {
     const { inspect } = await import('../src/platforms/mooc/read');
-    const { SessionExpiredError } = await import('../src/platform/mooc/session');
+    const { SessionExpiredError } = await import('../src/platforms/mooc/session');
     structureResults.set(1, authError);
     structureResults.set(2, authError);
 

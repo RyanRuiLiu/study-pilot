@@ -16,7 +16,7 @@ import {
   getQuizPaper,
   type PaperQuestion,
 } from '@study-pilot/platform-mooc';
-import type { QueryOutcome } from '../../../platform/messaging';
+import type { QueryOutcome } from '../../../browser/messaging';
 import type { MoocMessageDeps } from './deps.ts';
 
 export async function handleUnitQuestions(

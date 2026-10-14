@@ -4,7 +4,7 @@
  * 从明细区再分出：两者没有共用状态，唯一的关系是都显示在设置页顶部。
  * syncSessionBadge 随之留在这里——它由渲染登录行时赋值。
  */
-import { sendToBackground } from '../../../platform/messaging';
+import { sendToBackground } from '../../../browser/messaging';
 import { button } from '../../../ui/form.ts';
 
 export function sessionBadge(): HTMLElement {

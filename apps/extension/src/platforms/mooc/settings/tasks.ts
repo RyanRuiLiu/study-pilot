@@ -4,7 +4,7 @@
  * 从 options/main.ts 的 render() 搬出；表达式原样，只在开头取一次配置。
  */
 
-import { sendToBackground } from '../../../platform/messaging';
+import { sendToBackground } from '../../../browser/messaging';
 
 import { row, toggle, numberInput, textInput, button, platform, section } from '../../../ui/form.ts';
 import { bindSetting } from '../../../settings/page-write.ts';

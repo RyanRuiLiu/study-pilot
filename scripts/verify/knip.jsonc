@@ -16,5 +16,13 @@
     "syncpack",
     "remark-cli",
     "remark-validate-links"
-  ]
+  ],
+  /*
+   * JSDoc 类型不足以让 TypeScript 直接读 .mjs，所以 Node 侧的实现配一份同名的
+   * .d.mts 声明（chrome-path.mjs / chrome-path.d.mts）。knip 的依赖图里
+   * 「.mjs 的兄弟 .d.mts」这条边不成立，于是把声明文件报成未使用；
+   * 实际引用它的是 wxt.config.ts 的类型检查。这是 knip 的已知盲区，
+   * 用官方给出的 ignoreFiles 精确登记这一类文件，不放宽其它判断。
+   */
+  "ignoreFiles": ["**/scripts/probe/lib/*.d.mts"]
 }

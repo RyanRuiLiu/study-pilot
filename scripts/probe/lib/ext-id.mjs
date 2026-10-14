@@ -14,7 +14,36 @@
  * 在下次有事件时重新拉起）。
  */
 
-import { listTargets } from './cdp.mjs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Session, browserVersion, listTargets } from './cdp.mjs';
+
+const ROOT = path.resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+
+/** 默认的未打包产物目录。 */
+export const DEFAULT_EXT_DIR = path.join(ROOT, 'apps/extension/.output/chrome-mv3');
+
+/**
+ * 让浏览器按构建产物重新加载扩展，返回它的 id。
+ *
+ * 这一步同时解决两个坑：
+ *   - `--load-extension` 在扩展已注册时可能继续用旧副本，于是「重新构建后
+ *     行为不变」，所有验证结论都会失效（项目 README 专门写了这条）；
+ *   - 刚重载完 service worker 是休眠的，目标列表里没有它，此时问「扩展 id
+ *     是多少」会得出「没装扩展」的错误结论。
+ * 只有 Chrome for Testing 有 `Extensions` 域；品牌版上这里会抛，由调用方
+ * 给出换浏览器的提示。
+ */
+export async function loadUnpacked(dir = DEFAULT_EXT_DIR) {
+  const version = await browserVersion();
+  const browser = await Session.open(version.webSocketDebuggerUrl);
+  try {
+    const result = await browser.send('Extensions.loadUnpacked', { path: dir });
+    return result?.id ?? null;
+  } finally {
+    browser.close();
+  }
+}
 
 /** 从目标 URL 里取出扩展 id。 */
 function idOf(url) {
@@ -51,12 +80,26 @@ async function findExtensionId() {
  * 自检脚本都在开头调它。与其让每个脚本各自处理这种情况，
  * 不如在这里重试并给出唯一一句有用的提示。
  */
-export async function requireExtensionId() {
+export async function requireExtensionId(dir = DEFAULT_EXT_DIR) {
   const attempts = 10;
 
   for (let i = 0; i < attempts; i++) {
     const id = await findExtensionId();
     if (id) return id;
+
+    /*
+     * 一次都没问到：先按当前构建产物重载一次再等。
+     *
+     * 不这么做的话，「刚重载完 worker 在睡觉」与「根本没装扩展」这两种情况
+     * 在脚本里是同一个错误，而前一种其实只要唤醒就有答案。
+     */
+    if (i === 0) {
+      try {
+        await loadUnpacked(dir);
+      } catch {
+        // 品牌版没有 Extensions 域，这里不解释——下面的提示统一说明该用什么浏览器
+      }
+    }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 

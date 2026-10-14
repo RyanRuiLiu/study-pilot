@@ -12,9 +12,10 @@
  * 定义；未识别的请求回 undefined，前台据此报「后台无响应」。
  */
 
-import type { BackgroundRequest, MessageHandlers, SendResponse } from '../../platform/messaging';
+import type { AnySendResponse, BackgroundRequest, MessageHandlers, SendResponse } from '../../browser/messaging';
 import type { PlatformTasks } from '../../platforms/types.ts';
-import { beginRun, canStartRun, finishRun, getTaskState, touchRun } from '../runtime/scheduler';
+import { beginRun, canStartRun, claimRun, finishRun, getTaskState, releaseRun, touchRun } from '../runtime/scheduler';
+import { getRunState, requestStop } from '../runtime/run-state';
 
 /** 装配层给出的东西：各平台的处理器表与要跑的平台。 */
 export interface RouterDeps {
@@ -31,14 +32,14 @@ export interface RouterDeps {
  * 意图就是「现在去做」。中断标志先清干净，但「正在执行」的判定要保留：
  * 并发起两轮会重复写平台。
  */
-async function runOnce(deps: RouterDeps, sendResponse: SendResponse): Promise<void> {
+async function runOnce(deps: RouterDeps, sendResponse: SendResponse<'RUN_SCHEDULED_TASKS'>): Promise<void> {
+  const now = Date.now();
   const state = await getTaskState();
-  if (!canStartRun(state)) {
+  if (!canStartRun(state, now) || !claimRun()) {
     sendResponse({ ok: false, reason: 'ALREADY_RUNNING' });
     return;
   }
 
-  const now = Date.now();
   await beginRun(now);
   try {
     let done = 0;
@@ -88,6 +89,7 @@ async function runOnce(deps: RouterDeps, sendResponse: SendResponse): Promise<vo
     sendResponse({ ok: true, done, manual, ...(failed.length > 0 ? { failed } : {}) });
   } finally {
     await finishRun();
+    releaseRun();
   }
 }
 
@@ -96,6 +98,15 @@ export function registerMessageHandler(deps: RouterDeps): void {
     const request = message as BackgroundRequest | undefined;
 
     void (async () => {
+      if (request?.type === 'RUN_STATE') {
+        sendResponse(await getRunState());
+        return;
+      }
+      if (request?.type === 'STOP_PLATFORM_RUN') {
+        await requestStop(request.platformId);
+        sendResponse({ ok: true });
+        return;
+      }
       if (request?.type === 'RUN_SCHEDULED_TASKS') {
         await runOnce(deps, sendResponse);
         return;
@@ -104,7 +115,7 @@ export function registerMessageHandler(deps: RouterDeps): void {
       // 处理器表里没有这个 type 就用兜底；兜底也说处理不了就回 undefined
       const fallback = deps.handlers['*'];
       const handler = request === undefined ? fallback : (deps.handlers[request.type] ?? fallback);
-      await handler(request as BackgroundRequest, sendResponse);
+      await handler(request as BackgroundRequest, sendResponse as AnySendResponse);
     })().catch((error: unknown) => {
       /*
        * 兜底响应只能报「失败」，不能报「未登录」。

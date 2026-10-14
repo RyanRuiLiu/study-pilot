@@ -39,3 +39,7 @@ dist/
 # 这里再兜一层 Stryker 的旧默认目录名。
 reports/
 .stryker-tmp/
+
+# 测试覆盖率产物（vitest --coverage 生成），不是项目内容。
+coverage/
+

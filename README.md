@@ -154,8 +154,9 @@ node scripts/probe/checks/verify-package.mjs   # 打包产物能被浏览器加�
 | 文档 | 内容 |
 |---|---|
 | [PRIVACY.md](PRIVACY.md) | 隐私政策：接触哪些数据、权限用途、数据存哪 |
-| [development.md](docs/development.md) | 项目现状、改动纪律、调试环境限制。**动手前先读** |
+| [QODER.md](QODER.md) | **动手前先读**：命令、写操作边界、代码规则、事实该去哪找 |
 | [architecture.md](docs/architecture.md) | 分层、运行模型、关键设计决策（只写为什么） |
+| [development.md](docs/development.md) | 实测记录：被推翻过的结论、调试环境的坑、凭证与样本处理 |
 | [platforms/mooc.md](docs/platforms/mooc.md) | 平台实测记录：签名、凭证、页面结构、课程模型、课件完成、逆向取证 |
 | [ai.md](docs/ai.md) | 唯一 AI 用途（讨论留言）的接入、权限与失败语义 |
 | [运行架构设计](docs/specs/2026-10-14-runtime-architecture-design.md) | 三页职责、组件层、门禁清单与未完成项 |

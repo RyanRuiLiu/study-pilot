@@ -195,6 +195,87 @@ export default tseslint.config(
   },
 
   {
+    /*
+     * ---- app 内部分层（三个平面）----
+     *
+     * 上一版只判 packages/，注释里写的理由是「apps 是组合层，按设计可以依赖任何包」。
+     * 那句话本身没错，但它把真正会漂的地方留在了外面：这个 app 里一万两千行
+     * 代码的分层规则（视图面只读、写只从执行面出、外壳不认识平台）此前
+     * 只存在于两份文档里，没有任何工具检查过。
+     *
+     * 判的是**运行时依赖**（`dependency.kind: 'value'`）。类型 import 放行：
+     * 平台的处理器要按协议声明响应类型，那是编译期的事，不会造成加载环，
+     * 也不需要为此在两个模块之间复制一份类型定义——那正是「同一知识两处写」。
+     *
+     * `import/resolver` 不是可选项：没有它，相对路径的 .ts import 在 boundaries
+     * 眼里是 unknown，规则一条也不会报（静默空转）。
+     */
+    files: ['apps/extension/**/*.ts'],
+    plugins: { boundaries },
+    settings: {
+      'boundaries/root-path': import.meta.dirname,
+      'import/resolver': { node: { extensions: ['.ts', '.tsx', '.js', '.json'] } },
+      'boundaries/elements': [
+        { type: 'platform', pattern: 'apps/extension/src/platforms' },
+        // 外壳与浏览器 API 之间的那一层：消息协议、请求头规则。
+        // 平台专属的宿主适配（凭证 cookie）不在这里，它归各平台模块自己管。
+        { type: 'browser', pattern: 'apps/extension/src/browser' },
+        { type: 'execution', pattern: 'apps/extension/src/background' },
+        { type: 'foreground', pattern: 'apps/extension/src/features' },
+        { type: 'ui', pattern: 'apps/extension/src/ui' },
+        { type: 'settings', pattern: 'apps/extension/src/settings' },
+        { type: 'ai', pattern: 'apps/extension/src/ai' },
+        // 入口是装配层：它可以认识各平台的公开模块，这是唯一允许「知道平台」的地方
+        { type: 'entrypoint', pattern: 'apps/extension/entrypoints' },
+      ],
+    },
+    rules: {
+      'boundaries/dependencies': [
+        'error',
+        {
+          default: 'allow',
+          policies: [
+            // 外壳（协议层与调度层）不认识平台：只经契约与工厂
+            {
+              from: { element: { types: ['browser', 'execution'] } },
+              disallow: {
+                to: { element: { type: 'platform' } },
+                dependency: { kind: 'value' },
+              },
+            },
+            // 平台模块不认识页面与呈现面：它只提供数据与契约实现
+            {
+              from: { element: { type: 'platform' } },
+              disallow: {
+                to: { element: { types: ['entrypoint', 'foreground', 'execution'] } },
+                dependency: { kind: 'value' },
+              },
+            },
+            // 呈现面只经协议向后台要数据：不建客户端、不碰执行面
+            {
+              from: { element: { type: 'foreground' } },
+              disallow: {
+                to: { element: { types: ['platform', 'execution', 'entrypoint'] } },
+                dependency: { kind: 'value' },
+              },
+            },
+            // 通用支撑层（组件、配置、AI 装配）不反向认识业务模块
+            {
+              from: { element: { types: ['ui', 'settings', 'ai'] } },
+              disallow: {
+                to: {
+                  element: { types: ['platform', 'execution', 'foreground', 'entrypoint'] },
+                },
+                dependency: { kind: 'value' },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
     // 工具脚本跑在 Node 上
     files: ['scripts/**/*.mjs', '*.mjs'],
     extends: [js.configs.recommended],

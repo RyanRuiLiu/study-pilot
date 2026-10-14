@@ -3,50 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Study Pilot 设置</title>
+    <title>Study Pilot</title>
     <!--
-      设置页在独立标签页中打开，而不是嵌进扩展管理页的小弹窗。
-      不声明这一条的话，WXT 生成的 manifest 会写成 open_in_tab: false，
-      即便 wxt.config.ts 里写的是 true——entrypoint 自己的声明优先。
-      嵌在小弹窗里时页面宽度只有约 600px，表单会被压成一条窄栏。
+      扩展唯一的页面：概览 / 运行 / 设置 / 关于 四个标签。
+      原来分成看板与设置两页，两处各自列单元、各自显示「上次读取」、
+      各自一个刷新按钮，通知深链还要指两个地方。合成一页之后这些只剩一份。
+
+      样式一律由 main.ts 通过 import 引入，不用 <link>：构建后源路径不会被打包器
+      改写，<link> 会变成死链，页面于是回退到浏览器默认样式。
     -->
     <meta name="manifest.open_in_tab" content="true" />
   </head>
   <body>
-    <div class="shell">
-      <header class="masthead">
-        <h1>设置</h1>
-        <p class="lede">改动会立即保存。</p>
+    <!--
+      标签与面板必须在同一个 sl-tab-group 里：组件只认领自己默认插槽中的
+      sl-tab-panel（见 tab-group 的 getAllPanels），面板放在组外时它找不到，
+      四块内容会同时显示。顶栏因此是「一行品牌 + 一行标签」两段，
+      由同一片品牌青托着，读起来仍是一个头部。
+
+      sl-alert 用官方的 toast() 显示（main.ts），它自己会挂到 sl-toast-stack，
+      所以这里不写定位样式，也没有 placement 这个属性。
+    -->
+    <div class="app">
+      <header class="topbar">
+        <span class="brand">Study Pilot</span>
+        <p id="run-summary" class="run-summary" role="status" aria-live="polite">正在读取状态…</p>
+        <sl-button id="run-now" variant="primary" size="small" title="立即执行一轮：拉取最新数据，完成能自动做的事"
+          >立即执行</sl-button
+        >
       </header>
 
-      <div class="layout">
-        <!--
-          左侧一栏：分区导航 + 页脚操作。
-          设置页有六个分区、页面上千像素长，没有导航就只能一路滚到底找某一项。
-          导航由 main.ts 依据实际渲染出的分区生成，两边不会脱节。
+      <sl-tab-group id="nav" class="nav">
+        <sl-tab slot="nav" panel="overview">概览</sl-tab>
+        <sl-tab slot="nav" panel="run">运行</sl-tab>
+        <sl-tab slot="nav" panel="settings">设置</sl-tab>
+        <sl-tab slot="nav" panel="about">关于</sl-tab>
 
-          恢复默认与版本号放在这一栏的底部，跟着导航一起吸顶：
-          它们是整页范围的操作（不是某一个分区里的设置），放在正文末尾时
-          要滚过七个分区才够得着；而版本号是「我现在用的是哪一版」，
-          排查问题时最常要用，顺手能看见比埋在页脚有用。
-        -->
-        <div class="rail">
-          <nav id="toc" class="toc" aria-label="设置分区"></nav>
-
-          <div class="rail-foot">
-            <sl-button id="reset" class="sp-reset" size="medium" outline>恢复默认设置</sl-button>
-            <p id="version" class="version"></p>
-          </div>
-        </div>
-
-        <div id="app"></div>
-      </div>
-
-      <p class="colophon">STUDYPILOT / MOOC ENHANCER</p>
+        <sl-tab-panel id="overview" name="overview"></sl-tab-panel>
+        <sl-tab-panel id="run" name="run"></sl-tab-panel>
+        <sl-tab-panel id="settings" name="settings"></sl-tab-panel>
+        <sl-tab-panel id="about" name="about"></sl-tab-panel>
+      </sl-tab-group>
     </div>
 
-    <!-- 提示条。放在内容之外，浮在底部居中，不占布局位置 -->
-    <span id="toast" class="toast" role="status" aria-live="polite"></span>
+    <sl-alert id="toast" variant="primary" duration="3200" closable>
+      <span id="toast-text"></span>
+    </sl-alert>
 
     <script type="module" src="./main.ts"></script>
   </body>

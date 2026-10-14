@@ -7,7 +7,8 @@
  *   - 状态落盘到 browser.storage.local，不放在内存里。
  *
  * 这里只保留两件事：
- *   runningSince   上次执行是否还没结束（防重入，也是断点）
+ *   runningSince   这一轮的开始时刻（防重入用，不是断点——没做过的事不需要
+ *                  「接着」，下一轮检查会重新从快照里看到它们）
  *   awaitingLogin  是否因未登录而挂起，等登录后补一次
  *
  * 早先还记过 lastRunDate、doneTids、pending 三样，现在都不需要了：
@@ -49,6 +50,16 @@ export interface TaskState {
    * 登录后立刻补执行。
    */
   awaitingLogin: boolean;
+  /**
+   * 上一轮自动执行的失败原因；null 表示没有未交代清楚的失败。
+   *
+   * 后台一轮跑在 service worker 里，出错时既没有控制台可看（生产构建把 console
+   * 换成空函数），也没有弹窗可等。不把这个记下来，「今天什么都没做」与
+   * 「今天试了但失败了」在界面上长得一模一样。
+   *
+   * 一轮正常结束时由 `finishRun` 清掉：失败已经被这一轮的结果取代了。
+   */
+  lastError: string | null;
 }
 
 export const EMPTY_STATE: TaskState = {
@@ -56,6 +67,7 @@ export const EMPTY_STATE: TaskState = {
   heartbeatAt: null,
   lastFinishedAt: null,
   awaitingLogin: false,
+  lastError: null,
 };
 
 /**
@@ -90,11 +102,35 @@ export function liveRunState(state: TaskState, now: number = Date.now()): LiveRu
 /**
  * 此刻是否可以开始一次自动执行。
  *
- * 只有一种情况不允许：上一轮还没结束。那说明浏览器在此期间被关掉过，
- * 此时应当接着做，而不是并发再起一轮。
+ * 只有「确实还在跑」才拦得住。中断的那一轮不算：它的线程早就不在了。
+ * 判据曾经写成 `runningSince === null`，于是浏览器被强杀一次之后，那个没人
+ * 清的残留标记会把后台永久锁死——每一轮 alarm 静默返回、手动执行永远回
+ * ALREADY_RUNNING，而界面还在说「下次检查时接着做」。现在与界面共用
+ * `liveRunState` 这一个判据，两边不会对同一份存储各说一套。
  */
-export function canStartRun(state: TaskState): boolean {
-  return state.runningSince === null;
+export function canStartRun(state: TaskState, now: number = Date.now()): boolean {
+  return liveRunState(state, now) !== 'running';
+}
+
+/**
+ * 本进程内的一轮认领标记。
+ *
+ * `canStartRun` 看的是跨进程的持久标记，而「检查标记 → 落标记」之间隔着网络
+ * await：闹钟、登录变化与手动按钮都在同一个 worker 里，可以一起穿过那个窗口，
+ * 然后并发起两轮去写平台。持久标记防不住同一进程内的并发，这里补一道同步的。
+ */
+let claimedHere = false;
+
+/** 认领本进程的这一轮。已经被占了就返回 false，调用方直接退出。 */
+export function claimRun(): boolean {
+  if (claimedHere) return false;
+  claimedHere = true;
+  return true;
+}
+
+/** 释放认领。与 `claimRun` 成对出现在 try/finally 里。 */
+export function releaseRun(): void {
+  claimedHere = false;
 }
 
 // ---------- 状态读写 ----------
@@ -143,7 +179,22 @@ export async function finishRun(now: number = Date.now()): Promise<void> {
     heartbeatAt: null,
     lastFinishedAt: now,
     awaitingLogin: false,
+    // 这一轮正常结束了：上一轮的失败已经被它取代
+    lastError: null,
   });
+}
+
+/**
+ * 记下这一轮的失败原因。
+ *
+ * 自动执行跑在 service worker 里：没有可看的控制台（生产构建把 console 换成
+ * 空函数），也没有正在等的界面。不记下来的话，「今天什么都没做」与
+ * 「试了但失败了」在界面上完全一样，而后者用户本来可以当场处理
+ * （重新登录、去设置里补地址）。
+ */
+export async function recordRunFailure(message: string, now: number = Date.now()): Promise<void> {
+  const state = await readState();
+  await writeState({ ...state, lastError: message, lastFinishedAt: now });
 }
 
 /** 标记本轮因未登录而挂起。 */
