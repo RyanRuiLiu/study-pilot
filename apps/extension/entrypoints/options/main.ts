@@ -49,6 +49,7 @@ if (versionEl) versionEl.textContent = `v${browser.runtime.getManifest().version
 
 import { setCurrent, setRender, setToast } from '../../src/settings/page-state.ts';
 import { aiSection } from './sections/ai.ts';
+import { scheduleSection } from './sections/schedule.ts';
 import { moocSettings } from '../../src/platforms/mooc/settings.ts';
 
 // ---------- 渲染 ----------
@@ -64,7 +65,9 @@ function render(): void {
    * 新增平台时这里不用改——多出来的分区自然接在后面。
    */
   app.append(
-    // 各平台自己的分区在前（账号与课程、运行时机、自动任务、前台功能）
+    // 调度是跨平台的，因此它与 AI 一样属于外壳的通用分区
+    scheduleSection(),
+    // 各平台自己的分区（账号与课程、自动任务、前台功能）
     ...moocSettings.render(),
     // 外壳的通用分区在后（AI 与执行诊断跨平台）
     aiSection(),

@@ -18,7 +18,6 @@
  * 判定逻辑写成纯函数以便测试。
  */
 
-import { dateKey } from '../../features/format';
 
 /** 存储键。集中在此，避免各处硬编码字符串。 */
 const STATE_KEY = 'study-pilot:task-state';
@@ -87,34 +86,6 @@ export function liveRunState(state: TaskState, now: number = Date.now()): LiveRu
   return now - beat <= HEARTBEAT_TIMEOUT_MS ? 'running' : 'interrupted';
 }
 
-/** 把执行状态描述成可读文本，用于设置页。 */
-export function describeRunState(state: TaskState, now: number = Date.now()): string {
-  if (state.runningSince !== null) return '上次运行未结束，下次检查时接着完成';
-  if (state.awaitingLogin) return '等待登录，登录后接着完成';
-  if (state.lastFinishedAt === null) return '尚未执行过';
-
-  /*
-   * 说「上次运行」，不说「上次执行」或「已检查」。
-   *
-   * 「执行」在本项目里特指写平台那一步，而这里记的是整轮流程结束的时刻——
-   * 多数轮次只做了检查、什么都没执行。用「执行」会让人以为平台上发生过什么。
-   * 「检查」也不准，它只是整轮的第一步。
-   *
-   * 「运行」不指向其中任何一步，正好说明它是一整轮。
-   *
-   * 具体时刻精确到分钟：流程由浏览器启动与定时器触发，两次之间相隔多久
-   * 取决于用户怎么用浏览器，因此这个时刻是有信息量的。
-   */
-  const time = new Date(state.lastFinishedAt);
-  const hh = String(time.getHours()).padStart(2, '0');
-  const mm = String(time.getMinutes()).padStart(2, '0');
-
-  if (dateKey(state.lastFinishedAt) === dateKey(now)) {
-    return `上次运行：今天 ${hh}:${mm}`;
-  }
-
-  return `上次运行：${time.getMonth() + 1}月${time.getDate()}日 ${hh}:${mm}`;
-}
 
 /**
  * 此刻是否可以开始一次自动执行。

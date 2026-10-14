@@ -54,7 +54,7 @@ const MANUAL_KIND: Record<ManualItem['reason'], PendingKind> = {
  * 而这件事说一次就够了。挂一学期会攒出几十条不会被查看的记录，
  * 把真正要做的事挤下去。
  *
- * 保留几天由设置给出（ScheduleSettings.keepOverdueDays，默认 3 天）。
+ * 保留几天由设置给出（settings.schedule.keepOverdueDays，默认 3 天）。
  *
  * 要看更早的，去设置页的「单元明细」：那里列全部单元，带状态与得分，
  * 全学期可查。弹窗回答「我现在做什么」，明细回答「这门课我做到哪了」，
