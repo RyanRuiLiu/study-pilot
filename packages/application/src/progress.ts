@@ -14,7 +14,7 @@ import type { PlatformRun, RunItem, RunItemStatus, RunState } from './model.ts';
 export const EMPTY_PROGRESS: RunState = { platforms: [] };
 
 /** 一个平台没跑过时的样子。 */
-export function idlePlatform(id: string, name: string): PlatformRun {
+function idlePlatform(id: string, name: string): PlatformRun {
   return { id, name, state: 'idle', startedAt: null, total: 0, finished: 0, current: null, items: [] };
 }
 

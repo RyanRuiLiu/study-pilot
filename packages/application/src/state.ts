@@ -33,7 +33,7 @@ export const EMPTY_STATE: TaskState = {
  * 每一步之前都会刷新心跳，两分钟没动静只能是线程已经不在了。
  * 宁可多等一会儿也不要误报中断——误报会让用户以为扩展坏了。
  */
-export const HEARTBEAT_TIMEOUT_MS = 120_000;
+const HEARTBEAT_TIMEOUT_MS = 120_000;
 
 /**
  * 由持久状态推出「此刻在做什么」。

@@ -62,11 +62,6 @@ export interface AppResponseMap extends ShellResponseMap, MoocResponseMap {}
 
 type RequestOf<K extends AppRequest['type']> = Extract<AppRequest, { type: K }>;
 
-/** 回响应给前台：形状由 AppResponseMap 单向约束，回错字段编译期就红。 */
-export type SendResponse<K extends AppRequest['type'] = AppRequest['type']> = (
-  response: AppResponseMap[K],
-) => void;
-
 /** 向后台发送请求。返回类型由 type 推导，调用方不需要类型断言。 */
 export async function sendToBackground<K extends AppRequest['type']>(
   request: RequestOf<K>,

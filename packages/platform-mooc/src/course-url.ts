@@ -20,7 +20,7 @@ export const COURSE_MODE = {
  * MOOC 走 `/learn/`，其余（SPOC 与 ROOC）走 `/spoc/learn/`。
  * 两种前缀的页面结构一致，但地址不同，拼链接必须按 mode 区分。
  */
-export function learnPagePrefix(mode: number): string {
+function learnPagePrefix(mode: number): string {
   return mode === COURSE_MODE.MOOC ? '/learn/' : '/spoc/learn/';
 }
 
@@ -38,7 +38,7 @@ export function learnPagePrefix(mode: number): string {
  * 学校简称取自 schoolPanel.shortName（该账号为 NTU）。
  * 用课程 shortName 会拼出打不开的地址。
  */
-export function coursePageUrl(course: {
+function coursePageUrl(course: {
   courseId: number;
   schoolShortName: string;
   mode: number;
@@ -159,25 +159,3 @@ export function workPageUrl(
   return `${base}#/${route}?id=${testId}`;
 }
 
-/**
- * 课程模式的展示名。
- *
- * 文案沿用平台的分类叫法，不自创。
- * 未提供模式时返回空串——调用方据此省略这一项，而不是显示一个占位词。
- */
-export function describeCourseMode(mode: number): string {
-  switch (mode) {
-    case COURSE_MODE.MOOC:
-      return 'MOOC';
-    case COURSE_MODE.SPOC_SYNC:
-      return 'SPOC 同步';
-    case COURSE_MODE.SPOC_ASYNC:
-      return 'SPOC 异步';
-    case COURSE_MODE.SPOC_ONLY:
-      return 'SPOC 独立';
-    case COURSE_MODE.ROOC:
-      return 'ROOC';
-    default:
-      return '';
-  }
-}
