@@ -8,7 +8,13 @@
         "scripts/probe/inspect/*.mjs",
         "scripts/probe/maintain/*.mjs",
         "scripts/probe/run/*.mjs",
-        "scripts/verify/*.mjs"
+        "scripts/verify/*.mjs",
+        /*
+         * 仓库根的 vitest 配置。各包自己装了 vitest，knip 的 vitest 插件认得出
+         * 它们的 vitest.config.ts；根目录没有 vitest 依赖，插件不生效，于是这份
+         * 配置会被报成「未使用文件」。它是给 vitest 读的入口，登记成 entry。
+         */
+        "vitest.config.ts"
       ]
     }
   },
