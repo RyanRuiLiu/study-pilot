@@ -5,46 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Study Pilot</title>
     <!--
-      扩展唯一的页面：概览 / 运行 / 设置 / 关于 四个标签。
-      原来分成看板与设置两页，两处各自列单元、各自显示「上次读取」、
-      各自一个刷新按钮，通知深链还要指两个地方。合成一页之后这些只剩一份。
+      扩展唯一的页面，四个标签：概览 / 运行 / 设置 / 关于。
 
-      样式一律由 main.ts 通过 import 引入，不用 <link>：构建后源路径不会被打包器
-      改写，<link> 会变成死链，页面于是回退到浏览器默认样式。
+      刻意只有这些：
+      - 一个 sl-tab-group（官方用法：标签与面板在同一个组里）。设置里的分区用
+        sl-details，不再套第二层标签栏。
+      - 没有顶栏、没有品牌字、没有全局按钮条：动作属于它所在的那一页
+        （概览里读平台数据、运行里执行一轮），同一件事不出现两次。
+      - 样式全部来自 main.ts 引入的 Shoelace 官方主题；本页没有自己的样式文件。
+        <link> 不用：构建后源路径不会被改写，会变成死链。
     -->
     <meta name="manifest.open_in_tab" content="true" />
   </head>
   <body>
-    <!--
-      标签与面板必须在同一个 sl-tab-group 里：组件只认领自己默认插槽中的
-      sl-tab-panel（见 tab-group 的 getAllPanels），面板放在组外时它找不到，
-      四块内容会同时显示。顶栏因此是「一行品牌 + 一行标签」两段，
-      由同一片品牌青托着，读起来仍是一个头部。
+    <sl-tab-group id="nav">
+      <sl-tab slot="nav" panel="overview">概览</sl-tab>
+      <sl-tab slot="nav" panel="run">运行</sl-tab>
+      <sl-tab slot="nav" panel="settings">设置</sl-tab>
+      <sl-tab slot="nav" panel="about">关于</sl-tab>
 
-      sl-alert 用官方的 toast() 显示（main.ts），它自己会挂到 sl-toast-stack，
-      所以这里不写定位样式，也没有 placement 这个属性。
-    -->
-    <div class="app">
-      <header class="topbar">
-        <span class="brand">Study Pilot</span>
-        <p id="run-summary" class="run-summary" role="status" aria-live="polite">正在读取状态…</p>
-        <sl-button id="run-now" variant="primary" size="small" title="立即执行一轮：拉取最新数据，完成能自动做的事"
-          >立即执行</sl-button
-        >
-      </header>
-
-      <sl-tab-group id="nav" class="nav">
-        <sl-tab slot="nav" panel="overview">概览</sl-tab>
-        <sl-tab slot="nav" panel="run">运行</sl-tab>
-        <sl-tab slot="nav" panel="settings">设置</sl-tab>
-        <sl-tab slot="nav" panel="about">关于</sl-tab>
-
-        <sl-tab-panel id="overview" name="overview"></sl-tab-panel>
-        <sl-tab-panel id="run" name="run"></sl-tab-panel>
-        <sl-tab-panel id="settings" name="settings"></sl-tab-panel>
-        <sl-tab-panel id="about" name="about"></sl-tab-panel>
-      </sl-tab-group>
-    </div>
+      <sl-tab-panel name="overview" id="overview"></sl-tab-panel>
+      <sl-tab-panel name="run" id="run"></sl-tab-panel>
+      <sl-tab-panel name="settings" id="settings"></sl-tab-panel>
+      <sl-tab-panel name="about" id="about"></sl-tab-panel>
+    </sl-tab-group>
 
     <sl-alert id="toast" variant="primary" duration="3200" closable>
       <span id="toast-text"></span>
