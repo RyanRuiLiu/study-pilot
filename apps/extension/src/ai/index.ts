@@ -81,3 +81,29 @@ export function createTextGenerator(settings: Settings): TextGenerator | undefin
   };
 }
 
+/**
+ * 设置页的「测试连接」：用当前配置发一次最小对话。
+ *
+ * 与 createTextGenerator 走同一个客户端与同一套错误分类，因此它测的就是
+ * 真正会用到的路径。主机权限不在这里申请——那是用户手势里的事，见 permission.ts。
+ */
+export async function testAiConnection(
+  settings: Settings,
+): Promise<{ ok: true; text: string } | { ok: false; reason: string }> {
+  if (!hasTextGenerator(settings)) {
+    return { ok: false, reason: '地址、模型、密钥未填齐，或 AI 未开启' };
+  }
+
+  const chat = createChatClient({
+    baseUrl: settings.ai.baseUrl,
+    model: settings.ai.model,
+    apiKey: settings.ai.apiKey,
+    fetch: (input, init) => fetch(input, init),
+  });
+
+  const result = await chat.complete([{ role: 'user', content: '只回复两个字：可用' }]);
+  return result.ok
+    ? { ok: true, text: result.value }
+    : { ok: false, reason: `${result.error.kind}：${result.error.message}` };
+}
+
