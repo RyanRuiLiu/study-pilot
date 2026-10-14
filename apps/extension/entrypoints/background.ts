@@ -4,8 +4,9 @@
  * 本文件只做装配：创建客户端、注册消息路由与启动触发。
  * 任务逻辑位于 `src/background/`，配置门禁由任务自身强制。
  *
- * 运行模型：每周指定日的首次浏览器启动时执行一次。判定与进度记录在
- * `src/background/scheduler.ts`，一轮的完整流程在 `src/background/run-tasks.ts`。
+ * 运行模型：浏览器启动时与定时检查时各跑一轮，登录后补跑一次——触发都写在
+ * `src/background/wiring.ts`。判据与「跑一轮」的流程在 @study-pilot/application
+ * （state.ts 判「此刻能不能开始」，round.ts 是那个用例）。
  */
 
 

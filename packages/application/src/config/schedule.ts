@@ -2,7 +2,8 @@
  * 调度的配置（app 级）。
  *
  * 原先挂在 `settings.mooc.background.schedule` 下：只有一个平台时放哪儿都无所谓。
- * 但调度是**跨平台**的（见 `src/background/run-tasks.ts`：什么时候跑、跑哪个平台），
+ * 但调度是**跨平台**的（触发见 apps/extension/src/background/wiring.ts，用例见
+ * packages/application/src/round.ts：什么时候跑、跑哪些平台），
  * 配置跟着平台走会让第二个平台无处安放，也会把「多久检查一次」变成
  * 「慕课多久检查一次」。因此提升到顶层；旧位置由 `normalize` 迁移（版本 3）。
  *
