@@ -68,7 +68,7 @@ export interface ManualItem {
 export interface Plan {
   /** 能做的。为空表示这一轮不需要写平台 */
   auto: AutoAction[];
-  /** 只能人工的。用于展示与提醒 */
+  /** 只能人工的。用于展示 */
   manual: ManualItem[];
 }
 
@@ -78,9 +78,9 @@ export interface Plan {
  * 这几种都是过了某个截止时间：测验过了提交截止平台不允许开卷，
  * 作业过了提交截止平台不收，互评与自评过了互评截止则不再计分。
  *
- * 定义在 reason 旁边而不是各个使用处：先前提醒模块自己维护了一份
- * 只有两种的判据，后来新增互评与自评过期时就漏掉了它，
- * 于是那两项被当成「待你处理」报给用户——而它们根本做不了。
+ * 定义在 reason 旁边而不是各个使用处：曾经别处自己维护过一份只有两种的
+ * 判据，新增互评与自评过期时漏了它，那两项被当成「待你处理」报给
+ * 用户——而它们根本做不了。
  */
 export const OVERDUE_REASONS: ReadonlySet<ManualItem['reason']> = new Set([
   'homework-overdue',

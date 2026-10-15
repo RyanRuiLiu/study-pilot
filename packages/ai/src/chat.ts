@@ -8,7 +8,7 @@
  * 与 `transport` 的分工：那层说「平台接口怎么发」，这层说「模型接口怎么发」。
  * 两者都只依赖 `core`，都不认识业务概念（课件、讨论、题目）。
  *
- * 失败一律经 `Result` 表达，且错误消息里**不含密钥**：它会进日志与通知。
+ * 失败一律经 `Result` 表达，且错误消息里**不含密钥**：它会进日志与运行记录。
  */
 
 import { err, ok, type FetchLike, type Result } from '@study-pilot/core';

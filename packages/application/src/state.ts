@@ -50,7 +50,7 @@ export function liveRunState(state: TaskState, now: number = Date.now()): LiveRu
 }
 
 /**
- * 此刻是否可以开始一次自动执行。
+ * 此刻是否可以开始一轮执行。
  *
  * 只有「确实还在跑」才拦得住。中断的那一轮不算：它的线程早就不在了。
  * 判据曾经写成 `runningSince === null`，于是浏览器被强杀一次之后，那个没人

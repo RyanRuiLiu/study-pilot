@@ -17,7 +17,7 @@ export interface SnapshotWork {
   /**
    * 考试自身的 id，仅考试有。
    *
-   * 答卷页地址需要它，而它不属于任何单元，只能随快照一起存下来。
+   * 答卷页地址需要它，而它不属于任何单元，只能随快照一起带出来。
    */
   examId: number | null;
   type: 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective';

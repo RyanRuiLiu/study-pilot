@@ -11,11 +11,23 @@
  * 两条都不需要浏览器。
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, type ConfigPort, type HostCapabilities } from '@study-pilot/application';
 import { createMoocRuntime, createMoocTasks, type MoocRunDeps } from '../src/index.ts';
 import { SessionExpiredError } from '../src/policy/session.ts';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/policy/read/types.ts';
+
+/*
+ * 单测不打网络：ensureSession 在未登录时会 fetch 一次平台首页（把匿名会话
+ * 带活），没有桩时这一条会真的出网——机器繁忙时偶发超时（实测踩过）。
+ * 给全局 fetch 一个空响应即可：被测行为只看策略层的出站，不看它的返回。
+ */
+beforeAll(() => {
+  vi.stubGlobal('fetch', async () => new Response('', { status: 200 }));
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = 1_700_000_000_000;

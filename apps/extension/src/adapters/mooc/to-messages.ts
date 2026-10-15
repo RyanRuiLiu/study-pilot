@@ -99,7 +99,7 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
      *
      * 它没有截止时间、也不属于任何章节，开了自动完成之后一件件做掉即可。
      * 把它塞进待办列表会让「我还有什么没做」变长，而它本来不是要交的东西；
-     * 做完了什么由完成提醒报告。
+     * 做完了什么由运行记录呈现。
      */
     if (action.kind === 'courseware') continue;
 

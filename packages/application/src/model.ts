@@ -50,7 +50,7 @@ export interface PlanResult {
   items: PlanItem[];
   /**
    * 本轮发现会话失效（不是错误，是"需要人重新登录一次"）。
-   * 调度据此记下挂起状态，等用户下次在平台上活动后自动补做。
+   * 调度据此如实收尾：本轮不做任何写入，用户重新登录后再点执行。
    */
   needsLogin?: boolean;
   /**

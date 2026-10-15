@@ -21,4 +21,4 @@ export {
   mergeWithBase,
   normalize,
 } from '@study-pilot/application';
-export { configStore, getSettings, updateSettings, watchSettings } from './storage.ts';
+export { configStore, getSettings, updateSettings } from './storage.ts';
