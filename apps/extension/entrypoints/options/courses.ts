@@ -114,6 +114,10 @@ export async function renderCourses(): Promise<void> {
  * 先前是「旧课程原样留着、顶上夹一行『正在读取课程列表…』」，
  * 同一块区域出现两套等待长相，旧的还装作是内容（Ryan 指出）。
  * 完成或失败后由 renderCourses 落定为内容 / 错误行；结果另有 toast。
+ *
+ * 成功之后再重读课件区与卡头状态行（refreshCourseViews）：课程集合变了，
+ * 「待交 / 课件剩 / 各课进度」的口径就跟着变。顺序必须在合并写回之后——
+ * 先发起课件读取会按旧范围算，数字又成了过期的。失败不动课件区：名单没变。
  */
 export function initCourseActions(): void {
   const button = document.getElementById('refresh-courses');
@@ -126,6 +130,7 @@ export function initCourseActions(): void {
         if (result.ok) toast(`已读取 ${result.courses.length} 门课程`);
         else toast(`读取失败：${result.message ?? result.reason}`);
         await renderCourses();
+        if (result.ok) void refreshCourseViews();
       })
       .catch(async (error: unknown) => {
         toast(`读取失败：${errorText(error)}`);
