@@ -43,6 +43,11 @@ export interface MoocCarrierDeps {
    * 执行层也不会假装成功。这里不做替代实现。
    */
   textGenerator?: (settings: Settings) => TextGenerator | undefined;
+  /**
+   * AI 文本能力的实测判断（可选）。扩展传的是「设置齐 && 主机权限在」——
+   * 权限被撤回时讨论单元不进计划，而不是每轮失败。缺省按设置推断。
+   */
+  textAvailable?: (settings: Settings) => Promise<boolean> | boolean;
 }
 
 /** 本厂商的运行件。 */
@@ -115,6 +120,7 @@ export function createMoocRuntime(carrier: MoocCarrierDeps): MoocRuntime {
     selectedCourses,
     coursewareContext,
     recordFailure: carrier.recordFailure,
+    ...(carrier.textAvailable !== undefined ? { textAvailable: carrier.textAvailable } : {}),
   };
 
   return {

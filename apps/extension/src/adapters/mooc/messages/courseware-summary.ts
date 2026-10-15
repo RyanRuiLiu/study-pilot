@@ -5,7 +5,7 @@
  * 未登录时不往下走，原因与其余读取相同。
  */
 
-import { hasTextGenerator } from '@study-pilot/application';
+import { aiTextAvailable } from '../../../ai/permission.ts';
 import type { MessageHandler } from '../../../protocol.ts';
 import { getSettings } from '../../../settings';
 import {
@@ -45,7 +45,7 @@ export function coursewareSummaryCommand(deps: MoocMessageDeps): MessageHandler 
        * 按课程列表逐门对齐：读不到结构的课（从未学过、平台不回结构）
        * 补一行「读不到」，而不是静默消失——用户勾了它，就该看见它为什么是空的。
        */
-      const progress = summarizeCourseware(outcome.value, hasTextGenerator(settings));
+      const progress = summarizeCourseware(outcome.value, await aiTextAvailable(settings));
       const rows = courses.map(
         (course) =>
           progress.find((entry) => entry.courseName === course.name) ?? {

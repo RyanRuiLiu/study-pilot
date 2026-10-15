@@ -39,7 +39,11 @@ export interface Settings {
  * `schedule.checkIntervalMinutes`；课程、互评评语、过期保留天数收进 `mooc` 顶层。
  * 详见 `toManualShape`。
  */
-export const SETTINGS_VERSION = 5;
+/*
+ * 版本 6：`ai.baseUrl` 删除——AI 地址钉死在智谱（见 config/ai.ts 的 AI_BASE_URL）。
+ * 旧数据里的 baseUrl 不需要迁移段：合并对着新骨架进行，未知键自然丢弃。
+ */
+export const SETTINGS_VERSION = 6;
 
 export const DEFAULT_SETTINGS: Settings = {
   version: SETTINGS_VERSION,
@@ -171,15 +175,19 @@ export function mergeWithBase<T>(base: T, patch: Json): T {
  * 迁移按版本先后串起来：每段只认自己接手的旧形状，输出交给下一段，
  * 最后由 `mergeWithBase` 对着骨架收尾（旧键在这一步被自然丢掉）。
  *
- * 除逐键合并之外，还有一处按语义兜底：互评评语不能为空。
- * 合并只做类型检查，而空串是合法的 string，会被原样采纳——平台在校验时
- * 会拒掉空评语，返回的错误却不指明是哪个字段，用户清空输入框之后就只看到
- * 一句「提交失败」。这里留空退回默认评语，设置页也标注了这一条。
+ * 除逐键合并之外，还有两处按语义兜底：
+ *   - 互评评语不能为空。合并只做类型检查，而空串是合法的 string，会被原样
+ *     采纳——平台在校验时会拒掉空评语，返回的错误却不指明是哪个字段，用户
+ *     清空输入框之后就只看到一句「提交失败」。这里留空退回默认评语，设置页
+ *     也标注了这一条。
+ *   - AI 模型不能为空：留空退回默认（glm-4-flash）。模型空串会让「AI 已启用」
+ *     与「生成器可用」互相矛盾——设置页看是开着的，讨论单元却因缺模型进不了计划。
  */
 export function normalize(raw: Json): Settings {
   const migrated = toManualShape(migrateScheduleToTopLevel(raw));
   const merged = mergeWithBase(DEFAULT_SETTINGS, migrated);
   const comment = merged.mooc.reviewComment;
+  const model = merged.ai.model;
 
   return {
     ...merged,
@@ -187,6 +195,10 @@ export function normalize(raw: Json): Settings {
     mooc: {
       ...merged.mooc,
       reviewComment: comment.trim() || DEFAULT_MOOC.reviewComment,
+    },
+    ai: {
+      ...merged.ai,
+      model: model.trim() || DEFAULT_AI.model,
     },
   };
 }

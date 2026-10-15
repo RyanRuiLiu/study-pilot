@@ -15,7 +15,7 @@
  */
 
 import { createChatClient, type AiError } from '@study-pilot/ai';
-import { hasTextGenerator } from '@study-pilot/application';
+import { AI_BASE_URL, hasTextGenerator } from '@study-pilot/application';
 import type { TextGenerator } from '@study-pilot/platform-mooc';
 import type { Settings } from '../settings';
 import { discussReplyTask, type AiTask } from './tasks/discuss-reply.ts';
@@ -54,7 +54,7 @@ export function createTextGenerator(settings: Settings): TextGenerator | undefin
   if (!hasTextGenerator(settings)) return undefined;
 
   const chat = createChatClient({
-    baseUrl: settings.ai.baseUrl,
+    baseUrl: AI_BASE_URL,
     model: settings.ai.model,
     apiKey: settings.ai.apiKey,
     fetch: (input, init) => fetch(input, init),
@@ -95,7 +95,7 @@ export async function testAiConnection(
   }
 
   const chat = createChatClient({
-    baseUrl: settings.ai.baseUrl,
+    baseUrl: AI_BASE_URL,
     model: settings.ai.model,
     apiKey: settings.ai.apiKey,
     fetch: (input, init) => fetch(input, init),

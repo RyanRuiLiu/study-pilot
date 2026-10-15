@@ -40,8 +40,14 @@ export function derivePlan(
   snapshot: Snapshot,
   settings: Settings,
   now: number = Date.now(),
+  /**
+   * AI 文本能力的**实测**结论（载体可加权限等自身条件）。缺省按设置推断。
+   * 「设置齐」不等于「此刻可用」——权限被撤回时讨论单元不该进队列（进了
+   * 必失败、每轮重现），宁可当它不存在。
+   */
+  textAvailableOverride?: boolean,
 ): Plan {
-  const textAvailable = hasTextGenerator(settings);
+  const textAvailable = textAvailableOverride ?? hasTextGenerator(settings);
   const auto: AutoAction[] = [];
   const manual: ManualItem[] = [];
 

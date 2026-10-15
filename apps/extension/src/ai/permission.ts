@@ -1,37 +1,37 @@
 /*
- * 主机权限按需申请。
+ * AI 主机权限的实测。
  *
- * 接口地址由用户填写，事先不知道是哪个域名，因此清单里只能把主机权限声明为
- * 「可选通配」（声明而已，未授权时那些域名发不出去）。真正申请时**只申请用户
- * 填写的那个源**，不开启 AI 就一个第三方域名都没有。
+ * 智谱的源在清单里**静态声明**（wxt.config.ts 的 host_permissions，安装即授权），
+ * 因此不再有「按需申请」那一步。但权限仍可能不在：用户可以在扩展详情页把
+ * 「网站访问权限」收回（或设为「点击时」），那时网络层会直接拒发——计划与
+ * 界面需要知道这件事，不然讨论单元会以「每轮都失败」的形态进队列。
  *
- * 这一层只有一处：设置页的按钮调它，别处不碰权限。
+ * 这里只做**只读核对**，不触发任何申请；设置页与执行前的计划判断都走这一处。
  */
 
-export type HostPermissionResult =
-  /** 已授权（本次申请通过或此前已授权） */
-  | 'granted'
-  | 'denied'
-  /** 浏览器不支持或调用环境不允许（例如非扩展页面） */
-  | 'unsupported';
+import { chatOrigin } from '@study-pilot/ai';
+import { AI_BASE_URL, hasTextGenerator, type Settings } from '@study-pilot/application';
 
-/**
- * 确保对某个源拥有主机权限。
- *
- * 必须在用户手势里调用（点击按钮），否则浏览器会直接拒绝——
- * 因此它不接受自动调用。
- */
-export async function ensureHostPermission(origin: string): Promise<HostPermissionResult> {
-  const pattern = `${origin}/*`;
-  if (typeof browser === 'undefined' || !browser.permissions) return 'unsupported';
-
-  if (await browser.permissions.contains({ origins: [pattern] })) return 'granted';
-  const granted = await browser.permissions.request({ origins: [pattern] });
-  return granted ? 'granted' : 'denied';
+/** 智谱的源。从 AI_BASE_URL 推出，保证与请求实际发出的源一致。 */
+const AI_ORIGIN = chatOrigin(AI_BASE_URL);
+if (AI_ORIGIN === null) {
+  // 常量自己坏了就整个炸掉，别让一个错地址悄悄降级成「没有权限」
+  throw new Error(`AI_BASE_URL 不是合法地址：${AI_BASE_URL}`);
 }
 
-/** 当前是否已经拥有该源的权限（不触发申请）。 */
-export async function hasHostPermission(origin: string): Promise<boolean> {
+/** 此刻是否持有对智谱的主机权限（不触发申请）。 */
+export async function hasAiHostPermission(): Promise<boolean> {
   if (typeof browser === 'undefined' || !browser.permissions) return false;
-  return await browser.permissions.contains({ origins: [`${origin}/*`] });
+  return await browser.permissions.contains({ origins: [`${AI_ORIGIN}/*`] });
+}
+
+/**
+ * AI 文本能力此刻是否真的可用：设置齐（启用/模型/密钥）**且**权限在。
+ *
+ * 计划、待办摘要与课件摘要共用这一个判断——「设置齐」不等于「此刻可用」，
+ * 权限被收回时讨论单元不该进执行队列（进了必失败），而是按需人工呈现。
+ */
+export async function aiTextAvailable(settings: Settings): Promise<boolean> {
+  if (!hasTextGenerator(settings)) return false;
+  return await hasAiHostPermission();
 }

@@ -12,6 +12,7 @@
 
 import type { MessageHandler } from '../../../protocol.ts';
 import { getSettings } from '../../../settings';
+import { aiTextAvailable } from '../../../ai/permission.ts';
 import { derivePlan, ensureSession, recoveryFailure, withSessionRecovery } from '@study-pilot/platform-mooc';
 import { toPendingSummary } from '../to-messages';
 import type { MoocMessageDeps } from './deps.ts';
@@ -46,7 +47,12 @@ export function pendingCommand(deps: MoocMessageDeps): MessageHandler {
       }
       sendResponse({
         status: 'ok',
-        value: toPendingSummary(derivePlan(outcome.value, settings), settings.mooc.keepOverdueDays),
+        value: toPendingSummary(
+          // 与执行侧同一个实测判断：权限不在时讨论单元不进清单，免得
+          // 界面展示「可代劳」、执行时却一条条失败
+          derivePlan(outcome.value, settings, Date.now(), await aiTextAvailable(settings)),
+          settings.mooc.keepOverdueDays,
+        ),
       } satisfies MoocResponseMap['PENDING_SUMMARY']);
     } catch (error) {
       sendResponse({

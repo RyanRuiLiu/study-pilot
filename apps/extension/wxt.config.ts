@@ -77,22 +77,21 @@ export default defineConfig({
       'declarativeNetRequestWithHostAccess',
     ],
     /*
-     * 目前只申请这一个平台的主机权限。
+     * 主机权限：请求实际发往的两个源，都在这里静态声明（安装即授权）。
      *
-     * 扩展只在用户自己已登录的账号上工作，不采集任何数据。
-     * 后续增加平台时需要同时补上对应的 host_permissions 与内容脚本匹配，
-     * 并在这里说明新增的用途——商店审查会比对权限与说明是否一致。
-     */
-    host_permissions: ['*://*.icourse163.org/*'],
-    /*
-     * AI 接口的主机权限：可选，按需申请。
+     *   icourse163.org    学习平台本身；
+     *   open.bigmodel.cn  智谱开放平台——AI 的唯一出口（见 application 的
+     *                     AI_BASE_URL，地址固定，因此权限可以静态声明，
+     *                     不再有「按需申请」那一步）。
      *
-     * 接口地址由用户在设置里填写，事先不知道是哪个域名，所以声明只能给通配。
-     * 「声明」不等于「拥有」：未获授权时这些域名的请求发不出去，实际申请时
-     * 也只申请用户填写的那个源。
-     * 不开启 AI 就一个第三方域名都没有。
+     * 没有 optional_host_permissions：AI 地址不由用户填，扩展不需要
+     * 「任意域名」这把伞。加平台时同时补 host_permissions 与内容脚本匹配，
+     * 并在这里说明用途——商店审查会比对权限与说明是否一致。
+     *
+     * 权限仍可能不在：用户可以在扩展详情页收回「网站访问权限」。那种情况下
+     * 界面如实提示（见 src/ai/permission.ts），计划里的讨论单元不进队列。
      */
-    optional_host_permissions: ['*://*/*'],
+    host_permissions: ['*://*.icourse163.org/*', 'https://open.bigmodel.cn/*'],
     options_ui: {
       page: 'options.html',
       open_in_tab: true,

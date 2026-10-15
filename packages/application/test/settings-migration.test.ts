@@ -98,3 +98,20 @@ describe('没有旧键时的默认值', () => {
     expect(normalize(null).mooc.keepOverdueDays).toBe(3);
   });
 });
+
+describe('版本 6：AI 地址钉死在智谱', () => {
+  it('存量数据里自填的接口地址被丢弃——地址已固定，不再由用户提供', () => {
+    const out = normalize({
+      version: 5,
+      ai: { enabled: true, baseUrl: 'https://api.example.com/v1', model: 'glm-4-flash', apiKey: 'k' },
+    });
+    expect('baseUrl' in out.ai).toBe(false);
+    expect(out.version).toBe(6);
+  });
+
+  it('模型留空退回默认（glm-4-flash）——空模型会让「已启用」与「生成器可用」互相矛盾', () => {
+    const out = normalize({ version: 5, ai: { enabled: true, baseUrl: '', model: '', apiKey: 'k' } });
+    expect(out.ai.model).toBe('glm-4-flash');
+    expect(out.ai.apiKey).toBe('k');
+  });
+});
