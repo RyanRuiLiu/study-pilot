@@ -59,8 +59,12 @@
   color: var(--ink);
 }
 
-/* 行内「执行」：字为主，无底无框（悬停由上面的共享规则浮出实心） */
+/* 行内「执行」：字为主，无底无框（悬停由上面的共享规则浮出实心）。
+   必须抬层（relative + z-index）——整行铺着一条垫底的透明链接（.todo-open），
+   不抬层就被它盖住：点不到按钮，点下去反而跳去平台 */
 .todo-run {
+  position: relative;
+  z-index: 1;
   height: 20px;
   padding: 0;
   background: transparent;
