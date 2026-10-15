@@ -21,7 +21,7 @@
  *
  * 用法：pnpm probe <命令>   （完整清单：pnpm probe --help）
  */
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,8 +34,15 @@ const API_DIR = path.join(ROOT, '.probe', 'api');
 const EXT_DIR = path.join(ROOT, 'apps', 'extension', '.output', 'chrome-mv3');
 
 const ORIGIN = 'https://www.icourse163.org';
-/** 探测浏览器的固定调试端口。项目里只有它会开这个端口，attach 即认它。 */
+/** 探测浏览器的固定调试端口。端口本身不可信，attach 前核实对端身份（见 attach()）。 */
 const CDP_PORT = 9222;
+/**
+ * 归属标记：launch() 每次启动写一枚随机值，同时落 profile 目录与本 cookie，
+ * attach() 两边对上才认对端。cookie 只挂在 127.0.0.1（就是调试端口自己），不碰站点。
+ */
+const OWNER_FILE = path.join(PROFILE, '.probe-owner');
+const OWNER_COOKIE = 'study-pilot-probe-owner';
+const OWNER_URL = `http://127.0.0.1:${CDP_PORT}/`;
 /** 判定登录态的三个会话 cookie（NTESSTUDYSI 未登录时也有，另两个才是关键）。 */
 const AUTH_COOKIES = ['STUDY_SESS', 'STUDY_INFO', 'NTESSTUDYSI'];
 /** 签名盐值与协议版本——唯一出处是 packages/transport/src/sign.ts（按线上源码还原）。 */
@@ -72,7 +79,9 @@ function parseArgs(argv) {
 // ---------------------------------------------------------------- 浏览器
 
 function launchArgs({ ext }) {
-  const args = ['--no-first-run', '--no-default-browser-check', '--remote-allow-origins=*'];
+  // 不要加 --remote-allow-origins=*：那等于允许任意网页来源连 CDP。
+  // Playwright 的 Node 客户端不带头带 Origin 的 WebSocket 握手，用不上它。
+  const args = ['--no-first-run', '--no-default-browser-check'];
   if (ext && existsSync(EXT_DIR)) {
     args.push(`--disable-extensions-except=${EXT_DIR}`, `--load-extension=${EXT_DIR}`);
   }
@@ -89,21 +98,63 @@ async function launch({ ext = true, cdpPort = null, recordHar = null } = {}) {
     ...(recordHar ? { recordHar: { path: recordHar, content: 'embed' } } : {}),
   });
   await injectMissingCookies(context);
+  await stampOwner(context);
   return context;
 }
 
-/** 附着到已在运行的探测浏览器（probe open 起的那个）。不在就返回 null。 */
+/**
+ * 给这只浏览器盖归属标记（见 OWNER_FILE 注释）。
+ * addCookies 用 URL 挂 cookie，不需要先开页面——启动即封好身份。
+ */
+async function stampOwner(context) {
+  const token = randomUUID();
+  writeFileSync(OWNER_FILE, token);
+  await context.addCookies([{ name: OWNER_COOKIE, value: token, url: OWNER_URL }]);
+}
+
+/**
+ * 附着到已在运行的探测浏览器（probe open 起的那个）。不在就返回 null。
+ *
+ * 9222 按**不可信端口**对待：附着前先核实对端是不是我们自己的探测浏览器——
+ * 读它 127.0.0.1 域上的归属标记 cookie，与 profile 目录里的副本对上才继续
+ * （launch() 每次启动盖的章）。否则，一个抢先占住 9222 的本机进程就能引着
+ * 后续命令把登录 cookie 注入它、在它上面签名发请求。核实是**只读**的：
+ * 对不上就断开并退出（不悄悄另起一只，否则人会以为在操作开着的那只）。
+ */
 let usedAttach = false;
 async function attach() {
+  let browser;
   try {
-    const browser = await chromium.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`, { timeout: 2000 });
-    const context = browser.contexts()[0];
-    if (!context) return null;
-    usedAttach = true;
-    return { browser, context };
+    browser = await chromium.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`, { timeout: 2000 });
   } catch {
-    return null;
+    return null; // 9222 上没有东西在听：正常路径，调用方照常自己起
   }
+
+  const context = browser.contexts()[0];
+  let expected = null;
+  try {
+    expected = readFileSync(OWNER_FILE, 'utf8').trim();
+  } catch {
+    expected = null;
+  }
+  const actual =
+    context && expected
+      ? ((await context.cookies(OWNER_URL).catch(() => []))
+          .find((cookie) => cookie.name === OWNER_COOKIE)?.value ?? null)
+      : null;
+  if (!context || expected === null || actual !== expected) {
+    await browser.close().catch(() => undefined); // 只断开连接，不碰对端浏览器
+    die(
+      [
+        '9222 端口被占用，但对端不是本项目的探测浏览器（归属标记对不上）。',
+        '拒绝附着：附着会把登录态注入未知进程、并在它上面发请求。',
+        '先关掉占用 9222 的程序，再用 pnpm probe open 起探测浏览器。',
+      ].join('\n'),
+    );
+  }
+
+  usedAttach = true;
+  return { browser, context };
 }
 
 /** 优先附着探测浏览器；不在就自己起一个（干完由调用方 release）。 */
