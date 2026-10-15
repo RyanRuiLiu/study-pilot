@@ -40,7 +40,7 @@ export function planWork(course: SnapshotCourse, work: SnapshotWork, now: number
    * 只有一次作答机会（切屏会被计数、倒计时不可暂停），
    * 不该代为点击提交。作答页上有填充与评分依据，提交由用户自己完成。
    *
-   * 过了截止的同样标出来——那时候再提醒也做不了了，但用户该知道自己漏了。
+   * 过了截止的同样标出来——那时候做也做不了了，但用户该知道自己漏了。
    */
   if (isExam(work.type)) {
     if (!work.submitted) {
@@ -55,7 +55,7 @@ export function planWork(course: SnapshotCourse, work: SnapshotWork, now: number
 
     /*
      * 未提交的测验分两种。已过截止的平台不允许开卷，扩展做不了，
-     * 只能提醒用户已经晚了；没过截止的排进 auto——客观题，能作答也能提交。
+     * 只能让用户知道已经晚了；没过截止的排进 auto——客观题，能作答也能提交。
      */
     if (work.deadline !== null && work.deadline <= now) {
       manual.push({ course, work, deadline: work.deadline, reason: 'quiz-overdue' });

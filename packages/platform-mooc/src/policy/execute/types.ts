@@ -17,6 +17,6 @@ export interface ExecResult {
   name: string;
   kind: AutoAction['kind'];
   status: 'done' | 'skipped' | 'failed';
-  /** 结果说明，会出现在通知里 */
+  /** 结果说明，会出现在运行记录里 */
   detail: string;
 }

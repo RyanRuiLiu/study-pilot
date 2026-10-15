@@ -186,8 +186,8 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
        *
        * 长时间闲置后的那次检查最容易撞上「cookie 还在、服务端会话已死」：
        * 此时平台回的是未登录形态的空数据，不恢复会话就会把空快照当事实，
-       * 一整天不发通知也不报错。恢复不了则挂起等登录——沿用启动时
-       * 未登录的同一机制，用户在平台上重新活动后自动补做。
+       * 界面显示成「没有待办」而不报错。恢复不了则按未登录如实收尾——
+       * 本轮不做任何写入，用户重新登录后再点一次执行即可。
        */
       const recovered = await withSessionRecovery(
         () => deps.loadSnapshot(courses, session.userId),

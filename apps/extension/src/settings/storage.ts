@@ -50,15 +50,11 @@ export async function updateSettings(patch: unknown): Promise<Settings> {
  * 载体把这一份交给应用层与厂商适配器，它们从此不再直接读存储：换一个载体
  * 时只换这个实现，应用层一行不动。
  *
- * 只有 read 与 update。reset 与 watch 是载体自己的事——前者是设置页的按钮，
- * 后者用来重挂定时器，应用层从不调用，放进端口只会变成没人实现的假接口。
+ * 只有 read 与 update。reset / watch 之类不在这里——应用层从不调用，
+ * 放进端口只会变成没人实现的假接口；载体侧也不再提供（旧版为定时器
+ * 时代留的 watchSettings 已随之一并删除）。
  */
 export const configStore: ConfigPort = {
   read: getSettings,
   update: updateSettings,
 };
-
-/** 订阅配置变化，返回取消订阅函数。 */
-export function watchSettings(listener: (next: Settings) => void): () => void {
-  return item.watch((value) => listener(normalize(value)));
-}
