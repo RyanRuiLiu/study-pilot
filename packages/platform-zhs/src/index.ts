@@ -22,3 +22,23 @@ export {
   wrapSignedBody,
   type StampField,
 } from './sign.ts';
+
+export {
+  ZHS_HOSTS,
+  ZHS_MODULE,
+  ZHS_ENDPOINTS,
+  type ZhsHost,
+  type ZhsEndpoint,
+  type ZhsEndpointName,
+} from './endpoints.ts';
+
+export {
+  createZhsClient,
+  BROWSER_USER_AGENT,
+  ZhsHttpError,
+  ZhsApiError,
+  type ZhsClient,
+  type ZhsClientOptions,
+} from './client.ts';
+
+export { readSession, type ZhsSession } from './session.ts';
