@@ -16,7 +16,7 @@
  */
 
 import { getCourseware, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
-import type { CoursewareProgress, QueryOutcome } from '../../src/ui-bridge';
+import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
 import { progressLine, runningItem, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { COURSEWARE_KINDS } from '../../src/ui/scopes.ts';
 import { renderOverview } from './overview.ts';
@@ -226,7 +226,7 @@ function note(text: string): HTMLElement {
 }
 
 export async function renderCourseware(
-  read?: Promise<QueryOutcome<CoursewareProgress[]>>,
+  read?: Promise<QueryOutcome<CoursewareSummary>>,
 ): Promise<void> {
   const listEl = document.getElementById('courseware-list');
   if (listEl === null) return;
@@ -237,7 +237,7 @@ export async function renderCourseware(
   currents.clear();
   buttonsOfCourse.clear();
 
-  let outcome: QueryOutcome<CoursewareProgress[]>;
+  let outcome: QueryOutcome<CoursewareSummary>;
   try {
     outcome = await (read ?? getCourseware());
   } catch (error) {
@@ -258,21 +258,21 @@ export async function renderCourseware(
     return;
   }
 
-  if (outcome.value.length === 0) {
+  if (outcome.value.courses.length === 0) {
     listEl.append(note('尚未选择参与任务的课程（见上方「账号与课程」）。'));
     return;
   }
 
-  listEl.append(...outcome.value.map(buildRow));
+  listEl.append(...outcome.value.courses.map(buildRow));
 
   /*
    * 做不了的那些如实说一句，并把两种原因分开：只差 AI 的可以行动
    * （去下面配 AI），平台数据不全的只能手动。混成一句「需要 AI 或
    * 平台数据不全」，用户既不知道是哪一种，也不知道自己能做什么。
    */
-  const cannot = outcome.value.reduce((sum, entry) => sum + entry.cannot, 0);
+  const cannot = outcome.value.courses.reduce((sum, entry) => sum + entry.cannot, 0);
   if (cannot > 0) {
-    const needsAi = outcome.value.reduce((sum, entry) => sum + entry.needsAi, 0);
+    const needsAi = outcome.value.courses.reduce((sum, entry) => sum + entry.needsAi, 0);
     const blocked = cannot - needsAi;
     const parts: string[] = [];
     if (needsAi > 0) parts.push(`${needsAi} 项讨论需要配置 AI 后才会做（见下方「AI 连接」）`);
