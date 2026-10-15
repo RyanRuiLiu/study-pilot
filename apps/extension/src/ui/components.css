@@ -543,6 +543,15 @@
   overflow-wrap: anywhere;
 }
 
+/* 进度句常变（每做一项换一句），长单元名折两行、短的一行会让这一条
+   来回翻高翻矮（Ryan 反馈）——单行省略定高，全名在 title 悬停里看。
+   错误/结果句是一次性的，走上面的折行（如实说全，不截断） */
+.state.is-busy .state-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* 进行中点：只有一轮进行时出现（伪元素——status.ts 不需要碰它） */
 .state.is-running .state-text::before {
   content: '';

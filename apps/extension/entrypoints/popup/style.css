@@ -41,6 +41,18 @@ body {
   max-height: 600px;
 }
 
+/*
+ * 顶栏 / 状态行 / tab 条都不可被压缩：空间不够时只压列表。
+ * 不写这一条，列表加载变高把窗口顶到 600 后，flex 会把状态行也一起压
+ * （overflow:hidden 一裁，看着就是「列表一加载完，状态行立马变矮」——
+ * Ryan 抓到的现场）。
+ */
+.pop > .bar,
+.pop > .state,
+.pop > .tabs {
+  flex: none;
+}
+
 /* 当前可见的 tab 面板撑满剩余高度，把滚动权一路传给 .todo
    （[hidden] 的面板必须仍然 display:none——:not([hidden]) 保住这条） */
 .tab-panel:not([hidden]) {

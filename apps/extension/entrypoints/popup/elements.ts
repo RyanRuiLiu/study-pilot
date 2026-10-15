@@ -10,9 +10,13 @@ export const todoEl = document.getElementById('todo-text') as HTMLElement;
 export const runBtn = document.getElementById('run-now') as HTMLButtonElement | null;
 export const settingsBtn = document.getElementById('open-settings');
 
-/** 写一行文本；状态行没有内容时整行收起（零高），有内容时滑开——见 style.css 里 .state 的说明。 */
+/**
+ * 写一行文本；状态行没有内容时整行收起（零高），有内容时滑开——见 style.css 里 .state 的说明。
+ * 同时把全文挂到 title：进度句单行省略、长出错句折行，悬停都能看全。
+ */
 export function setText(el: HTMLElement | null, text: string): void {
   if (!el) return;
   el.textContent = text;
+  el.title = text;
   if (el === stateEl) stateLine?.classList.toggle('is-blank', text === '');
 }
