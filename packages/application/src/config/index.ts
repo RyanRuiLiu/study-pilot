@@ -1,7 +1,7 @@
 /*
  * 配置结构的装配点。
  *
- * 组织方式：平台在顶层，平台下是它自己的设置；跨平台的只剩 version 与 ai。
+ * 组织方式：平台在顶层，平台下是它自己的设置；跨平台的只剩 version、ai 与 ui。
  * 新增平台时加一个同级的平台键即可，扩展侧功能代码通过 `Settings['mooc']`
  * 这样的具体类型取用，不做通用抽象——通用抽象要等第二个平台真的出现。
  *
@@ -14,10 +14,21 @@ import { DEFAULT_MOOC, type MoocSettings } from './mooc.ts';
 export * from './ai.ts';
 export * from './mooc.ts';
 
+/** 界面偏好：记住上次停留的 tab（打开设置页/弹窗时回到这里）。 */
+export const ACTIVE_TABS = ['general', 'mooc', 'zhihuishu'] as const;
+export type ActiveTab = (typeof ACTIVE_TABS)[number];
+
+export interface UiSettings {
+  activeTab: ActiveTab;
+}
+
+export const DEFAULT_UI: UiSettings = { activeTab: 'mooc' };
+
 export interface Settings {
   version: number;
   mooc: MoocSettings;
   ai: AiSettings;
+  ui: UiSettings;
 }
 
 /**
@@ -43,12 +54,18 @@ export interface Settings {
  * 版本 6：`ai.baseUrl` 删除——AI 地址钉死在智谱（见 config/ai.ts 的 AI_BASE_URL）。
  * 旧数据里的 baseUrl 不需要迁移段：合并对着新骨架进行，未知键自然丢弃。
  */
-export const SETTINGS_VERSION = 6;
+/*
+ * 版本 7：新增 `ui.activeTab`（记住上次停留的 tab）。纯新增——
+ * 存量数据没有这个键，合并时由新骨架补上默认值（mooc），不需要迁移段；
+ * 需要的是取值收敛，见 normalize 里对 ACTIVE_TABS 的核对。
+ */
+export const SETTINGS_VERSION = 7;
 
 export const DEFAULT_SETTINGS: Settings = {
   version: SETTINGS_VERSION,
   ai: DEFAULT_AI,
   mooc: DEFAULT_MOOC,
+  ui: DEFAULT_UI,
 };
 
 type Json = unknown;
@@ -188,10 +205,15 @@ export function normalize(raw: Json): Settings {
   const merged = mergeWithBase(DEFAULT_SETTINGS, migrated);
   const comment = merged.mooc.reviewComment;
   const model = merged.ai.model;
+  // 取值收敛：mergeWithBase 只查类型，是字符串就收——野值在这里退回默认
+  const activeTab = (ACTIVE_TABS as readonly string[]).includes(merged.ui.activeTab)
+    ? merged.ui.activeTab
+    : DEFAULT_UI.activeTab;
 
   return {
     ...merged,
     version: SETTINGS_VERSION,
+    ui: { activeTab },
     mooc: {
       ...merged.mooc,
       reviewComment: comment.trim() || DEFAULT_MOOC.reviewComment,

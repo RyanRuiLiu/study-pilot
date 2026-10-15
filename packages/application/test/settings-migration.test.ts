@@ -106,12 +106,34 @@ describe('版本 6：AI 地址钉死在智谱', () => {
       ai: { enabled: true, baseUrl: 'https://api.example.com/v1', model: 'glm-4-flash', apiKey: 'k' },
     });
     expect('baseUrl' in out.ai).toBe(false);
-    expect(out.version).toBe(6);
+    expect(out.version).toBe(7);
   });
 
   it('模型留空退回默认（glm-4-flash）——空模型会让「已启用」与「生成器可用」互相矛盾', () => {
     const out = normalize({ version: 5, ai: { enabled: true, baseUrl: '', model: '', apiKey: 'k' } });
     expect(out.ai.model).toBe('glm-4-flash');
     expect(out.ai.apiKey).toBe('k');
+  });
+});
+
+/*
+ * 版本 7：新增 `ui.activeTab`（记住上次停留的 tab）。
+ * 纯新增，不需要迁移段；但取值是有限的，规范化必须把野值收敛回默认——
+ * mergeWithBase 只查类型，`{'activeTab': 'weibo'}` 这种字符串它照收。
+ */
+describe('版本 7 新增的 ui.activeTab', () => {
+  it('存量数据没有这个键时补默认值 mooc', () => {
+    const settings = normalize({ version: 6, mooc: {}, ai: {} });
+    expect(settings.ui.activeTab).toBe('mooc');
+  });
+
+  it('非法取值收敛回默认', () => {
+    const settings = normalize({ ui: { activeTab: 'weibo' } });
+    expect(settings.ui.activeTab).toBe('mooc');
+  });
+
+  it('合法取值原样保留', () => {
+    const settings = normalize({ ui: { activeTab: 'zhihuishu' } });
+    expect(settings.ui.activeTab).toBe('zhihuishu');
   });
 });
