@@ -19,7 +19,7 @@ import { getCourseware, runNow, stopRun, subscribeRunState } from '../../src/ui-
 import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
 import { progressLine, runningItem, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { COURSEWARE_KINDS } from '../../src/ui/scopes.ts';
-import { renderOverview } from './overview.ts';
+import { renderStatusLine } from './status-line.ts';
 import { toast } from './toast.ts';
 
 /** 运行期间的按钮集合：跑的时候全部禁掉（后台也会拒并发，这里只是别让人白点）。 */
@@ -54,12 +54,11 @@ function setEnabled(enabled: boolean): void {
 }
 
 /**
- * 重读课件与概览：两处显示的是同一份数，共用一次读取才不会不一致。
- * 跑完一轮之后、课程勾选变动之后都用它（后者的调用见 courses.ts）。
+ * 重读课件区。跑完一轮之后、课程勾选变动之后都用它（后者的调用见 courses.ts）。
  */
 export async function refreshCourseViews(): Promise<void> {
   const fresh = getCourseware();
-  await Promise.all([renderCourseware(fresh), renderOverview(fresh)]);
+  await Promise.all([renderStatusLine(fresh), renderCourseware(fresh)]);
 }
 
 /*
