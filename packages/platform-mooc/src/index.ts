@@ -43,6 +43,7 @@ export {
   isUnitComplete,
   isCompletable,
   completeUnit,
+  DISCUSS_REPLY_MAX_CHARS,
   type BehaviorOutcome,
   type CoursewareCapabilities,
   type CoursewareContext,
