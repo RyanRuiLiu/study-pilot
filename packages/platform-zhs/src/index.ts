@@ -48,3 +48,7 @@ export { getShareCourses, mergeCourses, type ZhsCourseBrief } from './courses.ts
 export { getCourseUnits, type ZhsUnit } from './structure.ts';
 
 export { buildStudyReport, type StudyReport, type StudyReportInput } from './report.ts';
+
+export { ZHS_REQUEST_RULES } from './policy/net-rules.ts';
+export { executeUnit, ZhsRoundHalt, type ExecuteUnitInput } from './policy/execute.ts';
+export { createZhsTasks, unitItemId, type ZhsRunDeps } from './policy/tasks.ts';
