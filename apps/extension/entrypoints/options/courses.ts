@@ -107,17 +107,30 @@ export async function renderCourses(): Promise<void> {
 }
 
 /**
+ * 与首帧完全一致的列表骨架（一块）——读取/重读期间占住列表的位置。
+ * 类名是 components.css 的形状定义，静态首帧（index.html）与这里用同一套。
+ */
+function skeletonBlock(): HTMLElement {
+  const el = document.createElement('span');
+  el.className = 'skeleton skeleton-block';
+  el.setAttribute('aria-hidden', 'true');
+  return el;
+}
+
+/**
  * 「读取课程列表」按钮：去平台拉一次，写回配置后重画。
- * 行进跟随：按钮禁用 + 内容区一行说明（与课件卡的操作同一种语言）；
- * 完成或失败后重画列表，说明自然退场。
+ *
+ * 等待语言与首次打开统一：**列表区换成块状骨架** + 按钮禁用——
+ * 先前是「旧课程原样留着、顶上夹一行『正在读取课程列表…』」，
+ * 同一块区域出现两套等待长相，旧的还装作是内容（Ryan 指出）。
+ * 完成或失败后由 renderCourses 落定为内容 / 错误行；结果另有 toast。
  */
 export function initCourseActions(): void {
   const button = document.getElementById('refresh-courses');
   button?.addEventListener('click', () => {
     if (button instanceof HTMLButtonElement) button.disabled = true;
     const listEl = document.getElementById('course-list');
-    const running = note('正在读取课程列表…');
-    if (listEl !== null) listEl.prepend(running);
+    if (listEl !== null) listEl.replaceChildren(skeletonBlock());
     void refreshCourses()
       .then(async (result) => {
         if (result.ok) toast(`已读取 ${result.courses.length} 门课程`);
@@ -126,7 +139,6 @@ export function initCourseActions(): void {
       })
       .catch(async (error: unknown) => {
         toast(`读取失败：${errorText(error)}`);
-        // 让行进说明退场，列表回到现状——不然它会一直挂着「正在读取」
         await renderCourses();
       })
       .finally(() => {
