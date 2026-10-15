@@ -101,7 +101,7 @@ function reportRound(result: RoundResult, configPath: string): number {
       console.error('正在执行：状态文件说上一轮还没结束（等一会儿，或删掉状态文件重试）');
       return 4;
     case 'not-logged-in':
-      console.error('未登录：会话 cookie 已失效，请重新导出（scripts/probe/lib/cookies.mjs）');
+      console.error('未登录：会话 cookie 已失效，请重新导出（pnpm probe state export）');
       return 2;
     case 'no-course':
       console.error(`没有勾选课程：先跑 courses --select <termId>（配置：${configPath}）`);
@@ -184,7 +184,7 @@ async function main(): Promise<number> {
     case 'pending': {
       const plan = await runtime.tasks().plan(Date.now());
       if (plan.needsLogin === true) {
-        console.error('未登录：会话 cookie 已失效，请重新导出（scripts/probe/lib/cookies.mjs）');
+        console.error('未登录：会话 cookie 已失效，请重新导出（pnpm probe state export）');
         return 2;
       }
       if (plan.blocked === 'no-course') {
@@ -214,7 +214,7 @@ async function main(): Promise<number> {
         /* 预演：读一遍，把「要做什么」摆出来，一个字都不写平台 */
         const plan = await runtime.tasks().plan(Date.now());
         if (plan.needsLogin === true) {
-          console.error('未登录：会话 cookie 已失效，请重新导出（scripts/probe/lib/cookies.mjs）');
+          console.error('未登录：会话 cookie 已失效，请重新导出（pnpm probe state export）');
           return 2;
         }
         if (plan.blocked === 'no-course') {

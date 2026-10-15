@@ -12,7 +12,7 @@
  *
  * 前置：
  *   1. 浏览器（探测用的那个）里已登录慕课；
- *   2. node scripts/probe/lib/cookies.mjs     ← 把会话 cookie 落到 .probe/（已 gitignore）
+ *   2. pnpm probe state export                ← 把登录态落到 .probe/（Playwright storageState，已 gitignore）
  * 跑法：
  *   node node_modules/vitest/vitest.mjs run --root apps/extension test/node-live.test.ts
  *
@@ -32,11 +32,21 @@ interface SessionFile {
   cookies: Record<string, string>;
 }
 
+/** 读 `pnpm probe state export` 生成的 storageState，归一化成 { origin, cookies: 名字→值 }。 */
 function readSession(): SessionFile | null {
   if (!existsSync(SESSION_FILE)) return null;
   try {
-    const parsed = JSON.parse(readFileSync(SESSION_FILE, 'utf8')) as SessionFile;
-    return Object.keys(parsed.cookies).length > 0 ? parsed : null;
+    const parsed = JSON.parse(readFileSync(SESSION_FILE, 'utf8')) as {
+      cookies?: Array<{ name?: string; value?: string; domain?: string }>;
+    };
+    const cookies: Record<string, string> = {};
+    for (const cookie of parsed.cookies ?? []) {
+      if (typeof cookie?.name !== 'string' || typeof cookie?.value !== 'string') continue;
+      if (!/^(.*\.)?icourse163\.org$/.test(String(cookie.domain ?? '').trim().toLowerCase())) continue;
+      cookies[cookie.name] = cookie.value;
+    }
+    if (Object.keys(cookies).length === 0) return null;
+    return { origin: 'https://www.icourse163.org', cookies };
   } catch {
     return null;
   }
