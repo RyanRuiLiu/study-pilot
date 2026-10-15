@@ -10,9 +10,11 @@
 
 import { DEFAULT_AI, type AiSettings } from './ai.ts';
 import { DEFAULT_MOOC, type MoocSettings } from './mooc.ts';
+import { DEFAULT_ZHIHUISHU, type ZhihuishuSettings } from './zhihuishu.ts';
 
 export * from './ai.ts';
 export * from './mooc.ts';
+export * from './zhihuishu.ts';
 
 /** 界面偏好：记住上次停留的 tab（打开设置页/弹窗时回到这里）。 */
 export const ACTIVE_TABS = ['general', 'mooc', 'zhihuishu'] as const;
@@ -27,6 +29,7 @@ export const DEFAULT_UI: UiSettings = { activeTab: 'mooc' };
 export interface Settings {
   version: number;
   mooc: MoocSettings;
+  zhihuishu: ZhihuishuSettings;
   ai: AiSettings;
   ui: UiSettings;
 }
@@ -59,12 +62,18 @@ export interface Settings {
  * 存量数据没有这个键，合并时由新骨架补上默认值（mooc），不需要迁移段；
  * 需要的是取值收敛，见 normalize 里对 ACTIVE_TABS 的核对。
  */
-export const SETTINGS_VERSION = 7;
+/*
+ * 版本 8：新增 `zhihuishu` 平台段（参与任务的共享课列表）。
+ * 纯新增，不需要迁移段：存量数据没有这个键，合并时补上空课程表——
+ * 「一门课都没勾」本来就是新平台上线时的真实状态，没有需要搬的旧值。
+ */
+export const SETTINGS_VERSION = 8;
 
 export const DEFAULT_SETTINGS: Settings = {
   version: SETTINGS_VERSION,
   ai: DEFAULT_AI,
   mooc: DEFAULT_MOOC,
+  zhihuishu: DEFAULT_ZHIHUISHU,
   ui: DEFAULT_UI,
 };
 

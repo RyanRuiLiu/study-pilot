@@ -106,7 +106,7 @@ describe('版本 6：AI 地址钉死在智谱', () => {
       ai: { enabled: true, baseUrl: 'https://api.example.com/v1', model: 'glm-4-flash', apiKey: 'k' },
     });
     expect('baseUrl' in out.ai).toBe(false);
-    expect(out.version).toBe(7);
+    expect(out.version).toBe(8);
   });
 
   it('模型留空退回默认（glm-4-flash）——空模型会让「已启用」与「生成器可用」互相矛盾', () => {
@@ -135,5 +135,36 @@ describe('版本 7 新增的 ui.activeTab', () => {
   it('合法取值原样保留', () => {
     const settings = normalize({ ui: { activeTab: 'zhihuishu' } });
     expect(settings.ui.activeTab).toBe('zhihuishu');
+  });
+});
+
+/*
+ * 版本 8：新增 `zhihuishu` 平台段。同样纯新增——存量数据补空课程表，
+ * 「一门课都没勾」就是新平台上线时的真实状态。
+ */
+describe('版本 8 新增的 zhihuishu 段', () => {
+  it('存量数据（没有这个键）补上空课程表', () => {
+    const settings = normalize({ version: 7, mooc: {}, ai: {}, ui: { activeTab: 'mooc' } });
+    expect(settings.zhihuishu).toEqual({ courses: [] });
+    expect(settings.version).toBe(8);
+  });
+
+  it('已勾的课程原样保留（数组是整体替换的契约）', () => {
+    const course = {
+      courseId: 1000006154,
+      recruitId: 473301,
+      secret: '4e5f5a5b45584859454a5859584358465c',
+      name: '创践——大学生创新创业实务',
+      schoolName: '中国海洋大学、南开大学、四川大学、厦门大学/跨校共建',
+      progressText: '27.2%',
+      enabled: true,
+    };
+    const settings = normalize({ zhihuishu: { courses: [course] } });
+    expect(settings.zhihuishu.courses).toEqual([course]);
+  });
+
+  it('课程表被写成非数组时保留空表，不采纳野值', () => {
+    const settings = normalize({ zhihuishu: { courses: '两门课' } });
+    expect(settings.zhihuishu.courses).toEqual([]);
   });
 });
