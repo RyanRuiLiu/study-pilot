@@ -109,16 +109,20 @@ export async function renderCourses(): Promise<void> {
 }
 
 /**
- * 「读取课程列表」按钮：去平台拉一次，写回配置后重画。
+ * 「读取课程列表」按钮：**把首次加载原样再跑一遍**。
  *
- * 它是**整块慕课数据的刷新入口**，等待从同一刻开始：
- * 点击时课程列表、卡头状态行、课件区一起换成骨架（此前课件区要等列表
- * 读完才亮骨架，两段式进入等待——Ryan 指出不一致）。
+ * 进入等待：点击那一刻，课程列表、卡头状态行、课件区三块同时换骨架
+ * （整块慕课数据的刷新入口，等待从同一刻开始）。
  *
- * 落定则必然有先后：课程列表先落（平台合并写回之后）；课件区与状态行
- * 随后落——它们的重读**必须等写回完成**（写先于读：先发起会按旧范围算，
- * 数字就是过期的）。失败时同样走一次 refreshCourseViews 把这两块落回
- * 原内容（重读是唯一落定方式，不做"恢复旧 DOM"的自创机制）。
+ * 落定与首次加载同一套长相：
+ *   成功   → 列表落定为新内容（合并写回之后）；状态行与课件区随后重读落定
+ *            （写先于读：提前发起会按旧范围算）；
+ *   未登录 → 列表落定为「未登录」指引（少做了一步，给去处，不带责备）；
+ *   失败   → 列表落定为错误行「读取失败：<原因>」——如实落在区域里。
+ *
+ * 失败不回落旧列表、不另弹失败 toast：那两种做法都会让「点了读取但没读成」
+ * 看起来像「什么都没发生」（Ryan 指出与首次加载不一致）。toast 只留动作回执
+ * （已读取 N 门）。
  */
 export function initCourseActions(): void {
   const button = document.getElementById('refresh-courses');
@@ -130,15 +134,19 @@ export function initCourseActions(): void {
     if (coursewareEl !== null) coursewareEl.replaceChildren(skeletonBlock());
     markStatusLineLoading();
     void refreshCourses()
-      .then(async (result) => {
-        if (result.ok) toast(`已读取 ${result.courses.length} 门课程`);
-        else toast(`读取失败：${result.message ?? result.reason}`);
-        await renderCourses();
+      .then((result) => {
+        if (result.ok) {
+          toast(`已读取 ${result.courses.length} 门课程`);
+          void renderCourses();
+        } else if (result.reason === 'NOT_LOGGED_IN') {
+          listEl?.replaceChildren(note('未登录——先在浏览器中登录慕课平台，登录后再读取课程列表。'));
+        } else {
+          listEl?.replaceChildren(note(`读取失败：${result.message ?? result.reason}`, true));
+        }
         void refreshCourseViews();
       })
-      .catch(async (error: unknown) => {
-        toast(`读取失败：${errorText(error)}`);
-        await renderCourses();
+      .catch((error: unknown) => {
+        listEl?.replaceChildren(note(`读取失败：${errorText(error)}`, true));
         void refreshCourseViews();
       })
       .finally(() => {

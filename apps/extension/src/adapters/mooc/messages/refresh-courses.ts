@@ -47,7 +47,8 @@ export function refreshCoursesCommand(deps: MoocMessageDeps): MessageHandler {
     sendResponse(
       (result.courses.length > 0
         ? { ok: true, courses: result.courses }
-        : { ok: false, reason: 'NO_SELECTED_COURSE' }) satisfies MoocResponseMap['REFRESH_COURSES'],
+        : // 空列表要带上自己的说法：界面把失败如实落进区域，不能只交回一个原因代码
+          { ok: false, reason: 'NO_SELECTED_COURSE', message: '平台没有返回任何课程' }) satisfies MoocResponseMap['REFRESH_COURSES'],
     );
   };
 }
