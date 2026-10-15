@@ -1,7 +1,7 @@
 /*
  * 「执行一轮」：发一次执行请求，把结果写到界面上。
  *
- * 弹窗的「全部执行」与设置页的「快速完成」走的是同一段流程，因此实现只有一份：
+ * 弹窗的「全部执行」与设置页的「执行」走的是同一段流程，因此实现只有一份：
  * 差别通过 handles 交进来（弹窗写状态行，设置页写区块里的结果文字），
  * 范围通过 scope 传下去（弹窗要待办那几类，课件页只要 courseware）。
  *
@@ -72,7 +72,7 @@ export async function runNow(handles: RunHandles, scope?: RunScope): Promise<voi
       const failed = result.failed ?? [];
       const parts: string[] = [];
       /*
-       * 「完成 0 项」不成话：一件没做成时就别报数，只说发生了什么。
+       * 「完成 0 项」不成话：一件都没完成时就别报数，只说发生了什么。
        * 停止的收尾句与弹窗、设置页共用同一份措辞（见 ui/run-view）。
        */
       if (result.stopped) {
@@ -82,19 +82,19 @@ export async function runNow(handles: RunHandles, scope?: RunScope): Promise<voi
       }
       /*
        * 课件没上报成不算「失败」——它低风险、下一次读到还会再做，
-       * 说「没做成」就够，也不该染上错误色。要交的东西（测验/作业）才是
+       * 说「未完成」就够，也不该染上错误色。要交的东西（测验/作业）才是
        * 失败，而且要说清是谁：只说「N 项失败」，用户还得自己回去找。
        */
       const misses = failed.filter((item) => item.kind === 'courseware').length;
       const realFailures = failed.filter((item) => item.kind !== 'courseware');
-      if (misses > 0) parts.push(`${misses} 项没做成`);
+      if (misses > 0) parts.push(`${misses} 项未完成`);
       if (realFailures.length > 0) {
         const names = realFailures.slice(0, 2).map((item) => item.name).join('、');
         parts.push(
           realFailures.length > 2 ? `失败：${names} 等 ${realFailures.length} 项` : `失败：${names}`,
         );
       }
-      if (result.manual > 0) parts.push(`${result.manual} 项待你处理`);
+      if (result.manual > 0) parts.push(`${result.manual} 项需手动处理`);
       text = parts.join('，');
       tone = realFailures.length > 0 ? 'error' : 'idle';
     }

@@ -140,7 +140,7 @@ function stopFollowing(): void {
 /**
  * 只在正在执行时轮询。
  *
- * 弹窗可能在执行进行中被打开（比如设置页点完「快速完成」又开了弹窗），
+ * 弹窗可能在执行进行中被打开（比如设置页点完「执行」又开了弹窗），
  * 只在打开那一刻读一次状态的话，会显示成「什么都没有」，
  * 几秒后才突然变样。无事发生时不发任何请求，与后台「不做无用请求」的原则一致。
  */
@@ -199,7 +199,7 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
       if (!localRun) todoEl.classList.remove('is-running');
       if (options.settleText ?? true) {
         if (status.live === 'interrupted') {
-          setText(stateEl, '上次执行没有正常结束，可以重新点「全部执行」');
+          setText(stateEl, '上次执行未正常结束，可重新执行「全部执行」');
         } else if (stoppedHere) {
           /*
            * 本弹窗按过停止、且确实停到了：留一句收尾而不是清空。

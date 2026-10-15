@@ -70,9 +70,9 @@ export function describeStatusDetail(status: WorkStatus): string {
     case WORK_STATUS.OVERDUE:
       return '已过截止时间且未提交。平台不接受逾期提交，无法补做。';
     case WORK_STATUS.REVIEWING:
-      return '作业已提交，正处于互评期。评够平台要求的份数才计入成绩。';
+      return '作业已提交，正处于互评期。完成平台要求的评阅份数后方计入成绩。';
     case WORK_STATUS.REVIEWED:
-      return '互评份数已达标。分数由互评结果决定，之后只等公布。';
+      return '互评份数已达标。分数由互评结果决定，等待公布。';
     case WORK_STATUS.WAITING:
       return '互评期已结束，等待成绩公布。';
     case WORK_STATUS.SCORED:

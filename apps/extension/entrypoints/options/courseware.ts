@@ -1,10 +1,10 @@
 /*
- * 课件：每门课的已完成 / 总数，与「快速完成」。
+ * 课件：每门课的已完成 / 总数，与「执行」。
  *
  * 数字来自只读的课件进度查询，与执行同源（同一套完成判据）——
  * 显示的可做数就是点下去会做的数。
  *
- * 点「快速完成」就是对那门课课件动手的授权。它写平台、不可撤销，
+ * 点「执行」就是对那门课课件动手的授权。它写平台、不可撤销，
  * 因此按钮文案直说做了什么，类别也只发课件（COURSEWARE_KINDS）——
  * 不会碰到任何要交的东西。
  *
@@ -102,18 +102,18 @@ function watchRun(): void {
       if (text !== undefined) el.textContent = text;
     }
 
-    // 按钮：跑的那门课把「快速完成」换成「停止」；跑完了还原
+    // 按钮：跑的那门课把「执行」换成「停止」；跑完了还原
     for (const [course, button] of buttonsOfCourse) {
       if (running && step !== null && course === step.course) {
         button.dataset.mode = 'stop';
         button.textContent = '停止';
-        button.title = '停止执行：不再发新的写请求';
+        button.title = '停止执行：不再发出新的写入请求';
         if (!stopping) button.disabled = false;
       } else if (button.dataset.mode === 'stop') {
         delete button.dataset.mode;
-        button.textContent = '快速完成';
+        button.textContent = '执行';
         button.disabled = button.dataset.empty === 'yes';
-        button.title = button.dataset.emptyTitle ?? '';
+        button.title = button.dataset.emptyTitle ?? '执行：自动完成这门课余下的课件';
       }
     }
 
@@ -128,7 +128,7 @@ function watchRun(): void {
   });
 }
 
-/** 一门课一行：名字组（课名 + 运行明细）、已学 x/y、「快速完成」/「停止」。 */
+/** 一门课一行：名字组（课名 + 运行明细）、已学 x/y、「执行」/「停止」。 */
 function buildRow(entry: CoursewareProgress): HTMLElement {
   const row = document.createElement('div');
   row.className = 'cw-row';
@@ -159,26 +159,27 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
      * 这种课的共同点是「已不在平台的课程列表里」——多半是退课/下架留下的
      * 旧记录，刷新课程列表即可清掉。不猜别的原因。
      */
-    progress.textContent = '读不到内容';
-    progress.title = '平台没有返回这门课的结构；点上方「读取课程列表」刷新后，已不在你课程里的旧记录会被清掉';
+    progress.textContent = '未读取到内容';
+    progress.title = '平台未返回这门课的结构；点击上方「读取课程列表」刷新后，已不在课程列表中的旧记录将被清除';
   } else if (entry.total === 0) {
     // 结构读到了但是空的（实测：课程列表里它的课时数本身就是 0）
-    progress.textContent = '读不到内容';
+    progress.textContent = '未读取到内容';
     progress.title = '平台返回的结构是空的（0 章节 0 单元）';
   } else {
     progress.textContent = `已学 ${entry.done}/${entry.total}`;
-    progress.title = `未完成且能自动做的 ${entry.pending} 项`;
+    progress.title = `未完成且可自动执行的 ${entry.pending} 项`;
   }
 
   const button = document.createElement('button');
   button.className = 'btn ghost';
   button.type = 'button';
-  button.textContent = '快速完成';
+  button.textContent = '执行';
+  button.title = '执行：自动完成这门课余下的课件';
   if (entry.pending === 0) {
     button.disabled = true;
     button.dataset.empty = 'yes';
     button.dataset.emptyTitle =
-      entry.total === 0 ? '这门课没有读到内容' : '这门课没有要做的课件了';
+      entry.total === 0 ? '未能读取到这门课的内容' : '这门课的课件已全部完成';
     button.title = button.dataset.emptyTitle;
   }
   buttonsOfCourse.set(entry.courseName, button);
@@ -198,9 +199,9 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
         // 没停到（多半是刚好已经跑完）：整行还原，别挂着「正在停止」
         stopping = false;
         delete button.dataset.mode;
-        button.textContent = '快速完成';
+        button.textContent = '执行';
         button.disabled = button.dataset.empty === 'yes';
-        button.title = button.dataset.emptyTitle ?? '';
+        button.title = button.dataset.emptyTitle ?? '执行：自动完成这门课余下的课件';
         current.hidden = true;
       });
       return;
@@ -256,7 +257,7 @@ export async function renderCourseware(
     listEl.append(
       note(
         outcome.reason === 'NOT_LOGGED_IN'
-          ? '未登录——先在浏览器里登录慕课平台。'
+          ? '未登录——先在浏览器中登录慕课平台。'
           : `读取失败：${outcome.message}`,
         outcome.reason !== 'NOT_LOGGED_IN',
       ),
