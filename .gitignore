@@ -32,3 +32,6 @@ dist/
 # 测试覆盖率产物（vitest --coverage 生成），不是项目内容。
 coverage/
 
+# 设计头脑风暴的视觉伴侣产物（本地看图用，不入库）
+.superpowers/
+
