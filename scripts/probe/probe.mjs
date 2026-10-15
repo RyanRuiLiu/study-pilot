@@ -240,17 +240,19 @@ async function icoursePage(context) {
 // ---------------------------------------------------------------- 会话
 
 async function stateExport(context) {
+  /*
+   * 全量快照，不按平台裁剪：探测浏览器只有一只、一个登录身份，
+   * 慕课与智慧树（以及将来的平台）的登录态都在同一个 storageState 里，
+   * 快照就应完整——回注时（injectMissingCookies）才补得全。
+   * 各消费方自己按域选：stateCheck 只看 icourse163，CLI 也按域过滤（host.ts）。
+   */
   const state = await context.storageState();
-  const scoped = {
-    cookies: state.cookies.filter((c) => String(c.domain).includes('icourse163')),
-    origins: [],
-  };
   mkdirSync(path.dirname(SESSION), { recursive: true });
-  writeFileSync(SESSION, `${JSON.stringify(scoped, null, 2)}\n`);
-  const names = new Set(scoped.cookies.map((c) => c.name));
+  writeFileSync(SESSION, `${JSON.stringify({ cookies: state.cookies, origins: state.origins }, null, 2)}\n`);
+  const names = new Set(state.cookies.map((c) => c.name));
   const complete = AUTH_COOKIES.every((n) => names.has(n));
-  console.log(`已写入 ${rel(SESSION)}：${scoped.cookies.length} 条 icourse163 cookie`);
-  if (!complete) console.log('警告：三个会话 cookie 不齐——先在探测浏览器里确认已登录');
+  console.log(`已写入 ${rel(SESSION)}：${state.cookies.length} 条 cookie（全量快照）`);
+  if (!complete) console.log('提示：慕课三个会话 cookie 不齐——若在探测浏览器里登录过慕课，重新登录后再导出');
 }
 
 async function stateCheck(context) {
