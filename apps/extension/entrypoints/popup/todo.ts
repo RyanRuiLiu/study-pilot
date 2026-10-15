@@ -44,12 +44,12 @@ function handlingText(entry: PendingEntry): string {
     // 互评类带进度：还差几份直接关系到会不会影响成绩
     if (entry.kind === 'evaluate-homework' && entry.evaluateTotal !== null && entry.evaluateDone !== null) {
       const left = entry.evaluateTotal - entry.evaluateDone;
-      return `可以替你评分，还差 ${left} 份`;
+      return `可代为评分，尚差 ${left} 份`;
     }
-    return '可以替你完成';
+    return '可代为完成';
   }
   // 人工项要说明只有用户能做，否则他会以为等着就会被处理
-  return '需要你完成';
+  return '需手动完成';
 }
 
 /**
@@ -131,7 +131,7 @@ function buildRow(entry: PendingEntry): HTMLElement {
     button.className = 'todo-run';
     button.type = 'button';
     button.textContent = '执行';
-    button.title = '只执行这一条，不碰其他';
+    button.title = '仅执行此条，不影响其他待办';
     button.addEventListener('click', () => {
       void runNow(
         {
@@ -190,7 +190,7 @@ function showLoginPrompt(): void {
   const box = document.createElement('div');
   box.className = 'todo-login';
 
-  const text = note('todo-login-text', '登录状态已失效，需要重新登录慕课平台后才能读取待办。');
+  const text = note('todo-login-text', '登录状态已失效，需重新登录慕课平台后方可读取待办。');
 
   const link = document.createElement('a');
   link.className = 'btn';
@@ -244,7 +244,7 @@ export async function renderTodo(): Promise<void> {
   const settings = await getSettings();
   const courses = settings.mooc.courses.filter((course) => course.enabled);
   if (courses.length === 0) {
-    writeTodo([note('todo-empty', '尚未选择参与任务的课程。请到「更多」里读取课程列表并勾选。')]);
+    writeTodo([note('todo-empty', '尚未选择参与任务的课程。在「更多」中读取课程列表并勾选。')]);
     return;
   }
 

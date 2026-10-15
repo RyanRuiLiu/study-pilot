@@ -55,9 +55,9 @@
           </label>
           <p class="note">
             AI 请求只发往智谱开放平台（open.bigmodel.cn），glm-4-flash 免费。
-            没有密钥就去
+            尚无密钥时，前往
             <a href="https://open.bigmodel.cn/" target="_blank" rel="noreferrer">智谱开放平台</a>
-            申请：注册后完成实名认证，在控制台 → API Keys 里新建。
+            申请：注册并完成实名认证后，在控制台 → API Keys 中新建。
           </p>
           <span class="note" id="ai-status"></span>
         </section>
@@ -81,7 +81,7 @@
         </section>
 
         <!--
-          课件：每门课的已完成 / 总数，与「快速完成」。
+          课件：每门课的已完成 / 总数，与「执行」。
           它不在弹窗里——课件没有截止时间，属于「想清进度时来一趟」的地方。
           跑起来时进度与「停止」都在它自己那行，结果用底部浮层提示（见 courseware.ts）。
         -->
@@ -98,13 +98,13 @@
           <label class="field">
             <input id="review-comment" type="text" aria-label="互评评语" />
           </label>
-          <p class="note">平台要求评语非空；留空会退回默认那句（见输入框里的值）。</p>
+          <p class="note">平台要求评语非空；留空将退回默认评语（见输入框中的值）。</p>
         </section>
       </section>
 
       <!-- 智慧树：占位（功能未接入）。不是骨架、不是错误——没有东西在等 -->
       <section class="tab-panel" role="tabpanel" id="panel-zhihuishu" aria-labelledby="tab-zhihuishu" data-tab="zhihuishu" hidden>
-        <p class="tab-empty">智慧树还没接入。它的功能做好后，课程与课件会出现在这个 tab 下。</p>
+        <p class="tab-empty">智慧树尚未接入。功能就绪后，课程与课件将在此处显示。</p>
       </section>
 
       <!-- 页脚：版本与出处。它不是内容，一行弱色就够，不占一张卡 -->

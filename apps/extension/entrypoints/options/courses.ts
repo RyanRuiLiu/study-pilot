@@ -41,7 +41,7 @@ function buildRow(course: SelectedCourse): HTMLElement {
   meta.className = 'course-meta';
   const range = formatTermRange(course.startTime, course.endTime);
   const parts = [course.schoolName, range];
-  // 未选课的课读不到内容（平台不给结构），在列表里如实标出来
+  // 未选课的课读取不到内容（平台不给结构），在列表里如实标出来
   if (course.hasEnroll === false) parts.push('未选课');
   meta.textContent = parts.filter(Boolean).join(' · ');
 
@@ -102,12 +102,12 @@ export async function renderCourses(): Promise<void> {
    */
   listEl.replaceChildren();
   if (!session.loggedIn) {
-    listEl.append(note('未登录——先在浏览器里登录慕课平台，再回来读取课程列表。'));
+    listEl.append(note('未登录——先在浏览器中登录慕课平台，登录后再读取课程列表。'));
     if (rows.length > 0) listEl.append(...rows);
     return;
   }
   if (rows.length === 0) {
-    listEl.append(note('还没有课程。点「读取课程列表」从平台读取，读回来之后勾选要参与的。'));
+    listEl.append(note('尚未读取到课程。点击「读取课程列表」从平台获取，获取后勾选要参与的课程。'));
     return;
   }
   listEl.append(...rows);

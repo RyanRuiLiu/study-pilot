@@ -14,5 +14,5 @@
  */
 export const PENDING_KINDS: string[] = ['quiz', 'review', 'self', 'homework', 'exam'];
 
-/** 课件那几类：设置页课件区的「快速完成」按它发范围。 */
+/** 课件那几类：设置页课件区的「执行」按它发范围。 */
 export const COURSEWARE_KINDS: string[] = ['courseware'];

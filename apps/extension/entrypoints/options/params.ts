@@ -7,7 +7,7 @@
  *
  * AI 的接口地址不在设置里：固定智谱（见 application 的 AI_BASE_URL），
  * 主机权限在清单里静态声明（安装即授权），因此这里没有「申请权限」一步；
- * 只做一件事——若用户在浏览器里撤回了访问权限，如实说出来。
+ * 只做一件事——若用户在浏览器中撤回了访问权限，如实说出来。
  */
 
 import { testAiConnection } from '../../src/ai';
@@ -29,7 +29,7 @@ function setStatus(text: string, isError: boolean): void {
 
 /** 权限被撤回时的说法。扩展自己无法重新申请静态声明的权限，只能指明去处。 */
 const REVOKED_HINT =
-  '浏览器里撤回了对智谱（open.bigmodel.cn）的访问许可：在扩展详情页把「网站访问权限」开启后重试';
+  '浏览器中已撤回对智谱（open.bigmodel.cn）的访问许可：在扩展详情页开启「网站访问权限」后重试';
 
 export async function renderParams(): Promise<void> {
   const settings = await getSettings();
@@ -53,7 +53,7 @@ export async function renderParams(): Promise<void> {
    */
   comment.addEventListener('change', () => {
     void updateSettings({ mooc: { reviewComment: comment.value } }).then((next) => {
-      // 留空会退回默认那句（normalize 的兜底），把兜底后的值写回输入框
+      // 留空会退回默认评语（normalize 的兜底），把兜底后的值写回输入框
       comment.value = next.mooc.reviewComment;
       toast('评语已保存');
     });
@@ -90,7 +90,7 @@ export async function renderParams(): Promise<void> {
   });
 
   /*
-   * 配置填齐了但权限不在（用户在浏览器里收回过）：打开设置页就直接说清楚。
+   * 配置填齐了但权限不在（用户在浏览器中收回过）：打开设置页就直接说清楚。
    * 没有这句，界面看起来「配好了」，而执行时讨论单元会一个个失败——
    * 失败发生在浏览器的权限层，用户没有任何线索指回这里。
    */
