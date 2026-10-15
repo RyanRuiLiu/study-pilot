@@ -28,13 +28,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 弹窗高度有限，待办区保留自己的滚动；滚动条占位（stable）——
-   条数跨越「是否出现滚动条」的界线时，内容不横向跳一下；
-   细档（thin）——320px 里系统粗条太抢眼 */
+/*
+ * 弹窗高度有限，待办区保留自己的滚动；细档（thin）——320px 里系统粗条太抢眼。
+ * 刻意不加 scrollbar-gutter 占位：右侧保留档会让占位骨架与内容的右距
+ * 比左距宽出一档（Ryan 反馈）；列表通常在打开时就长于 480 出现滚动条，
+ * 出现/消失的横移在这一档宽度下几乎看不出。
+ */
 .todo {
   max-height: 480px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
   scrollbar-width: thin;
 }

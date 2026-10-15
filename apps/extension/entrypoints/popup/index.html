@@ -45,15 +45,11 @@
 
       <section class="tab-panel" role="tabpanel" id="panel-mooc" aria-labelledby="tab-mooc" data-tab="mooc" hidden>
         <!--
-          待办区先放块状骨架（三块等宽）：弹窗每次打开都要拉一次
-          最新数据（约两秒），落定时整体换内容。写入第一份数据时被替换。
+          待办区先放块状骨架（一块）：弹窗每次打开都要拉一次最新数据（约两秒），
+          落定时整体换内容。写入第一份数据时被替换。
         -->
         <div id="todo-text" class="todo is-loading">
-          <div class="skeleton-stack" aria-hidden="true">
-            <span class="skeleton skeleton-block is-tall"></span>
-            <span class="skeleton skeleton-block is-tall"></span>
-            <span class="skeleton skeleton-block is-tall"></span>
-          </div>
+          <span class="skeleton skeleton-block is-tall" aria-hidden="true"></span>
         </div>
       </section>
 
