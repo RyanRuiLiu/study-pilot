@@ -72,10 +72,18 @@ body {
 
 .card-head h2 { margin: 0; }
 
+/*
+ * 状态行：在「账号与课程」卡头里、紧贴标题右侧（与读取按钮同一行）。
+ * auto 右外边距把按钮顶到最右；文字长了省略，不换行——卡头是单行的。
+ */
 .session {
-  margin: 0 0 var(--space-4);
+  margin: 0 auto 0 0;
+  min-width: 0;
   font-size: var(--text-sm);
   color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .note {
