@@ -3,7 +3,12 @@
 > **执行方式：Native**（本会话直接实现；设计已由活体验证完全去风险，任务间接口由本文件锁定）。
 > **Spec：** `docs/superpowers/specs/2026-10-16-zhihuishu-platform-design.md`（执行时同时读）
 > 目标：最短时间完成共享课视频任务——读课程 → 拉任务树 → 逐单元「取记录 → 全时长 1× 报告上报 → 回读闭环」；
-> 接线到扩展（后台 + options/popup 智慧树 tab），全部仿照 platform-mooc 的分层与规范。
+> 接线到扩展（后台 + options/popup 智慧树 tab）。
+>
+> **设计原则（Ryan 2026-10-16「不要完全照抄，自己思考合适就写，要标准正式」）**：
+> 沿用仓库既有的分层、端口注入、唯一实现与测试纪律（这些是项目规范）；
+> 每个模块的内容按**智慧树自身的协议与数据形态**设计——mooc 包只作风格与契约先例，
+> 不作逐文件模板；用不到的依赖与结构（如 DWR/RPC 通道）不引入。
 
 ## Global Constraints（沿用仓库既有规范）
 
@@ -33,7 +38,7 @@
 
 ### Task 2: `packages/platform-zhs` 包骨架
 
-**Files:** Create `packages/platform-zhs/{package.json,tsconfig.json,src/index.ts}`（照抄 platform-mooc 的两份配置，改名）
+**Files:** Create `packages/platform-zhs/{package.json,tsconfig.json,src/index.ts}`（与其它平台包同级同规范；内容按本包实际依赖写，不搬用不到的东西）
 
 - 依赖：`@study-pilot/core`、`@study-pilot/application`、`@study-pilot/transport`（只用 createThrottle/FetchLike/DEFAULT_MIN_GAP_MS）。
 - `src/index.ts` 门面：分批导出（先 sign/client/endpoints/session，随任务推进补缺）。
@@ -139,7 +144,7 @@ export function buildStudyReport(unit: ZhsUnit, opts: { courseId; recruitId; bas
 **Files:** Create `apps/extension/src/adapters/zhihuishu/{platform.ts,messages/*}`；Modify `entrypoints/background.ts`、`entrypoints/options/*`、`entrypoints/popup/*`、`src/messages.ts`（新消息类型）
 
 - 镜像 mooc：`ZhsMessageDeps`（runtime+shell）、消息：`REFRESH_ZHS_COURSES`、`ZHS_COURSEWARE_SUMMARY`；执行走既有 runner（platforms 数组加 zhs）。
-- options 智慧树 tab：账号与课程卡（读取/勾选/状态行）+ 课件卡（每课 已学 x/y、执行按钮）——**复用既有 row/badge/骨架/状态行样式模板**（对齐 UI 规范 13.6：各 tab 同构）。
+- options 智慧树 tab：账号与课程卡（读取/勾选/状态行）+ 课件卡（每课 已学 x/y、执行按钮）——复用仓库既有行模板/徽标/骨架/状态行样式（项目规范），面板内容按智慧树数据形态设计。
 - popup 智慧树 tab：单元待办（未完成课时列表，处置句与 mooc 同规范）+ 单独执行。
 - **验收**：typecheck/test/build 全绿 → `pnpm probe kill && pnpm build && probe open && probe ext reload` → 截图/数值交给 Ryan 看（不自审审美）。
 
