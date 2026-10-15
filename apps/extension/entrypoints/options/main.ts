@@ -3,7 +3,7 @@
  *
  * 一页四块的顺序就是使用顺序：
  *   账号与课程（参与什么）→ 课件（刷进度）→ 互评评语 → AI 连接；
- *   页头带一行概览（现在什么状态），页脚是版本与出处。
+ *   页头只有名字（状态行在账号与课程卡里），页脚是版本与出处。
  *
  * 数据只从 src/ui-bridge.ts（以及平台包的纯地址工具）取。
  * 样式分两层引入：tokens（取值）、本页布局；import 而不是 <link>（理由见 popup）。
@@ -17,8 +17,8 @@ import './style.css';
 import { getCourseware } from '../../src/ui-bridge';
 import { initCourseActions, renderCourses } from './courses.ts';
 import { renderCourseware } from './courseware.ts';
-import { renderOverview } from './overview.ts';
 import { renderParams } from './params.ts';
+import { renderStatusLine } from './status-line.ts';
 import { initToast } from './toast.ts';
 
 function init(): void {
@@ -29,15 +29,15 @@ function init(): void {
   if (versionEl !== null) versionEl.textContent = `v${browser.runtime.getManifest().version}`;
 
   /*
-   * 课件进度只读一次，概览与课件区共用：各读各的会让页面一开就发两遍
+   * 课件进度只读一次，状态行与课件区共用：各读各的会让页面一开就发两遍
    * 同样的请求，而两处显示的是同一件事——不一致时还说不清以哪边为准。
    */
   const courseware = getCourseware();
 
   initCourseActions();
   void renderCourses();
+  void renderStatusLine(courseware);
   void renderCourseware(courseware);
-  void renderOverview(courseware);
   void renderParams();
 }
 

@@ -16,15 +16,6 @@ import { toast } from './toast.ts';
 
 type SelectedCourse = Settings['mooc']['courses'][number];
 
-function renderSession(sessionText: HTMLElement, loggedIn: boolean): void {
-  /*
-   * 只在需要动作时说话：登录了就不显示这行——「已登录」在页头概览里
-   * 已经有一份，同一件事不必在两处宣布。
-   */
-  sessionText.hidden = loggedIn;
-  sessionText.textContent = loggedIn ? '' : '未登录——先在浏览器里登录慕课平台，再回来读取课程列表。';
-}
-
 function buildRow(course: SelectedCourse): HTMLElement {
   const row = document.createElement('label');
   row.className = 'course-row';
@@ -74,7 +65,7 @@ async function toggle(termId: number, enabled: boolean): Promise<void> {
   );
   await updateSettings({ mooc: { courses } });
   toast(enabled ? '已加入任务范围' : '已移出任务范围');
-  // 参与范围变了：课件区只列参与中的课程，概览的计数也按它算——两处一起重读
+  // 参与范围变了：课件区与状态行都按它算——一起重读
   void refreshCourseViews();
 }
 
@@ -88,8 +79,7 @@ function note(text: string): HTMLElement {
 
 export async function renderCourses(): Promise<void> {
   const listEl = document.getElementById('course-list');
-  const sessionEl = document.getElementById('session-text');
-  if (listEl === null || sessionEl === null) return;
+  if (listEl === null) return;
 
   let reads: [Awaited<ReturnType<typeof getSession>>, Awaited<ReturnType<typeof getCourses>>, Settings];
   try {
@@ -98,8 +88,7 @@ export async function renderCourses(): Promise<void> {
     listEl.replaceChildren(note(error instanceof Error ? error.message : String(error)));
     return;
   }
-  const [session, courses, settings] = reads;
-  renderSession(sessionEl, session.loggedIn);
+  const [, courses, settings] = reads;
 
   // 列表以配置为准（哪门课参与、带定位字段），平台读到的新列表在「读取」时并进来
   const byTerm = new Map(settings.mooc.courses.map((course) => [course.termId, course]));
