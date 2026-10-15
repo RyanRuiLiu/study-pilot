@@ -105,10 +105,14 @@ async function launch({ ext = true, cdpPort = null, recordHar = null } = {}) {
 /**
  * 给这只浏览器盖归属标记（见 OWNER_FILE 注释）。
  * addCookies 用 URL 挂 cookie，不需要先开页面——启动即封好身份。
+ *
+ * 文件按 0600 写（安全复查建议）。在 Windows 上 POSIX 权限位基本不生效
+ * （Node 只认只读位），这行是跨平台加固；真正的敏感物（会话文件、profile）
+ * 同在 .probe/ 下，防泄漏靠的是这个目录本身别外借。
  */
 async function stampOwner(context) {
   const token = randomUUID();
-  writeFileSync(OWNER_FILE, token);
+  writeFileSync(OWNER_FILE, token, { mode: 0o600 });
   await context.addCookies([{ name: OWNER_COOKIE, value: token, url: OWNER_URL }]);
 }
 
