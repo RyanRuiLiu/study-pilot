@@ -30,6 +30,21 @@ let stopping = false;
 let lastFinished = 0;
 /** 上一次 renderState 见到的运行状态：用来识别「新一轮开始」 */
 let wasRunning = false;
+/** 此刻有没有一轮在跑（收口 run 按钮的可用性） */
+let runningNow = false;
+/** 当前 tab 的平台允许执行吗（智慧树占位期＝不允许） */
+let scopeAllowsRun = true;
+
+/** run 按钮的唯一收口：执行中禁用、平台没有可执行内容时禁用 */
+function applyRunEnabled(): void {
+  if (runBtn) runBtn.disabled = runningNow || !scopeAllowsRun;
+}
+
+/** 「全部执行」作用于当前 tab 的平台；占位平台没有可执行内容 */
+export function setRunScope(allows: boolean): void {
+  scopeAllowsRun = allows;
+  applyRunEnabled();
+}
 
 /** 状态行显示一条结果或过程。执行的两处入口（顶栏「全部执行」、行内「执行」）共用。 */
 export function showStatus(text: string, tone: 'idle' | 'busy' | 'error'): void {
@@ -70,7 +85,8 @@ stopBtn?.addEventListener('click', () => {
  * 跟随轮询抢在前面清空的话，那一行会闪一次空白。
  */
 export function setRunning(running: boolean): void {
-  if (runBtn) runBtn.disabled = running;
+  runningNow = running;
+  applyRunEnabled();
   todoEl.classList.toggle('is-running', running);
   stateLine?.classList.toggle('is-running', running);
   if (running) {
@@ -200,12 +216,14 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
       }
     }
 
-    if (runBtn) runBtn.disabled = running;
+    runningNow = running;
+    applyRunEnabled();
     return running;
   } catch (error) {
     setText(stateEl, error instanceof Error ? error.message : '读取失败');
     stateLine?.classList.add('is-error');
-    if (runBtn) runBtn.disabled = false;
+    runningNow = false;
+    applyRunEnabled();
     return false;
   }
 }
