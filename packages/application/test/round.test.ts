@@ -391,3 +391,26 @@ describe('执行范围的平台维度', () => {
     expect(zhs.calls).toContain('run:b');
   });
 });
+
+/*
+ * 回归（2026-10-16 真机发现）：平台 run 抛错中止整轮时，
+ * 进度卡必须收尾成 idle——不然界面永远停在「正在执行」。
+ */
+describe('抛错中止时平台进度卡收尾', () => {
+  it('run 抛错的平台在结束后显示为 idle', async () => {
+    const broken: PlatformTasks = {
+      id: 'mooc',
+      name: 'mooc',
+      isReady: async () => true,
+      plan: async () => ({ items: [item('a', 'auto')] }),
+      run: async () => {
+        throw new Error('平台中止信号');
+      },
+    };
+    const { runner, progress } = setup([broken]);
+    const result = await runner.runRound({ platformId: 'mooc' });
+    expect(result).toMatchObject({ status: 'failed', message: '平台中止信号' });
+    const platform = progress.current().platforms.find((entry) => entry.id === 'mooc');
+    expect(platform?.state).toBe('idle');
+  });
+});

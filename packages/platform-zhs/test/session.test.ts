@@ -9,11 +9,16 @@ function clientReturning(body: unknown): ZhsClient {
 }
 
 describe('readSession', () => {
-  it('登录形态：code=0 且 result.uuid 非空', async () => {
+  it('登录形态：成功码且 result.uuid 非空', async () => {
     const session = await readSession(
       clientReturning({ code: 0, message: null, result: { uuid: 'DEMO0001', realName: '某某' } }),
     );
     expect(session).toEqual({ loggedIn: true, uuid: 'DEMO0001' });
+  });
+
+  it('首页族成功码 200 同样算登录（getLoginUserInfo 在其家族里）', async () => {
+    const session = await readSession(clientReturning({ code: 200, result: { uuid: 'ABC' } }));
+    expect(session).toEqual({ loggedIn: true, uuid: 'ABC' });
   });
 
   it('code 非 0 视为未登录', async () => {
