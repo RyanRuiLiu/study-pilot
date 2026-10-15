@@ -1,16 +1,15 @@
 @import '../../src/ui/tokens.css';
 @import '../../src/ui/controls.css';
+@import '../../src/ui/components.css';
 
 /*
- * 设置页。单列，居中：页头一行概览、四张卡（账号与课程 / 课件 / 互评评语 /
- * AI 连接）、页脚一行。
+ * 设置页。单列，居中：页头一行、平台 tab（通用/慕课/智慧树）、
+ * 当前 tab 的面板、页脚一行。
  *
- * 单列的理由：每块回答一个问题，从上往下就是使用顺序；
- * 分区导航是留给「上千像素长、七八个分区」的页面的，这里用不上。
- * 页面真长起来时再加回来，那时它才有存在条件。
+ * 面板、tab、行模板、说明、骨架、按钮骨架都在共享层
+ * （components.css / controls.css）——本文件只留页面容器与表单。
  *
- * 间距与字号一律取 tokens.css 的标尺（--space-* / --text-*），
- * 本文件不再出现手挑的 px；按钮骨架在 controls.css。
+ * 间距与字号一律取 tokens.css 的标尺；本文件不再出现手挑的 px。
  */
 
 * { box-sizing: border-box; }
@@ -31,189 +30,28 @@ body {
   padding: var(--space-40) var(--space-24) var(--space-80);
 }
 
+.masthead {
+  margin-bottom: var(--space-12);
+}
+
 .masthead h1 {
   margin: 0;
   font-size: var(--text-xl);
   font-weight: 700;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
 }
 
-/* ---------- 卡片 ---------- */
-
-/*
- * 每块一张卡：卡面纯白浮在纸色页面上，靠 --line 画边界而不是阴影——
- * 阴影在小面积上会显得脏，线是这套设计表达边界的方式。
- */
-.card {
-  margin-top: var(--space-16);
-  padding: var(--space-20) var(--space-24);
-  background: var(--paper-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+/* 平台 tab：页头与内容之间 */
+.page > .tabs {
+  margin-bottom: var(--space-12);
 }
 
-.card h2 {
-  margin: 0 0 var(--space-12);
-  font-size: var(--text-lg);
-  font-weight: 700;
-}
-
-/*
- * 卡片标题行：标题与它的动作用一行，按钮贴最右——
- * 按钮不单独占一行，动作与它作用的对象就在一起。
- */
-.card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-12);
-  margin: 0 0 var(--space-12);
-}
-
-.card-head h2 { margin: 0; }
-
-/*
- * 状态行：在「账号与课程」卡头里、紧贴标题右侧（与读取按钮同一行）。
- * auto 右外边距把按钮顶到最右；文字长了省略，不换行——卡头是单行的。
- */
-.session {
-  margin: 0 auto 0 0;
-  min-width: 0;
-  font-size: var(--text-sm);
-  color: var(--ink-soft);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.note {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--ink-faint);
-}
-
-/* AI 连接测试的失败提示用它（见 params.ts） */
-.note.is-error { color: var(--warn); }
-
-/*
- * 卡片里跟在表单之后的附注/状态行（评语卡的说明、AI 卡的状态）：与表单留 12px，
- * 和卡片里其他块间的节奏一致。
- *
- * 定在 `.card > .note` 上而不是单个 id：先前 #ai-status 单独写了 12px，
- * 而评语卡的说明没写（实测 0px，紧贴输入框）——同一个「表单后附注」的
- * 模式出现两种间距。
- */
-.card > .note {
-  display: block;
-  margin-top: var(--space-12);
-}
-
-/* 没内容时不占位置（AI 状态行未测试时为空） */
-.card > .note:empty { display: none; }
-
-/* ---------- 课程列表 ---------- */
-
-/*
- * 两个列表都可能很长（课程多时）：限高到五六行，内部滚动。
- * 不限的话，一张卡就能把后面的卡顶出好几屏——而设置页每块都有人要看。
- */
+/* 两个列表都可能很长：限高到五六行，内部滚动 */
 #course-list,
 #courseware-list {
   max-height: 320px;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-/*
- * 行与行之间用虚线：同一话题里的下一项（见 tokens.css 的约定）。
- * 实线留给「换了话题」——那是卡片之间的边界。
- */
-.course-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-8);
-  padding: var(--space-12) 0;
-  border-top: 1px dashed var(--line);
-  cursor: pointer;
-}
-
-.course-row:first-child { border-top: none; padding-top: var(--space-4); }
-
-.course-row input[type='checkbox'] {
-  margin: var(--space-4) 0 0;
-  flex: none;
-  accent-color: var(--accent);
-  width: 14px;
-  height: 14px;
-  cursor: pointer;
-}
-
-.course-body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.course-name {
-  font-size: var(--text-md);
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.course-name:hover {
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.course-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-.course-meta {
-  font-size: var(--text-sm);
-  color: var(--ink-faint);
-}
-
-/* ---------- 课件 ---------- */
-
-.cw-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-12);
-  padding: var(--space-12) 0;
-  border-top: 1px dashed var(--line);
-}
-
-.cw-row:first-child { border-top: none; padding-top: var(--space-4); }
-
-.cw-name {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-md);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cw-progress {
-  flex: none;
-  font-size: var(--text-sm);
-  color: var(--ink-soft);
-  font-variant-numeric: tabular-nums;
-}
-
-/*
- * 「正在执行」小字：跑这门课时显示在行里，用主色表示活动。
- * 它让位给课名（超长省略、至多占行的 45%），因为课名才是这一行的身份。
- */
-.cw-current {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 45%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-sm);
-  color: var(--accent);
 }
 
 /* ---------- 表单 ---------- */
@@ -234,18 +72,21 @@ body {
   width: 100%;
   height: 32px;
   padding: 0 var(--space-12);
-  border: 1px solid var(--line);
+  border: none;
   border-radius: var(--radius-sm);
-  background: var(--paper-2);
+  background: var(--control);
   color: var(--ink);
   font: inherit;
   font-size: var(--text-md);
 }
 
+.field input::placeholder {
+  color: var(--ink-faint);
+}
+
 .field input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
-  border-color: var(--accent);
 }
 
 .check {
@@ -257,118 +98,20 @@ body {
 }
 
 .check input[type='checkbox'] {
-  accent-color: var(--accent);
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   margin: 0;
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
-/* ---------- 加载占位（骨架） ---------- */
-
-/*
- * 等内容的区域用骨架占位：从第一帧起就在最终位置，读取落定后换成内容——
- * 内容不再「从虚无里突然冒出来」。这是行业标准做法（Material 的 skeleton），
- * 动效遵循 prefers-reduced-motion。
- */
-.skeleton {
-  border-radius: var(--radius-xs);
-  background: var(--line);
-  animation: sp-skeleton-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes sp-skeleton-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skeleton,
-  .session.is-loading::after {
-    animation: none;
-  }
-}
-
-/* 课件列表的占位行：与真实行同高，宽度由使用处的行内样式给 */
-.skeleton-row {
-  height: 14px;
-  margin: var(--space-12) 0;
-}
-
-.skeleton-row:first-child { margin-top: var(--space-4); }
-
-/*
- * 卡头状态行的等待占位：一条短灰条，不写「正在读取」——
- * 那句话只在内容区写一份（见 status-line.ts）。
- */
-.session.is-loading::after {
-  content: '';
-  display: inline-block;
-  width: 150px;
-  height: 10px;
-  vertical-align: middle;
-  border-radius: var(--radius-xs);
-  background: var(--line);
-  animation: sp-skeleton-pulse 1.2s ease-in-out infinite;
-}
-
-/* ---------- 按钮 ---------- */
-
-/*
- * 骨架（边框、圆角、底色、悬停、禁用、焦点环）在 src/ui/controls.css——
- * 与弹窗共用一份。这里只留尺寸变体。
- */
-.btn {
-  height: 32px;
-  padding: 0 var(--space-16);
-  font-size: var(--text-sm);
-}
-
-.btn.quiet {
-  background: transparent;
-  border-color: var(--line);
-  color: var(--ink-soft);
-}
-
-.btn.quiet:hover {
-  background: transparent;
-  border-color: var(--ink-faint);
-  color: var(--ink);
-}
-
-/* ---------- 页脚 ---------- */
+/* ---------- 页脚与链接 ---------- */
 
 .foot {
   margin-top: var(--space-24);
   font-size: var(--text-sm);
   color: var(--ink-faint);
 }
-
-/* ---------- 提示条 ---------- */
-
-/* 浮在底部居中，不占布局位置；出现与消失只做透明度，避免布局跳动 */
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: var(--space-24);
-  transform: translateX(-50%);
-  max-width: 80vw;
-  padding: var(--space-8) var(--space-16);
-  border-radius: var(--radius-sm);
-  background: var(--ink);
-  color: var(--paper-2);
-  font-size: var(--text-sm);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  pointer-events: none;
-}
-
-.toast.on { opacity: 1; }
 
 a { color: var(--accent); }
 
