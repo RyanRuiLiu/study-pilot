@@ -145,7 +145,8 @@ export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLE
     `margin-top:${TOKENS.space12}`,
     `padding:${TOKENS.space12} ${TOKENS.space16}`,
     `background:${TOKENS.accentWash}`,
-    `border:1px solid ${TOKENS.line}`,
+    // 块底是浅主色：--line 压在上面看不见，用浅底专用的分界色
+    `border:1px solid ${TOKENS.lineOnWash}`,
     `border-left:${TOKENS.space4} solid ${TOKENS.accent}`,
     `border-radius:${TOKENS.radiusMd}`,
     `font-size:${TOKENS.textMd}`,
@@ -182,7 +183,7 @@ export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLE
      */
     const point = document.createElement('div');
     if (index > 0) {
-      point.style.cssText = `margin-top:${TOKENS.space12};padding-top:${TOKENS.space12};border-top:1px solid ${TOKENS.line}`;
+      point.style.cssText = `margin-top:${TOKENS.space12};padding-top:${TOKENS.space12};border-top:1px solid ${TOKENS.lineOnWash}`;
     }
 
     // 只有多评分点时才把 0 分也写出来：单点评分依据缺失满分时没什么可说的
