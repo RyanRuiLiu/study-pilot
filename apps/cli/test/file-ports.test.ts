@@ -70,9 +70,9 @@ describe('进度输出', () => {
     let state: RunState = { platforms: [] };
     state = beginPlatform(state, platform, 1, 1);
     await progress.publish(state);
-    state = enterItem(state, platform, { course: '测试课程', title: '单元 A' }, 2);
+    state = enterItem(state, platform, { course: '测试课程', title: '单元 A', kind: 'quiz' }, 2);
     await progress.publish(state);
-    state = completeItem(state, platform, { course: '测试课程', title: '单元 A' }, 'done', '已学完', 3);
+    state = completeItem(state, platform, { course: '测试课程', title: '单元 A', kind: 'quiz' }, 'done', '已学完', 3);
     await progress.publish(state);
     await progress.publish(state);
     state = finishPlatform(state, platform);

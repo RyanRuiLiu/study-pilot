@@ -27,11 +27,15 @@
         平台 tab：通用 / 慕课 / 智慧树（规格第 13 节）。
         打开回到上次停留的 tab；一次打开最多读一家——通用零平台请求、
         慕课只在它是当前 tab 时读、智慧树先占位。行为与记忆见 src/ui/tabs.ts。
+        行尾是运行提示：待办类轮次进行时现身（逻辑见 run-hint.ts），不占别处。
       -->
-      <div class="tabs" id="tabs" role="tablist" aria-label="设置分区">
-        <button class="tab" role="tab" id="tab-general" data-tab="general" aria-controls="panel-general" aria-selected="false" tabindex="-1" type="button">通用</button>
-        <button class="tab" role="tab" id="tab-mooc" data-tab="mooc" aria-controls="panel-mooc" aria-selected="false" tabindex="-1" type="button">慕课</button>
-        <button class="tab" role="tab" id="tab-zhihuishu" data-tab="zhihuishu" aria-controls="panel-zhihuishu" aria-selected="false" tabindex="-1" type="button">智慧树</button>
+      <div class="tab-row">
+        <div class="tabs" id="tabs" role="tablist" aria-label="设置分区">
+          <button class="tab" role="tab" id="tab-general" data-tab="general" aria-controls="panel-general" aria-selected="false" tabindex="-1" type="button">通用</button>
+          <button class="tab" role="tab" id="tab-mooc" data-tab="mooc" aria-controls="panel-mooc" aria-selected="false" tabindex="-1" type="button">慕课</button>
+          <button class="tab" role="tab" id="tab-zhihuishu" data-tab="zhihuishu" aria-controls="panel-zhihuishu" aria-selected="false" tabindex="-1" type="button">智慧树</button>
+        </div>
+        <span class="run-hint" id="run-hint" hidden aria-live="polite"></span>
       </div>
 
       <!-- 通用：跨平台功能（AI 连接）。配置即时读，没有平台请求 -->

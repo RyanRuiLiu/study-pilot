@@ -11,6 +11,7 @@
  */
 
 import { REJECTION_MESSAGES, sendToBackground } from '../messages.ts';
+import { errorText } from '../ui/format.ts';
 import { stoppedLine } from '../ui/run-view.ts';
 /** 提示语气的三态；界面层也用它，但这里只定义、不依赖界面。 */
 export type Tone = 'idle' | 'busy' | 'error';
@@ -99,7 +100,7 @@ export async function runNow(handles: RunHandles, scope?: RunScope): Promise<voi
       tone = realFailures.length > 0 ? 'error' : 'idle';
     }
   } catch (error) {
-    text = error instanceof Error ? error.message : '执行失败';
+    text = errorText(error);
     tone = 'error';
   }
 

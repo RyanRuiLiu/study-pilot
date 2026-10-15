@@ -48,9 +48,41 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* 平台 tab：页头与内容之间 */
-.page > .tabs {
+/* 平台 tab 与它右侧的运行提示（提示的逻辑在 run-hint.ts）：
+   一行、底线贯通；提示只在待办类轮次进行时现身 */
+.tab-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  border-bottom: 1px solid var(--line);
   margin-bottom: var(--space-12);
+}
+
+.tab-row .tabs {
+  flex: 1;
+  border-bottom: none;
+}
+
+.run-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.run-hint::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  flex: none;
+}
+
+.run-hint[hidden] {
+  display: none;
 }
 
 /*

@@ -147,3 +147,11 @@ export function isUrgent(deadline: number): boolean {
   if (deadline <= 0) return false;
   return daysBetween(deadline, Date.now()) <= 0;
 }
+
+/**
+ * 从任意捕获物里取出可显示的错误说明——界面把 catch 到的东西变成文字，
+ * 只有这一处实现（弹窗、设置页、执行全用它）：Error 取 message，其余原样转字符串。
+ */
+export function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
