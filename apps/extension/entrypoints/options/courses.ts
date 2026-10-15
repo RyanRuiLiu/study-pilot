@@ -14,6 +14,7 @@ import { errorText, formatTermRange } from '../../src/ui/format.ts';
 import { refreshCourseViews } from './courseware.ts';
 import { note } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
+import { markStatusLineLoading } from './status-line.ts';
 import { toast } from './toast.ts';
 
 type SelectedCourse = Settings['mooc']['courses'][number];
@@ -110,14 +111,14 @@ export async function renderCourses(): Promise<void> {
 /**
  * 「读取课程列表」按钮：去平台拉一次，写回配置后重画。
  *
- * 等待语言与首次打开统一：**列表区换成块状骨架** + 按钮禁用——
- * 先前是「旧课程原样留着、顶上夹一行『正在读取课程列表…』」，
- * 同一块区域出现两套等待长相，旧的还装作是内容（Ryan 指出）。
- * 完成或失败后由 renderCourses 落定为内容 / 错误行；结果另有 toast。
+ * 它是**整块慕课数据的刷新入口**，等待从同一刻开始：
+ * 点击时课程列表、卡头状态行、课件区一起换成骨架（此前课件区要等列表
+ * 读完才亮骨架，两段式进入等待——Ryan 指出不一致）。
  *
- * 成功之后再重读课件区与卡头状态行（refreshCourseViews）：课程集合变了，
- * 「待交 / 课件剩 / 各课进度」的口径就跟着变。顺序必须在合并写回之后——
- * 先发起课件读取会按旧范围算，数字又成了过期的。失败不动课件区：名单没变。
+ * 落定则必然有先后：课程列表先落（平台合并写回之后）；课件区与状态行
+ * 随后落——它们的重读**必须等写回完成**（写先于读：先发起会按旧范围算，
+ * 数字就是过期的）。失败时同样走一次 refreshCourseViews 把这两块落回
+ * 原内容（重读是唯一落定方式，不做"恢复旧 DOM"的自创机制）。
  */
 export function initCourseActions(): void {
   const button = document.getElementById('refresh-courses');
@@ -125,16 +126,20 @@ export function initCourseActions(): void {
     if (button instanceof HTMLButtonElement) button.disabled = true;
     const listEl = document.getElementById('course-list');
     if (listEl !== null) listEl.replaceChildren(skeletonBlock());
+    const coursewareEl = document.getElementById('courseware-list');
+    if (coursewareEl !== null) coursewareEl.replaceChildren(skeletonBlock());
+    markStatusLineLoading();
     void refreshCourses()
       .then(async (result) => {
         if (result.ok) toast(`已读取 ${result.courses.length} 门课程`);
         else toast(`读取失败：${result.message ?? result.reason}`);
         await renderCourses();
-        if (result.ok) void refreshCourseViews();
+        void refreshCourseViews();
       })
       .catch(async (error: unknown) => {
         toast(`读取失败：${errorText(error)}`);
         await renderCourses();
+        void refreshCourseViews();
       })
       .finally(() => {
         if (button instanceof HTMLButtonElement) button.disabled = false;
