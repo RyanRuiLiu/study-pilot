@@ -61,10 +61,20 @@ export interface ZhsClientOptions {
   recoverKey?: (sl: string) => Promise<Uint8Array<ArrayBuffer>>;
 }
 
+/**
+ * 成功码判定（唯一一处）。两族各用一个成功码——不是兜底，是抓包事实：
+ *   学习族（studyservice）：`code: 0`（"请求成功"）；
+ *   首页族（onlineservice）：`code: 200`（响应同时带 result 字段）。
+ * 其余值（负数、4xx、5xx）都是拒绝，由 {@link ZhsApiError} 原样携带。
+ */
+export function isSuccessCode(code: number): boolean {
+  return code === 0 || code === 200;
+}
+
 export interface ZhsClient {
   /**
    * 发一次调用，返回解析后的响应体（调用方按各自接口的形状取用 data/result）。
-   * 失败一律抛：HTTP 非 200 抛 {@link ZhsHttpError}；响应 `code !== 0` 抛 {@link ZhsApiError}。
+   * 失败一律抛：HTTP 非 200 抛 {@link ZhsHttpError}；响应 code 非成功码抛 {@link ZhsApiError}。
    */
   call(name: ZhsEndpointName, payload?: Record<string, unknown>): Promise<unknown>;
 }
@@ -156,7 +166,7 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
 
       const parsed = (await response.json()) as { code?: unknown; message?: unknown };
       const code = parsed.code;
-      if (typeof code === 'number' && code !== 0) {
+      if (typeof code === 'number' && !isSuccessCode(code)) {
         throw new ZhsApiError(code, typeof parsed.message === 'string' ? parsed.message : '');
       }
       return parsed;

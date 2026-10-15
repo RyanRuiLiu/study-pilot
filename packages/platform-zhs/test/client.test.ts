@@ -126,6 +126,14 @@ describe('签名封装形态', () => {
 });
 
 describe('错误映射', () => {
+  it('首页族的成功码是 200，不当作拒绝（抓包事实）', async () => {
+    const { client } = makeClient([
+      { match: 'queryShareCourseInfo', json: { code: 200, result: { courseOpenDtos: [] } } },
+    ]);
+    const body = (await client.call('shareCourses', {})) as { code: number };
+    expect(body.code).toBe(200);
+  });
+
   it('HTTP 非 200 抛 ZhsHttpError', async () => {
     const { client } = makeClient([{ match: 'learning/videolist', json: {}, status: 500 }]);
     await expect(client.call('videoList', {})).rejects.toBeInstanceOf(ZhsHttpError);

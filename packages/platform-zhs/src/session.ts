@@ -11,7 +11,7 @@
  * 在那之前不做推测性的恢复逻辑；未登录就是未登录，如实返回。
  */
 
-import type { ZhsClient } from './client.ts';
+import { isSuccessCode, type ZhsClient } from './client.ts';
 
 export interface ZhsSession {
   /** 是否处于登录态 */
@@ -22,8 +22,9 @@ export interface ZhsSession {
 
 /**
  * getLoginUserInfo 的已实测形态（登录态）：
- *   { result: { realName, headPicUrl, uuid, username }, code: 0, message: null }
- * 未登录形态未实测——按「code 非 0 或没有 uuid」处理为未登录。
+ *   { result: { realName, headPicUrl, uuid, username }, code: <成功码>, message: null }
+ * 成功码复用 client 的统一判定（首页族用 200）。
+ * 未登录形态未实测——按「非成功码或没有 uuid」处理为未登录。
  * 这个判断的服务端语义待补测（见 FINDINGS 的待办清单）。
  */
 export async function readSession(client: ZhsClient): Promise<ZhsSession> {
@@ -31,7 +32,9 @@ export async function readSession(client: ZhsClient): Promise<ZhsSession> {
     code?: unknown;
     result?: { uuid?: unknown } | null;
   };
-  if (body.code !== 0 || body.result == null) return { loggedIn: false, uuid: '' };
+  if (typeof body.code !== 'number' || !isSuccessCode(body.code) || body.result == null) {
+    return { loggedIn: false, uuid: '' };
+  }
   const uuid = body.result.uuid;
   if (typeof uuid !== 'string' || uuid.length === 0) return { loggedIn: false, uuid: '' };
   return { loggedIn: true, uuid };

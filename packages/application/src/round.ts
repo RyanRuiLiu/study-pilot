@@ -212,6 +212,18 @@ export function createRunner(deps: RoundDeps): Runner {
         return { status: 'finished', done, manual, failed };
       } catch (error) {
         /*
+         * 抛错中止时先把范围内各平台的进度卡收尾。
+         *
+         * 正常路径的 finishPlatform 在循环里逐家跑；抛错把循环直接打断，
+         * 那一步就永远不执行——界面会停在「正在执行」，而这一轮已经死了
+         * （实测：智慧树 -12 中止后，进度卡挂着 running）。收尾用 {id,name}
+         * 轻对象即可：finishPlatform 按 id 归位，不依赖平台实例。
+         */
+        for (const platform of deps.platforms()) {
+          if (selection?.platformId !== undefined && platform.id !== selection.platformId) continue;
+          await show((state) => finishPlatform(state, { id: platform.id, name: platform.name }));
+        }
+        /*
          * 一轮的失败记下来，同时也交给调用方。
          *
          * 记进状态那份给界面用（「上一次执行出了问题」在下次打开时还能看见）；
