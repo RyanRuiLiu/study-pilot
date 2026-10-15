@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '../src/client.ts';
+import { executeActions } from '../src/policy/execute/index.ts';
 import {
   BEHAVIORS,
   DISCUSS_REPLY_MAX_CHARS,
@@ -447,5 +448,98 @@ describe('结构里的课件单元', () => {
         viewStatus: 5,
       },
     ]);
+  });
+});
+
+// ---------- 讨论预取 ----------
+
+describe('讨论预取：生成先并发做完，发帖仍逐条串行', () => {
+  const QUESTION = 's0.title="3.4 讨论题";s0.content="<p>如何理解直流通路和交流通路的概念？</p>";';
+
+  it('袋子里的预取结果直接使用：不再调生成器', async () => {
+    const { client, dwrCalls } = clientStub({ getLessonUnitLearnVo: QUESTION });
+    let generated = 0;
+    const result = await completeUnit(
+      client,
+      unitOf({ contentType: UNIT_TYPE.DISCUSS, contentId: 6006 }),
+      {
+        generateText: async () => {
+          generated += 1;
+          return { ok: true, text: '不该被用到' };
+        },
+        preparedReplies: new Map([
+          [6006, { ok: true as const, text: '预取好的：直流通路只看直流，交流通路只看交流信号。' }],
+        ]),
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(generated).toBe(0);
+    const body = decodeURIComponent(
+      String((dwrCalls('addReply')[0]?.body as { __raw?: string }).__raw ?? ''),
+    );
+    expect(body).toContain('预取好的：直流通路只看直流');
+  });
+
+  it('袋子里是失败结论：如实失败，不再二次生成', async () => {
+    const { client, dwrCalls } = clientStub({ getLessonUnitLearnVo: QUESTION });
+    let generated = 0;
+    const result = await completeUnit(
+      client,
+      unitOf({ contentType: UNIT_TYPE.DISCUSS, contentId: 6006 }),
+      {
+        generateText: async () => {
+          generated += 1;
+          return { ok: true, text: 'x' };
+        },
+        preparedReplies: new Map([
+          [6006, { ok: false as const, reason: 'AI 生成讨论回复失败：超时' }],
+        ]),
+      },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(generated).toBe(0);
+    expect(dwrCalls('addReply')).toHaveLength(0);
+  });
+
+  it('预取因停止而中断：按跳过呈现，不是红色失败', async () => {
+    const { client, dwrCalls } = clientStub({ getLessonUnitLearnVo: QUESTION });
+    const result = await completeUnit(
+      client,
+      unitOf({ contentType: UNIT_TYPE.DISCUSS, contentId: 6006 }),
+      {
+        generateText: async () => ({ ok: true, text: 'x' }),
+        preparedReplies: new Map([
+          [6006, { ok: false as const, reason: '按停止键中断，未生成', stopped: true as const }],
+        ]),
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toBe('stopped');
+    expect(dwrCalls('addReply')).toHaveLength(0);
+  });
+
+  it('编排层：两个讨论单元各生成一次（发帖之前），随后各发一条', async () => {
+    const { client, dwrCalls, rpcCalls } = clientStub({ getLessonUnitLearnVo: QUESTION });
+    const generated: number[] = [];
+    const actions = [7007, 8008].map((unitId, index) => ({
+      kind: 'courseware' as const,
+      course: {} as never,
+      unit: unitOf({ unitId, contentId: 6006 + index, contentType: UNIT_TYPE.DISCUSS }),
+    }));
+
+    const results = await executeActions(client, actions, 1, '评语', undefined, {
+      generateText: async () => {
+        generated.push(1);
+        return { ok: true, text: '生成的回复内容' };
+      },
+    });
+
+    expect(generated).toHaveLength(2); // 预取阶段各一次
+    expect(dwrCalls('addReply')).toHaveLength(2); // 发帖两次
+    expect(rpcCalls('saveMocContentLearn')).toHaveLength(2);
+    expect(results.map((entry) => entry.status)).toEqual(['done', 'done']);
   });
 });

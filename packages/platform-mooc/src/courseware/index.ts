@@ -91,6 +91,7 @@ export type {
   BehaviorOutcome,
   CoursewareCapabilities,
   CoursewareContext,
+  DiscussPrep,
   TextGenerator,
   UnitBehavior,
 } from './behavior.ts';

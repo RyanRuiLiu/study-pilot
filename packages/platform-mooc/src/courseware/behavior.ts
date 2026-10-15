@@ -13,6 +13,17 @@ import type { BankCache } from '../policy/execute/bank.ts';
 import type { MoocClient } from '../client.ts';
 import type { CourseUnit } from '../types.ts';
 
+/**
+ * 讨论预取的结论：成功带生成的文本；失败带原因（生成内部已重试过，
+ * 不再二次重试）。`stopped` 把「按停止键中断」与真失败分开——前者按跳过呈现。
+ *
+ * 定义在这里而不是 discuss.ts：它是行为契约的一部分（`CoursewareContext`
+ * 用它），放那边会和本文件的接口形成文件级环（边界检查 R7 会拦下）。
+ */
+export type DiscussPrep =
+  | { ok: true; text: string }
+  | { ok: false; reason: string; stopped?: true };
+
 /** 一次行为的结果。 */
 export type BehaviorOutcome =
   /** 已上报，等平台记账 */
@@ -49,6 +60,12 @@ export interface CoursewareContext {
    * （同一门课的随堂测验与单元测验共用）；不给就各行为现读一次。
    */
   bank?: BankCache;
+  /**
+   * 讨论回复的预取（unit.contentId → 取题+生成的结论）。执行编排在开始前
+   * 并发预取（生成不占平台配额、单元间无顺序依赖，而一条约 5 秒）；
+   * 讨论行为 run 时优先取用。不给就现场生成，行为语义不变。
+   */
+  preparedReplies?: Map<number, DiscussPrep>;
 }
 
 export interface UnitBehavior {

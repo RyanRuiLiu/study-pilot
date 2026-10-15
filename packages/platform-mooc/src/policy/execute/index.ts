@@ -20,14 +20,59 @@
 
 import { NEVER_STOPPED, type RunControl } from '@study-pilot/application';
 import type { MoocClient } from '../../client.ts';
-import type { CoursewareContext } from '../../courseware/index.ts';
-import type { AutoAction } from '../plan/index.ts';
+import type { CoursewareContext, DiscussPrep } from '../../courseware/index.ts';
+import { prepareDiscussReply } from '../../courseware/discuss.ts';
+import { UNIT_TYPE } from '../../types.ts';
+import type { AutoAction, CoursewareAutoAction } from '../plan/index.ts';
 import { BankCache } from './bank.ts';
 import { runCourseware } from './courseware.ts';
 import type { ExecResult } from './types.ts';
 import { runQuiz, runReview, runSelf } from './work.ts';
 
 export * from './types.ts';
+
+/**
+ * 讨论预取的并发上限。
+ *
+ * 2 是保守值：智谱免费档的并发限制窄，而生成走的是 AI 域名、不占平台
+ * 那条「串行 + 200ms」的配额。宁可两个两个地做，不冒 429 的险。
+ */
+const DISCUSS_PREFETCH_CONCURRENCY = 2;
+
+/**
+ * 并发预取讨论回复（只读帖 + 生成，不写平台）。
+ *
+ * 一条 glm-4-flash 生成实测约 5 秒（2026-10-15）——比平台上任何一条请求
+ * 都贵，而单元之间没有顺序依赖，串行等它就是白白串起来。发帖不在这里：
+ * 写仍然按原顺序逐条走上面的循环。
+ */
+async function prepareDiscussReplies(
+  client: MoocClient,
+  actions: CoursewareAutoAction[],
+  courseware: CoursewareContext,
+  control: RunControl,
+): Promise<Map<number, DiscussPrep>> {
+  const prepared = new Map<number, DiscussPrep>();
+  const queue = [...actions];
+
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      // 停止键：不再开新的生成（手上正在飞的那一条落地即止）
+      if (control.stopped()) return;
+      const action = queue.shift();
+      if (action === undefined) return;
+      if (prepared.has(action.unit.contentId)) continue;
+      prepared.set(
+        action.unit.contentId,
+        await prepareDiscussReply(client, action.unit, courseware, control),
+      );
+    }
+  };
+
+  const workers = Math.min(DISCUSS_PREFETCH_CONCURRENCY, queue.length);
+  await Promise.all(Array.from({ length: workers }, worker));
+  return prepared;
+}
 
 /**
  * 执行计划里全部可自动完成的事项。
@@ -54,6 +99,24 @@ export async function executeActions(
   bank: BankCache = new BankCache(),
 ): Promise<ExecResult[]> {
   const results: ExecResult[] = [];
+
+  /*
+   * 讨论的生成先并发预取：AI 不占平台配额、单元间没有顺序依赖，而一条
+   * 约 5 秒——这是整轮里最大的单项开销。写（发帖、上报）不在预取里，
+   * 仍在下面的循环里逐条串行。
+   */
+  if (courseware.generateText !== undefined) {
+    const discussActions = actions.filter(
+      (action): action is CoursewareAutoAction =>
+        action.kind === 'courseware' && action.unit.contentType === UNIT_TYPE.DISCUSS,
+    );
+    if (discussActions.length > 0) {
+      courseware = {
+        ...courseware,
+        preparedReplies: await prepareDiscussReplies(client, discussActions, courseware, control),
+      };
+    }
+  }
 
   for (const action of actions) {
     let result: ExecResult;
