@@ -42,3 +42,9 @@ export {
 } from './client.ts';
 
 export { readSession, type ZhsSession } from './session.ts';
+
+export { getShareCourses, mergeCourses, type ZhsCourseBrief } from './courses.ts';
+
+export { getCourseUnits, type ZhsUnit } from './structure.ts';
+
+export { buildStudyReport, type StudyReport, type StudyReportInput } from './report.ts';
