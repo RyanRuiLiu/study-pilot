@@ -8,12 +8,14 @@
  * 一题有多个评分点时，每点单独成块并用分隔线隔开——模电的作业题就是
  * 三四个评分点、每点都带图，首尾相接时读不出哪句属于哪一点。
  *
- * 颜色写成字面量而不是 CSS 变量：这块注入在**别人的页面**上，扩展自己的
- * 样式表并不可用。取值与 src/ui/tokens.css 同一批（对比度都实测过）：
- * 主色 #0f766e、弱文字 #667085、分隔线 #ccd2d9。
+ * 样式写成内联而不是类名：这块注入在**别人的页面**上，扩展自己的样式表
+ * 在那里不可用——内联是它的隔离手段，不是将就。但取值不手抄：颜色、圆角、
+ * 间距一律取 src/ui/tokens.ts（src/ui/tokens.css 的 TS 镜像，由
+ * test/tokens-parity.test.ts 逐条核对）。
  */
 
 import type { PaperQuestion } from '@study-pilot/platform-mooc';
+import { TOKENS } from '../../../ui/tokens.ts';
 import { ANSWER_MARK_ATTRIBUTE, ANSWER_SOURCE_ATTRIBUTE, GUIDANCE_LABEL } from './markers.ts';
 
 /** 文本节点与元素节点的 nodeType。用数字而不是 Node 常量：测试环境里没有 Node 全局。 */
@@ -140,25 +142,25 @@ export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLE
   block.setAttribute(ANSWER_MARK_ATTRIBUTE, '1');
   block.setAttribute(ANSWER_SOURCE_ATTRIBUTE, source);
   block.style.cssText = [
-    'margin-top:12px',
-    'padding:12px 14px',
-    'background:#f0fdfa',
-    'border:1px solid #ccd2d9',
-    'border-left:4px solid #0f766e',
-    'border-radius:10px',
-    'font-size:13px',
+    `margin-top:${TOKENS.space12}`,
+    `padding:${TOKENS.space12} ${TOKENS.space16}`,
+    `background:${TOKENS.accentWash}`,
+    `border:1px solid ${TOKENS.line}`,
+    `border-left:${TOKENS.space4} solid ${TOKENS.accent}`,
+    `border-radius:${TOKENS.radiusMd}`,
+    `font-size:${TOKENS.textMd}`,
     'line-height:1.7',
-    'color:#475467',
+    `color:${TOKENS.inkSoft}`,
   ].join(';');
 
   const judges = question.judgeDtos ?? [];
 
   const head = document.createElement('div');
-  head.style.cssText = 'font-weight:600;color:#0f766e;margin-bottom:8px';
+  head.style.cssText = `font-weight:600;color:${TOKENS.accent};margin-bottom:${TOKENS.space8}`;
   head.textContent = `${GUIDANCE_LABEL}：`;
   if (question.score != null) {
     const score = document.createElement('span');
-    score.style.cssText = 'font-weight:400;color:#667085';
+    score.style.cssText = `font-weight:400;color:${TOKENS.inkFaint}`;
     score.textContent = `（本题 ${question.score} 分）`;
     head.append(score);
   }
@@ -180,14 +182,14 @@ export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLE
      */
     const point = document.createElement('div');
     if (index > 0) {
-      point.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid #ccd2d9';
+      point.style.cssText = `margin-top:${TOKENS.space12};padding-top:${TOKENS.space12};border-top:1px solid ${TOKENS.line}`;
     }
 
     // 只有多评分点时才把 0 分也写出来：单点评分依据缺失满分时没什么可说的
     const maxScore = judge.maxScore ?? (judges.length > 1 ? 0 : null);
     if (maxScore != null) {
       const label = document.createElement('div');
-      label.style.cssText = 'color:#667085;margin:0 0 4px';
+      label.style.cssText = `color:${TOKENS.inkFaint};margin:0 0 ${TOKENS.space4}`;
       label.textContent = `满分 ${maxScore} 分`;
       point.append(label);
     }
@@ -199,7 +201,7 @@ export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLE
   // judgeDtos 为空说明这份作业没有配置评分依据，属于数据本身的情况
   if (!hasContent) {
     const empty = document.createElement('div');
-    empty.style.color = '#667085';
+    empty.style.color = TOKENS.inkFaint;
     empty.textContent = '这份作业未配置得分指导';
     block.append(empty);
   }
