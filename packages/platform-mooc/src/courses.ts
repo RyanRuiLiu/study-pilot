@@ -29,7 +29,10 @@ interface RawCourse {
   imgUrl?: string | null;
   /** 课程模式：0 MOOC、10/15/20 SPOC、30 ROOC */
   mode?: number | null;
-  /** 1 MOOC、2 SPOC */
+  /**
+   * 条目上的产品类型（COURSE_PRODUCT_TYPE：1 课程、2 考研、3 专栏、308 教材）。
+   * 与请求参数的 courseType（1|2，MOOC/SPOC 分类）同名不同义——平台源码确认。
+   */
   courseType?: number | null;
   schoolPanel?: { name?: string | null; shortName?: string | null } | null;
   termPanel?: {
@@ -41,6 +44,8 @@ interface RawCourse {
     lessonsCount?: number | null;
     /** 已选人数 */
     enrollCount?: number | null;
+    /** 当前账号是否已选这门课：平台据此决定给不给结构（见 structure.ts） */
+    hasEnroll?: boolean | null;
   } | null;
 }
 
@@ -64,6 +69,8 @@ function toSummary(raw: RawCourse): CourseSummary {
     termId: term.id ?? 0,
     mode: raw.mode ?? null,
     courseType: raw.courseType ?? null,
+    // 平台没给时按 true：不凭缺失把课排除掉（见 CourseSummary 的注释）
+    hasEnroll: term.hasEnroll ?? true,
     schoolName: raw.schoolPanel?.name ?? '',
     schoolShortName: raw.schoolPanel?.shortName ?? '',
     coverUrl: raw.imgUrl ?? '',

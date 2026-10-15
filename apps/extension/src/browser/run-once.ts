@@ -1,7 +1,7 @@
 /*
  * 「执行一轮」：发一次执行请求，把结果写到界面上。
  *
- * 弹窗的「立即执行」与设置页的「快速完成」走的是同一段流程，因此实现只有一份：
+ * 弹窗的「全部执行」与设置页的「快速完成」走的是同一段流程，因此实现只有一份：
  * 差别通过 handles 交进来（弹窗写状态行，设置页写区块里的结果文字），
  * 范围通过 scope 传下去（弹窗要待办那几类，课件页只要 courseware）。
  *
@@ -11,16 +11,19 @@
  */
 
 import { REJECTION_MESSAGES, sendToBackground } from '../messages.ts';
+import { stoppedLine } from '../ui/run-view.ts';
 /** 提示语气的三态；界面层也用它，但这里只定义、不依赖界面。 */
 export type Tone = 'idle' | 'busy' | 'error';
 
 /**
- * 执行范围：类别与课程。原样转给后台，判据见 application 的 RunSelection。
+ * 执行范围：类别、课程与具体条目。原样转给后台，判据见 application 的 RunSelection。
  * 类别取值由平台定义（慕课是 quiz / review / self / homework / exam / courseware）。
  */
 export interface RunScope {
   kinds?: string[];
   group?: string;
+  /** 只做这几项（计划项 id）。弹窗上「单独完成这一条」用它 */
+  ids?: string[];
 }
 
 /** 执行期间要写状态、控按钮、结束后让入口重读清单，因此由入口传进来。 */
@@ -52,6 +55,7 @@ export async function runNow(handles: RunHandles, scope?: RunScope): Promise<voi
       type: 'RUN_SCHEDULED_TASKS',
       ...(scope?.kinds !== undefined ? { kinds: scope.kinds } : {}),
       ...(scope?.group !== undefined ? { group: scope.group } : {}),
+      ...(scope?.ids !== undefined ? { ids: scope.ids } : {}),
     });
 
     if (result.ok === false) {
@@ -65,19 +69,48 @@ export async function runNow(handles: RunHandles, scope?: RunScope): Promise<voi
       // 「没有可执行的事项」属于正常结果，不用错误色
       text = result.message;
     } else {
-      const parts = [`完成 ${result.done} 项`];
-      if (result.failed) parts.push(`${result.failed.length} 项失败`);
+      const failed = result.failed ?? [];
+      const parts: string[] = [];
+      /*
+       * 「完成 0 项」不成话：一件没做成时就别报数，只说发生了什么。
+       * 停止的收尾句与弹窗、设置页共用同一份措辞（见 ui/run-view）。
+       */
+      if (result.stopped) {
+        parts.push(stoppedLine(result.done));
+      } else if (result.done > 0 || failed.length === 0) {
+        parts.push(`完成 ${result.done} 项`);
+      }
+      /*
+       * 课件没上报成不算「失败」——它低风险、下一次读到还会再做，
+       * 说「没做成」就够，也不该染上错误色。要交的东西（测验/作业）才是
+       * 失败，而且要说清是谁：只说「N 项失败」，用户还得自己回去找。
+       */
+      const misses = failed.filter((item) => item.kind === 'courseware').length;
+      const realFailures = failed.filter((item) => item.kind !== 'courseware');
+      if (misses > 0) parts.push(`${misses} 项没做成`);
+      if (realFailures.length > 0) {
+        const names = realFailures.slice(0, 2).map((item) => item.name).join('、');
+        parts.push(
+          realFailures.length > 2 ? `失败：${names} 等 ${realFailures.length} 项` : `失败：${names}`,
+        );
+      }
       if (result.manual > 0) parts.push(`${result.manual} 项待你处理`);
       text = parts.join('，');
-      tone = result.failed ? 'error' : 'idle';
+      tone = realFailures.length > 0 ? 'error' : 'idle';
     }
   } catch (error) {
     text = error instanceof Error ? error.message : '执行失败';
     tone = 'error';
   }
 
-  // 先重读再写结果：重读会重画状态，顺序反过来结果会被它覆盖
-  await handles.refresh();
+  /*
+   * 先把结果说出来，再重读。
+   *
+   * 重读是网络往返（一两秒），等完再报会让「点完没反应」；而重读本身
+   * 不再写结果位（各页已把结果与进度分开），先报不会被覆盖。
+   * 按钮的复位仍等重读完成——那一小段时间里别让第二个动作挤进来。
+   */
   handles.setStatus(text, tone);
+  await handles.refresh();
   handles.setEnabled(true);
 }

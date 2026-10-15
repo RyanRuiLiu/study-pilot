@@ -21,8 +21,8 @@ import './style.css';
 
 import { runNow } from '../../src/ui-bridge';
 import { PENDING_KINDS } from '../../src/ui/scopes.ts';
-import { runBtn, settingsBtn, setText, stateEl } from './elements.ts';
-import { renderState, setFollowIdleHandler, watchRunState } from './status.ts';
+import { runBtn, settingsBtn } from './elements.ts';
+import { renderState, setFollowIdleHandler, setRunning, showStatus, watchRunState } from './status.ts';
 import { renderTodo } from './todo.ts';
 
 async function init(): Promise<void> {
@@ -43,7 +43,7 @@ async function init(): Promise<void> {
 
   runBtn?.addEventListener('click', () => {
     /*
-     * 按钮文字始终是「立即执行」，不随状态变化。
+     * 按钮文字始终是「全部执行」，不随状态变化。
      * 先前点下去改成「执行中」、结束后又改回来，字数从 2 变 3 再变 4，
      * 而旁边按钮宽度固定，于是整排按钮在点击过程中被推着左右移动。
      * 执行中的信息交给状态行表达，按钮只负责「可以点」与「不能点」。
@@ -53,14 +53,8 @@ async function init(): Promise<void> {
      */
     void runNow(
       {
-        setStatus: (text, tone) => {
-          stateEl?.classList.toggle('is-busy', tone === 'busy');
-          stateEl?.classList.toggle('is-error', tone === 'error');
-          setText(stateEl, text);
-        },
-        setEnabled: (enabled) => {
-          if (runBtn) runBtn.disabled = !enabled;
-        },
+        setStatus: showStatus,
+        setEnabled: (enabled) => setRunning(!enabled),
         refresh: () => renderTodo(),
       },
       { kinds: PENDING_KINDS },

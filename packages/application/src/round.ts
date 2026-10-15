@@ -22,8 +22,8 @@
  * 另一个进程可以挤进来起第二轮。整轮持有它修掉的是这个窗口，不是语义新加。
  */
 
-import type { RunState, TaskState } from './model.ts';
-import type { PlatformTasks, ProgressPort, TaskStorePort } from './ports.ts';
+import type { RunSelection, RunState, TaskState } from './model.ts';
+import type { PlatformTasks, ProgressPort, RunControl, TaskStorePort } from './ports.ts';
 import { beginPlatform, completeItem, enterItem, finishPlatform } from './progress.ts';
 import {
   beginRun,
@@ -36,15 +36,9 @@ import {
 /** 失败的一项，原样交给载体去说。 */
 export interface RunFailure {
   name: string;
+  /** 项的平台类别（PlanItem.kind）：载体的措辞按它分轻重（课件没上报不算失败） */
+  kind: string;
   detail: string;
-}
-
-/** 执行范围。什么都不给表示全部。 */
-export interface RunSelection {
-  /** 只做这些类别。取值由平台定义，本层只做字符串比较 */
-  kinds?: string[];
-  /** 只做这个课程（即 PlanItem.group） */
-  group?: string;
 }
 
 /** 一轮的结局。载体按它决定怎么呈现（消息响应、日志、退出码）。 */
@@ -53,7 +47,14 @@ export type RoundResult =
   | { status: 'not-logged-in' }
   | { status: 'no-course' }
   | { status: 'nothing-to-do' }
-  | { status: 'finished'; done: number; manual: number; failed: RunFailure[] }
+  | {
+      status: 'finished';
+      done: number;
+      manual: number;
+      failed: RunFailure[];
+      /** 人按了停止提前收的尾：done 是停下前做完的那部分 */
+      stopped?: boolean;
+    }
   /** 一轮抛错。原因记进状态，同时也交给调用方怎么报 */
   | { status: 'failed'; message: string };
 
@@ -72,11 +73,23 @@ export interface RoundDeps {
 export interface Runner {
   /** 跑一轮。同一进程里并发调用时，后来者得到 ALREADY_RUNNING。 */
   runRound(selection?: RunSelection): Promise<RoundResult>;
+  /**
+   * 请求停止正在跑的一轮。返回是否真有在跑的一轮（没有就什么都不做）。
+   *
+   * 语义是「不再有新的写」：项间的循环与长动作内部的安全点都会看到这个信号，
+   * 下一个安全点即中断（安全点 = 即将发出写请求之前）。正在飞的请求让它落地，
+   * 已完成的写不回退——一次提交停到一半，比多做一项危险得多。
+   */
+  stop(): boolean;
 }
 
 /** 这一项在不在范围内。范围为空表示全都要。 */
-function inSelection(item: { kind: string; group: string }, selection: RunSelection | undefined): boolean {
+function inSelection(
+  item: { id: string; kind: string; group: string },
+  selection: RunSelection | undefined,
+): boolean {
   if (selection === undefined) return true;
+  if (selection.ids !== undefined && !selection.ids.includes(item.id)) return false;
   if (selection.kinds !== undefined && !selection.kinds.includes(item.kind)) return false;
   if (selection.group !== undefined && item.group !== selection.group) return false;
   return true;
@@ -92,6 +105,9 @@ export function createRunner(deps: RoundDeps): Runner {
    */
   let claimed = false;
 
+  /** 「停止」按钮按过。每轮开始时复位；只在项间检查（见 Runner.stop 的说明）。 */
+  let stopRequested = false;
+
   return {
     async runRound(selection?: RunSelection): Promise<RoundResult> {
       const now = Date.now();
@@ -100,10 +116,13 @@ export function createRunner(deps: RoundDeps): Runner {
       }
       if (claimed) return { status: 'rejected', reason: 'ALREADY_RUNNING' };
       claimed = true;
+      stopRequested = false;
 
       const heartbeat = async (): Promise<void> => {
         await deps.tasks.write(touchRun(await deps.tasks.read(), Date.now()));
       };
+      // 停止柄：长动作在安全点问它一句（见 Runner.stop 的说明）
+      const control: RunControl = { stopped: () => stopRequested };
       const settle = async (next: (state: TaskState) => TaskState): Promise<void> => {
         await deps.tasks.write(next(await deps.tasks.read()));
       };
@@ -114,6 +133,7 @@ export function createRunner(deps: RoundDeps): Runner {
       let noCourse = false;
       let done = 0;
       let manual = 0;
+      let stopped = false;
       const failed: RunFailure[] = [];
 
       await settle((state) => beginRun(state, now));
@@ -128,7 +148,7 @@ export function createRunner(deps: RoundDeps): Runner {
             // 每一步之前刷新心跳：心跳过期会让界面把「正在跑」读成「上次没结束」
             await heartbeat();
 
-            const plan = await platform.plan(now);
+            const plan = await platform.plan(now, selection);
             if (plan.needsLogin === true) return { status: 'not-logged-in' };
             if (plan.blocked === 'no-course') {
               noCourse = true;
@@ -148,25 +168,42 @@ export function createRunner(deps: RoundDeps): Runner {
             // 总数先落定，界面立刻能画出「0 / 7」
             await show((state) => beginPlatform(state, platform, queue.length, Date.now()));
             for (const item of queue) {
+              // 项间这道闸；长动作内部还有自己的安全点（control 一路传下去）
+              if (stopRequested) {
+                stopped = true;
+                break;
+              }
               const where = { course: item.group, title: item.title };
               await show((state) => enterItem(state, platform, where, Date.now()));
-              // 长动作（课件上报）会把心跳传进去：它自己按平台节奏刷新
-              const outcome = await platform.run(item, heartbeat);
+              // 长动作会一并拿到心跳与停止柄
+              const outcome = await platform.run(item, heartbeat, control);
               await show((state) =>
                 completeItem(state, platform, where, outcome.status, outcome.message ?? '', Date.now()),
               );
               if (outcome.status === 'done') done += 1;
               if (outcome.status === 'failed') {
-                failed.push({ name: item.title, detail: outcome.message ?? '平台拒绝了这次操作' });
+                failed.push({
+                  name: item.title,
+                  kind: item.kind,
+                  detail: outcome.message ?? '平台拒绝了这次操作',
+                });
               }
               await heartbeat();
             }
             await show((state) => finishPlatform(state, platform));
+            /*
+             * 补认一次：最后一项执行期间按的停止没有「下一轮」可触发项间检查，
+             * 不在这里认，整轮就会报成「完成 N 项」而不是「已停止」。
+             */
+            if (stopRequested) stopped = true;
+            if (stopped) break;
           }
         } finally {
           await settle((state) => finishRun(state, Date.now()));
         }
 
+        // 停过的一轮怎么都是「跑过」，不像无事可做
+        if (stopped) return { status: 'finished', done, manual, failed, stopped };
         if (done === 0 && failed.length === 0 && manual === 0) {
           return noCourse ? { status: 'no-course' } : { status: 'nothing-to-do' };
         }
@@ -184,6 +221,12 @@ export function createRunner(deps: RoundDeps): Runner {
       } finally {
         claimed = false;
       }
+    },
+
+    stop(): boolean {
+      if (!claimed) return false;
+      stopRequested = true;
+      return true;
     },
   };
 }

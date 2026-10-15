@@ -3,48 +3,46 @@ import type { ChatMessage } from '@study-pilot/ai';
 /**
  * 用 AI 写一条讨论留言。
  *
- * 输出格式**只有一个**：模型必须返回 `{"reply":"…"}`。
- * 不认其它形态——模型偶尔会包一层代码块或给纯文本，那是它没守格式；
- * 重试由调用方负责（`ai/index.ts` 的 MAX_ATTEMPTS），仍不守格式就判失败，
- * 人工处理。**没有「拿整段文本当留言用」这条旁路**：一旦存在，
- * 模型返回的东西就会在无人察觉的情况下变样。
+ * 提示词只有两句：场景 + 一条要求。实测（2026-10-15，glm-4-flash，
+ * 四组真实请求对比）：「简短」与「直接写内容本身」两处不能省——
+ * 去掉后模型会带上「留言内容：」「留言如下：」这类前缀、并写成两三倍长；
+ * 加上后两次输出都是干净正文。真正会出事的东西（链接、代码块、超长）
+ * 另有发布前的校验兜底（courseware/discuss.ts 的 sanitize），提示词不重复站岗。
  *
- * 允许的容错只有解析卫生：去掉首尾空白与代码块围栏——它们不改变内容。
+ * 解析只做包装的卫生处理（代码块围栏、外层引号），不改变内容本身。
+ * 输出为空判失败，重试由调用方负责（ai/index.ts 的 MAX_ATTEMPTS）。
  */
 export interface AiTask {
-  /** 由任务输入构造对话 */
+  /** 由任务输入构造对话。输入是完整的一段话，这里不加工 */
   messages(input: string): ChatMessage[];
-  /** 从模型输出里取出留言；不符合唯一格式时返回 null */
+  /** 从模型输出里取出留言；取不出内容时返回 null */
   parse(content: string): string | null;
 }
 
 const SYSTEM = [
   '你在课程讨论区参与讨论。',
-  '根据给定的讨论题，用第一人称写一句 20~80 字的留言：只谈你自己的理解或疑问，',
-  '不评价他人、不写链接、不加标题、不使用表情。',
-  '只输出 JSON，形如 {"reply":"……"}，不要输出其它内容。',
+  '根据讨论题写一条简短的留言，用自己的话说想法，直接写内容本身。',
 ].join('');
 
-function parseReply(content: string): string | null {
-  const cleaned = content
+/** 去掉模型常见的包装：整段代码块、包裹全文的引号。 */
+function unwrap(content: string): string {
+  const unfenced = content
     .trim()
-    .replace(/^```(?:json)?\n?/i, '')
+    .replace(/^```[a-z]*\n?/i, '')
     .replace(/\n?```$/, '')
     .trim();
-
-  try {
-    const parsed = JSON.parse(cleaned) as { reply?: unknown };
-    if (typeof parsed.reply !== 'string' || !parsed.reply.trim()) return null;
-    return parsed.reply.trim();
-  } catch {
-    return null;
-  }
+  return unfenced.replace(/^[“"']([\s\S]*)[”"']$/, '$1').trim();
 }
 
 export const discussReplyTask: AiTask = {
+  // 输入由调用方组织好（讨论题、课时…），这里原样透传——
+  // 先前这里再拼一次「讨论题：」，而调用方已经拼过，实际发出去是双前缀
   messages: (input) => [
     { role: 'system', content: SYSTEM },
-    { role: 'user', content: `讨论题：${input}` },
+    { role: 'user', content: input },
   ],
-  parse: parseReply,
+  parse: (content) => {
+    const text = unwrap(content);
+    return text === '' ? null : text;
+  },
 };

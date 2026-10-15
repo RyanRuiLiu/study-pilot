@@ -11,7 +11,7 @@
 
 import { chatOrigin } from '@study-pilot/ai';
 import { testAiConnection } from '../../src/ai';
-import { ensureHostPermission } from '../../src/ai/permission';
+import { ensureHostPermission, hasHostPermission } from '../../src/ai/permission';
 import { getSettings, updateSettings } from '../../src/ui-bridge';
 import { toast } from './toast.ts';
 
@@ -93,4 +93,14 @@ export async function renderParams(): Promise<void> {
       setStatus(result.ok ? `连接可用：${result.text}` : `连接失败：${result.reason}`, !result.ok);
     })();
   });
+
+  /*
+   * 配置填齐了但域名权限没批：直接说清楚。
+   * 没有这句，界面看起来「配好了」，而执行时讨论单元会一个个失败——
+   * 失败发生在浏览器的权限层，用户没有任何线索指回这里。
+   */
+  const origin = chatOrigin(settings.ai.baseUrl);
+  if (settings.ai.enabled && origin !== null && !(await hasHostPermission(origin))) {
+    setStatus('尚未授予访问该接口地址的权限：点「保存并测试连接」完成授权', true);
+  }
 }

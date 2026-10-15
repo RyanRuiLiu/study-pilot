@@ -6,6 +6,7 @@
  * 立即记账，讨论是延迟记账，真实结果由下一轮快照确认。
  */
 
+import { NEVER_STOPPED, type RunControl } from '@study-pilot/application';
 import { completeUnit, type CoursewareContext } from '../../courseware/index.ts';
 import type { MoocClient } from '../../client.ts';
 import type { CoursewareAutoAction } from '../plan/index.ts';
@@ -15,12 +16,16 @@ export async function runCourseware(
   client: MoocClient,
   action: CoursewareAutoAction,
   courseware: CoursewareContext,
+  control: RunControl = NEVER_STOPPED,
 ): Promise<ExecResult> {
   const base = { tid: action.unit.unitId, name: action.unit.name, kind: action.kind } as const;
 
-  const result = await completeUnit(client, action.unit, courseware);
+  const result = await completeUnit(client, action.unit, courseware, control);
   if (!result.ok) {
     return { ...base, status: 'failed', detail: `上报失败：${result.error.message}` };
+  }
+  if (result.value === 'stopped') {
+    return { ...base, status: 'skipped', detail: '按停止键中断，未上报' };
   }
   return result.value === 'skipped'
     ? { ...base, status: 'skipped', detail: '平台没给这个单元的数据，无法上报' }

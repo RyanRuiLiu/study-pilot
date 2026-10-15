@@ -13,17 +13,25 @@
   <body>
     <main class="pop">
       <!--
-        顶栏一行放完：品牌、立即执行、更多。
-        立即执行只做待办（测验、作业、考试里能替你做的那部分）；
+        顶栏一行放完：品牌、全部执行、更多。
+        「全部执行」只做待办（测验、作业、考试里能替你做的那部分），
+        与每行悬停现身的「执行」配成一对：全部 vs 单条。
         课件不在这里——它没有截止时间，属于设置页的「课件」区。
       -->
       <header class="bar">
         <span class="brand">Study Pilot</span>
-        <button id="run-now" class="act" type="button" title="执行一轮：完成能替你做的那部分">立即执行</button>
+        <button id="run-now" class="act" type="button" title="全部执行：把待办里能替你做的一次做完">全部执行</button>
         <button id="open-settings" class="act quiet" type="button">更多</button>
       </header>
 
-      <p id="state-text" class="state f-dn"></p>
+      <!--
+        状态行：执行进度与结果；右侧「停止」只在一轮进行时现身（.state.is-running）。
+        文字单独一个元素：setText 会整体改写它，按钮不能住在里面。
+      -->
+      <div id="state-line" class="state is-blank">
+        <span id="state-text" class="state-text"></span>
+        <button id="stop-run" class="state-stop" type="button" title="停止执行：不再发新的写请求">停止</button>
+      </div>
 
       <!--
         待办区先放一句加载提示。

@@ -49,6 +49,11 @@ export interface SelectedCourse {
   lessonsCount: number;
   /** 已选人数，0 表示未提供 */
   enrollCount: number;
+  /**
+   * 当前账号是否已选这门课（平台字段 hasEnroll）。
+   * 未选课的课平台不会给结构，读取范围因此把它排除；旧记录缺这个字段时按 true。
+   */
+  hasEnroll?: boolean;
   /** 是否参与任务 */
   enabled: boolean;
 }

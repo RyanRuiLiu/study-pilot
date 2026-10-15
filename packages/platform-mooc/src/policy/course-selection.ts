@@ -46,6 +46,7 @@ export function mergeCourses(
     endTime: course.endTime ?? 0,
     lessonsCount: course.lessonsCount ?? 0,
     enrollCount: course.enrollCount ?? 0,
+    hasEnroll: course.hasEnroll,
     // 注意 false 也要被沿用：用户取消勾选是一门课的决定，
     // 不能因为「假值」就被当成没记录过而重新赋予默认。
     enabled: chosen.get(course.termId) ?? false,

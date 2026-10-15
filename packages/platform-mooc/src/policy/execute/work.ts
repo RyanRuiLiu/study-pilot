@@ -5,6 +5,7 @@
  * 因为它会原样出现在运行状态的逐项记录里。
  */
 
+import { NEVER_STOPPED, type RunControl } from '@study-pilot/application';
 import {
   buildEvaluationItems,
   currentEvaluatePhase,
@@ -28,6 +29,7 @@ export async function runQuiz(
   client: MoocClient,
   action: WorkAutoAction,
   bank: BankCache,
+  control: RunControl = NEVER_STOPPED,
 ): Promise<ExecResult> {
   const base = { tid: action.work.tid, name: action.work.name, kind: action.kind } as const;
 
@@ -43,6 +45,11 @@ export async function runQuiz(
   const index = await bank.get(client, action.course.termId);
   if (!index) {
     return { ...base, status: 'failed', detail: '题库读取失败，无法核对答案' };
+  }
+
+  // 停止键：开卷有副作用（服务端据此新建一份答题表单），停下就不再开
+  if (control.stopped()) {
+    return { ...base, status: 'skipped', detail: '按停止键中断，未开卷' };
   }
 
   /*
@@ -69,6 +76,11 @@ export async function runQuiz(
     };
   }
 
+  // 停止键：提交前最后一个安全点
+  if (control.stopped()) {
+    return { ...base, status: 'skipped', detail: '按停止键中断，未提交' };
+  }
+
   const submitted = await submitQuiz(client, paper.value);
   if (!submitted.ok) {
     return { ...base, status: 'failed', detail: `提交失败：${submitted.error.message}` };
@@ -91,6 +103,7 @@ export async function runSelf(
   action: WorkAutoAction,
   evaluatorId: number,
   comment: string,
+  control: RunControl = NEVER_STOPPED,
 ): Promise<ExecResult> {
   const base = { tid: action.work.tid, name: action.work.name, kind: action.kind } as const;
 
@@ -128,6 +141,12 @@ export async function runSelf(
   }
 
   const items = buildEvaluationItems({ subjectiveQList: questions }, comment);
+
+  // 停止键：提交是这一项唯一的写点，停下就不再写
+  if (control.stopped()) {
+    return { ...base, status: 'skipped', detail: '按停止键中断，未提交自评' };
+  }
+
   const result = await submitEvaluation(client, self.evaluateId, action.work.tid, items);
   if (!result.ok) {
     return { ...base, status: 'failed', detail: `提交自评失败：${result.error.message}` };
@@ -148,6 +167,7 @@ export async function runReview(
   action: WorkAutoAction,
   evaluatorId: number,
   comment: string,
+  control: RunControl = NEVER_STOPPED,
 ): Promise<ExecResult> {
   const base = { tid: action.work.tid, name: action.work.name, kind: action.kind } as const;
 
@@ -191,6 +211,11 @@ export async function runReview(
   let completed = 0;
 
   for (let index = 0; index < limit; index++) {
+    /*
+     * 停止键：不再向服务端要下一份——要卷本身会占用一份配额。
+     * 已经取到手上的那一份会评完：配额已被它占了，丢下反而留下悬挂状态。
+     */
+    if (control.stopped()) break;
     const next = await nextSubmission(client, action.work.tid, evaluatorId);
     if (!next.ok) {
       /*
@@ -226,6 +251,15 @@ export async function runReview(
     }
 
     completed++;
+  }
+
+  // 停过且没评够：如实报已评几份，不冒充完成，也不冒充「暂无可评」
+  if (control.stopped() && completed < remaining) {
+    return {
+      ...base,
+      status: 'skipped',
+      detail: completed > 0 ? `已评 ${completed} 份，按停止键中断` : '按停止键中断，未开始评分',
+    };
   }
 
   if (completed >= remaining) {

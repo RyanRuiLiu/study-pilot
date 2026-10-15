@@ -58,7 +58,13 @@ export type PendingKind =
  */
 export interface PendingEntry {
   kind: PendingKind;
-  /** auto：扩展会完成；manual：只能用户自己来 */
+  /**
+   * 计划项 id（执行侧的唯一凭据，取名规则在平台包里）。
+   * 一个条目可以带多条：同一份作业的互评与自评合成一行，
+   * 点「执行」时一起发回——界面不自己拼 id。
+   */
+  itemIds: string[];
+  /** auto：点一下就能替你完成；manual：只能用户自己来 */
   handling: 'auto' | 'manual';
   /** 是否已过截止（过期的不接受补做，列出来只是让用户知道漏了什么） */
   overdue: boolean;

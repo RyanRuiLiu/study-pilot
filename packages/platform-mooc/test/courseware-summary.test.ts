@@ -53,15 +53,31 @@ describe('课件进度计数', () => {
     ];
 
     expect(summarizeCourseware(snapshotOf(units), false)).toEqual([
-      { courseName: '模拟电子技术', done: 1, total: 5, pending: 2, cannot: 2 },
+      { courseName: '模拟电子技术', done: 1, total: 5, pending: 2, cannot: 2, needsAi: 0 },
     ]);
   });
 
   it('没有 AI 时讨论单元算「做不了」；配了 AI 就算可做', () => {
     const units = [unitOf({ unitId: 1, contentType: UNIT_TYPE.DISCUSS, durationInSeconds: null })];
 
-    expect(summarizeCourseware(snapshotOf(units), false)[0]).toMatchObject({ pending: 0, cannot: 1 });
-    expect(summarizeCourseware(snapshotOf(units), true)[0]).toMatchObject({ pending: 1, cannot: 0 });
+    // 「只差 AI」单独标出来：界面据此给出「去配 AI」这句可行动的话
+    expect(summarizeCourseware(snapshotOf(units), false)[0]).toMatchObject({
+      pending: 0,
+      cannot: 1,
+      needsAi: 1,
+    });
+    expect(summarizeCourseware(snapshotOf(units), true)[0]).toMatchObject({
+      pending: 1,
+      cannot: 0,
+      needsAi: 0,
+    });
+
+    // 讨论帖 id 缺失：算数据不全，不是「只差 AI」
+    const broken = [unitOf({ unitId: 2, contentType: UNIT_TYPE.DISCUSS, contentId: 0 })];
+    expect(summarizeCourseware(snapshotOf(broken), false)[0]).toMatchObject({
+      cannot: 1,
+      needsAi: 0,
+    });
   });
 
   it('每门课各一条，顺序与快照一致', () => {

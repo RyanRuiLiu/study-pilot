@@ -20,8 +20,18 @@ export interface CourseSummary {
   termId: number;
   /** 课程模式：0 MOOC、10 SPOC 同步、15 SPOC 异步、20 SPOC 独立、30 ROOC */
   mode: number | null;
-  /** 1 MOOC、2 SPOC。与 mode 不同，这是接口的分页维度 */
+  /**
+   * 条目上的产品类型（平台枚举 COURSE_PRODUCT_TYPE：1 课程、2 考研、
+   * 3 专栏、308 教材）。注意与请求参数的 courseType（1|2，MOOC/SPOC 分页维度）
+   * 同名不同义——这一点是读平台源码确认的（.reverse 的 COURSE_PRODUCT_TYPE）。
+   */
   courseType: number | null;
+  /**
+   * 当前账号是否已选这门课（服务端字段 termPanel.hasEnroll）。
+   * 平台只对已选课的课给结构（官方客户端据此选读取路径，见 structure.ts）。
+   * 平台未提供时按 true——不凭缺失把课排除掉。
+   */
+  hasEnroll: boolean;
   /** 开课学校 */
   schoolName: string;
   /** 学校简称，课程页地址的路径段前缀（如 NTU） */

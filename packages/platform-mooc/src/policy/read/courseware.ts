@@ -8,8 +8,15 @@
  * 纯函数：快照进、计数出。不碰网络也不碰存储，测试零替身。
  */
 
-import { isCompletable, isUnitComplete } from '../../courseware/index.ts';
+import { BEHAVIORS, isCompletable, isUnitComplete } from '../../courseware/index.ts';
+import type { CourseUnit } from '../../types.ts';
 import type { Snapshot } from './types.ts';
+
+/** 这个单元是不是「只差 AI」：类型支持、数据齐全，只是留言需要生成。 */
+function needsText(unit: CourseUnit): boolean {
+  const behavior = BEHAVIORS.find((entry) => entry.type === unit.contentType);
+  return behavior !== undefined && behavior.needs === 'text' && behavior.ready(unit);
+}
 
 export interface CoursewareProgress {
   courseName: string;
@@ -24,6 +31,18 @@ export interface CoursewareProgress {
    * 以及没配 AI 时的讨论。界面据此说明「为什么不是全部」。
    */
   cannot: number;
+  /**
+   * cannot 里「只差 AI」的那部分：讨论单元的留言必须由 AI 写，
+   * 没配就走不了。界面据此给出可行动的那句话（去配 AI），
+   * 而不是把所有做不了的都笼统称作「平台数据不全」。
+   */
+  needsAi: number;
+  /**
+   * 这门课的结构没读到（由调用方补的行，summarizeCourseware 本身不产出）：
+   * 从未学过的课平台不回结构，静默跳过会让它从界面上凭空消失——
+   * 用户勾选了它却什么都看不到，比看到一行「读不到」更费解。
+   */
+  unread?: boolean;
 }
 
 /**
@@ -35,9 +54,11 @@ export function summarizeCourseware(snapshot: Snapshot, textAvailable: boolean):
   return snapshot.courses.map((course) => {
     let done = 0;
     let pending = 0;
+    let needsAi = 0;
     for (const unit of course.units) {
       if (isUnitComplete(unit)) done += 1;
       else if (isCompletable(unit, capabilities)) pending += 1;
+      else if (!textAvailable && needsText(unit)) needsAi += 1;
     }
     return {
       courseName: course.courseName,
@@ -45,6 +66,7 @@ export function summarizeCourseware(snapshot: Snapshot, textAvailable: boolean):
       total: course.units.length,
       pending,
       cannot: course.units.length - done - pending,
+      needsAi,
     };
   });
 }

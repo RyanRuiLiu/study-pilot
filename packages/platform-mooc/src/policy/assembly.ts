@@ -71,7 +71,9 @@ export interface MoocRuntime {
  */
 export function selectedCourses(settings: Settings): InspectCourse[] {
   return settings.mooc.courses
-    .filter((course) => course.enabled)
+    // 已选课才读得到结构（平台只对已选课给结构，见 structure.ts 的说明）；
+    // 旧记录没有 hasEnroll 字段，按 true 处理。
+    .filter((course) => course.enabled && course.hasEnroll !== false)
     .map((course) => ({
       termId: course.termId,
       courseId: course.courseId,

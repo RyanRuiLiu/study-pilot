@@ -8,7 +8,7 @@
  * 这里的函数都是纯的：给定计划与快照，输出消息对象，不碰网络也不碰存储。
  */
 
-import { workPageUrl } from '@study-pilot/platform-mooc';
+import { manualItemId, workItemId, workPageUrl } from '@study-pilot/platform-mooc';
 import type { PendingEntry, PendingKind, PendingSummary, UnitDetail } from './messages/payload.ts';
 import { OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from '@study-pilot/platform-mooc';
 import type { Snapshot, SnapshotCourse } from '@study-pilot/platform-mooc';
@@ -31,8 +31,8 @@ const AUTO_KIND: Record<WorkAutoAction['kind'], PendingKind> = {
 /**
  * 人工项的原因 → 界面上的待办类别。
  *
- * 一一对应，没有兜底分支：先前那个兜底会把「关掉自动答题的测验」
- * 显示成考试，因为它的 reason 是笼统的 task-disabled，只能落在最后。
+ * 一一对应，没有兜底分支：兜底意味着存在它不认识的原因，
+ * 那时只能落在最后一项上——先前就因此把一种测验显示成了考试。
  */
 const MANUAL_KIND: Record<ManualItem['reason'], PendingKind> = {
   'homework-unsubmitted': 'submit-homework',
@@ -43,6 +43,9 @@ const MANUAL_KIND: Record<ManualItem['reason'], PendingKind> = {
   exam: 'submit-exam',
   'exam-overdue': 'submit-exam',
 };
+
+/** 同属互评期的两个类别：同一份作业的这两条在界面上合成一行。 */
+const STAGE_KINDS: ReadonlySet<PendingKind> = new Set(['evaluate-homework', 'self-evaluate']);
 
 /**
  * 过期项在待办里保留多久，单位天。
@@ -109,6 +112,8 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
        * 与给自己的作业打分是完全不同的两件事。
        */
       kind: AUTO_KIND[action.kind],
+      // id 的取名规则在平台包里（唯一一份），这里原样透出给界面
+      itemIds: [workItemId(work.tid, action.kind)],
       handling: 'auto',
       href: workPageUrl(course, work.type, work.tid, work.examId ?? undefined),
       overdue: false,
@@ -137,6 +142,7 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
     entries.push({
       // 每一类原因对应一件具体的事，不再有一对多的兜底分支
       kind: MANUAL_KIND[reason],
+      itemIds: [manualItemId(work.tid, reason)],
       handling: 'manual',
       href: workPageUrl(course, work.type, work.tid, work.examId ?? undefined),
       /*
@@ -160,14 +166,42 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
   }
 
   /*
+   * 互评与自评合成一条。
+   *
+   * 同一份作业的这两件事同属互评期，对用户是「把这一阶段做完」这一件事：
+   * 分成「互评作业」「自评作业」两行，等于把一次点击拆成两个按钮。
+   * 合并后两条计划项 id 一起带着，点「执行」时一起发回。
+   * 互评那条的身份优先——「还差 N 份」是这一阶段唯一能报的进度。
+   */
+  const merged: PendingEntry[] = [];
+  const byWork = new Map<number, PendingEntry>();
+  for (const entry of entries) {
+    if (!STAGE_KINDS.has(entry.kind)) {
+      merged.push(entry);
+      continue;
+    }
+    const kept = byWork.get(entry.testId);
+    if (kept === undefined) {
+      byWork.set(entry.testId, entry);
+      merged.push(entry);
+      continue;
+    }
+    kept.itemIds.push(...entry.itemIds);
+    if (entry.kind === 'evaluate-homework') {
+      kept.kind = entry.kind;
+      kept.evaluateDone = entry.evaluateDone;
+      kept.evaluateTotal = entry.evaluateTotal;
+    }
+  }
+
+  /*
    * 去掉旧到不该再留的过期项。
    *
    * 放在排序之前：过期项的截止时间在过去，按时间升序它们会全部排在
    * 最前面。而用户打开弹窗是要看「现在做什么」，让三十天前的一份测验
-   * 占着第一行是本末倒置。剩下的过期项也会被界面上单独归入一段，
-   * 不混在待办里。
+   * 占着第一行是本末倒置。留下的过期项由界面垫在所属课程的最后。
    */
-  const live = entries.filter((entry) => !isStaleOverdue(entry, keepDays, now));
+  const live = merged.filter((entry) => !isStaleOverdue(entry, keepDays, now));
 
   /*
    * 排序分两层：未过期的按截止时间升序（越早到期越靠前，用户照顺序做），

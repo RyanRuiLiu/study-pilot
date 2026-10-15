@@ -123,7 +123,7 @@ export const discussBehavior: UnitBehavior = {
   needs: 'text',
   // 回复要带帖子 id
   ready: (unit) => unit.contentId > 0,
-  async run(client, unit, context) {
+  async run(client, unit, context, control) {
     if (!context.generateText) {
       return err(apiError(-1, '未配置 AI，无法生成讨论回复'));
     }
@@ -148,7 +148,7 @@ export const discussBehavior: UnitBehavior = {
      */
     const generated = await context.generateText({
       task: 'discuss-reply',
-      input: `讨论题：${question}\n所在课时：${unit.lessonName}`,
+      input: `讨论题：${question}`,
     });
     if (!generated.ok) {
       return err(apiError(-1, `AI 生成讨论回复失败：${generated.reason}`));
@@ -157,6 +157,9 @@ export const discussBehavior: UnitBehavior = {
     if (!text) {
       return err(apiError(-1, 'AI 生成的讨论回复不合规（为空、过长或含链接）'));
     }
+
+    // 停止键：AI 生成期间按的停止，在这一步生效——不再写帖子
+    if (control.stopped()) return ok('stopped');
 
     const replied = await postReply(client, unit.contentId, text);
     if (!replied.ok) return replied;

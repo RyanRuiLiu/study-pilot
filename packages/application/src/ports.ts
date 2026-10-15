@@ -15,9 +15,22 @@
  * 一条判据：端口的实现方（载体、厂商适配器）可以依赖这里，这里不许依赖它们。
  */
 
-import type { PlanItem, PlanResult, RunOutcome, RunState, TaskState } from './model.ts';
+import type { PlanItem, PlanResult, RunOutcome, RunSelection, RunState, TaskState } from './model.ts';
 
 // ---------- 厂商适配器要实现的端口 ----------
+
+/**
+ * 本轮的控制柄。长动作在安全点问一句：这一轮是不是已经被要求停了。
+ *
+ * 「安全点」的判据：即将发出写请求之前。正在飞的请求不掐断（也掐不断），
+ * 已完成的写不回退——停止的语义是「不再有新的写」，不是「撤销」。
+ */
+export interface RunControl {
+  stopped(): boolean;
+}
+
+/** 没人要求停的控制柄。不需要可停止的调用方（测试、单跑一个动作）用它。 */
+export const NEVER_STOPPED: RunControl = { stopped: () => false };
 
 /**
  * 一个平台要做的事。
@@ -34,10 +47,19 @@ export interface PlatformTasks {
    * 该做什么。调度只执行 mode 为 auto 的项。
    *
    * 没有「要不要重新拉」的选项：每次调用都拿最新数据，不做任何缓存。
+   *
+   * `scope` 是这一轮的范围（与 runRound 的 selection 同一份）：给了课程就不读
+   * 别的课——每门课一次结构读取，不做某门课的活就不该付它的读费。
    */
-  plan(now: number): Promise<PlanResult>;
-  /** 做一件。失败如实返回，调度不重试、不解释 */
-  run(item: PlanItem, heartbeat: () => Promise<void>): Promise<RunOutcome>;
+  plan(now: number, scope?: RunSelection): Promise<PlanResult>;
+  /**
+   * 做一件。失败如实返回，调度不重试、不解释。
+   *
+   * `control` 是停止柄：长动作（互评的逐份循环、讨论的生成加发帖）在每个
+   * 安全点问它一句。不管它的话，一次「停止」要等整项做完才生效——
+   * 互评一份份评下去可以很久。
+   */
+  run(item: PlanItem, heartbeat: () => Promise<void>, control: RunControl): Promise<RunOutcome>;
 }
 
 /**

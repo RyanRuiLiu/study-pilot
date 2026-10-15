@@ -11,17 +11,18 @@ import { coursePageUrl } from '@study-pilot/platform-mooc';
 import { getCourses, getSession, getSettings, refreshCourses, updateSettings } from '../../src/ui-bridge';
 import type { Settings } from '../../src/ui-bridge';
 import { formatTermRange } from '../../src/ui/format.ts';
+import { refreshCourseViews } from './courseware.ts';
 import { toast } from './toast.ts';
 
 type SelectedCourse = Settings['mooc']['courses'][number];
 
 function renderSession(sessionText: HTMLElement, loggedIn: boolean): void {
-  sessionText.replaceChildren();
-  if (loggedIn) {
-    sessionText.textContent = '已登录';
-    return;
-  }
-  sessionText.textContent = '未登录——先在浏览器里登录慕课平台，再回来读取课程列表。';
+  /*
+   * 只在需要动作时说话：登录了就不显示这行——「已登录」在页头概览里
+   * 已经有一份，同一件事不必在两处宣布。
+   */
+  sessionText.hidden = loggedIn;
+  sessionText.textContent = loggedIn ? '' : '未登录——先在浏览器里登录慕课平台，再回来读取课程列表。';
 }
 
 function buildRow(course: SelectedCourse): HTMLElement {
@@ -50,7 +51,10 @@ function buildRow(course: SelectedCourse): HTMLElement {
   const meta = document.createElement('span');
   meta.className = 'course-meta';
   const range = formatTermRange(course.startTime, course.endTime);
-  meta.textContent = [course.schoolName, range].filter(Boolean).join(' · ');
+  const parts = [course.schoolName, range];
+  // 未选课的课读不到内容（平台不给结构），在列表里如实标出来
+  if (course.hasEnroll === false) parts.push('未选课');
+  meta.textContent = parts.filter(Boolean).join(' · ');
 
   body.append(name, meta);
   row.append(check, body);
@@ -70,6 +74,16 @@ async function toggle(termId: number, enabled: boolean): Promise<void> {
   );
   await updateSettings({ mooc: { courses } });
   toast(enabled ? '已加入任务范围' : '已移出任务范围');
+  // 参与范围变了：课件区只列参与中的课程，概览的计数也按它算——两处一起重读
+  void refreshCourseViews();
+}
+
+/** 列表里的一句说明。 */
+function note(text: string): HTMLElement {
+  const el = document.createElement('p');
+  el.className = 'note';
+  el.textContent = text;
+  return el;
 }
 
 export async function renderCourses(): Promise<void> {
@@ -77,7 +91,14 @@ export async function renderCourses(): Promise<void> {
   const sessionEl = document.getElementById('session-text');
   if (listEl === null || sessionEl === null) return;
 
-  const [session, courses, settings] = await Promise.all([getSession(), getCourses(), getSettings()]);
+  let reads: [Awaited<ReturnType<typeof getSession>>, Awaited<ReturnType<typeof getCourses>>, Settings];
+  try {
+    reads = await Promise.all([getSession(), getCourses(), getSettings()]);
+  } catch (error) {
+    listEl.replaceChildren(note(error instanceof Error ? error.message : String(error)));
+    return;
+  }
+  const [session, courses, settings] = reads;
   renderSession(sessionEl, session.loggedIn);
 
   // 列表以配置为准（哪门课参与、带定位字段），平台读到的新列表在「读取」时并进来
@@ -89,10 +110,7 @@ export async function renderCourses(): Promise<void> {
 
   listEl.replaceChildren();
   if (rows.length === 0) {
-    const note = document.createElement('p');
-    note.className = 'note';
-    note.textContent = '还没有课程。点「读取课程列表」从平台读取，读回来之后勾选要参与的。';
-    listEl.append(note);
+    listEl.append(note('还没有课程。点「读取课程列表」从平台读取，读回来之后勾选要参与的。'));
     return;
   }
   listEl.append(...rows);

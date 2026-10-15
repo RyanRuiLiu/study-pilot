@@ -8,6 +8,8 @@
 
 import type { Result } from '@study-pilot/core';
 import type { TransportError } from '@study-pilot/transport';
+import type { RunControl } from '@study-pilot/application';
+import type { BankCache } from '../policy/execute/bank.ts';
 import type { MoocClient } from '../client.ts';
 import type { CourseUnit } from '../types.ts';
 
@@ -16,7 +18,9 @@ export type BehaviorOutcome =
   /** 已上报，等平台记账 */
   | 'reported'
   /** 结构里缺少必需数据（例如视频没有时长），没有上报 */
-  | 'skipped';
+  | 'skipped'
+  /** 按停止键中断，没有上报 */
+  | 'stopped';
 
 /**
  * 生成一段文本（讨论留言）。失败时**不要**返回替代文案——这里没有「固定文案」
@@ -40,6 +44,11 @@ export interface CoursewareCapabilities {
 
 export interface CoursewareContext {
   generateText?: TextGenerator;
+  /**
+   * 题库缓存：随堂测验要用题库比对答案。由调用方给整轮共享的一份
+   * （同一门课的随堂测验与单元测验共用）；不给就各行为现读一次。
+   */
+  bank?: BankCache;
 }
 
 export interface UnitBehavior {
@@ -62,5 +71,7 @@ export interface UnitBehavior {
     client: MoocClient,
     unit: CourseUnit,
     context: CoursewareContext,
+    /** 停止柄：在发出写请求之前问一句（见 application 的 RunControl） */
+    control: RunControl,
   ): Promise<Result<BehaviorOutcome, TransportError>>;
 }

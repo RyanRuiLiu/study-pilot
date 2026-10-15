@@ -151,6 +151,15 @@ function examToWork(part: WorkTest, exam: RawExam, isObjective: boolean): Course
   };
 }
 
+/**
+ * 结构读取。
+ *
+ * 平台官方客户端有三条路（源码 CourseBean）：预览 → `getMocTermDto(termId, isDraft, false)`；
+ * 已选课 → `getLastLearnedMocTermDto(termId)`；其余 → `getMocTermDto(termId, isDraft, true)`。
+ * 我们只实现了「已选课」这一条——实测 `getMocTermDto` 对我们的调用回 `not_access`
+ * （连同正常课程，2026-10-15）。因此未选课/预览的课读不到结构；
+ * 读取范围因此先用 hasEnroll 过滤，不把读不到的课送进来。
+ */
 export async function getCourseStructure(
   client: MoocClient,
   termId: number,
@@ -171,6 +180,11 @@ export async function getCourseStructure(
    * mocTermDto 为 null 也可能出现在别的场合（课程已结束、termId 无效），
    * 但那些场合续期重读后仍是 null；编排层据此把它与登录失效区分开，
    * 这里只负责如实报「auth」，不下最终结论。
+   *
+   * 还有第三种来源（实测 2026-10-15）：拿的是**旧登录快照**（浏览器里已经换了
+   * 新会话，导出的 cookie 文件还是上一场登录的）时，部分课程同样回 null——
+   * 同一时刻用浏览器当前会话读同一门课能拿到完整内容。这类 null 重新导出
+   * cookies 即恢复；排查时先跑 pnpm probe state check 核对。
    */
   if (payload.value?.mocTermDto == null) return err(unauthenticatedError());
 

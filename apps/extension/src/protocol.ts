@@ -85,7 +85,9 @@ export type RunScheduledTasksResponse =
       ok: true;
       done: number;
       manual: number;
-      failed?: Array<{ name: string; detail: string }>;
+      failed?: Array<{ name: string; kind: string; detail: string }>;
+      /** 这一轮是人按了停止提前收的尾 */
+      stopped?: boolean;
       message?: string;
     }
   /** message 是失败的具体原因；界面只按 reason 取文案，这个字段留给出错时排查 */

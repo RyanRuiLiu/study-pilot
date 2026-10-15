@@ -35,6 +35,16 @@ export interface PlanItem {
 
 export type RunOutcome = { status: 'done' | 'failed' | 'skipped'; message?: string };
 
+/** 执行范围。什么都不给表示全部。 */
+export interface RunSelection {
+  /** 只做这些类别。取值由平台定义，本层只做字符串比较 */
+  kinds?: string[];
+  /** 只做这个课程（即 PlanItem.group） */
+  group?: string;
+  /** 只做这几项（PlanItem.id）。弹窗上「单独完成这一条」用它 */
+  ids?: string[];
+}
+
 /** 计划结果：要做什么 + 是否需要重新登录。 */
 export interface PlanResult {
   items: PlanItem[];

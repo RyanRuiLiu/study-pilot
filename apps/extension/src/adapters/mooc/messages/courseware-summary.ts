@@ -32,17 +32,35 @@ export function coursewareSummaryCommand(deps: MoocMessageDeps): MessageHandler 
     }
 
     try {
+      const courses = deps.selectedCourses(settings);
       const outcome = await withSessionRecovery(
-        () => deps.loadSnapshot(deps.selectedCourses(settings), session.userId),
+        () => deps.loadSnapshot(courses, session.userId),
         deps.renew,
       );
       if (!outcome.ok) {
         sendResponse({ status: 'error', ...recoveryFailure(outcome) } satisfies MoocResponseMap['COURSEWARE_SUMMARY']);
         return;
       }
+      /*
+       * 按课程列表逐门对齐：读不到结构的课（从未学过、平台不回结构）
+       * 补一行「读不到」，而不是静默消失——用户勾了它，就该看见它为什么是空的。
+       */
+      const progress = summarizeCourseware(outcome.value, hasTextGenerator(settings));
+      const rows = courses.map(
+        (course) =>
+          progress.find((entry) => entry.courseName === course.name) ?? {
+            courseName: course.name,
+            done: 0,
+            total: 0,
+            pending: 0,
+            cannot: 0,
+            needsAi: 0,
+            unread: true,
+          },
+      );
       sendResponse({
         status: 'ok',
-        value: summarizeCourseware(outcome.value, hasTextGenerator(settings)),
+        value: rows,
       } satisfies MoocResponseMap['COURSEWARE_SUMMARY']);
     } catch (error) {
       sendResponse({
