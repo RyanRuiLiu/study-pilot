@@ -1,24 +1,27 @@
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
 import { defineConfig } from 'wxt';
-import { findChromeForTesting } from '../../scripts/probe/lib/chrome-path.mjs';
 
 /*
- * 调试宿主浏览器：Chrome for Testing。
+ * 调试宿主浏览器：Playwright 管理的 Chromium——与探测浏览器（scripts/probe/probe.mjs）
+ * 同源同款，`pnpm exec playwright install chromium` 装一次两处都用。
  *
- * 依据是 Chrome 官方发布说明——品牌版自 137 起移除了 `--load-extension`，且没有
- * CDP 的 `Extensions` 域，加载未打包扩展会「假成功」（返回 id 但扩展并未装上，
- * 打开是 ERR_BLOCKED_BY_CLIENT）。https://support.google.com/chrome/a/answer/10314655
- *
- * 查找规则与探测启动器共用 `scripts/probe/lib/chrome-path.mjs`，不在这里重写一遍：
- * 两处各写一份时，macOS 的路径已经漂开（一处返回 .app 目录，另一处返回其中的可执行文件）。
+ * 不用品牌版 Chrome 的原因：它自 137 起移除了 `--load-extension`，加载未打包扩展
+ * 会「假成功」。https://support.google.com/chrome/a/answer/10314655
  *
  * 找不到时这里**不**抛错。配置文件被读到的场合不只是开发模式——`wxt prepare`、构建、
- * 类型检查与测试都要读它，把「缺调试浏览器」变成「整个仓库不能构建」是过头的，
- * 也让 CI 必须先装一个浏览器才能跑测试。开发模式的硬要求由 `pnpm dev` 的
- * 前置检查给出（见根 package.json 的 dev 脚本）。
+ * 类型检查与测试都要读它，把「缺浏览器」变成「整个仓库不能构建」是过头的，
+ * 也让 CI 必须先装一个浏览器才能跑测试。
  */
-const chromeBinary = findChromeForTesting();
+const chromeBinary = (() => {
+  try {
+    const executable = chromium.executablePath();
+    return existsSync(executable) ? executable : null;
+  } catch {
+    return null;
+  }
+})();
 
 /**
  * 调试专用 Chrome 配置目录，固定在项目内以长期保留登录 Cookie。
@@ -99,10 +102,5 @@ export default defineConfig({
     ...(chromeBinary ? { binaries: { chrome: chromeBinary } } : {}),
     chromiumProfile,
     keepProfileChanges: true,
-    chromiumArgs: [
-      // 固定开启 CDP 调试端口，供探测工具通过 9222 读取页面与扩展。
-      '--remote-debugging-port=9222',
-      '--remote-allow-origins=*',
-    ],
   },
 });

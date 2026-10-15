@@ -126,13 +126,13 @@ const packageFiles = listFiles(packagesDir);
 const appFiles = listFiles(appsDir);
 
 /*
- * R5 的唯一例外，写在这里而不是放宽规则：多一处都要在这个集合里加名字，评审时看得见。
+ * R5 的例外集合。当前为空。
  *
- * 理由：wxt.config.ts 是**构建配置**，不是运行时源码。它要定位本机 Chrome 才能起
- * 开发用的浏览器，而那段路径判定与探测脚本共用一份实现（scripts/probe/lib/chrome-path.mjs）。
- * 把它复制一份进来的代价是「同一事实两处」，比这条例外更糟。
+ * 曾经的唯一例外是 wxt.config.ts（要相对 import 到 scripts/probe 里共用一份
+ * 浏览器查找实现）。改用 Playwright 后，那件事由 playwright 包本身解决
+ * （chromium.executablePath()），相对 import 不再跑出载体，例外随之取消。
  */
-const R5_ALLOWED = new Set(['apps/extension/wxt.config.ts']);
+const R5_ALLOWED = new Set<string>();
 
 describe('分层边界（机械核对，不靠人记）', () => {
   it('R1 包内不出现浏览器/Node 宿主的全局，也不 import wxt', () => {

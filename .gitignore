@@ -17,6 +17,9 @@ __pycache__/
 # 这些是调试过程的材料，不是项目内容，而且可能带着账号与课程数据。
 .probe/
 
+# Playwright MCP 的暂存目录（偶尔手动看一眼时产生；正式工具以 pnpm probe 为准）
+.playwright-mcp/
+
 # 临时 profile（调试时用，不入库）
 .tmp-profile/
 
