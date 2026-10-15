@@ -13,6 +13,7 @@ export const stateEl = document.getElementById('state-text');
 export const stateLine = document.getElementById('state-line');
 export const stopBtn = button('stop-run');
 export const todoEl = document.getElementById('todo-text');
+export const zhsTodoEl = document.getElementById('zhs-todo-text');
 export const runBtn = button('run-now');
 export const settingsBtn = document.getElementById('open-settings');
 

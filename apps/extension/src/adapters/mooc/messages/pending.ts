@@ -28,7 +28,7 @@ export function pendingCommand(deps: MoocMessageDeps): MessageHandler {
         status: 'error',
         reason: 'NOT_LOGGED_IN',
         message: '尚未登录慕课平台',
-      } satisfies MoocResponseMap['PENDING_SUMMARY']);
+      } satisfies MoocResponseMap['MOOC_PENDING_SUMMARY']);
       return;
     }
 
@@ -42,7 +42,7 @@ export function pendingCommand(deps: MoocMessageDeps): MessageHandler {
         deps.renew,
       );
       if (!outcome.ok) {
-        sendResponse({ status: 'error', ...recoveryFailure(outcome) } satisfies MoocResponseMap['PENDING_SUMMARY']);
+        sendResponse({ status: 'error', ...recoveryFailure(outcome) } satisfies MoocResponseMap['MOOC_PENDING_SUMMARY']);
         return;
       }
       sendResponse({
@@ -53,12 +53,12 @@ export function pendingCommand(deps: MoocMessageDeps): MessageHandler {
           derivePlan(outcome.value, settings, Date.now(), await aiTextAvailable(settings)),
           settings.mooc.keepOverdueDays,
         ),
-      } satisfies MoocResponseMap['PENDING_SUMMARY']);
+      } satisfies MoocResponseMap['MOOC_PENDING_SUMMARY']);
     } catch (error) {
       sendResponse({
         status: 'error',
         message: error instanceof Error ? error.message : String(error),
-      } satisfies MoocResponseMap['PENDING_SUMMARY']);
+      } satisfies MoocResponseMap['MOOC_PENDING_SUMMARY']);
     }
   };
 }

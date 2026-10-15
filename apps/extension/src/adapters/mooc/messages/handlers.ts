@@ -16,19 +16,17 @@ import { homeworkPaperCommand } from './unit-questions.ts';
 import { pendingCommand } from './pending.ts';
 import { refreshCoursesCommand } from './refresh-courses.ts';
 import { sessionCommand } from './session.ts';
-import { taskStateCommand } from './task-state.ts';
 import { unitDetailsCommand } from './unit-details.ts';
 
 export function moocHandlers(deps: MoocMessageDeps): MessageHandlers {
   return {
-    SESSION: sessionCommand(deps),
-    COURSES: coursesCommand(),
-    REFRESH_COURSES: refreshCoursesCommand(deps),
-    PENDING_SUMMARY: pendingCommand(deps),
-    UNIT_DETAILS: unitDetailsCommand(deps),
-    COURSEWARE_SUMMARY: coursewareSummaryCommand(deps),
-    HOMEWORK_PAPER: homeworkPaperCommand(deps),
-    TASK_STATE: taskStateCommand(deps),
+    MOOC_SESSION: sessionCommand(deps),
+    MOOC_COURSES: coursesCommand(),
+    MOOC_REFRESH_COURSES: refreshCoursesCommand(deps),
+    MOOC_PENDING_SUMMARY: pendingCommand(deps),
+    MOOC_UNIT_DETAILS: unitDetailsCommand(deps),
+    MOOC_COURSEWARE_SUMMARY: coursewareSummaryCommand(deps),
+    MOOC_HOMEWORK_PAPER: homeworkPaperCommand(deps),
     // 不是本平台的命令：交回外壳，由它决定怎么回（undefined 表示没人处理）
     '*': async (_request, sendResponse) => sendResponse(undefined),
   };

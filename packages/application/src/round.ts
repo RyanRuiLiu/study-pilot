@@ -140,6 +140,8 @@ export function createRunner(deps: RoundDeps): Runner {
       try {
         try {
           for (const platform of deps.platforms()) {
+            // 范围里点名了平台时，其余平台整家跳过（界面每次执行都点名）
+            if (selection?.platformId !== undefined && platform.id !== selection.platformId) continue;
             if (!(await platform.isReady())) {
               // 有人在等答案：立刻告诉他去登录，别让他等一轮空跑
               return { status: 'not-logged-in' };

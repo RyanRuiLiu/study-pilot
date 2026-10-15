@@ -17,13 +17,13 @@ export function sessionCommand(deps: MoocMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
     const session = await ensureSession(deps.host);
     if (!session.loggedIn) {
-      sendResponse(session satisfies MoocResponseMap['SESSION']);
+      sendResponse(session satisfies MoocResponseMap['MOOC_SESSION']);
       return;
     }
 
     const probe = await getCourses(deps.client, { courseType: COURSE_TYPE.MOOC, pageSize: 1 });
     if (probe.ok || probe.error.kind !== 'auth') {
-      sendResponse(session satisfies MoocResponseMap['SESSION']);
+      sendResponse(session satisfies MoocResponseMap['MOOC_SESSION']);
       return;
     }
 
@@ -34,11 +34,11 @@ export function sessionCommand(deps: MoocMessageDeps): MessageHandler {
         pageSize: 1,
       });
       if (afterRenewal.ok || afterRenewal.error.kind !== 'auth') {
-        sendResponse(renewedSession satisfies MoocResponseMap['SESSION']);
+        sendResponse(renewedSession satisfies MoocResponseMap['MOOC_SESSION']);
         return;
       }
     }
 
-    sendResponse({ loggedIn: false, userId: 0, token: session.token } satisfies MoocResponseMap['SESSION']);
+    sendResponse({ loggedIn: false, userId: 0, token: session.token } satisfies MoocResponseMap['MOOC_SESSION']);
   };
 }

@@ -12,6 +12,7 @@
 
 import { createRunner, liveRunState } from '@study-pilot/application';
 import { createMoocPlatform } from '../src/adapters/mooc/platform.ts';
+import { createZhihuishuPlatform } from '../src/adapters/zhihuishu/platform.ts';
 import { whenNetRulesReady } from '../src/browser/net-rules';
 import { browserCapabilities } from '../src/browser/capabilities.ts';
 import { registerMessageHandler } from '../src/background/messages/router';
@@ -23,19 +24,19 @@ export default defineBackground(() => {
   /*
    * 平台。外壳只调工厂，不碰平台的内部实现（read / plan / execute / 处理器）。
    *
-   * 将来加第二个平台：再调一次它自己的工厂，把它并进 handlers 与 platforms 清单。
+   * 第二个平台（智慧树）就是这么加进来的：调它的工厂，把它并进
+   * handlers 与 platforms 清单。消息类型带 ZHS_ 前缀，与慕课的命令互不相撞；
+   * `*` 兜底由慕课表提供（合并时它排在前，先落位）。
    */
   const mooc = createMoocPlatform({
     host: browserCapabilities,
     config: configStore,
     shell: {
-      runState: async () => {
-        const state = await getTaskState();
-        return { state, live: liveRunState(state) };
-      },
       recordFailure: (message: string) => recordRunFailure(message),
     },
   });
+
+  const zhihuishu = createZhihuishuPlatform({ config: configStore });
 
   // 回调内包一层 try/catch 是有必要的：生产构建会把 console 替换为空函数，
   // 回调抛出异常时不会有任何输出，表现只是「监听器一个都没注册」。
@@ -55,7 +56,8 @@ export default defineBackground(() => {
      * 监听器注册并发进行，两者互不依赖；真正要发请求时，
      * 客户端里仍会 await whenNetRulesReady() 兜一次底。
      */
-    void whenNetRulesReady(mooc.wiring.requestRules);
+    // 规则表合并交给载体：智慧树那一份是空的（实测不需要改写，见其 net-rules 注释）
+    void whenNetRulesReady([...mooc.wiring.requestRules, ...zhihuishu.wiring.requestRules]);
 
     // 运行状态的推送通道：页面打开时连上，关掉时自动断开，不需要轮询
     browser.runtime.onConnect.addListener(attachRunStatePort);
@@ -73,13 +75,28 @@ export default defineBackground(() => {
    * 「跑一轮」用例 + 本载体的两个端口实现。
    *
    * 消息路由拿到的是这个 runner：它不认识存储，也不认识平台实例是谁造的。
-   * 平台实例每次现建，本轮状态不跨轮残留。
+   * 平台实例每次现建，本轮状态不跨轮残留。范围里的 platformId 决定这一轮
+   * 实际用到哪几家（见 application/round.ts）。
    */
   const runner = createRunner({
-    platforms: () => [mooc.tasks()],
+    platforms: () => [mooc.tasks(), zhihuishu.tasks()],
     tasks: taskStore,
     progress: progressStore,
   });
 
-  registerMessageHandler({ handlers: mooc.handlers, runner });
+  /*
+   * 处理器合并：两平台的表平权并进来（各自只带自己前缀的键，互不覆盖），
+   * 外壳自己的命令（TASK_STATE 等）由这里补——它不属于任何平台。
+   */
+  registerMessageHandler({
+    handlers: {
+      ...mooc.handlers,
+      ...zhihuishu.handlers,
+      TASK_STATE: async (_request, sendResponse) => {
+        const state = await getTaskState();
+        sendResponse({ state, live: liveRunState(state) });
+      },
+    },
+    runner,
+  });
 });

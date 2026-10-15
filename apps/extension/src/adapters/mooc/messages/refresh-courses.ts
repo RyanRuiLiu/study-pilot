@@ -18,7 +18,7 @@ export function refreshCoursesCommand(deps: MoocMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
     const session = await ensureSession(deps.host);
     if (!session.loggedIn) {
-      sendResponse({ ok: false, reason: 'NOT_LOGGED_IN' } satisfies MoocResponseMap['REFRESH_COURSES']);
+      sendResponse({ ok: false, reason: 'NOT_LOGGED_IN' } satisfies MoocResponseMap['MOOC_REFRESH_COURSES']);
       return;
     }
 
@@ -29,7 +29,7 @@ export function refreshCoursesCommand(deps: MoocMessageDeps): MessageHandler {
         ok: false,
         reason: failure.reason ?? 'FETCH_FAILED',
         message: failure.message,
-      } satisfies MoocResponseMap['REFRESH_COURSES']);
+      } satisfies MoocResponseMap['MOOC_REFRESH_COURSES']);
       return;
     }
 
@@ -40,7 +40,7 @@ export function refreshCoursesCommand(deps: MoocMessageDeps): MessageHandler {
         ok: false,
         reason: 'FETCH_FAILED',
         message: result.message,
-      } satisfies MoocResponseMap['REFRESH_COURSES']);
+      } satisfies MoocResponseMap['MOOC_REFRESH_COURSES']);
       return;
     }
 
@@ -48,7 +48,7 @@ export function refreshCoursesCommand(deps: MoocMessageDeps): MessageHandler {
       (result.courses.length > 0
         ? { ok: true, courses: result.courses }
         : // 空列表要带上自己的说法：界面把失败如实落进区域，不能只交回一个原因代码
-          { ok: false, reason: 'NO_SELECTED_COURSE', message: '平台没有返回任何课程' }) satisfies MoocResponseMap['REFRESH_COURSES'],
+          { ok: false, reason: 'NO_SELECTED_COURSE', message: '平台没有返回任何课程' }) satisfies MoocResponseMap['MOOC_REFRESH_COURSES'],
     );
   };
 }

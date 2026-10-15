@@ -14,12 +14,15 @@ export type {
   SelectedCourse,
   Settings,
   UiSettings,
+  ZhihuishuCourse,
+  ZhihuishuSettings,
 } from '@study-pilot/application';
 export {
   DEFAULT_AI,
   DEFAULT_MOOC,
   DEFAULT_SETTINGS,
   DEFAULT_UI,
+  DEFAULT_ZHIHUISHU,
   SETTINGS_VERSION,
   mergeWithBase,
   normalize,

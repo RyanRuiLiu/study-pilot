@@ -3,7 +3,7 @@
  *
  * 三件事：
  *   记忆——打开回到上次停留的 tab（settings.ui.activeTab，随切随写）；
- *   按需——只有「第一次切到」才让所属页面去取数（通用零请求、智慧树占位）；
+ *   按需——只有「第一次切到」才让所属页面去取数（通用零请求，两个平台各读各的）；
  *   无障碍——W3C APG 的 tabs 模式：role=tablist/tab/tabpanel（在各方 HTML 里）、
  *   roving tabindex、←/→/Home/End。
  *

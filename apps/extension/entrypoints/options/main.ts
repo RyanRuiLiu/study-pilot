@@ -4,7 +4,7 @@
  * 平台 tab（通用/慕课/智慧树）由 src/ui/tabs.ts 装配：
  *   通用＝配置即时读（AI 连接，随页面初始化）；
  *   慕课＝平台数据，只在它第一次成为当前 tab 时读一次；
- *   智慧树＝占位。
+ *   智慧树＝平台数据，同样只在它第一次成为当前 tab 时读一次。
  * 「一次打开最多读一家」见规格第 13 节。
  *
  * 数据只从 src/ui-bridge.ts（以及平台包的纯地址工具）取。
@@ -16,7 +16,7 @@
 import '../../src/ui/tokens.css';
 import './style.css';
 
-import { getCourseware } from '../../src/ui-bridge';
+import { getCourseware, getZhsCourseware } from '../../src/ui-bridge';
 import { initTabs } from '../../src/ui/tabs.ts';
 import { initCourseActions, renderCourses } from './courses.ts';
 import { renderCourseware } from './courseware.ts';
@@ -24,6 +24,9 @@ import { renderParams } from './params.ts';
 import { watchRunHint } from './run-hint.ts';
 import { renderStatusLine } from './status-line.ts';
 import { initToast } from './toast.ts';
+import { initZhsCourseActions, renderZhsCourses } from './zhihuishu-courses.ts';
+import { renderZhsCourseware } from './zhihuishu-courseware.ts';
+import { renderZhsStatusLine } from './zhihuishu-status-line.ts';
 
 function init(): void {
   const toastEl = document.getElementById('toast');
@@ -43,16 +46,26 @@ function init(): void {
 
   void initTabs({
     onFirstActivate: (id) => {
-      if (id !== 'mooc') return;
-      /*
-       * 课件进度只读一次，状态行与课件区共用：各读各的会让这一 tab
-       * 一打开就发两遍同样的请求，而两处显示的是同一件事。
-       */
-      const courseware = getCourseware();
-      initCourseActions();
-      void renderCourses();
-      void renderStatusLine(courseware);
-      void renderCourseware(courseware);
+      if (id === 'mooc') {
+        /*
+         * 课件进度只读一次，状态行与课件区共用：各读各的会让这一 tab
+         * 一打开就发两遍同样的请求，而两处显示的是同一件事。
+         */
+        const courseware = getCourseware();
+        initCourseActions();
+        void renderCourses();
+        void renderStatusLine(courseware);
+        void renderCourseware(courseware);
+        return;
+      }
+      if (id === 'zhihuishu') {
+        // 同一条装配规则：智慧树的课件进度也只读一次，状态行与课件区共用
+        const courseware = getZhsCourseware();
+        initZhsCourseActions();
+        void renderZhsCourses();
+        void renderZhsStatusLine(courseware);
+        void renderZhsCourseware(courseware);
+      }
     },
   });
 }

@@ -148,12 +148,12 @@ export async function rsaPublicEncrypt(plain: Uint8Array): Promise<string> {
   const keyLength = 128; // 1024 位模数的字节数
   if (plain.length > keyLength - 11) throw new Error('待加密内容超出 RSA 分组长度');
 
-  const padding = new Uint8Array(keyLength - 3 - plain.length);
-  const random = new Uint8Array(padding.length);
-  crypto.getRandomValues(random);
-  for (let i = 0; i < padding.length; i++) {
+  const bytes = new Uint8Array(keyLength - 3 - plain.length);
+  crypto.getRandomValues(bytes);
+  const padding = new Uint8Array(bytes.length);
+  for (const [index, byte] of bytes.entries()) {
     // 填充字节不能为 0（0 是分隔符）
-    padding[i] = random[i] === 0 ? 1 : random[i];
+    padding[index] = byte === 0 ? 1 : byte;
   }
 
   const message = new Uint8Array(keyLength);

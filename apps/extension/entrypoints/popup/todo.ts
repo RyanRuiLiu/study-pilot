@@ -139,7 +139,8 @@ function buildRow(entry: PendingEntry): HTMLElement {
           setEnabled: (enabled) => setRunning(!enabled),
           refresh: () => renderTodo(),
         },
-        { ids: entry.itemIds },
+        // 点名平台：这一条属于慕课，别家平台上碰巧同 id 的事项不该被带上
+        { platformId: 'mooc', ids: entry.itemIds },
       );
     });
     sub.append(button);

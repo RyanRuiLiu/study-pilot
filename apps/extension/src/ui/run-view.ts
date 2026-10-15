@@ -32,23 +32,35 @@ export interface RunningItem {
 }
 
 /**
- * 读出正在跑的那一项；没有项在跑（空闲、或还没进到第一项）返回 null。
- * 多平台时取第一个有在跑项的——当前只有一个平台，到真有第二个再谈怎么汇合。
+ * 读出某平台正在跑的那一项；该平台没在跑（或还没进到第一项）返回 null。
+ *
+ * 各平台的课件行必须用这一支：两平台共存后，「courseware」这个类别名两家都在用，
+ * 全局取法会把智慧树正在跑的单元画到慕课的课件行上。
+ */
+export function platformRunningItem(state: RunState | null, platformId: string): RunningItem | null {
+  const platform = state?.platforms.find((entry) => entry.id === platformId);
+  if (platform === undefined || platform.state !== 'running') return null;
+  const item = platform.items.find((entry) => entry.status === 'running');
+  if (item === undefined) return null;
+  return {
+    course: item.course,
+    title: item.title,
+    kind: item.kind,
+    finished: platform.finished,
+    total: platform.total,
+  };
+}
+
+/**
+ * 读出正在跑的那一项（不分平台，取第一个有在跑项的）。
+ * 页面级的提示用它（「正在执行…」说的是这一页正在发生的事，与谁家的无关）；
+ * 按平台归位的显示（各课件行）用 platformRunningItem。
  */
 export function runningItem(state: RunState | null): RunningItem | null {
   if (state === null) return null;
   for (const platform of state.platforms) {
-    if (platform.state !== 'running') continue;
-    const item = platform.items.find((entry) => entry.status === 'running');
-    if (item !== undefined) {
-      return {
-        course: item.course,
-        title: item.title,
-        kind: item.kind,
-        finished: platform.finished,
-        total: platform.total,
-      };
-    }
+    const item = platformRunningItem(state, platform.id);
+    if (item !== null) return item;
   }
   return null;
 }

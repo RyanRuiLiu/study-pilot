@@ -362,3 +362,32 @@ describe('执行的报告', () => {
     expect(await setup([mooc]).runner.runRound()).toEqual({ status: 'no-course' });
   });
 });
+
+/*
+ * 执行范围的平台维度（两平台共存后补）。
+ * 界面上的每个执行入口都点名平台——「课件」这个类别名两家都在用，
+ * 单靠 kinds 分不开是谁家的课件。
+ */
+describe('执行范围的平台维度', () => {
+  it('点名平台时只跑那一家，其余整家跳过（连 isReady 都不问）', async () => {
+    const mooc = platform('mooc', { items: [item('a', 'auto')] });
+    const zhs = platform('zhihuishu', { items: [item('b', 'auto', 'courseware')] });
+    const { runner } = setup([mooc, zhs]);
+
+    const result = await runner.runRound({ platformId: 'zhihuishu' });
+    expect(result).toMatchObject({ status: 'finished', done: 1 });
+    expect(mooc.calls).toEqual([]);
+    expect(zhs.calls).toContain('run:b');
+  });
+
+  it('不点名平台时全部平台照跑（范围只按类别/课程/条目过滤）', async () => {
+    const mooc = platform('mooc', { items: [item('a', 'auto')] });
+    const zhs = platform('zhihuishu', { items: [item('b', 'auto', 'courseware')] });
+    const { runner } = setup([mooc, zhs]);
+
+    const result = await runner.runRound({ kinds: ['courseware'] });
+    expect(result).toMatchObject({ status: 'finished' });
+    expect(mooc.calls).toContain('plan');
+    expect(zhs.calls).toContain('run:b');
+  });
+});

@@ -53,9 +53,14 @@
         </div>
       </section>
 
-      <!-- 智慧树：占位（功能未接入）。不是骨架、不是错误——没有东西在等 -->
+      <!--
+        智慧树：待办＝未完成的视频单元（没有截止时间概念，列出的就是还要看的）。
+        与慕课同样先放块状骨架（一块），落定时整体换内容。
+      -->
       <section class="tab-panel" role="tabpanel" id="panel-zhihuishu" aria-labelledby="tab-zhihuishu" data-tab="zhihuishu" hidden>
-        <p class="tab-empty">智慧树尚未接入。功能就绪后，待办将在此处显示。</p>
+        <div id="zhs-todo-text" class="todo is-loading">
+          <span class="skeleton skeleton-block is-tall" aria-hidden="true"></span>
+        </div>
       </section>
     </main>
     <script type="module" src="./main.ts"></script>

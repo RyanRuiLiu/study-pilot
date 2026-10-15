@@ -26,7 +26,7 @@
       <!--
         平台 tab：通用 / 慕课 / 智慧树（规格第 13 节）。
         打开回到上次停留的 tab；一次打开最多读一家——通用零平台请求、
-        慕课只在它是当前 tab 时读、智慧树先占位。行为与记忆见 src/ui/tabs.ts。
+        两个平台各自只在它成为当前 tab 时读。行为与记忆见 src/ui/tabs.ts。
         行尾是运行提示：待办类轮次进行时现身（逻辑见 run-hint.ts），不占别处。
       -->
       <div class="tab-row">
@@ -106,9 +106,34 @@
         </section>
       </section>
 
-      <!-- 智慧树：占位（功能未接入）。不是骨架、不是错误——没有东西在等 -->
+      <!--
+        智慧树：与慕课同构的两块（账号与课程、课件）。数据只在它第一次
+        成为当前 tab 时读一次（见 main.ts 的 onFirstActivate）。
+      -->
       <section class="tab-panel" role="tabpanel" id="panel-zhihuishu" aria-labelledby="tab-zhihuishu" data-tab="zhihuishu" hidden>
-        <p class="tab-empty">智慧树尚未接入。功能就绪后，课程与课件将在此处显示。</p>
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">账号与课程</h2>
+            <p class="head-status" id="zhs-session-text"></p>
+            <button id="zhs-refresh-courses" class="btn ghost" type="button">读取课程列表</button>
+          </div>
+          <!-- 等待平台读取：块状骨架（一块），落定时整体换内容 -->
+          <div id="zhs-course-list">
+            <span class="skeleton skeleton-block" aria-hidden="true"></span>
+          </div>
+        </section>
+
+        <!--
+          课件：每门课的已学 / 总数与「执行」——智慧树的任务就是这些视频单元，
+          教学播放与进度上报都由这里驱动（执行期间行内小字与「停止」见模块注释）。
+        -->
+        <section class="panel">
+          <h2 class="panel-title">课件</h2>
+          <!-- 等待平台读取：块状骨架（一块），落定时整体换内容 -->
+          <div id="zhs-courseware-list">
+            <span class="skeleton skeleton-block" aria-hidden="true"></span>
+          </div>
+        </section>
       </section>
 
       <!-- 页脚：版本与出处。它不是内容，一行弱色就够，不占一张卡 -->
