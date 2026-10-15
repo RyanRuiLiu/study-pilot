@@ -142,6 +142,18 @@ describe('按范围收窄的计划', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
+  it('只做某几条时（「单独完成这一条」）：同样跳过课程列表刷新', async () => {
+    const refresh = vi.fn(async () => ({ ok: true as const, courses: [], byType: null }));
+    vi.mocked(derivePlan).mockReturnValue({ auto: [], manual: [] });
+    const base = deps();
+    const tasks = createMoocTasks({ ...base, refreshCourses: refresh });
+
+    await tasks.plan(NOW, { ids: ['work-101-quiz'] });
+
+    // 条目目标已定，刷新课程列表只更新勾选集，对这次执行没有贡献
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it('范围里的课不在勾选列表：报没有课程，不硬做', async () => {
     vi.mocked(derivePlan).mockReturnValue({ auto: [], manual: [] });
     const base = deps();

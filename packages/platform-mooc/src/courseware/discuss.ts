@@ -19,11 +19,12 @@
  */
 
 import { err, ok, type Result } from '@study-pilot/core';
+import type { RunControl } from '@study-pilot/application';
 import { apiError, DwrEncoder, isDwrSuccess, type TransportError } from '@study-pilot/transport';
 import type { MoocClient } from '../client.ts';
 import { DWR_ENDPOINTS } from '../endpoints.ts';
-import { UNIT_TYPE } from '../types.ts';
-import type { UnitBehavior } from './behavior.ts';
+import { UNIT_TYPE, type CourseUnit } from '../types.ts';
+import type { CoursewareContext, DiscussPrep, UnitBehavior } from './behavior.ts';
 import { completionDto, postLearnInfo } from './reports.ts';
 import { getUnitResource, type UnitPost } from './resource.ts';
 
@@ -130,6 +131,58 @@ async function postReply(
   return ok(undefined);
 }
 
+/**
+ * 取题并生成一条回复（**不写平台**）。
+ *
+ * 单独拿出来是为了让执行编排**并发预取**：一次 glm-4-flash 生成实测约 5 秒
+ * （2026-10-15），比平台上任何一条请求都贵，而生成不占平台配额（走 AI 域名）、
+ * 单元之间也没有顺序依赖。发帖（写）不在这一步里，永远逐条串行。
+ */
+export async function prepareDiscussReply(
+  client: MoocClient,
+  unit: CourseUnit,
+  context: CoursewareContext,
+  control: RunControl,
+): Promise<DiscussPrep> {
+  if (!context.generateText) {
+    return { ok: false, reason: '未配置 AI，无法生成讨论回复' };
+  }
+
+  /*
+   * 题目取自讨论帖正文。拿不到、或正文只有编号时直接失败——
+   * 这两种情况下模型给不出贴题的留言，与其污染帖子，不如交人工。
+   */
+  const resource = await getUnitResource(client, unit);
+  if (!resource.ok) {
+    return { ok: false, reason: `读取讨论帖失败：${resource.error.message}` };
+  }
+  if (!resource.value.post) {
+    return { ok: false, reason: '平台没有返回讨论帖内容，无法确定讨论题' };
+  }
+  const question = discussionQuestion(resource.value.post);
+  if (!question) {
+    return { ok: false, reason: '讨论帖正文为空或只有编号，无法生成贴题的留言' };
+  }
+
+  // 停止键：停下来就不再花一次生成
+  if (control.stopped()) {
+    return { ok: false, reason: '按停止键中断，未生成', stopped: true };
+  }
+
+  /*
+   * 生成失败如实返回原因：上层会重试（在生成内部），仍失败就记为失败交人处理。
+   * 这里**不写替代文案**——一条假装学过的留言比一条失败记录更糟。
+   */
+  const generated = await context.generateText({
+    task: 'discuss-reply',
+    input: `讨论题：${question}`,
+  });
+  if (!generated.ok) {
+    return { ok: false, reason: `AI 生成讨论回复失败：${generated.reason}` };
+  }
+  return { ok: true, text: generated.text };
+}
+
 export const discussBehavior: UnitBehavior = {
   type: UNIT_TYPE.DISCUSS,
   // 回复由 AI 生成：没有这个能力就不该进计划（见 courseware/index.ts 的 isCompletable）
@@ -137,36 +190,21 @@ export const discussBehavior: UnitBehavior = {
   // 回复要带帖子 id
   ready: (unit) => unit.contentId > 0,
   async run(client, unit, context, control) {
-    if (!context.generateText) {
-      return err(apiError(-1, '未配置 AI，无法生成讨论回复'));
+    /*
+     * 回复优先取预取结果（执行编排会先并发把生成做完，见 execute/index.ts）；
+     * 没有预取就现场生成。两条路各只生成一次——预取失败带着原因，
+     * 不再重试第二次。
+     */
+    const prep =
+      context.preparedReplies?.get(unit.contentId) ??
+      (await prepareDiscussReply(client, unit, context, control));
+
+    if (!prep.ok) {
+      if (prep.stopped === true) return ok('stopped');
+      return err(apiError(-1, prep.reason));
     }
 
-    /*
-     * 题目取自讨论帖正文。拿不到、或正文只有编号时直接失败——
-     * 这两种情况下模型给不出贴题的留言，与其污染帖子，不如交人工。
-     */
-    const resource = await getUnitResource(client, unit);
-    if (!resource.ok) return resource;
-    if (!resource.value.post) {
-      return err(apiError(-1, '平台没有返回讨论帖内容，无法确定讨论题'));
-    }
-    const question = discussionQuestion(resource.value.post);
-    if (!question) {
-      return err(apiError(-1, '讨论帖正文为空或只有编号，无法生成贴题的留言'));
-    }
-
-    /*
-     * 生成失败直接返回错误：上层会重试，仍失败就记为失败交人处理。
-     * 这里**不写替代文案**——一条假装学过的留言比一条失败记录更糟。
-     */
-    const generated = await context.generateText({
-      task: 'discuss-reply',
-      input: `讨论题：${question}`,
-    });
-    if (!generated.ok) {
-      return err(apiError(-1, `AI 生成讨论回复失败：${generated.reason}`));
-    }
-    const text = sanitize(generated.text);
+    const text = sanitize(prep.text);
     if (!text) {
       return err(apiError(-1, `AI 生成的讨论回复不合规（为空、超过 ${DISCUSS_REPLY_MAX_CHARS} 字或含链接）`));
     }

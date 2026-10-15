@@ -164,11 +164,12 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
        * 会话失效是例外：它留给下一步 `withSessionRecovery` 统一处置
        * （先续期再重读，救不回来才挂起等登录），这里不重复判一次。
        *
-       * 按课程收窄的一轮跳过它：这一轮只关心目标课（名字来自界面），
-       * 而刷新更新的是「勾选了哪些课」——省一次往返。
+       * 收窄的一轮跳过它：按课程（group）或按条目（ids，「单独完成这一条」）
+       * 的一轮目标已定，刷新更新的是「勾选了哪些课」，对本次执行没有贡献——
+       * 省两个请求与一个往返。
        */
       let refreshFailure: string | null = null;
-      if (scope?.group === undefined) {
+      if (scope?.group === undefined && scope?.ids === undefined) {
         try {
           const refreshed = await deps.refreshCourses();
           if (!refreshed.ok) refreshFailure = refreshed.message;
