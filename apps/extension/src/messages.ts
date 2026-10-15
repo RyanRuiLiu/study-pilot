@@ -35,6 +35,7 @@ export type {
   PendingEntry,
   PendingKind,
   PendingSummary,
+  CoursewareSummary,
   UnitDetail,
   WorkStatus,
 } from './adapters/mooc/messages/payload.ts';

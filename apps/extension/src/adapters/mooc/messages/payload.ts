@@ -161,6 +161,21 @@ export interface CourseBrief {
   publishStatus: number | null;
 }
 
+/**
+ * 设置页一次读取的产物：课件计数 + 待交计数。
+ *
+ * 两者由同一份快照现算（同一次读取、同一套判据），因此合成一个响应——
+ * 页头概览与课件区要的是同一份事实，页面发一条消息就够。先前它们是两条
+ * 消息各读一遍快照，又在同一条串行节流上排队，设置页一开要等 4 秒多
+ * （实测 2026-10-15，两个读取各 2 秒、12 个请求排成一队）。
+ */
+export interface CoursewareSummary {
+  /** 每门课一行的课件完成计数（与课件区显示的是同一份） */
+  courses: CoursewareProgress[];
+  /** 待交计数：待办列表（PENDING_SUMMARY）的同一套判据，取两项计数 */
+  pending: { auto: number; manual: number };
+}
+
 /** 每条请求对应的响应。请求的 type 同时是这里的键，改一半会被类型检查拦下。 */
 export interface MoocResponseMap {
   SESSION: MoocSession;
@@ -170,7 +185,7 @@ export interface MoocResponseMap {
     | { ok: false; reason: JobRejection; message?: string };
   PENDING_SUMMARY: QueryOutcome<PendingSummary>;
   UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
-  COURSEWARE_SUMMARY: QueryOutcome<CoursewareProgress[]>;
+  COURSEWARE_SUMMARY: QueryOutcome<CoursewareSummary>;
   HOMEWORK_PAPER: QueryOutcome<PaperQuestion[]>;
   TASK_STATE: { state: import('../../../protocol.ts').TaskState; live: import('../../../protocol.ts').LiveRunState };
 }

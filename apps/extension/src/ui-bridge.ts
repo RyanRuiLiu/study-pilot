@@ -25,7 +25,7 @@ import { getSettings, updateSettings } from './settings';
 export type { PendingEntry, PendingSummary, UnitDetail } from './messages.ts';
 export type { QueryOutcome } from './messages.ts';
 export type { Snapshot } from './messages.ts';
-export type { CoursewareProgress } from './messages.ts';
+export type { CoursewareProgress, CoursewareSummary } from './messages.ts';
 export type { RunState } from './messages.ts';
 export type { Tone } from './browser/run-once.ts';
 export type { Settings } from './settings';
