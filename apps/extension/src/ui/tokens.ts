@@ -14,12 +14,13 @@
  */
 
 export const TOKENS = {
-  accent: '#0f766e',
-  accentWash: '#f0fdfa',
-  ink: '#101828',
-  inkSoft: '#475467',
-  inkFaint: '#667085',
-  line: '#ccd2d9',
+  accent: '#2b4acb',
+  accentWash: '#eef1fc',
+  ink: '#111214',
+  inkSoft: '#52525b',
+  inkFaint: '#71717a',
+  line: '#f2f2f4',
+  lineOnWash: '#c7d0f2',
   onAccent: '#ffffff',
   radiusMd: '10px',
   space4: '4px',
