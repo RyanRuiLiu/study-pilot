@@ -21,6 +21,7 @@ import { errorText } from '../../src/ui/format.ts';
 import { isRunning, progressLine, runningItem, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { COURSEWARE_KINDS } from '../../src/ui/scopes.ts';
 import { note } from './note.ts';
+import { skeletonBlock } from './skeleton.ts';
 import { renderStatusLine } from './status-line.ts';
 import { toast } from './toast.ts';
 
@@ -60,8 +61,14 @@ function setEnabled(enabled: boolean): void {
 
 /**
  * 重读课件区。跑完一轮之后、课程勾选变动之后都用它（后者的调用见 courses.ts）。
+ *
+ * 重读即是等待：列表区先换成与首帧一致的块状骨架——统一等待语言之外，
+ * 还把「按旧范围算出的旧数字」一并撤下（现读现算：范围变了，旧数字
+ * 就不成立，不能继续摆着）。卡头状态行自带骨架，见 status-line.ts。
  */
 export async function refreshCourseViews(): Promise<void> {
+  const listEl = document.getElementById('courseware-list');
+  if (listEl !== null) listEl.replaceChildren(skeletonBlock());
   const fresh = getCourseware();
   await Promise.all([renderStatusLine(fresh), renderCourseware(fresh)]);
 }

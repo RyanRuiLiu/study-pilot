@@ -13,6 +13,7 @@ import type { Settings } from '../../src/ui-bridge';
 import { errorText, formatTermRange } from '../../src/ui/format.ts';
 import { refreshCourseViews } from './courseware.ts';
 import { note } from './note.ts';
+import { skeletonBlock } from './skeleton.ts';
 import { toast } from './toast.ts';
 
 type SelectedCourse = Settings['mooc']['courses'][number];
@@ -104,17 +105,6 @@ export async function renderCourses(): Promise<void> {
     return;
   }
   listEl.append(...rows);
-}
-
-/**
- * 与首帧完全一致的列表骨架（一块）——读取/重读期间占住列表的位置。
- * 类名是 components.css 的形状定义，静态首帧（index.html）与这里用同一套。
- */
-function skeletonBlock(): HTMLElement {
-  const el = document.createElement('span');
-  el.className = 'skeleton skeleton-block';
-  el.setAttribute('aria-hidden', 'true');
-  return el;
 }
 
 /**
