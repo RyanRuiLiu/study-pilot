@@ -19,7 +19,6 @@ export const TOKENS = {
   ink: '#111214',
   inkSoft: '#52525b',
   inkFaint: '#71717a',
-  line: '#f2f2f4',
   lineOnWash: '#c7d0f2',
   onAccent: '#ffffff',
   radiusMd: '10px',
