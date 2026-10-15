@@ -98,6 +98,7 @@ function watchRun(): void {
       if (running && stopping) continue;
       const text = running && step !== null && step.course === course ? progressLine(step) : undefined;
       el.hidden = text === undefined;
+      el.closest('.cw-row')?.classList.toggle('is-running', text !== undefined);
       if (text !== undefined) el.textContent = text;
     }
 
@@ -127,14 +128,28 @@ function watchRun(): void {
   });
 }
 
-/** 一门课一行：课名、已学 x/y、运行时的进度与「停止」。 */
+/** 一门课一行：名字组（课名 + 运行明细）、已学 x/y、「快速完成」/「停止」。 */
 function buildRow(entry: CoursewareProgress): HTMLElement {
   const row = document.createElement('div');
   row.className = 'cw-row';
 
+  const group = document.createElement('span');
+  group.className = 'cw-group';
+
   const name = document.createElement('span');
   name.className = 'cw-name';
   name.textContent = entry.courseName;
+
+  /*
+   * 运行小字：跑这门课时写在这里（订阅推送更新），紧跟课名同排；
+   * 挂在行上而不是别处——点的是这一行，进度与「停止」也都该在这一行。
+   */
+  const current = document.createElement('span');
+  current.className = 'cw-current';
+  current.hidden = true;
+  currents.set(entry.courseName, current);
+
+  group.append(name, current);
 
   const progress = document.createElement('span');
   progress.className = 'cw-progress';
@@ -154,15 +169,6 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
     progress.textContent = `已学 ${entry.done}/${entry.total}`;
     progress.title = `未完成且能自动做的 ${entry.pending} 项`;
   }
-
-  /*
-   * 运行小字：跑这门课时写在这里（订阅推送更新）。
-   * 挂在行上而不是别处——点的是这一行，进度与「停止」也都该在这一行。
-   */
-  const current = document.createElement('span');
-  current.className = 'cw-current';
-  current.hidden = true;
-  currents.set(entry.courseName, current);
 
   const button = document.createElement('button');
   button.className = 'btn quiet';
@@ -212,14 +218,14 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
   });
 
   buttons.push(button);
-  row.append(name, progress, current, button);
+  row.append(group, progress, button);
   return row;
 }
 
-/** 列表区里的一句说明。 */
-function note(text: string): HTMLElement {
+/** 列表区里的一句说明；error 为真时用警示色。 */
+function note(text: string, error = false): HTMLElement {
   const el = document.createElement('p');
-  el.className = 'note';
+  el.className = error ? 'note is-error' : 'note';
   el.textContent = text;
   return el;
 }
@@ -240,7 +246,7 @@ export async function renderCourseware(
   try {
     outcome = await (read ?? getCourseware());
   } catch (error) {
-    listEl.replaceChildren(note(error instanceof Error ? error.message : String(error)));
+    listEl.replaceChildren(note(error instanceof Error ? error.message : String(error), true));
     return;
   }
 
@@ -252,6 +258,7 @@ export async function renderCourseware(
         outcome.reason === 'NOT_LOGGED_IN'
           ? '未登录——先在浏览器里登录慕课平台。'
           : `读取失败：${outcome.message}`,
+        outcome.reason !== 'NOT_LOGGED_IN',
       ),
     );
     return;

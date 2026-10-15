@@ -19,13 +19,11 @@ type SelectedCourse = Settings['mooc']['courses'][number];
 function buildRow(course: SelectedCourse): HTMLElement {
   const row = document.createElement('label');
   row.className = 'course-row';
+  row.classList.toggle('is-off', !course.enabled);
 
   const check = document.createElement('input');
   check.type = 'checkbox';
   check.checked = course.enabled;
-
-  const body = document.createElement('span');
-  body.className = 'course-body';
 
   /*
    * 点课程名打开学习页；点勾选框只切换参与。
@@ -47,10 +45,11 @@ function buildRow(course: SelectedCourse): HTMLElement {
   if (course.hasEnroll === false) parts.push('未选课');
   meta.textContent = parts.filter(Boolean).join(' · ');
 
-  body.append(name, meta);
-  row.append(check, body);
+  row.append(check, name, meta);
 
   check.addEventListener('change', () => {
+    // 弱化态跟着勾选走：勾上就不灰，取消就灰（不等重画）
+    row.classList.toggle('is-off', !check.checked);
     void toggle(course.termId, check.checked);
   });
 
@@ -69,10 +68,10 @@ async function toggle(termId: number, enabled: boolean): Promise<void> {
   void refreshCourseViews();
 }
 
-/** 列表里的一句说明。 */
-function note(text: string): HTMLElement {
+/** 列表里的一句说明；error 为真时用警示色（读取失败如实说）。 */
+function note(text: string, error = false): HTMLElement {
   const el = document.createElement('p');
-  el.className = 'note';
+  el.className = error ? 'note is-error' : 'note';
   el.textContent = text;
   return el;
 }
@@ -85,7 +84,7 @@ export async function renderCourses(): Promise<void> {
   try {
     reads = await Promise.all([getSession(), getCourses(), getSettings()]);
   } catch (error) {
-    listEl.replaceChildren(note(error instanceof Error ? error.message : String(error)));
+    listEl.replaceChildren(note(error instanceof Error ? error.message : String(error), true));
     return;
   }
   const [session, courses, settings] = reads;

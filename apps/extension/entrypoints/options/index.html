@@ -17,68 +17,122 @@
     <div class="page">
       <!--
         页头只有名字：状态数据放在它所属的地方——未登录提示在课程卡里、
-        课件数在课件卡里、待交数是弹窗的事。页头不做仪表盘。
+        课件数在课件卡里、待交数是弹窗与 tab 徽标的事。页头不做仪表盘。
       -->
       <header class="masthead">
         <h1>Study Pilot</h1>
       </header>
 
-      <section class="card">
-        <div class="card-head">
-          <h2>账号与课程</h2>
-          <p class="session" id="session-text"></p>
-          <button id="refresh-courses" class="btn quiet" type="button">读取课程列表</button>
-        </div>
-        <div id="course-list"><p class="note">正在读取…</p></div>
+      <!--
+        平台 tab：通用 / 慕课 / 智慧树（规格第 13 节）。
+        打开回到上次停留的 tab；一次打开最多读一家——通用零平台请求、
+        慕课只在它是当前 tab 时读、智慧树先占位。行为与记忆见 src/ui/tabs.ts。
+      -->
+      <div class="tabs" id="tabs" role="tablist" aria-label="设置分区">
+        <button class="tab" role="tab" id="tab-general" data-tab="general" aria-controls="panel-general" aria-selected="false" tabindex="-1" type="button">通用</button>
+        <button class="tab" role="tab" id="tab-mooc" data-tab="mooc" aria-controls="panel-mooc" aria-selected="false" tabindex="-1" type="button">慕课<span class="tab-count" id="tab-count-mooc" hidden></span></button>
+        <button class="tab" role="tab" id="tab-zhihuishu" data-tab="zhihuishu" aria-controls="panel-zhihuishu" aria-selected="false" tabindex="-1" type="button">智慧树</button>
+      </div>
+
+      <!-- 通用：跨平台功能（AI 连接）。配置即时读，没有平台请求 -->
+      <section class="tab-panel" role="tabpanel" id="panel-general" aria-labelledby="tab-general" data-tab="general" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">AI 连接（智谱）</h2>
+            <button id="ai-test" class="btn" type="button">保存并测试连接</button>
+          </div>
+          <label class="check">
+            <input id="ai-enabled" type="checkbox" />
+            <span>启用（讨论单元的留言需要它）</span>
+          </label>
+          <label class="field">
+            <span class="field-label">模型</span>
+            <input id="ai-model" type="text" placeholder="glm-4-flash（免费）" />
+          </label>
+          <label class="field">
+            <span class="field-label">密钥</span>
+            <input id="ai-api-key" type="password" />
+          </label>
+          <p class="note">
+            AI 请求只发往智谱开放平台（open.bigmodel.cn），glm-4-flash 免费。
+            没有密钥就去
+            <a href="https://open.bigmodel.cn/" target="_blank" rel="noreferrer">智谱开放平台</a>
+            申请：注册后完成实名认证，在控制台 → API Keys 里新建。
+          </p>
+          <span class="note" id="ai-status"></span>
+        </section>
       </section>
 
       <!--
-        课件：每门课的已完成 / 总数，与「快速完成」。
-        它不在弹窗里——课件没有截止时间，属于「想清进度时来一趟」的地方。
-        跑起来时进度与「停止」都在它自己那行，结果用底部浮层提示（见 courseware.ts）。
+        慕课：平台自己的三块。数据只在慕课第一次成为当前 tab 时读一次
+        （见 main.ts 的 onFirstActivate）。
       -->
-      <section class="card">
-        <h2>课件</h2>
-        <!-- 等待平台读取：骨架占位（与卡头同一种等待语言，见 style.css） -->
-        <div id="courseware-list">
-          <div class="skeleton skeleton-row" style="width: 72%"></div>
-          <div class="skeleton skeleton-row" style="width: 58%"></div>
-          <div class="skeleton skeleton-row" style="width: 66%"></div>
-        </div>
+      <section class="tab-panel" role="tabpanel" id="panel-mooc" aria-labelledby="tab-mooc" data-tab="mooc" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">账号与课程</h2>
+            <p class="head-status" id="session-text"></p>
+            <button id="refresh-courses" class="btn ghost" type="button">读取课程列表</button>
+          </div>
+          <!-- 等待平台读取：骨架照抄勾选行的列（勾选位/课名/右列元信息），落定不跳 -->
+          <div id="course-list">
+            <div class="course-row" aria-hidden="true">
+              <span class="skeleton is-box"></span>
+              <span class="skeleton is-line" style="width: 190px"></span>
+              <span class="skeleton is-meta" style="width: 150px"></span>
+            </div>
+            <div class="course-row" aria-hidden="true">
+              <span class="skeleton is-box"></span>
+              <span class="skeleton is-line" style="width: 220px"></span>
+              <span class="skeleton is-meta" style="width: 150px"></span>
+            </div>
+            <div class="course-row" aria-hidden="true">
+              <span class="skeleton is-box"></span>
+              <span class="skeleton is-line" style="width: 170px"></span>
+              <span class="skeleton is-meta" style="width: 150px"></span>
+            </div>
+          </div>
+        </section>
+
+        <!--
+          课件：每门课的已完成 / 总数，与「快速完成」。
+          它不在弹窗里——课件没有截止时间，属于「想清进度时来一趟」的地方。
+          跑起来时进度与「停止」都在它自己那行，结果用底部浮层提示（见 courseware.ts）。
+        -->
+        <section class="panel">
+          <h2 class="panel-title">课件</h2>
+          <!-- 等待平台读取：骨架照抄数据行的列（课名/进度 96px/按钮位 76×26） -->
+          <div id="courseware-list">
+            <div class="cw-row" aria-hidden="true">
+              <span class="skeleton is-line" style="width: 170px"></span>
+              <span class="skeleton is-meta" style="width: 80px; justify-self: end"></span>
+              <span class="skeleton is-btn" style="width: 76px"></span>
+            </div>
+            <div class="cw-row" aria-hidden="true">
+              <span class="skeleton is-line" style="width: 200px"></span>
+              <span class="skeleton is-meta" style="width: 80px; justify-self: end"></span>
+              <span class="skeleton is-btn" style="width: 76px"></span>
+            </div>
+            <div class="cw-row" aria-hidden="true">
+              <span class="skeleton is-line" style="width: 150px"></span>
+              <span class="skeleton is-meta" style="width: 80px; justify-self: end"></span>
+              <span class="skeleton is-btn" style="width: 76px"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">互评评语</h2>
+          <label class="field">
+            <input id="review-comment" type="text" aria-label="互评评语" />
+          </label>
+          <p class="note">平台要求评语非空；留空会退回默认那句（见输入框里的值）。</p>
+        </section>
       </section>
 
-      <section class="card">
-        <h2>互评评语</h2>
-        <label class="field">
-          <input id="review-comment" type="text" aria-label="互评评语" />
-        </label>
-        <p class="note">平台要求评语非空；留空会退回默认那句（见输入框里的值）。</p>
-      </section>
-
-      <section class="card">
-        <div class="card-head">
-          <h2>AI 连接（智谱）</h2>
-          <button id="ai-test" class="btn" type="button">保存并测试连接</button>
-        </div>
-        <label class="check">
-          <input id="ai-enabled" type="checkbox" />
-          <span>启用（讨论单元的留言需要它）</span>
-        </label>
-        <label class="field">
-          <span class="field-label">模型</span>
-          <input id="ai-model" type="text" placeholder="glm-4-flash（免费）" />
-        </label>
-        <label class="field">
-          <span class="field-label">密钥</span>
-          <input id="ai-api-key" type="password" />
-        </label>
-        <p class="note">
-          AI 请求只发往智谱开放平台（open.bigmodel.cn），glm-4-flash 免费。
-          没有密钥就去
-          <a href="https://open.bigmodel.cn/" target="_blank" rel="noreferrer">智谱开放平台</a>
-          申请：注册后完成实名认证，在控制台 → API Keys 里新建。
-        </p>
-        <span class="note" id="ai-status"></span>
+      <!-- 智慧树：占位（功能未接入）。不是骨架、不是错误——没有东西在等 -->
+      <section class="tab-panel" role="tabpanel" id="panel-zhihuishu" aria-labelledby="tab-zhihuishu" data-tab="zhihuishu" hidden>
+        <p class="tab-empty">智慧树还没接入。它的功能做好后，课程与课件会出现在这个 tab 下。</p>
       </section>
 
       <!-- 页脚：版本与出处。它不是内容，一行弱色就够，不占一张卡 -->
