@@ -55,15 +55,15 @@ function handlingText(entry: PendingEntry): string {
 /**
  * 构造一条待办。
  *
- * 两行，四格位置固定：
- *   左上  任务名             右上  阶段、还剩多久
- *   左下  处置  [执行]       右下  具体日期
+ * 两行两列（列定义在 components.css）：
+ *   行1 左：任务名 + 阶段徽标（徽标跟在标题后）   右：剩余时间
+ *   行2 左：处置句 + [执行]（执行跟在文字后）     右：具体日期
  *
- * 阶段始终显示（「未提交」也显示）：四格每行都齐，扫视时每条的信息
- * 落点一致——缺一格会让那一行看起来"少了点什么"。
+ * 「状态贴文字、时间归右列」：徽标与「执行」跟着各自修饰的文字，
+ * 右列只放时间——有没有「执行」、徽标多宽，右列都不横移。
  *
- * 相对时间与具体日期分列两行，是为了不把一行撑成三行：
- * 相对说法让人一眼判断远近，具体日期用来核对。
+ * 阶段始终显示（「未提交」也显示）：每一行右列的落点一致。
+ * 相对时间与具体日期分列两行：相对说法判远近，具体日期用来核对。
  *
  * 能替你完成的那部分（handling 为 auto）在处置句尾跟一个小「执行」按钮，
  * 点它只做这一条（把 entry.itemIds 发给后台；互评与自评合成的一行
@@ -95,7 +95,7 @@ function buildRow(entry: PendingEntry): HTMLElement {
   open.setAttribute('aria-label', `打开${KIND_TEXT[entry.kind]}页面`);
   item.append(open);
 
-  // 上行：任务名、阶段、相对时间
+  // 行 1：任务名 + 阶段徽标
   const line = document.createElement('span');
   line.className = 'todo-line';
 
@@ -109,13 +109,13 @@ function buildRow(entry: PendingEntry): HTMLElement {
   phase.textContent = entry.status;
   line.append(phase);
 
+  // 行 1 右列：剩余时间
   const when = document.createElement('span');
   when.className = 'todo-when';
   if (isUrgent(entry.deadline)) when.classList.add('is-urgent');
   when.textContent = `${relativeDay(entry.deadline)} ${formatClock(entry.deadline)}`.trim();
-  line.append(when);
 
-  // 下行：处置（后面跟「执行」按钮）与具体日期
+  // 行 2：处置（后面跟「执行」按钮）
   const sub = document.createElement('span');
   sub.className = 'todo-sub';
 
@@ -145,12 +145,12 @@ function buildRow(entry: PendingEntry): HTMLElement {
     sub.append(button);
   }
 
+  // 行 2 右列：具体日期
   const date = document.createElement('span');
   date.className = 'todo-date';
   date.textContent = formatDate(entry.deadline);
-  sub.append(date);
 
-  item.append(line, sub);
+  item.append(line, when, sub, date);
   return item;
 }
 
@@ -160,6 +160,14 @@ function note(className: string, text: string): HTMLElement {
   element.className = className;
   element.textContent = text;
   return element;
+}
+
+/** 待办条数写在慕课 tab 上；0 隐藏。与列表同源，不为它多读一次。 */
+function setTabCount(count: number): void {
+  const badge = document.getElementById('tab-count-mooc');
+  if (badge === null) return;
+  badge.textContent = count === 0 ? '' : String(count);
+  badge.hidden = count === 0;
 }
 
 /**
@@ -193,7 +201,7 @@ function showLoginPrompt(): void {
   const text = note('todo-login-text', '登录状态已失效，需要重新登录慕课平台后才能读取待办。');
 
   const link = document.createElement('a');
-  link.className = 'todo-login-link';
+  link.className = 'btn';
   link.href = 'https://www.icourse163.org/';
   link.target = '_blank';
   link.rel = 'noreferrer';
@@ -277,6 +285,7 @@ export async function renderTodo(): Promise<void> {
    * 后台已经滤掉三天以上前的过期项（保留天数见设置），因此不会累积。
    */
   const entries = outcome.value.entries;
+  setTabCount(entries.length);
   if (entries.length === 0) {
     writeTodo([note('todo-empty', '暂无待办。')]);
     return;

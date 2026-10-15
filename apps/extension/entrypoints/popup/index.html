@@ -14,19 +14,19 @@
     <main class="pop">
       <!--
         顶栏一行放完：品牌、全部执行、更多。
-        「全部执行」只做待办（测验、作业、考试里能替你做的那部分），
+        「全部执行」只做当前 tab 平台的待办（测验、作业、考试里能替你做的那部分），
         与每行悬停现身的「执行」配成一对：全部 vs 单条。
         课件不在这里——它没有截止时间，属于设置页的「课件」区。
       -->
       <header class="bar">
         <span class="brand">Study Pilot</span>
-        <button id="run-now" class="act" type="button" title="全部执行：把待办里能替你做的一次做完">全部执行</button>
-        <button id="open-settings" class="act quiet" type="button">更多</button>
+        <button id="run-now" class="btn" type="button" title="全部执行：把待办里能替你做的一次做完">全部执行</button>
+        <button id="open-settings" class="btn ghost" type="button">更多</button>
       </header>
 
       <!--
-        状态行：执行进度与结果；右侧「停止」只在一轮进行时现身（.state.is-running）。
-        文字单独一个元素：setText 会整体改写它，按钮不能住在里面。
+        状态行：一轮执行的进度与结果——全局的（不分 tab，切到哪家都说哪家，
+        停止永远够得着）。文字单独一个元素：setText 会整体改写它，按钮不能住在里面。
       -->
       <div id="state-line" class="state is-blank">
         <span id="state-text" class="state-text"></span>
@@ -34,12 +34,47 @@
       </div>
 
       <!--
-        待办区先放一句加载提示。
-        弹窗每次打开都会拉取最新数据，那是一次网络往返，约两秒。期间这里
-        留空的话，用户看到的是一个空白面板，无从判断是在读取还是扩展坏了。
-        写入第一份数据时会被覆盖。
+        平台 tab：慕课 / 智慧树（规格第 13 节）。打开回到上次停留的
+        平台（记忆落到「通用」时按慕课处理）；一次打开最多读一家。
+        行为见 src/ui/tabs.ts。
       -->
-      <div id="todo-text" class="todo is-loading">正在获取最新数据</div>
+      <div class="tabs" id="tabs" role="tablist" aria-label="平台">
+        <button class="tab" role="tab" id="tab-mooc" data-tab="mooc" aria-controls="panel-mooc" aria-selected="false" tabindex="-1" type="button">慕课<span class="tab-count" id="tab-count-mooc" hidden></span></button>
+        <button class="tab" role="tab" id="tab-zhihuishu" data-tab="zhihuishu" aria-controls="panel-zhihuishu" aria-selected="false" tabindex="-1" type="button">智慧树</button>
+      </div>
+
+      <section class="tab-panel" role="tabpanel" id="panel-mooc" aria-labelledby="tab-mooc" data-tab="mooc" hidden>
+        <!--
+          待办区先放三条骨架：弹窗每次打开都要拉一次最新数据（约两秒）。
+          骨架照抄真实待办条的列（行 1 名字+徽标、右列剩余时间；行 2 处置、右列日期），
+          落定时直接从占位换内容，不跳。写入第一份数据时整体被替换。
+        -->
+        <div id="todo-text" class="todo is-loading">
+          <div class="todo-item" aria-hidden="true">
+            <span class="todo-line"><span class="skeleton is-line" style="width: 150px"></span><span class="skeleton is-badge" style="width: 44px"></span></span>
+            <span class="skeleton is-meta" style="width: 48px; grid-area: 1 / 2; justify-self: end"></span>
+            <span class="skeleton is-meta" style="width: 110px; grid-area: 2 / 1"></span>
+            <span class="skeleton is-meta" style="width: 44px; grid-area: 2 / 2; justify-self: end"></span>
+          </div>
+          <div class="todo-item" aria-hidden="true">
+            <span class="todo-line"><span class="skeleton is-line" style="width: 170px"></span><span class="skeleton is-badge" style="width: 44px"></span></span>
+            <span class="skeleton is-meta" style="width: 48px; grid-area: 1 / 2; justify-self: end"></span>
+            <span class="skeleton is-meta" style="width: 130px; grid-area: 2 / 1"></span>
+            <span class="skeleton is-meta" style="width: 44px; grid-area: 2 / 2; justify-self: end"></span>
+          </div>
+          <div class="todo-item" aria-hidden="true">
+            <span class="todo-line"><span class="skeleton is-line" style="width: 140px"></span><span class="skeleton is-badge" style="width: 44px"></span></span>
+            <span class="skeleton is-meta" style="width: 48px; grid-area: 1 / 2; justify-self: end"></span>
+            <span class="skeleton is-meta" style="width: 120px; grid-area: 2 / 1"></span>
+            <span class="skeleton is-meta" style="width: 44px; grid-area: 2 / 2; justify-self: end"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 智慧树：占位（功能未接入）。不是骨架、不是错误——没有东西在等 -->
+      <section class="tab-panel" role="tabpanel" id="panel-zhihuishu" aria-labelledby="tab-zhihuishu" data-tab="zhihuishu" hidden>
+        <p class="tab-empty">智慧树还没接入。它的功能做好后，待办会出现在这里。</p>
+      </section>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>
