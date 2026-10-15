@@ -27,9 +27,10 @@ const NOW = new Date(2026, 8, 26, 10, 0, 0).getTime();
 
 /** 一份最小可用的设置：AI 关着（讨论单元因此不进计划）、没有课程、默认评语。 */
 const SETTINGS: Settings = {
-  version: 6,
+  version: 7,
   ai: { enabled: false, model: '', apiKey: '' },
   mooc: { courses: [], reviewComment: 'x', keepOverdueDays: 3 },
+  ui: { activeTab: 'mooc' },
 };
 
 function work(overrides: Partial<SnapshotWork> & { tid: number }): SnapshotWork {

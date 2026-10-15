@@ -8,15 +8,18 @@
  * 都从这里取配置，不各自去 package 与 storage 里各拼一半。
  */
 export type {
+  ActiveTab,
   AiSettings,
   MoocSettings,
   SelectedCourse,
   Settings,
+  UiSettings,
 } from '@study-pilot/application';
 export {
   DEFAULT_AI,
   DEFAULT_MOOC,
   DEFAULT_SETTINGS,
+  DEFAULT_UI,
   SETTINGS_VERSION,
   mergeWithBase,
   normalize,
