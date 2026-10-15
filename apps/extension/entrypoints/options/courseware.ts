@@ -90,6 +90,8 @@ let stopping = false;
 let stoppedHere = false;
 /** 最后一次「还在跑」快照里的完成数。跑完时进度被清空，收尾文案从这里数 */
 let lastFinished = 0;
+/** 订阅里见过「正在跑」：用来识别「刚刚跑完」这一瞬（开通时的空闲快照不算） */
+let sawRun = false;
 function watchRun(): void {
   if (watching) return;
   watching = true;
@@ -99,6 +101,7 @@ function watchRun(): void {
     // 收尾了就撤下停止态——下面的还原循环才走得对
     if (!running) stopping = false;
     if (running) {
+      sawRun = true;
       lastFinished = state.platforms.reduce((sum, platform) => sum + platform.finished, 0);
     }
 
@@ -149,6 +152,15 @@ function watchRun(): void {
     const stopped = stoppedHere;
     stoppedHere = false;
     if (stopped && !localRun) toast(stoppedLine(lastFinished));
+
+    /*
+     * 收尾重读只归一个人：别处发起的轮次（比如弹窗的执行）没有人等结果，
+     * 本页在这里补一次重读——否则「待交 / 课件剩」留在旧值
+     * （本页发起的那轮由 runNow 的 refresh 负责，顺序在其结果句之后）。
+     * sawRun 门闩：订阅建立时会先回一份空闲快照，那一下不该触发重读。
+     */
+    if (sawRun && !localRun) void refreshCourseViews();
+    sawRun = false;
   });
 }
 

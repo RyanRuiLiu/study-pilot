@@ -38,10 +38,22 @@ async function saveSettings(next: Settings): Promise<Settings> {
   return normalized;
 }
 
-/** 局部更新：传入的部分结构会深合并到当前配置上。 */
+/*
+ * 写队列：updateSettings 是「读-改-写」，两次调用并发时后写者会基于旧读覆盖
+ * 前写者（经典丢失更新：快速连点两个勾选框，先点的那个被后点的静默改回去）。
+ * 唯一写路径处用一条 promise 链做互斥：每个写入等前一个落定后再读当前值、再写。
+ */
+let writeQueue: Promise<unknown> = Promise.resolve();
+
+/** 局部更新：传入的部分结构会深合并到当前配置上。写入串行，不丢更新。 */
 export async function updateSettings(patch: unknown): Promise<Settings> {
-  const current = await getSettings();
-  return saveSettings(mergeWithBase(current, patch));
+  const next = writeQueue.then(async () => {
+    const current = await getSettings();
+    return saveSettings(mergeWithBase(current, patch));
+  });
+  // 队列自身吞掉拒绝，免得一次失败卡死后续写入；调用方仍拿到真实的 Promise
+  writeQueue = next.catch(() => undefined);
+  return next;
 }
 
 /**
