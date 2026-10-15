@@ -17,7 +17,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { CourseUnit } from '../src/types.ts';
+import { UNIT_TYPE, type CourseUnit } from '../src/types.ts';
 import { derivePlan, type Plan } from '../src/policy/plan/index.ts';
 import type { Snapshot, SnapshotCourse, SnapshotWork } from '../src/policy/read/types.ts';
 import type { Settings } from '@study-pilot/application';
@@ -27,8 +27,8 @@ const NOW = new Date(2026, 8, 26, 10, 0, 0).getTime();
 
 /** 一份最小可用的设置：AI 关着（讨论单元因此不进计划）、没有课程、默认评语。 */
 const SETTINGS: Settings = {
-  version: 5,
-  ai: { enabled: false, baseUrl: '', model: '', apiKey: '' },
+  version: 6,
+  ai: { enabled: false, model: '', apiKey: '' },
   mooc: { courses: [], reviewComment: 'x', keepOverdueDays: 3 },
 };
 
@@ -327,5 +327,30 @@ describe('课件单元', () => {
     const works = [work({ tid: 11 })];
     const plan = derivePlan(snapshot(works, [unitOf({ unitId: 1 })]), SETTINGS, NOW);
     expect(plan.auto.map((a) => a.kind)).toEqual(['courseware', 'quiz']);
+  });
+});
+
+// ---------- 讨论单元：能力由实测决定 ----------
+
+describe('讨论单元：textAvailable 的实测覆盖设置推断', () => {
+  const discuss = () =>
+    unitOf({ unitId: 10, contentType: UNIT_TYPE.DISCUSS, durationInSeconds: null });
+  const aiOn: Settings = {
+    ...SETTINGS,
+    ai: { enabled: true, model: 'glm-4-flash', apiKey: 'k' },
+  };
+
+  it('设置齐（缺省推断）：讨论进自动项', () => {
+    expect(shape(derivePlan(snapshot([], [discuss()]), aiOn, NOW))).toBe('自动:courseware');
+  });
+
+  it('实测覆写为 false（如权限被撤回）：不进计划——进了必失败，那是浪费一轮', () => {
+    expect(shape(derivePlan(snapshot([], [discuss()]), aiOn, NOW, false))).toBe('空');
+  });
+
+  it('实测覆写为 true：覆盖设置推断（承载方说可用就是可用）', () => {
+    expect(shape(derivePlan(snapshot([], [discuss()]), SETTINGS, NOW, true))).toBe(
+      '自动:courseware',
+    );
   });
 });

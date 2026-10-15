@@ -11,6 +11,7 @@
 import { createMoocRuntime } from '@study-pilot/platform-mooc';
 import type { ConfigPort, HostCapabilities, PlatformTasks, PlatformWiring } from '@study-pilot/application';
 import { createTextGenerator } from '../../ai';
+import { aiTextAvailable } from '../../ai/permission.ts';
 import type { MessageHandlers } from '../../protocol.ts';
 import type { MoocMessageDeps } from './messages/deps.ts';
 import { moocHandlers } from './messages/handlers.ts';
@@ -37,6 +38,8 @@ export function createMoocPlatform(env: MoocEnv): MoocPlatform {
     config: env.config,
     recordFailure: env.shell.recordFailure,
     textGenerator: createTextGenerator,
+    // 计划里的「AI 文本能力」按实测判断：设置齐还不够，对智谱的主机权限也要在
+    textAvailable: aiTextAvailable,
   });
 
   // 消息处理器要的就是运行件那几样，加上外壳自己的运行状态口

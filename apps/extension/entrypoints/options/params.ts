@@ -5,13 +5,13 @@
  * AI 给讨论单元的留言生成文本。设置里没有「允许做什么」的开关：
  * 授权在点击那一刻，这里只有参数。
  *
- * AI 的接口地址事先不知道是哪个域名，主机权限只能按需申请，且必须
- * 在用户手势里（这个按钮）——见 src/ai/permission.ts。
+ * AI 的接口地址不在设置里：固定智谱（见 application 的 AI_BASE_URL），
+ * 主机权限在清单里静态声明（安装即授权），因此这里没有「申请权限」一步；
+ * 只做一件事——若用户在浏览器里撤回了访问权限，如实说出来。
  */
 
-import { chatOrigin } from '@study-pilot/ai';
 import { testAiConnection } from '../../src/ai';
-import { ensureHostPermission, hasHostPermission } from '../../src/ai/permission';
+import { hasAiHostPermission } from '../../src/ai/permission';
 import { getSettings, updateSettings } from '../../src/ui-bridge';
 import { toast } from './toast.ts';
 
@@ -27,21 +27,23 @@ function setStatus(text: string, isError: boolean): void {
   el.classList.toggle('is-error', isError);
 }
 
+/** 权限被撤回时的说法。扩展自己无法重新申请静态声明的权限，只能指明去处。 */
+const REVOKED_HINT =
+  '浏览器里撤回了对智谱（open.bigmodel.cn）的访问许可：在扩展详情页把「网站访问权限」开启后重试';
+
 export async function renderParams(): Promise<void> {
   const settings = await getSettings();
 
   const comment = input('review-comment');
   const enabled = input('ai-enabled');
-  const baseUrl = input('ai-base-url');
   const model = input('ai-model');
   const apiKey = input('ai-api-key');
-  if (comment === null || enabled === null || baseUrl === null || model === null || apiKey === null) {
+  if (comment === null || enabled === null || model === null || apiKey === null) {
     return;
   }
 
   comment.value = settings.mooc.reviewComment;
   enabled.checked = settings.ai.enabled;
-  baseUrl.value = settings.ai.baseUrl;
   model.value = settings.ai.model;
   apiKey.value = settings.ai.apiKey;
 
@@ -61,14 +63,12 @@ export async function renderParams(): Promise<void> {
     return updateSettings({
       ai: {
         enabled: enabled.checked,
-        baseUrl: baseUrl.value.trim(),
         model: model.value.trim(),
         apiKey: apiKey.value.trim(),
       },
     });
   };
   enabled.addEventListener('change', () => void saveAi());
-  baseUrl.addEventListener('change', () => void saveAi());
   model.addEventListener('change', () => void saveAi());
   apiKey.addEventListener('change', () => void saveAi());
 
@@ -76,15 +76,10 @@ export async function renderParams(): Promise<void> {
     void (async () => {
       const next = await saveAi();
 
-      const origin = chatOrigin(next.ai.baseUrl);
-      if (origin === null) {
-        setStatus('接口地址填得不对：需要一个完整的 https 地址', true);
-        return;
-      }
-
-      const permission = await ensureHostPermission(origin);
-      if (permission !== 'granted') {
-        setStatus(permission === 'denied' ? '没有获得访问该地址的权限' : '这个环境无法申请权限', true);
+      // 权限是清单静态声明的，正常装好就有；被撤回时先说清楚，
+      // 否则测试请求只会报销一句网络错误，线索指不回「网站访问权限」
+      if (!(await hasAiHostPermission())) {
+        setStatus(REVOKED_HINT, true);
         return;
       }
 
@@ -95,12 +90,11 @@ export async function renderParams(): Promise<void> {
   });
 
   /*
-   * 配置填齐了但域名权限没批：直接说清楚。
+   * 配置填齐了但权限不在（用户在浏览器里收回过）：打开设置页就直接说清楚。
    * 没有这句，界面看起来「配好了」，而执行时讨论单元会一个个失败——
    * 失败发生在浏览器的权限层，用户没有任何线索指回这里。
    */
-  const origin = chatOrigin(settings.ai.baseUrl);
-  if (settings.ai.enabled && origin !== null && !(await hasHostPermission(origin))) {
-    setStatus('尚未授予访问该接口地址的权限：点「保存并测试连接」完成授权', true);
+  if (settings.ai.enabled && !(await hasAiHostPermission())) {
+    setStatus(REVOKED_HINT, true);
   }
 }

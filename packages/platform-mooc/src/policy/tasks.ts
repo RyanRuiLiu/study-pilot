@@ -12,6 +12,7 @@
 import type { MoocClient } from '../client.ts';
 import type { CoursewareContext } from '../courseware/index.ts';
 import type { ConfigPort, HostCapabilities, RunControl, RunSelection, Settings } from '@study-pilot/application';
+import { hasTextGenerator } from '@study-pilot/application';
 import { BankCache } from './execute/bank.ts';
 import { ensureSession, SessionExpiredError } from './session.ts';
 import { withSessionRecovery } from './recovery.ts';
@@ -35,6 +36,12 @@ export interface MoocRunDeps {
   loadSnapshot: (courses: InspectCourse[], userId: number) => Promise<Snapshot>;
   selectedCourses: (settings: Settings) => InspectCourse[];
   coursewareContext: (settings: Settings) => CoursewareContext;
+  /**
+   * AI 文本能力的**实测**判断。缺省按设置推断（hasTextGenerator）；
+   * 载体加了自身条件时交进来——浏览器里主机权限可能被撤回，「设置齐」
+   * 不等于「此刻可用」，而讨论单元进了队列就是一条必失败项。
+   */
+  textAvailable?: (settings: Settings) => Promise<boolean> | boolean;
   /** 失败记进外壳的运行状态（平台不反向依赖执行面，这是注入进来的端口） */
   recordFailure: (message: string) => Promise<void>;
 }
@@ -190,7 +197,11 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
         throw new Error(recovered.message);
       }
 
-      const plan = derivePlan(recovered.value, settings, now);
+      const textAvailable =
+        deps.textAvailable !== undefined
+          ? await deps.textAvailable(settings)
+          : hasTextGenerator(settings);
+      const plan = derivePlan(recovered.value, settings, now, textAvailable);
       return { items: toItems(plan) };
     },
 

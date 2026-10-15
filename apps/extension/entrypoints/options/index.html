@@ -53,7 +53,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>AI 连接</h2>
+          <h2>AI 连接（智谱）</h2>
           <button id="ai-test" class="btn" type="button">保存并测试连接</button>
         </div>
         <label class="check">
@@ -61,17 +61,19 @@
           <span>启用（讨论单元的留言需要它）</span>
         </label>
         <label class="field">
-          <span class="field-label">接口地址</span>
-          <input id="ai-base-url" type="text" placeholder="https://api.example.com/v1" />
-        </label>
-        <label class="field">
           <span class="field-label">模型</span>
-          <input id="ai-model" type="text" placeholder="模型名" />
+          <input id="ai-model" type="text" placeholder="glm-4-flash（免费）" />
         </label>
         <label class="field">
           <span class="field-label">密钥</span>
           <input id="ai-api-key" type="password" />
         </label>
+        <p class="note">
+          AI 请求只发往智谱开放平台（open.bigmodel.cn），glm-4-flash 免费。
+          没有密钥就去
+          <a href="https://open.bigmodel.cn/" target="_blank" rel="noreferrer">智谱开放平台</a>
+          申请：注册后完成实名认证，在控制台 → API Keys 里新建。
+        </p>
         <span class="note" id="ai-status"></span>
       </section>
 

@@ -77,7 +77,14 @@ function deps(): MoocRunDeps {
   return {
     host: fakeHost,
     config: {
-      read: async () => ({ mooc: { reviewComment: '按评分点逐项给分' } }) as never,
+      // 设置要么来自 normalize（生产里 ai 段必然存在），要么缺字段——
+      // 这里给全最小形状：本文件被 mock 掉的只是 derivePlan，tasks.ts
+      // 自己也要读 ai（实测口的缺省推断）
+      read: async () =>
+        ({
+          mooc: { reviewComment: '按评分点逐项给分' },
+          ai: { enabled: false, model: '', apiKey: '' },
+        }) as never,
       update: async () => ({}) as never,
     },
     client: {} as never,
@@ -196,6 +203,15 @@ describe('自动项的 id', () => {
     const { items } = await runRound([quizAction(101, '第一单元测验'), coursewareAction(9, '1.1 课程介绍')]);
 
     expect(items.map((item) => item.kind)).toEqual(['quiz', 'courseware']);
+  });
+
+  it('AI 文本能力按实测口注入：derivePlan 收到的是实测结论（这里是 false）', async () => {
+    vi.mocked(derivePlan).mockReturnValue({ auto: [], manual: [] });
+    const tasks = createMoocTasks({ ...deps(), textAvailable: async () => false });
+    await tasks.plan(NOW);
+
+    // 第 4 个实参就是实测结论——权限被撤回时讨论单元因此不进队列
+    expect(vi.mocked(derivePlan).mock.calls.at(-1)?.[3]).toBe(false);
   });
 });
 

@@ -9,6 +9,6 @@ import type { Settings } from './config/index.ts';
 
 /** 设置里是否已经填齐 AI 的必要信息。计划层与生成器共用这一处判断。 */
 export function hasTextGenerator(settings: Settings): boolean {
-  const { enabled, baseUrl, model, apiKey } = settings.ai;
-  return enabled && baseUrl.trim() !== '' && model.trim() !== '' && apiKey.trim() !== '';
+  const { enabled, model, apiKey } = settings.ai;
+  return enabled && model.trim() !== '' && apiKey.trim() !== '';
 }
