@@ -17,16 +17,16 @@
 
 三条冒烟（可选，后两条要本地已有登录会话）：
 
-    node node_modules/vitest/vitest.mjs run --root packages/platform-mooc test/plan-smoke.test.ts
+    pnpm --filter @study-pilot/platform-mooc exec vitest run test/plan-smoke.test.ts
         # 证明计划逻辑不碰浏览器（用一个会抛异常的 browser 代理）
 
-    node node_modules/vitest/vitest.mjs run --root packages/platform-mooc test/headless.test.ts
+    pnpm --filter @study-pilot/platform-mooc exec vitest run test/headless.test.ts
         # 证明整个策略层只认端口：假端口喂进去就能跑完「入会话 → 读 → 计划」
 
-    node scripts/probe/lib/cookies.mjs
-        # 从正在运行的浏览器导出慕课会话到 .probe/（只读、已被 git 忽略）
+    pnpm probe state export
+        # 从探测浏览器导出登录态到 .probe/（Playwright storageState；见「真机调试」一节）
 
-    node node_modules/vitest/vitest.mjs run --root apps/extension test/node-live.test.ts
+    pnpm --filter @study-pilot/extension exec vitest run test/node-live.test.ts
         # 在 Node 里直连平台读课程列表（只读，不写平台）
 
 装到浏览器：chrome://extensions → 开发者模式 → 加载已解压的扩展程序 →
@@ -45,6 +45,33 @@
 
 直接跑 TS 即可：Node 22+ 会剥掉类型，而包内的相对导入都带 .ts 扩展名，因此不经打包也能加载。
 要单文件分发时再打包：pnpm --filter @study-pilot/cli build → apps/cli/dist/main.mjs（esbuild）。
+
+## 真机调试（探测浏览器）
+
+一次性准备（每台机器一次）：
+
+    pnpm exec playwright install chromium   # Playwright 管理的 Chromium（探测与 pnpm dev 共用）
+    pnpm probe open                         # 起探测浏览器（持久登录；关窗即退出）
+
+    # 首次在窗口里登录一次慕课，然后把它导出给 CLI / Node 用：
+    pnpm probe state export
+
+日常：
+
+    pnpm probe state check                  # 核对导出文件与浏览器当前登录是否一致（不一致时平台会回 null）
+    pnpm probe capture --url <URL> --out <名字>
+        # 抓取 → .probe/<名字>/：trace.har（DevTools 可直接打开）+ page.html + console.jsonl
+        # + shot.png + scripts/；需要「先点一下才有数据」时加 --eval <代码>（可多次）
+    pnpm probe har --dir <名字> --match <URL 片段> [--out <文件>]
+        # 从采集的 HAR 里取出匹配请求的响应体
+    pnpm probe call --bean <Bean> --method <getXxx> --body '{...}'
+        # 在页面上下文发 .rpc 请求（默认只放行只读方法，写方法被拦截）
+    pnpm probe ext reload                   # 改完扩展：重载（不用重开浏览器；要求探测浏览器在运行）
+    pnpm probe kill                         # 关闭探测浏览器
+
+约定：取证一律用 capture / call，**不要手写临时监听**（时序与缓存不可控，本项目曾据此误判）；
+产物一律落 `.probe/`（git 忽略），结论写进代码注释。规则全文在 `scripts/probe/probe.mjs` 头部，
+命令一览：`pnpm probe --help`。
 
 ## 目录
 
@@ -71,6 +98,7 @@
       src/host.ts          会话从浏览器导出的 cookie 文件读
       src/fetch.ts         出站请求头自己设（命令行没有 declarativeNetRequest）
       src/main.ts          命令：courses / pending（都只读）
+    scripts/probe/   真机调试唯一入口（pnpm probe；见「真机调试」一节）
 
 ## 边界与唯一的约定
 
@@ -83,6 +111,7 @@ src/browser、src/settings。这是"界面可以换人重写、核心可以独�
 
 改平台数据的写操作只在 packages/* 的执行面与触发它的载体侧（消息路由、界面）里发生；
 执行的发起者永远是人——扩展里是弹窗与设置页上的按钮，命令行里是 --yes；
+一轮随时可以停：不再发新的写请求，手上正在飞的请求落地即止；
 考试提交永远由人触发。
 
 ## 数据从哪来

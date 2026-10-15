@@ -34,6 +34,7 @@ function summary(over: Partial<CourseSummary> = {}): CourseSummary {
     publishStatus: null,
     lessonsCount: null,
     enrollCount: null,
+    hasEnroll: true,
     ...over,
   };
 }

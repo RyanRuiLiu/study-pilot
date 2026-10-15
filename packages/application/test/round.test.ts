@@ -194,7 +194,7 @@ describe('逐平台执行', () => {
       status: 'finished',
       done: 1,
       manual: 0,
-      failed: [{ name: '事项 b', detail: '平台拒绝' }],
+      failed: [{ name: '事项 b', kind: 'quiz', detail: '平台拒绝' }],
     });
   });
 
@@ -266,6 +266,63 @@ describe('执行范围', () => {
 
     expect(await runner.runRound({ kinds: ['exam'] })).toEqual({ status: 'nothing-to-do' });
     expect(mooc.calls.filter((call) => call.startsWith('run:'))).toEqual([]);
+  });
+
+  it('给了条目 id 就只做那一条（弹窗上「单独完成」的判据）', async () => {
+    const mooc = platform('mooc', { items: [item('a', 'auto'), item('b', 'auto'), item('c', 'manual')] });
+    const { runner } = setup([mooc]);
+
+    expect(await runner.runRound({ ids: ['b'] })).toEqual({
+      status: 'finished',
+      done: 1,
+      manual: 0,
+      failed: [],
+    });
+    expect(mooc.calls.filter((call) => call.startsWith('run:'))).toEqual(['run:b']);
+  });
+});
+
+describe('停止', () => {
+  it('按了停止：做完手上这一项就不再开始下一项', async () => {
+    const mooc = platform('mooc', { items: [item('a', 'auto'), item('b', 'auto'), item('c', 'auto')] });
+    const { runner } = setup([mooc]);
+    const ran: string[] = [];
+    mooc.run = async (entry) => {
+      ran.push(entry.id);
+      // 第一项的执行中间按停止：它做完，后面的不再开始
+      if (entry.id === 'a') runner.stop();
+      return { status: 'done' };
+    };
+
+    expect(await runner.runRound()).toEqual({
+      status: 'finished',
+      done: 1,
+      manual: 0,
+      failed: [],
+      stopped: true,
+    });
+    expect(ran).toEqual(['a']);
+  });
+
+  it('没有在跑的时候按停止：如实说什么都没发生', () => {
+    expect(setup([]).runner.stop()).toBe(false);
+  });
+
+  it('长动作拿到的停止柄是活的：项内安全点问得到「已要求停」', async () => {
+    const mooc = platform('mooc', { items: [item('a', 'auto')] });
+    const { runner } = setup([mooc]);
+    let sawStopped: boolean | null = null;
+    mooc.run = async (_entry, _heartbeat, control) => {
+      runner.stop();
+      // 长动作内部的安全点：这一刻就该看到停止
+      sawStopped = control.stopped();
+      return { status: 'skipped' };
+    };
+
+    const result = await runner.runRound();
+
+    expect(sawStopped).toBe(true);
+    expect(result).toEqual({ status: 'finished', done: 0, manual: 0, failed: [], stopped: true });
   });
 });
 

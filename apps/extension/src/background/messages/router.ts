@@ -5,8 +5,8 @@
  * （见各平台自己的 `messages/handlers.ts`），装配层把它们合并成一张表——
  * 因此新增平台不需要改这个文件。
  *
- * 唯一留在这里的业务是 RUN_SCHEDULED_TASKS（执行一轮）：流程不在这里——它是
- * @study-pilot/application 的 runRound 用例，这里只把结局翻成消息响应。
+ * 唯一留在这里的业务是执行一轮与停止一轮（runRound / runner.stop）：
+ * 流程不在这里——它是 @study-pilot/application 的用例，这里只搬运与翻译结局。
  *
  * 分发约定：请求对象的 `type` 即分支名，响应形状由 messaging 的 ResponseMap
  * 定义；未识别的请求回 undefined，前台据此报「后台无响应」。
@@ -51,6 +51,7 @@ function respondToRound(result: RoundResult): RunScheduledTasksResponse {
         done: result.done,
         manual: result.manual,
         ...(result.failed.length > 0 ? { failed: result.failed } : {}),
+        ...(result.stopped ? { stopped: true } : {}),
       };
     case 'failed':
       return { ok: false, reason: 'FETCH_FAILED', message: result.message };
@@ -68,9 +69,17 @@ export function registerMessageHandler(deps: RouterDeps): void {
       }
       if (request?.type === 'RUN_SCHEDULED_TASKS') {
         // 范围原样交给用例：类别取值由平台定义，路由只搬运
-        const { kinds, group } = request;
-        const selection = kinds !== undefined || group !== undefined ? { kinds, group } : undefined;
+        const { kinds, group, ids } = request;
+        const selection =
+          kinds !== undefined || group !== undefined || ids !== undefined
+            ? { kinds, group, ids }
+            : undefined;
         sendResponse(respondToRound(await deps.runner.runRound(selection)));
+        return;
+      }
+      if (request?.type === 'STOP_RUN') {
+        // 只置一个标记；项间循环与长动作的安全点都会看它（见 Runner.stop）
+        sendResponse({ stopped: deps.runner.stop() });
         return;
       }
 

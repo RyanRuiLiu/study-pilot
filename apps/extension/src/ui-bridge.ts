@@ -83,10 +83,19 @@ export function runNow(
     /** 结束后要不要重读数据；界面里是同步的一行也允许 */
     refresh: () => void | Promise<void>;
   },
-  /** 执行范围：类别与课程。课件区给 kinds: ['courseware'] 与某一门课；不给表示全部 */
-  scope?: { kinds?: string[]; group?: string },
+  /** 执行范围：类别、课程与具体条目。课件区给 kinds: ['courseware']；弹窗单条给 ids；不给表示全部 */
+  scope?: { kinds?: string[]; group?: string; ids?: string[] },
 ): Promise<void> {
   return runOnce({ ...handlers, refresh: async () => handlers.refresh() }, scope);
+}
+
+/**
+ * 请求停止正在执行的一轮：不再发新的写请求，长动作在下一个安全点中断，
+ * 正在飞的请求落地即止。返回是否真有在跑的一轮；
+ * 发起那一轮的人会照常收到结果（带 stopped 标记）。
+ */
+export function stopRun() {
+  return sendToBackground({ type: 'STOP_RUN' });
 }
 
 /** 订阅运行状态推送。返回退订函数。 */

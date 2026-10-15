@@ -112,7 +112,7 @@ describe('策略层不碰宿主（只用端口）', () => {
     expect(touched).toEqual([]);
     expect(plan.needsLogin).toBeUndefined();
     expect(plan.items.map((item) => [item.id, item.mode, item.group, item.title])).toEqual([
-      ['work-1001', 'auto', '测试课程', '单元 1001'],
+      ['work-1001-quiz', 'auto', '测试课程', '单元 1001'],
     ]);
   });
 
@@ -153,7 +153,7 @@ describe('策略层不碰宿主（只用端口）', () => {
 
     expect(touched).toEqual([]);
     expect(reads).toBe(2);
-    expect(plan.items.map((item) => item.id)).toEqual(['work-2002']);
+    expect(plan.items.map((item) => item.id)).toEqual(['work-2002-quiz']);
   });
 
   it('会话死了且续期没成功时：回 needsLogin，不谎报数据', async () => {

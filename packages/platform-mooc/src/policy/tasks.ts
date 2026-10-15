@@ -11,7 +11,8 @@
 
 import type { MoocClient } from '../client.ts';
 import type { CoursewareContext } from '../courseware/index.ts';
-import type { ConfigPort, HostCapabilities, Settings } from '@study-pilot/application';
+import type { ConfigPort, HostCapabilities, RunControl, RunSelection, Settings } from '@study-pilot/application';
+import { BankCache } from './execute/bank.ts';
 import { ensureSession, SessionExpiredError } from './session.ts';
 import { withSessionRecovery } from './recovery.ts';
 import type { PlanItem, PlanResult, PlatformTasks, RunOutcome } from '@study-pilot/application';
@@ -38,15 +39,40 @@ export interface MoocRunDeps {
   recordFailure: (message: string) => Promise<void>;
 }
 
-/**
- * 项的 id：课件按单元、其余按工作项，两者字段不同，因此各自取名。
+/*
+ * 计划项的 id：执行、结果归属与「只做这一条」的选择都靠它。
  *
  * id 是「哪一项的结果」的唯一凭据：`run` 按它落结果、`report` 按它取结果。
- * 这里少写一个插值（曾经两项都只回 `work-`），一轮里的工作项就会共用同一条
- * 结果，通知里「做了什么」全部错位到最后一项。
+ * 必须两两不同——同一份作业的互评与自评是两条独立事项（kind 参与取名），
+ * 同一个 tid 的两个人工原因也是两条（reason 参与取名）。旧写法只带 tid，
+ * 同一份作业同时欠互评与自评时两条 id 会撞在一起：按条目执行时点一条，
+ * 另一条会被一起做掉。
+ *
+ * 这三个构造函数导出：界面展示待办时要用同一份取名（entry.itemIds），
+ * 点「执行」再原样发回来——两处各写一份取名规则必然漂移。
+ * 界面会把同份作业的互评与自评合成一行、两条 id 一起发回：那是有意
+ * 一起做（把「这一阶段」当成一件事）；id 仍各自唯一，逐项结果才分得开。
  */
+
+/** 工作项（测验/互评/自评）。 */
+export function workItemId(tid: number, kind: string): string {
+  return `work-${tid}-${kind}`;
+}
+
+/** 课件单元。 */
+export function coursewareItemId(unitId: number): string {
+  return `courseware-${unitId}`;
+}
+
+/** 人工项（作业/考试/过期）。 */
+export function manualItemId(tid: number, reason: string): string {
+  return `manual-${tid}-${reason}`;
+}
+
 function idOf(action: Plan['auto'][number]): string {
-  return action.kind === 'courseware' ? `courseware-${action.unit.unitId}` : `work-${action.work.tid}`;
+  return action.kind === 'courseware'
+    ? coursewareItemId(action.unit.unitId)
+    : workItemId(action.work.tid, action.kind);
 }
 
 /** 项的标题：同样按类别取（课件用单元名，其余用工作项名）。 */
@@ -83,7 +109,7 @@ function toItems(plan: Plan): PlanItem[] {
       payload: action,
     })),
     ...plan.manual.map((item) => ({
-      id: `manual-${item.work.tid}`,
+      id: manualItemId(item.work.tid, item.reason),
       group: item.course.courseName,
       title: item.work.name,
       mode: 'manual' as const,
@@ -94,6 +120,12 @@ function toItems(plan: Plan): PlanItem[] {
 }
 
 export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
+  /*
+   * 题库缓存整轮一份：同一门课的题库在单元测验、随堂测验之间共用。
+   * 放在这里（而不是每次执行现建）才真正有「缓存」的意思——见 bank.ts。
+   */
+  const bank = new BankCache();
+
   return {
     id: 'mooc',
     name: '中国大学 MOOC',
@@ -102,9 +134,14 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       return (await ensureSession(deps.host)).loggedIn;
     },
 
-    async plan(now: number): Promise<PlanResult> {
+    async plan(now: number, scope?: RunSelection): Promise<PlanResult> {
       const settings = await deps.config.read();
-      const courses = deps.selectedCourses(settings);
+      const selected = deps.selectedCourses(settings);
+      // 按范围收窄：只做某门课时不读别的课（每门课一次结构读取）
+      const courses =
+        scope?.group === undefined
+          ? selected
+          : selected.filter((course) => course.name === scope.group);
       if (courses.length === 0) return { items: [], blocked: 'no-course' };
 
       const session = await ensureSession(deps.host);
@@ -119,17 +156,22 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
        *
        * 会话失效是例外：它留给下一步 `withSessionRecovery` 统一处置
        * （先续期再重读，救不回来才挂起等登录），这里不重复判一次。
+       *
+       * 按课程收窄的一轮跳过它：这一轮只关心目标课（名字来自界面），
+       * 而刷新更新的是「勾选了哪些课」——省一次往返。
        */
       let refreshFailure: string | null = null;
-      try {
-        const refreshed = await deps.refreshCourses();
-        if (!refreshed.ok) refreshFailure = refreshed.message;
-      } catch (error) {
-        if (!(error instanceof SessionExpiredError)) {
-          refreshFailure = error instanceof Error ? error.message : String(error);
+      if (scope?.group === undefined) {
+        try {
+          const refreshed = await deps.refreshCourses();
+          if (!refreshed.ok) refreshFailure = refreshed.message;
+        } catch (error) {
+          if (!(error instanceof SessionExpiredError)) {
+            refreshFailure = error instanceof Error ? error.message : String(error);
+          }
         }
+        if (refreshFailure !== null) await deps.recordFailure(`课程列表未刷新：${refreshFailure}`);
       }
-      if (refreshFailure !== null) await deps.recordFailure(`课程列表未刷新：${refreshFailure}`);
 
       /*
        * 快照读取带会话恢复。
@@ -152,7 +194,7 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       return { items: toItems(plan) };
     },
 
-    async run(item: PlanItem, heartbeat: () => Promise<void>): Promise<RunOutcome> {
+    async run(item: PlanItem, heartbeat: () => Promise<void>, control: RunControl): Promise<RunOutcome> {
       const action = item.payload;
       // payload 是本平台 plan() 放进去的，形状由本文件保证
       const settings = await deps.config.read();
@@ -163,7 +205,10 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
         session.userId,
         settings.mooc.reviewComment,
         heartbeat,
-        deps.coursewareContext(settings),
+        // 随堂测验（课件行为）也吃同一份题库缓存
+        { ...deps.coursewareContext(settings), bank },
+        control,
+        bank,
       );
       if (result === undefined) return { status: 'skipped', message: '没有可执行的动作' };
 

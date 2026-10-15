@@ -22,6 +22,7 @@
  */
 
 import { ok, type Result } from '@study-pilot/core';
+import { NEVER_STOPPED, type RunControl } from '@study-pilot/application';
 import type { TransportError } from '@study-pilot/transport';
 import type { MoocClient } from '../client.ts';
 import type { CourseUnit } from '../types.ts';
@@ -78,10 +79,12 @@ export async function completeUnit(
   client: MoocClient,
   unit: CourseUnit,
   context: CoursewareContext = {},
+  /** 停止柄：讨论的「生成 + 发帖」两步之间会问它一句 */
+  control: RunControl = NEVER_STOPPED,
 ): Promise<Result<BehaviorOutcome, TransportError>> {
   const behavior = BY_TYPE.get(unit.contentType);
   if (!behavior || !behavior.ready(unit)) return ok('skipped');
-  return behavior.run(client, unit, context);
+  return behavior.run(client, unit, context, control);
 }
 
 export type {

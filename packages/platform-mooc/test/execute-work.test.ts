@@ -645,6 +645,25 @@ describe('runReview：自动完成一份作业的互评', () => {
     expect(vi.mocked(submitEvaluation).mock.calls.map((call) => call[1])).toEqual([11, 12]);
   });
 
+  it('评到一半按了停止：那一份评完就中断，如实报已评几份', async () => {
+    readyToReview({ required: 3, completed: 0, remaining: 3 });
+    let stopped = false;
+    vi.mocked(nextSubmission).mockResolvedValue(ok(nextOf(11)));
+    vi.mocked(submitEvaluation).mockImplementation(async () => {
+      // 第一份评完后，用户按了停止
+      stopped = true;
+      return ok(true);
+    });
+
+    const result = await runReview(...args, { stopped: () => stopped });
+
+    expect(result.status).toBe('skipped');
+    expect(result.detail).toBe('已评 1 份，按停止键中断');
+    // 不再向服务端要下一份：要卷本身会占用配额
+    expect(nextSubmission).toHaveBeenCalledTimes(1);
+    expect(submitEvaluation).toHaveBeenCalledTimes(1);
+  });
+
   it('服务端不再分配、一份都没评：skipped，说下次再试', async () => {
     readyToReview({ required: 3, completed: 0, remaining: 3 });
     vi.mocked(nextSubmission).mockResolvedValue(ok(nextOf(null)));

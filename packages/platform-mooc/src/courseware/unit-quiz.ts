@@ -30,12 +30,22 @@ import { completionDto, postLearnInfo } from './reports.ts';
 export const unitQuizBehavior: UnitBehavior = {
   type: UNIT_TYPE.QUESTION,
   ready: (unit) => unit.contentId > 0,
-  async run(client, unit) {
+  async run(client, unit, context) {
     const paper = await getQuizPaper(client, unit.contentId, 0);
     if (!paper.ok) return paper;
 
-    const bank = await getQuizBank(client, unit.termId);
-    if (!bank.ok) return bank;
+    /*
+     * 答案索引来自题库：优先用调用方给的整轮缓存（同一门课的随堂测验与
+     * 单元测验共用一份），没有就现读一次。
+     */
+    let index: Map<string, boolean> | null;
+    if (context.bank !== undefined) {
+      index = await context.bank.get(client, unit.termId);
+    } else {
+      const bank = await getQuizBank(client, unit.termId);
+      index = bank.ok ? buildAnswerIndex(bank.value) : null;
+    }
+    if (index === null) return err(apiError(-1, '题库读取失败，无法核对答案'));
 
     /*
      * 只有一条路径：取卷 → 组答案 → 交卷 → 报完成。
@@ -44,7 +54,7 @@ export const unitQuizBehavior: UnitBehavior = {
      * 一条没有作答记录的「已学」，与真人的痕迹对不上，而界面上看不出来。
      * 失败会在下一轮重试，仍不齐就交人工。
      */
-    const built = buildAnswers(paper.value, buildAnswerIndex(bank.value));
+    const built = buildAnswers(paper.value, index);
     if (built.total === 0) {
       return err(apiError(-1, '这份随堂测验没有客观题，无法按唯一路径作答'));
     }

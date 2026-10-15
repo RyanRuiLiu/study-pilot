@@ -60,14 +60,13 @@ export function describeWorkStatus(work: SnapshotWork, now: number = Date.now())
  * 几个说法之间的差别不是自明的，尤其「互评阶段」与「互评已完成」：
  * 前者是你还要去评别人，后者是你已经评够，分数确定了、只等公布。
  *
- * 说明里不假设开关状态：「测验会由扩展处理」这种说法只在自动完成测验
- * 开着时才成立，而关着的时候这条说明同样显示。改成条件式表述，
- * 两种情况都准确。
+ * 只解释状态本身，不说「谁来处理」——处置那一行已经回答了要不要动手，
+ * 这里再说一遍，两处说法迟早会打架。
  */
 export function describeStatusDetail(status: WorkStatus): string {
   switch (status) {
     case WORK_STATUS.UNSUBMITTED:
-      return '尚未提交。开启自动完成后测验会被自动处理，作业需要你完成。';
+      return '尚未提交，截止前仍可完成。';
     case WORK_STATUS.OVERDUE:
       return '已过截止时间且未提交。平台不接受逾期提交，无法补做。';
     case WORK_STATUS.REVIEWING:

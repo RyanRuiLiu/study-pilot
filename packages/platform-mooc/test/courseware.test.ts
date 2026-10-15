@@ -139,24 +139,39 @@ describe('文本：打开即完成，与真人一致', () => {
   });
 });
 
-describe('文档：逐页上报，进度按页码推进', () => {
-  it('三页文档发三条，末页才 finished，每页带声明的阅读秒数', async () => {
+describe('文档：首末两报，进度与时长都不靠中间态', () => {
+  it('三页文档发两条：第 1 页开场、末页 finished，时长合计 90 秒', async () => {
     const { client, rpcCalls } = clientStub({
       getLessonUnitLearnVo: 's0.textPages=3;\n',
     });
     await completeUnit(client, unitOf({ contentType: UNIT_TYPE.PDF }));
 
     expect(rpcCalls('getLessonUnitLearnVo')).toHaveLength(1);
-    const pages = rpcCalls('saveMocContentLearn').map((c) => c.body.dto as Record<string, unknown>);
-    expect(pages).toHaveLength(3);
-    expect(pages.map((dto) => dto.pageNum)).toEqual([1, 2, 3]);
-    expect(pages.map((dto) => dto.finished)).toEqual([false, false, true]);
-    expect(pages.map((dto) => dto.index)).toEqual([0, 1, 2]);
-    for (const dto of pages) {
+    const reports = rpcCalls('saveMocContentLearn').map((c) => c.body.dto as Record<string, unknown>);
+    // 真人「打开 → 拖到结尾」的两条；中间页不发
+    expect(reports).toHaveLength(2);
+    expect(reports.map((dto) => dto.pageNum)).toEqual([1, 3]);
+    expect(reports.map((dto) => dto.finished)).toEqual([false, true]);
+    expect(reports.map((dto) => dto.index)).toEqual([0, 2]);
+    // 时长按声明秒数累加：30 + 60 = 90，与逐页口径的总量一致
+    expect(reports.map((dto) => dto.learnedVideoTimeCount)).toEqual([30, 60]);
+    for (const dto of reports) {
       expect(dto.contentType).toBe(UNIT_TYPE.PDF);
-      expect(dto.learnedVideoTimeCount).toBe(30);
       expect(typeof dto.lastLearnTime).toBe('number');
     }
+  });
+
+  it('单页文档只发一条：开场即 finished', async () => {
+    const { client, rpcCalls } = clientStub({
+      getLessonUnitLearnVo: 's0.textPages=1;\n',
+    });
+    await completeUnit(client, unitOf({ contentType: UNIT_TYPE.PDF }));
+
+    const reports = rpcCalls('saveMocContentLearn').map((c) => c.body.dto as Record<string, unknown>);
+    expect(reports).toHaveLength(1);
+    expect(reports[0]?.pageNum).toBe(1);
+    expect(reports[0]?.finished).toBe(true);
+    expect(reports[0]?.learnedVideoTimeCount).toBe(30);
   });
 
   it('拿不到页数时返回失败：不发任何上报，交人工', async () => {

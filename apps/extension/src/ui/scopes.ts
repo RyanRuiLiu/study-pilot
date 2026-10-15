@@ -10,7 +10,7 @@
 
 /**
  * 待办那几类：能提交或能评分的工作项。
- * 弹窗的「立即执行」按它发范围；「需你处理」的计数也只数这些。
+ * 弹窗的「全部执行」按它发范围；「需你处理」的计数也只数这些。
  */
 export const PENDING_KINDS: string[] = ['quiz', 'review', 'self', 'homework', 'exam'];
 

@@ -1,19 +1,23 @@
 @import '../../src/ui/tokens.css';
 
 /*
- * 弹窗。宽 288px，自上而下只有两块：
- *   顶栏一行 —— 品牌、执行、设置
+ * 弹窗。宽 320px，自上而下只有两块：
+ *   顶栏一行 —— 品牌、全部执行、更多
  *   待办     —— 这一屏的主体，占据其余全部高度
  *
  * 只有两块的理由：打开弹窗就一个问题——「还剩什么没做」。
  * 身份与动作都是为了这一件事服务，因此全部压进一行。
+ *
+ * 320 而不是更宽：宽度由最长的一行定——下行「可以替你评分，还差 N 份」
+ * 加「执行」按钮加日期合起来约 290px，加上左右内边距正好收住；
+ * 再宽只会让行中间多出一段空白。极端长的任务名会折行，那是内容的事。
  */
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  width: 288px;
+  width: 320px;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font);
@@ -34,9 +38,8 @@ body {
  * 品牌吃掉剩余空间，把两个控件推到右侧；两个控件都是定宽，
  * 因此这一排的位置在执行前后完全一致，不会有任何位移。
  *
- * 这里没有状态标签。288px 减去内边距与三个元素后只剩十来像素，
- * 放不下任何有意义的文字；硬塞进去的结果是它一出现就把按钮推走。
- * 执行结果改由下方状态行呈现。
+ * 这里没有状态标签。顶栏预算全都给了三个元素——状态文字放不下，
+ * 硬塞进去的结果是它一出现就把按钮推走。执行结果改由下方状态行呈现。
  */
 .bar {
   display: flex;
@@ -65,52 +68,121 @@ body {
 /* ---------- 状态行 ---------- */
 
 /*
- * 执行结果、进度与错误提示。默认隐藏，有内容时才出现并占一行。
+ * 执行结果、进度与错误提示，右侧带「停止」。平时收起到零高，有话说时滑开
+ * （160ms 高度过渡）：列表是「让开」，不是被推得跳一下。
+ * 不常驻留白——位置是稳了，但平时那片空白比跳一下还难看（试过，弃）。
  *
- * 放在顶栏之下而不是塞进顶栏：这里横向空间充裕，字数不受限，
- * 而且它出现或消失只影响待办区的起始高度，不会推挤任何按钮。
+ * 放在顶栏之下而不是塞进顶栏：这里横向空间充裕，字数不受限。
  */
 .state {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   margin: 0;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--line);
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 16px;
+  border-bottom: 0 solid var(--line);
   background: var(--paper-2);
   font-size: 12px;
+  line-height: 20px;
   color: var(--ink-soft);
+  transition: max-height 0.16s ease-out, padding 0.16s ease-out, border-bottom-width 0.16s ease-out;
+}
+
+/* 有话说时滑开：96 够三整行，长失败名单也不裁 */
+.state:not(.is-blank) {
+  max-height: 96px;
+  padding: 8px 16px;
+  border-bottom-width: 1px;
+}
+
+.state-text {
+  flex: 1;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/*
+ * 「停止」：只在一轮进行时现身（is-running 由 status.ts 挂）。
+ * 点了不再发新的写请求——长动作在下一个安全点中断，正在飞的请求落地即止。
+ */
+.state-stop {
+  display: none;
+  flex: none;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.state.is-running .state-stop {
+  display: inline-flex;
+  align-items: center;
+}
+
+.state-stop:hover { border-color: var(--ink-faint); color: var(--ink); }
+.state-stop:disabled { opacity: 0.5; cursor: default; }
+.state-stop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .state.is-busy { color: var(--accent); }
 .state.is-error { color: var(--warn); }
 
 /*
- * 顶栏里的按钮。给一个固定宽度而不是靠 padding 撑开：
- * 靠内容撑开时，文字一变整排元素就会跟着左右移动。定宽之后这一排的位置是稳的。
- *
- * 宽度按最长的那一个算：「立即执行」四个字，配上左右内边距后留出余量。
- * 所有按钮同宽，顶栏看起来才是一排而不是几个长短不一的东西。
+ * 按钮骨架。三处按钮共用：顶栏的「全部执行」「更多」、行内「执行」、
+ * 未登录提示的「前往登录」。尺寸与填充由各自后面的规则覆盖，
+ * 骨架只写一次——改圆角、悬停节奏时只改这里。
  */
-.act {
-  flex: none;
+.act,
+.todo-run,
+.todo-login-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 68px;
-  height: 26px;
-  padding: 0;
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent);
   font: inherit;
-  font-size: 12px;
   cursor: pointer;
+  text-decoration: none;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.act:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+.act:hover,
+.todo-login-link:hover {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+}
+
 .act:disabled { opacity: 0.6; cursor: default; }
-.act:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.act:focus-visible,
+.todo-run:focus-visible,
+.todo-login-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+ * 顶栏里的按钮。给一个固定宽度而不是靠 padding 撑开：
+ * 靠内容撑开时，文字一变整排元素就会跟着左右移动。定宽之后这一排的位置是稳的。
+ *
+ * 宽度按最长的那一个算：「全部执行」四个字，配上左右内边距后留出余量。
+ * 所有按钮同宽，顶栏看起来才是一排而不是几个长短不一的东西。
+ */
+.act {
+  flex: none;
+  width: 68px;
+  height: 26px;
+  padding: 0;
+  font-size: 12px;
+}
 
 /*
  * 次要按钮。宽度与主按钮一致：一排里混用两种宽度，
@@ -131,74 +203,51 @@ body {
 /* ---------- 待办 ---------- */
 
 .todo {
-  max-height: 440px;
+  max-height: 480px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
 /*
- * 加载态。
- *
- * 弹窗每次打开都要拉一次最新数据，实测约两秒。这段文字在数据到达前
- * 占着待办区，写入第一份内容时由 writeTodo 去掉这个类。
- *
- * 与空状态用同样的留白和字号：两者都是「这里暂时没有条目」的形态，
- * 尺寸一致才不会在数据到达时跳一下。
+ * 待办区的说明文字（加载中、空、失败）与未登录提示：统一留白与字号。
+ * 它们出现在同一个位置、同一种形态，尺寸一致，状态切换时才不会跳一下。
  */
-.todo.is-loading {
+.todo.is-loading,
+.todo-empty,
+.todo-error,
+.todo-login {
   padding: 20px 16px;
-  color: var(--ink-faint);
-  font-size: 12px;
-  line-height: 1.7;
 }
 
-/* 空状态。给出下一步该做什么，而不是只说这里没有东西 */
-.todo-empty {
+.todo.is-loading,
+.todo-empty,
+.todo-error,
+.todo-login-text {
   margin: 0;
-  padding: 20px 16px;
-  color: var(--ink-faint);
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.todo-error {
-  margin: 0;
-  padding: 20px 16px;
-  color: var(--warn);
   font-size: 12px;
   line-height: 1.7;
 }
 
 /*
- * 需要登录。与失败状态分开呈现：
- * 失败是一句解释，这里给一个去处。
+ * 加载态。弹窗每次打开都要拉一次最新数据，实测约两秒。
+ * 这段文字在数据到达前占着待办区，写入第一份内容时由 writeTodo 去掉这个类。
+ * 与空状态同色：两者都是「这里暂时没有条目」的形态；空状态给出下一步，
+ * 而不是只说这里没有东西。
+ */
+.todo.is-loading,
+.todo-empty { color: var(--ink-faint); }
+
+/* 失败。带上原因、用警示色，与「暂无待办」这种确切结论区分开 */
+.todo-error { color: var(--warn); }
+
+/*
+ * 需要登录。与失败状态分开呈现：失败是一句解释，这里给一个去处。
  * 会话 cookie 关浏览器几天就会过期，用户没做错什么，
  * 只是需要重新登录一次，因此措辞与配色都不该带责备感。
  */
-.todo-login {
-  padding: 20px 16px;
-}
+.todo-login-text { margin-bottom: 12px; color: var(--ink-soft); }
 
-.todo-login-text {
-  margin: 0 0 12px;
-  color: var(--ink-soft);
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.todo-login-link {
-  display: inline-block;
-  padding: 8px 16px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: 12px;
-  text-decoration: none;
-}
-
-.todo-login-link:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
-.todo-login-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.todo-login-link { padding: 8px 16px; font-size: 12px; }
 
 .todo-group {
   padding: 12px 0 4px;
@@ -210,7 +259,6 @@ body {
 .todo-course {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 8px;
   margin: 0 0 4px;
   padding: 0 16px;
@@ -219,68 +267,105 @@ body {
   color: var(--ink);
 }
 
-.todo-count { font-weight: 400; font-size: 11px; color: var(--ink-faint); }
+/* 靠右与行内同一套做法：auto 外边距顶过去，不用 space-between */
+.todo-count { margin-left: auto; font-weight: 400; font-size: 11px; color: var(--ink-faint); }
 
-.todo-row {
-  display: block;
-  padding: 8px 16px;
-  color: inherit;
-  text-decoration: none;
+/*
+ * 一条待办。整行点击去平台靠一个垫底的透明长链接（.todo-open 铺满整行）——
+ * 行里那个「执行」按钮才抬得起来；按钮套在链接里点击语义会打架。
+ */
+.todo-item {
+  position: relative;
+  padding: 10px 16px;
+}
+
+/*
+ * 铺满整行的链接：透明、垫底。点行的任何地方都是它；点「执行」按钮时
+ * 按钮在最上层，与它无关。
+ */
+.todo-open {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
 }
 
 /*
  * 悬停。用中性灰而不是主色的浅色变体——浅青在成列表的待办里
  * 一片一片地亮起来会显得脏，中性灰只是把这一行托起来。
- *
- * 只给链接加：过期项不是链接，任何看起来能点的样式都在与它要传达的
- * 「这件事已经结束了」唱反调。
+ * 每一行都是链接，因此每一行都有这个反馈。
  */
-a.todo-row:hover { background: var(--hover); }
-.todo-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-div.todo-row { cursor: default; }
+.todo-item:hover { background: var(--hover); }
+
+/* 链接的焦点环画在整行上 */
+.todo-open:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 /*
- * 过期那一段与待办分开。
+ * 行内「执行」：只做这一条（能替你做的那部分），跟在本行处置句的后面。
+ * 它抬在垫底链接之上（z-index），点它只执行、不跳转；没有它的时候
+ * 整行仍是链接。叫「执行」不叫「完成」：互评一次只评一份。
  *
- * 上边距比普通分组大一些，让「从这里开始是做不了的事」有一个明显的停顿；
- * 标题用弱色，不跟课程名争——它是一段说明，不是一个待办分组。
+ * 平时只有字：主色、无底无框——按钮要是每个都顶着底色，一列下来
+ * 列表就成了按钮堆（实心版、浅底版都试过，弃）。指到才浮出实心
+ * （accent-deep + 白字，与顶栏按钮同一种悬停），反馈只给正在指的那一个。
  */
-.todo-group.is-overdue {
-  margin-top: 6px;
-  padding-top: 13px;
+.todo-run {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  height: 20px;
+  padding: 0 8px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
 }
 
-.todo-group.is-overdue .todo-course { color: var(--ink-faint); }
+.todo-run:hover {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+  color: var(--on-accent);
+}
+
+/* 执行期间全部不可点：后台本来也拒并发，这里只是别让人白点 */
+.todo.is-running .todo-run { opacity: 0.5; pointer-events: none; }
 
 /*
  * 两行结构。上行是「是什么、还剩多久」，下行是「哪一步、具体哪天」。
- * 两行都左右对齐，读的时候左右各扫一列即可；
  * 拆成两行而不是三行，是因为一条待办占三行会让整屏装不下几项。
+ *
+ * 行内不用 space-between：那会把每个间隙都摊开。靠右的元素自己用
+ * margin-left: auto 顶过去（见 .todo-phase / .todo-date），
+ * 其余内容因此紧挨着排——执行按钮跟着处置句，不飘到行中间。
  */
 .todo-line,
 .todo-sub {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 8px;
 }
 
 .todo-sub { margin-top: 1px; }
 
 .todo-name {
-  flex: 1;
+  /* 不撑满：名字多长占多长，剩余空间全让给右列（阶段与时间） */
+  flex: 0 1 auto;
   min-width: 0;
   font-size: 13px;
   color: var(--ink);
   overflow-wrap: anywhere;
 }
 
-.todo-when {
+/* 两个时间格子共用数字排版：等宽数字、不换行；字号与颜色各自定 */
+.todo-when,
+.todo-date {
   flex: none;
-  font-size: 12px;
-  color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.todo-when {
+  font-size: 12px;
+  color: var(--ink-soft);
 }
 
 .todo-when.is-urgent { color: var(--warn); font-weight: 600; }
@@ -288,13 +373,12 @@ div.todo-row { cursor: default; }
 /*
  * 阶段：这份作业走到哪一步了（互评阶段 / 成绩已公布）。
  *
- * 做成方括号式的小标签，与任务名同一行，用弱色不与任务名争注意力——
- * 它是补充说明，不是标题的一部分。「未提交」这类通用说法不显示
- * （渲染那一侧决定），处置那一格已经回答了要不要动手。
+ * 靠到右端、紧挨剩余时间：它是补充说明而不是标题的一部分，左侧整条
+ * 留给任务名；右列（阶段＋时间）在扫视时落点一致。用弱色。
  */
 .todo-phase {
   flex: none;
-  margin-left: 6px;
+  margin-left: auto;
   padding: 2px 6px;
   border: 1px solid var(--line);
   border-radius: 3px;
@@ -316,7 +400,8 @@ div.todo-row { cursor: default; }
  * 而不是三个并列的状态标签，套色块会让它们看起来像三个类别。
  */
 .todo-handling {
-  flex: 1;
+  /* 同理：执行按钮要紧跟在处置句后面 */
+  flex: 0 1 auto;
   min-width: 0;
   font-size: 11px;
   color: var(--ink-soft);
@@ -326,20 +411,13 @@ div.todo-row { cursor: default; }
 .todo-handling.is-overdue { color: var(--warn); }
 
 /*
- * 日期始终靠右。
- *
- * 不用 justify-content: space-between 承担这件事：行内元素数量会变
- * （阶段标签、处置都会条件性出现），space-between 会把剩下的元素推到两边。
- * margin-left: auto 无论前面有没有内容都把它顶到右侧。
+ * 日期始终靠右。不用 space-between：行内元素数量会变（阶段、执行按钮
+ * 都会条件性出现），它会把剩下的元素推到两边；margin-left: auto
+ * 无论前面有没有内容都把它顶到右侧。
  */
 .todo-date {
-  flex: none;
   margin-left: auto;
   font-size: 11px;
   color: var(--ink-faint);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
-/* 隐藏。放最后，确保能覆盖前面的 display */
-.f-dn { display: none !important; }

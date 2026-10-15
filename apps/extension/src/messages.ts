@@ -42,8 +42,10 @@ export { WORK_STATUS } from './adapters/mooc/messages/payload.ts';
 
 /** 外壳自己的命令。 */
 export type ShellRequest =
-  /** 执行一轮。kinds / group 是范围（见 application 的 RunSelection），不给就是全部 */
-  | { type: 'RUN_SCHEDULED_TASKS'; kinds?: string[]; group?: string }
+  /** 执行一轮。kinds / group / ids 是范围（见 application 的 RunSelection），不给就是全部 */
+  | { type: 'RUN_SCHEDULED_TASKS'; kinds?: string[]; group?: string; ids?: string[] }
+  /** 停止正在执行的一轮：做完手上这一项就不再开始下一项 */
+  | { type: 'STOP_RUN' }
   /** 后台此刻在不在跑、上一轮记下的失败 */
   | { type: 'TASK_STATE' }
   /** 运行状态快照（进度与逐项记录） */
@@ -51,6 +53,7 @@ export type ShellRequest =
 
 export interface ShellResponseMap {
   RUN_SCHEDULED_TASKS: RunScheduledTasksResponse;
+  STOP_RUN: { stopped: boolean };
   TASK_STATE: TaskStatus;
   RUN_STATE: RunState;
 }

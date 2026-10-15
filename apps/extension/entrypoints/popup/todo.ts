@@ -8,15 +8,16 @@
  * 三种情况分别呈现，不混为一谈：
  *   失败            显示失败原因
  *   成功但无事可办   显示「暂无待办」——这是确切结论，不是读取不出
- *   成功且有事项     逐条列出，过期项单独一段垫底
+ *   成功且有事项     逐条列出，按课程归拢，过期项垫在所属课程最后
  *
  * 界面只经 src/ui-bridge.ts 取数：getPending / getSettings / WORK_STATUS。
  */
 
-import { getPending, getSettings, WORK_STATUS } from '../../src/ui-bridge';
+import { getPending, getSettings, runNow } from '../../src/ui-bridge';
 import type { PendingEntry } from '../../src/ui-bridge';
 import { formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { todoEl } from './elements.ts';
+import { setRunning, showStatus } from './status.ts';
 
 /** 每类待办对应什么，以及点进去打开哪个页面（href 由平台拼好，这里不拼 URL）。 */
 const KIND_TEXT: Record<PendingEntry['kind'], string> = {
@@ -43,44 +44,58 @@ function handlingText(entry: PendingEntry): string {
     // 互评类带进度：还差几份直接关系到会不会影响成绩
     if (entry.kind === 'evaluate-homework' && entry.evaluateTotal !== null && entry.evaluateDone !== null) {
       const left = entry.evaluateTotal - entry.evaluateDone;
-      return `执行时替你评分，还差 ${left} 份`;
+      return `可以替你评分，还差 ${left} 份`;
     }
-    return '执行时替你完成';
+    return '可以替你完成';
   }
   // 人工项要说明只有用户能做，否则他会以为等着就会被处理
   return '需要你完成';
 }
 
 /**
- * 构造一条待办。两行：
- *   上行  任务名  [阶段]        还剩多久
- *   下行  处置                  具体日期
+ * 构造一条待办。
  *
- * 阶段只在有真阶段时显示（互评阶段、成绩已公布……）；「未提交」是通用说法，
- * 处置那一格已经回答了要不要动手，再挂一个标签只是噪音。
+ * 两行，四格位置固定：
+ *   左上  任务名             右上  阶段、还剩多久
+ *   左下  处置  [执行]       右下  具体日期
+ *
+ * 阶段始终显示（「未提交」也显示）：四格每行都齐，扫视时每条的信息
+ * 落点一致——缺一格会让那一行看起来"少了点什么"。
  *
  * 相对时间与具体日期分列两行，是为了不把一行撑成三行：
  * 相对说法让人一眼判断远近，具体日期用来核对。
+ *
+ * 能替你完成的那部分（handling 为 auto）在处置句尾跟一个小「执行」按钮，
+ * 点它只做这一条（把 entry.itemIds 发给后台；互评与自评合成的一行
+ * 会两条一起做，见 to-messages 的合并说明）。叫「执行」不叫「完成」：
+ * 互评点一次只评一份，说「完成」是吹牛，而「执行」与顶栏「全部执行」
+ * 同一套词——全部 vs 单条。
+ *
+ * 「整行点击去平台」由一个透明的长链接垫底实现（.todo-open 铺满整行），
+ * 而不是把 <a> 套在所有内容外面：第二行里有一个真正的 <button>，
+ * 按钮套在链接里点击语义会打架（点按钮顺带跳转、读屏也读不明白）。
+ * 链接垫底、按钮抬一层，两件事各归各。
  */
 function buildRow(entry: PendingEntry): HTMLElement {
+  const item = document.createElement('div');
+  item.className = 'todo-item';
+  item.title = entry.statusDetail;
+
   /*
-   * 过期项不做成链接：点进去也做不了（平台不接受逾期提交）。
-   * 给一个能点的东西等于邀请用户点进去也无法处理，
-   * 而这一行要传达的正是「这件事已经结束」。
+   * 每一行都能点开去平台，包括已过截止的：平台自己会把关（不接受逾期提交），
+   * 而点进去仍能看清当时要交什么、老师给了什么反馈。
+   * 能不能点是「这件事做不做得成」之外的另一回事，不该跟着它变——
+   * 时灵时不灵的行比多点一次更让人困惑。
    */
-  const row = entry.overdue ? document.createElement('div') : document.createElement('a');
-  row.className = 'todo-row';
+  const open = document.createElement('a');
+  open.className = 'todo-open';
+  open.href = entry.href;
+  open.target = '_blank';
+  open.rel = 'noreferrer';
+  open.setAttribute('aria-label', `打开${KIND_TEXT[entry.kind]}页面`);
+  item.append(open);
 
-  if (row instanceof HTMLAnchorElement) {
-    row.href = entry.href;
-    row.target = '_blank';
-    row.rel = 'noreferrer';
-    row.title = `打开${KIND_TEXT[entry.kind]}页面`;
-  } else {
-    row.title = entry.statusDetail;
-  }
-
-  // 上行：任务名、阶段（可选）、相对时间
+  // 上行：任务名、阶段、相对时间
   const line = document.createElement('span');
   line.className = 'todo-line';
 
@@ -89,12 +104,10 @@ function buildRow(entry: PendingEntry): HTMLElement {
   name.textContent = entry.name;
   line.append(name);
 
-  if (entry.status !== WORK_STATUS.UNSUBMITTED) {
-    const phase = document.createElement('span');
-    phase.className = 'todo-phase';
-    phase.textContent = entry.status;
-    line.append(phase);
-  }
+  const phase = document.createElement('span');
+  phase.className = 'todo-phase';
+  phase.textContent = entry.status;
+  line.append(phase);
 
   const when = document.createElement('span');
   when.className = 'todo-when';
@@ -102,7 +115,7 @@ function buildRow(entry: PendingEntry): HTMLElement {
   when.textContent = `${relativeDay(entry.deadline)} ${formatClock(entry.deadline)}`.trim();
   line.append(when);
 
-  // 下行：处置与具体日期
+  // 下行：处置（后面跟「执行」按钮）与具体日期
   const sub = document.createElement('span');
   sub.className = 'todo-sub';
 
@@ -111,14 +124,34 @@ function buildRow(entry: PendingEntry): HTMLElement {
   if (entry.overdue) handling.classList.add('is-overdue');
   else if (entry.handling === 'auto') handling.classList.add('is-auto');
   handling.textContent = handlingText(entry);
+  sub.append(handling);
+
+  if (entry.handling === 'auto') {
+    const button = document.createElement('button');
+    button.className = 'todo-run';
+    button.type = 'button';
+    button.textContent = '执行';
+    button.title = '只执行这一条，不碰其他';
+    button.addEventListener('click', () => {
+      void runNow(
+        {
+          setStatus: showStatus,
+          setEnabled: (enabled) => setRunning(!enabled),
+          refresh: () => renderTodo(),
+        },
+        { ids: entry.itemIds },
+      );
+    });
+    sub.append(button);
+  }
 
   const date = document.createElement('span');
   date.className = 'todo-date';
   date.textContent = formatDate(entry.deadline);
+  sub.append(date);
 
-  sub.append(handling, date);
-  row.append(line, sub);
-  return row;
+  item.append(line, sub);
+  return item;
 }
 
 /** 一句提示文案的段落元素。 */
@@ -170,20 +203,25 @@ function showLoginPrompt(): void {
   writeTodo([box]);
 }
 
-/** 按课程归拢，课程内保持后台给出的截止时间升序。 */
+/**
+ * 按课程归拢。组内未完的在前、过期的垫后（两段各自保持后台给出的
+ * 截止时间升序）；只有过期项的课程排在最后——它已经没有要做的事了。
+ */
 function groupByCourse(entries: PendingEntry[]): Map<string, PendingEntry[]> {
   const grouped = new Map<string, PendingEntry[]>();
-  for (const entry of entries) {
+  const append = (entry: PendingEntry) => {
     const bucket = grouped.get(entry.courseName);
     if (bucket) bucket.push(entry);
     else grouped.set(entry.courseName, [entry]);
-  }
+  };
+  for (const entry of entries) if (!entry.overdue) append(entry);
+  for (const entry of entries) if (entry.overdue) append(entry);
   return grouped;
 }
 
-function buildGroup(title: string, entries: PendingEntry[], overdue: boolean): HTMLElement {
+function buildGroup(title: string, entries: PendingEntry[]): HTMLElement {
   const group = document.createElement('section');
-  group.className = overdue ? 'todo-group is-overdue' : 'todo-group';
+  group.className = 'todo-group';
 
   const head = document.createElement('p');
   head.className = 'todo-course';
@@ -234,24 +272,18 @@ export async function renderTodo(): Promise<void> {
   }
 
   /*
-   * 过期项单独一段，不参与课程分组。
-   *
-   * 它们已经做不了了，混在待办里会占住第一屏——而用户打开弹窗是要看
-   * 「现在做什么」。分开之后主列表只剩能做的事，过期项放在最后，
-   * 既不挡住要紧的，也没被藏起来（他该知道自己漏了什么）。
-   * 后台已经滤掉三天以上前的过期项（保留天数见设置），因此这一段不会累积。
+   * 过期项不单独成段：属于哪门课就垫在那门课的最后。
+   * 「这门课还剩什么、漏了什么」在一处看完，不用拿课程名在两个列表间对。
+   * 后台已经滤掉三天以上前的过期项（保留天数见设置），因此不会累积。
    */
-  const live = outcome.value.entries.filter((entry) => !entry.overdue);
-  const overdue = outcome.value.entries.filter((entry) => entry.overdue);
-
-  if (live.length === 0 && overdue.length === 0) {
+  const entries = outcome.value.entries;
+  if (entries.length === 0) {
     writeTodo([note('todo-empty', '暂无待办。')]);
     return;
   }
 
   writeTodo([]);
-  for (const [courseName, list] of groupByCourse(live)) {
-    todoEl.append(buildGroup(courseName, list, false));
+  for (const [courseName, list] of groupByCourse(entries)) {
+    todoEl.append(buildGroup(courseName, list));
   }
-  if (overdue.length > 0) todoEl.append(buildGroup('已过截止', overdue, true));
 }

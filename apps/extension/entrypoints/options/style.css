@@ -1,7 +1,8 @@
 @import '../../src/ui/tokens.css';
 
 /*
- * 设置页。单列，居中，一页五块。
+ * 设置页。单列，居中：页头一行概览、四张卡（账号与课程 / 课件 / 互评评语 /
+ * AI 连接）、页脚一行。
  *
  * 单列的理由：每块回答一个问题，从上往下就是使用顺序；
  * 分区导航是留给「上千像素长、七八个分区」的页面的，这里用不上。
@@ -61,17 +62,19 @@ body {
   font-weight: 700;
 }
 
-.card h3 {
-  margin: 20px 0 4px;
-  font-size: 13px;
-  font-weight: 700;
+/*
+ * 卡片标题行：标题与它的动作用一行，按钮贴最右——
+ * 按钮不单独占一行，动作与它作用的对象就在一起。
+ */
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
 }
 
-.overview {
-  margin: 0;
-  font-size: 13px;
-  color: var(--ink-soft);
-}
+.card-head h2 { margin: 0; }
 
 .session {
   margin: 0 0 4px;
@@ -85,18 +88,29 @@ body {
   color: var(--ink-faint);
 }
 
+/* AI 连接测试的失败提示用它（见 params.ts） */
 .note.is-error { color: var(--warn); }
-.note.is-busy { color: var(--accent); }
 
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+/* 表单之后的结果一行；没结果时不占位置 */
+#ai-status {
+  display: block;
   margin-top: 12px;
-  flex-wrap: wrap;
 }
 
+#ai-status:empty { display: none; }
+
 /* ---------- 课程列表 ---------- */
+
+/*
+ * 两个列表都可能很长（课程多时）：限高到五六行，内部滚动。
+ * 不限的话，一张卡就能把后面的卡顶出好几屏——而设置页每块都有人要看。
+ */
+#course-list,
+#courseware-list {
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 
 /*
  * 行与行之间用虚线：同一话题里的下一项（见 tokens.css 的约定）。
@@ -176,6 +190,21 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * 「正在执行」小字：跑这门课时显示在行里，用主色表示活动。
+ * 它让位给课名（超长省略、至多占行的 45%），因为课名才是这一行的身份。
+ */
+.cw-current {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--accent);
+}
+
 /* ---------- 表单 ---------- */
 
 .field {
@@ -212,7 +241,6 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
   font-size: 13px;
   cursor: pointer;
 }
@@ -257,6 +285,14 @@ body {
   background: transparent;
   border-color: var(--ink-faint);
   color: var(--ink);
+}
+
+/* ---------- 页脚 ---------- */
+
+.foot {
+  margin-top: 24px;
+  font-size: 12px;
+  color: var(--ink-faint);
 }
 
 /* ---------- 提示条 ---------- */

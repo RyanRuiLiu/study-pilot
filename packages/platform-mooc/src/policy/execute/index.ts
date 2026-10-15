@@ -18,6 +18,7 @@
  * 题库缓存见 `bank.ts`，结果形状见 `types.ts`。
  */
 
+import { NEVER_STOPPED, type RunControl } from '@study-pilot/application';
 import type { MoocClient } from '../../client.ts';
 import type { CoursewareContext } from '../../courseware/index.ts';
 import type { AutoAction } from '../plan/index.ts';
@@ -47,21 +48,24 @@ export async function executeActions(
    * 因此这里不必再判空——真出现时行为会如实返回失败。
    */
   courseware: CoursewareContext = {},
+  /** 停止柄：长动作在每个安全点问它一句（见 application 的 RunControl） */
+  control: RunControl = NEVER_STOPPED,
+  /** 题库缓存：整轮共享一份才有意义；默认现建（单测等短生命周期调用） */
+  bank: BankCache = new BankCache(),
 ): Promise<ExecResult[]> {
-  const bank = new BankCache();
   const results: ExecResult[] = [];
 
   for (const action of actions) {
     let result: ExecResult;
     try {
       if (action.kind === 'courseware') {
-        result = await runCourseware(client, action, courseware);
+        result = await runCourseware(client, action, courseware, control);
       } else if (action.kind === 'quiz') {
-        result = await runQuiz(client, action, bank);
+        result = await runQuiz(client, action, bank, control);
       } else if (action.kind === 'self') {
-        result = await runSelf(client, action, evaluatorId, comment);
+        result = await runSelf(client, action, evaluatorId, comment, control);
       } else {
-        result = await runReview(client, action, evaluatorId, comment);
+        result = await runReview(client, action, evaluatorId, comment, control);
       }
     } catch (error) {
       const target =

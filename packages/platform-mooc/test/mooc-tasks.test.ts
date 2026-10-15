@@ -10,7 +10,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HostCapabilities } from '@study-pilot/application';
+import { NEVER_STOPPED, type HostCapabilities } from '@study-pilot/application';
 
 /* 替身按被测代码 import 的模块分：tasks.ts 从 ./session、./plan、./execute 取用，
    冒充包的门拦不住它（包内部的相对 import 不经过门）。 */
@@ -96,7 +96,7 @@ async function runRound(auto: AutoAction[]): Promise<{ items: PlanItem[] }> {
   const { items } = await tasks.plan(NOW);
 
   for (const item of items) {
-    await tasks.run(item, async () => {});
+    await tasks.run(item, async () => {}, NEVER_STOPPED);
   }
   return { items };
 }
@@ -109,17 +109,74 @@ beforeEach(() => {
   );
 });
 
+describe('按范围收窄的计划', () => {
+  it('只做某门课时：只读那门课的结构，课程列表刷新也跳过', async () => {
+    const read: string[][] = [];
+    const refresh = vi.fn(async () => ({ ok: true as const, courses: [], byType: null }));
+    vi.mocked(derivePlan).mockReturnValue({ auto: [], manual: [] });
+    const base = deps();
+    const tasks = createMoocTasks({
+      ...base,
+      refreshCourses: refresh,
+      selectedCourses: () =>
+        [
+          { termId: 7, courseId: 1, name: '示例课程戊' },
+          { termId: 8, courseId: 2, name: '示例课程丁' },
+        ] as never,
+      loadSnapshot: async (courses) => {
+        read.push(courses.map((course) => course.name));
+        return {} as never;
+      },
+    });
+
+    await tasks.plan(NOW, { group: '示例课程丁' });
+
+    expect(read).toEqual([['示例课程丁']]);
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('范围里的课不在勾选列表：报没有课程，不硬做', async () => {
+    vi.mocked(derivePlan).mockReturnValue({ auto: [], manual: [] });
+    const base = deps();
+    const tasks = createMoocTasks({
+      ...base,
+      selectedCourses: () => [{ termId: 7, courseId: 1, name: '示例课程戊' }] as never,
+    });
+
+    expect(await tasks.plan(NOW, { group: '示例课程丁' })).toEqual({ items: [], blocked: 'no-course' });
+  });
+});
+
 describe('自动项的 id', () => {
   it('每个工作项的 id 都带上自己的 tid', async () => {
     const { items } = await runRound([quizAction(101, '第一单元测验'), quizAction(102, '第二单元测验')]);
 
-    expect(items.map((item) => item.id)).toEqual(['work-101', 'work-102']);
+    expect(items.map((item) => item.id)).toEqual(['work-101-quiz', 'work-102-quiz']);
   });
 
   it('课件与工作项的 id 取自各自的字段，互不混用', async () => {
     const { items } = await runRound([quizAction(101, '第一单元测验'), coursewareAction(9, '1.1 课程介绍')]);
 
-    expect(items.map((item) => item.id)).toEqual(['work-101', 'courseware-9']);
+    expect(items.map((item) => item.id)).toEqual(['work-101-quiz', 'courseware-9']);
+  });
+
+  it('同一份作业的互评与自评是两条不同的 id——按条目执行时各点各的', async () => {
+    const review: AutoAction = {
+      kind: 'review',
+      course: { termId: 7 } as never,
+      work: { tid: 500, name: '第 5 章 单元作业' } as never,
+      remaining: 2,
+    };
+    const self: AutoAction = {
+      kind: 'self',
+      course: { termId: 7 } as never,
+      work: { tid: 500, name: '第 5 章 单元作业' } as never,
+      remaining: 0,
+    };
+
+    const { items } = await runRound([review, self]);
+
+    expect(items.map((item) => item.id)).toEqual(['work-500-review', 'work-500-self']);
   });
 
   it('一轮里所有自动项的 id 两两不同', async () => {
