@@ -30,7 +30,7 @@
       -->
       <div class="tabs" id="tabs" role="tablist" aria-label="设置分区">
         <button class="tab" role="tab" id="tab-general" data-tab="general" aria-controls="panel-general" aria-selected="false" tabindex="-1" type="button">通用</button>
-        <button class="tab" role="tab" id="tab-mooc" data-tab="mooc" aria-controls="panel-mooc" aria-selected="false" tabindex="-1" type="button">慕课<span class="tab-count" id="tab-count-mooc" hidden></span></button>
+        <button class="tab" role="tab" id="tab-mooc" data-tab="mooc" aria-controls="panel-mooc" aria-selected="false" tabindex="-1" type="button">慕课</button>
         <button class="tab" role="tab" id="tab-zhihuishu" data-tab="zhihuishu" aria-controls="panel-zhihuishu" aria-selected="false" tabindex="-1" type="button">智慧树</button>
       </div>
 
@@ -74,22 +74,12 @@
             <p class="head-status" id="session-text"></p>
             <button id="refresh-courses" class="btn ghost" type="button">读取课程列表</button>
           </div>
-          <!-- 等待平台读取：骨架照抄勾选行的列（勾选位/课名/右列元信息），落定不跳 -->
+          <!-- 等待平台读取：块状骨架（三块等宽），落定时整体换内容 -->
           <div id="course-list">
-            <div class="course-row" aria-hidden="true">
-              <span class="skeleton is-box"></span>
-              <span class="skeleton is-line" style="width: 190px"></span>
-              <span class="skeleton is-meta" style="width: 150px"></span>
-            </div>
-            <div class="course-row" aria-hidden="true">
-              <span class="skeleton is-box"></span>
-              <span class="skeleton is-line" style="width: 220px"></span>
-              <span class="skeleton is-meta" style="width: 150px"></span>
-            </div>
-            <div class="course-row" aria-hidden="true">
-              <span class="skeleton is-box"></span>
-              <span class="skeleton is-line" style="width: 170px"></span>
-              <span class="skeleton is-meta" style="width: 150px"></span>
+            <div class="skeleton-stack" aria-hidden="true">
+              <span class="skeleton skeleton-block"></span>
+              <span class="skeleton skeleton-block"></span>
+              <span class="skeleton skeleton-block"></span>
             </div>
           </div>
         </section>
@@ -101,22 +91,12 @@
         -->
         <section class="panel">
           <h2 class="panel-title">课件</h2>
-          <!-- 等待平台读取：骨架照抄数据行的列（课名/进度 96px/按钮位 76×26） -->
+          <!-- 等待平台读取：块状骨架（三块等宽），落定时整体换内容 -->
           <div id="courseware-list">
-            <div class="cw-row" aria-hidden="true">
-              <span class="skeleton is-line" style="width: 170px"></span>
-              <span class="skeleton is-meta" style="width: 80px; justify-self: end"></span>
-              <span class="skeleton is-btn" style="width: 76px"></span>
-            </div>
-            <div class="cw-row" aria-hidden="true">
-              <span class="skeleton is-line" style="width: 200px"></span>
-              <span class="skeleton is-meta" style="width: 80px; justify-self: end"></span>
-              <span class="skeleton is-btn" style="width: 76px"></span>
-            </div>
-            <div class="cw-row" aria-hidden="true">
-              <span class="skeleton is-line" style="width: 150px"></span>
-              <span class="skeleton is-meta" style="width: 80px; justify-self: end"></span>
-              <span class="skeleton is-btn" style="width: 76px"></span>
+            <div class="skeleton-stack" aria-hidden="true">
+              <span class="skeleton skeleton-block"></span>
+              <span class="skeleton skeleton-block"></span>
+              <span class="skeleton skeleton-block"></span>
             </div>
           </div>
         </section>

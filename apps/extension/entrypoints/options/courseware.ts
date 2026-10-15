@@ -171,7 +171,7 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
   }
 
   const button = document.createElement('button');
-  button.className = 'btn quiet';
+  button.className = 'btn ghost';
   button.type = 'button';
   button.textContent = '快速完成';
   if (entry.pending === 0) {

@@ -78,9 +78,9 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* 弹窗里的 tab 条通栏（设置页里由页面样式给外边距） */
+/* 弹窗里的 tab 条通栏：左右 16，上与顶栏留 12（文字不贴着顶栏的下边线） */
 .pop .tabs {
-  padding: 0 var(--space-16);
+  padding: var(--space-12) var(--space-16) 0;
 }
 
 .tab {
@@ -112,13 +112,6 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: var(--radius-xs) var(--radius-xs) 0 0;
-}
-
-/* 数量徽标：本次打开已加载的平台才有；0 隐藏（见各类渲染代码） */
-.tab-count {
-  font-size: var(--text-xs);
-  color: var(--ink-faint);
-  font-variant-numeric: tabular-nums;
 }
 
 /* 占位（未接入的平台）：空态形态的一句话——不是骨架、不是错误 */
@@ -386,11 +379,6 @@
   pointer-events: none;
 }
 
-/* 加载态：骨架行不响应悬停 */
-.todo.is-loading .todo-item {
-  pointer-events: none;
-}
-
 /* ---------- 待办组 ---------- */
 
 .todo-group {
@@ -453,34 +441,43 @@
 
 /* ---------- 骨架 ---------- */
 
-/* 形状：高度＝它将替换的那格（现成标准：Bootstrap placeholder 的 min-height:1em，
-   占位与目标同高，落定不跳）。宽度在标记里给——每条多长是内容的事 */
+/*
+ * 等待＝块状骨架：一个列表三块圆角矩形，高按该列表的行节奏给，
+ * 不逐列镜像、不画细条（细条看着像一排占位线，噪音大；Ryan 拍板换大块）。
+ * 同一区域内三块等宽（100%），不要有长有短（Ryan 拍板）——
+ * 长短不齐看着像"读出来的东西残缺"，等宽读作"整块内容在等"。
+ * 形状：
+ *   .skeleton-block           高 36px——设置页的两种行
+ *   .skeleton-block.is-tall   高 48px——弹窗的两行待办条
+ * 块间距 8px，与行的节奏一致。
+ * 卡头状态行的那条小骨架（.head-status.is-loading）是单行文字位，保持守位。
+ */
 .skeleton {
   border-radius: var(--radius-full);
   background: var(--skeleton);
   animation: sp-skeleton-pulse 1.2s ease-in-out infinite;
 }
 
-.skeleton.is-box {
-  width: 16px;
-  height: 16px;
-  border-radius: var(--radius-xs);
+.skeleton-block {
+  border-radius: var(--radius-sm);
+  height: 36px;
 }
 
-.skeleton.is-line {
-  height: 13px;
+.skeleton-block.is-tall {
+  height: 48px;
 }
 
-.skeleton.is-meta {
-  height: 12px;
+/* 一摞骨架块：列向排、间距 8（与列表的行距节奏一致） */
+.skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-4) 0;
 }
 
-.skeleton.is-badge {
-  height: 18px;
-}
-
-.skeleton.is-btn {
-  height: 26px;
+/* 弹窗里的骨架摞：与待办条同一条左右内边距 */
+.todo .skeleton-stack {
+  padding: var(--space-12) var(--space-16);
 }
 
 @keyframes sp-skeleton-pulse {

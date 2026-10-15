@@ -162,14 +162,6 @@ function note(className: string, text: string): HTMLElement {
   return element;
 }
 
-/** 待办条数写在慕课 tab 上；0 隐藏。与列表同源，不为它多读一次。 */
-function setTabCount(count: number): void {
-  const badge = document.getElementById('tab-count-mooc');
-  if (badge === null) return;
-  badge.textContent = count === 0 ? '' : String(count);
-  badge.hidden = count === 0;
-}
-
 /**
  * 覆盖待办区的内容。
  *
@@ -285,7 +277,6 @@ export async function renderTodo(): Promise<void> {
    * 后台已经滤掉三天以上前的过期项（保留天数见设置），因此不会累积。
    */
   const entries = outcome.value.entries;
-  setTabCount(entries.length);
   if (entries.length === 0) {
     writeTodo([note('todo-empty', '暂无待办。')]);
     return;
