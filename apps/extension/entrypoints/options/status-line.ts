@@ -18,6 +18,19 @@
 import { getCourseware, getSession, getSettings } from '../../src/ui-bridge';
 import type { CoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
 
+/**
+ * 卡头状态行立刻进入等待（骨架守位）。
+ * 两处调用：本行自己的重读（renderStatusLine 内部），以及
+ * 「读取课程列表」点击那一刻——那是整块慕课数据的刷新入口，
+ * 三块区域要同一刻进入等待，它不能等到重读发起才亮骨架。
+ */
+export function markStatusLineLoading(): void {
+  const el = document.getElementById('session-text');
+  if (el === null) return;
+  el.textContent = '';
+  el.classList.add('is-loading');
+}
+
 export async function renderStatusLine(
   coursewareRead?: Promise<QueryOutcome<CoursewareSummary>>,
 ): Promise<void> {
@@ -46,12 +59,9 @@ export async function renderStatusLine(
     return;
   }
 
-  /*
-   * 要等平台读取了：先在最终位置立起骨架（等的是同一份数，与课件卡
-   * 同一种等待语言），落定后同一刻换成文字——内容不从虚无里冒出来。
-   */
-  el.textContent = '';
-  el.classList.add('is-loading');
+  // 要等平台读取了：先在最终位置立起骨架（等的是同一份数，与课件卡
+  // 同一种等待语言），落定后同一刻换成文字——内容不从虚无里冒出来。
+  markStatusLineLoading();
 
   const parts = ['已登录', `${enabled} 门课程参与`];
   const courseware = await (coursewareRead ?? getCourseware());
