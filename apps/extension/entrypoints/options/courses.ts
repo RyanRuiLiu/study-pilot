@@ -114,19 +114,28 @@ export async function renderCourses(): Promise<void> {
   listEl.append(...rows);
 }
 
-/** 「读取课程列表」按钮：去平台拉一次，写回配置后重画。 */
+/**
+ * 「读取课程列表」按钮：去平台拉一次，写回配置后重画。
+ * 行进跟随：按钮禁用 + 内容区一行说明（与课件卡的操作同一种语言）；
+ * 完成或失败后重画列表，说明自然退场。
+ */
 export function initCourseActions(): void {
   const button = document.getElementById('refresh-courses');
   button?.addEventListener('click', () => {
     if (button instanceof HTMLButtonElement) button.disabled = true;
+    const listEl = document.getElementById('course-list');
+    const running = note('正在读取课程列表…');
+    if (listEl !== null) listEl.prepend(running);
     void refreshCourses()
       .then(async (result) => {
         if (result.ok) toast(`已读取 ${result.courses.length} 门课程`);
         else toast(`读取失败：${result.message ?? result.reason}`);
         await renderCourses();
       })
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
         toast(`读取失败：${error instanceof Error ? error.message : String(error)}`);
+        // 让行进说明退场，列表回到现状——不然它会一直挂着「正在读取」
+        await renderCourses();
       })
       .finally(() => {
         if (button instanceof HTMLButtonElement) button.disabled = false;

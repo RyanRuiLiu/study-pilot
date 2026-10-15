@@ -3,10 +3,10 @@
  *
  *   账号与课程   已登录 · 5 门课程参与 · 待交 18 项 · 课件剩 985 项   [读取课程列表]
  *
- * 只负责**加载完成后的状态**：读取期间与读取失败时卡头保持空白——
- * 「正在读取…」这份状态由内容区的占位说明表达（同一句话不在两处各写一遍）；
- * 未登录的指引也放内容区（见 courses.ts），因为那是一句要读进去的话，
- * 不是一行状态。
+ * 只负责**加载完成后的状态**：读取期间卡头立一条骨架占位（与课件卡同一种
+ * 等待语言，不写字）；读取失败或未登录时卡头保持空白——「正在读取…」那句
+ * 说明只在内容区出现一次；未登录的指引也放内容区（见 courses.ts），
+ * 因为那是一句要读进去的话，不是一行状态。
  *
  * 数字来自与课件区共用的同一条平台读取（courseware 响应），不另发消息；
  * 数字读不到时头部只留本地事实（已登录 · N 门参与），失败细节由课件卡自己报。
@@ -46,8 +46,14 @@ export async function renderStatusLine(
     return;
   }
 
-  const parts = ['已登录', `${enabled} 门课程参与`];
+  /*
+   * 要等平台读取了：先在最终位置立起骨架（等的是同一份数，与课件卡
+   * 同一种等待语言），落定后同一刻换成文字——内容不从虚无里冒出来。
+   */
+  el.textContent = '';
+  el.classList.add('is-loading');
 
+  const parts = ['已登录', `${enabled} 门课程参与`];
   const courseware = await (coursewareRead ?? getCourseware());
   if (courseware.status === 'ok') {
     const count = courseware.value.pending.auto + courseware.value.pending.manual;
@@ -56,5 +62,6 @@ export async function renderStatusLine(
     parts.push(left === 0 ? '课件已清' : `课件剩 ${left} 项`);
   }
 
+  el.classList.remove('is-loading');
   el.textContent = parts.join(' · ');
 }

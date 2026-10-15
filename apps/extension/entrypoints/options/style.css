@@ -264,6 +264,59 @@ body {
   cursor: pointer;
 }
 
+/* ---------- 加载占位（骨架） ---------- */
+
+/*
+ * 等内容的区域用骨架占位：从第一帧起就在最终位置，读取落定后换成内容——
+ * 内容不再「从虚无里突然冒出来」。这是行业标准做法（Material 的 skeleton），
+ * 动效遵循 prefers-reduced-motion。
+ */
+.skeleton {
+  border-radius: var(--radius-xs);
+  background: var(--line);
+  animation: sp-skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes sp-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .session.is-loading::after {
+    animation: none;
+  }
+}
+
+/* 课件列表的占位行：与真实行同高，宽度由使用处的行内样式给 */
+.skeleton-row {
+  height: 14px;
+  margin: var(--space-12) 0;
+}
+
+.skeleton-row:first-child { margin-top: var(--space-4); }
+
+/*
+ * 卡头状态行的等待占位：一条短灰条，不写「正在读取」——
+ * 那句话只在内容区写一份（见 status-line.ts）。
+ */
+.session.is-loading::after {
+  content: '';
+  display: inline-block;
+  width: 150px;
+  height: 10px;
+  vertical-align: middle;
+  border-radius: var(--radius-xs);
+  background: var(--line);
+  animation: sp-skeleton-pulse 1.2s ease-in-out infinite;
+}
+
 /* ---------- 按钮 ---------- */
 
 /*
