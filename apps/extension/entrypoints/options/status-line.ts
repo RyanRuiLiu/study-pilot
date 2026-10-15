@@ -1,11 +1,15 @@
 /*
- * 账号与课程卡头里的状态行（标题右侧，与读取按钮同一行）：说清「现在是什么状态」。
+ * 账号与课程卡头里的状态行（标题右侧，与读取按钮同一行）。
  *
  *   账号与课程   已登录 · 5 门课程参与 · 待交 18 项 · 课件剩 985 项   [读取课程列表]
  *
- * 登录态与课程数来自本地（会话 cookie 与设置），待交与课件来自同一条平台
- * 读取——与课件区共用同一份 courseware 响应，不另发消息。未登录时这行换成
- * 一句行动指引：它就长在「账号与课程」卡里，指的就是这张卡的事。
+ * 只负责**加载完成后的状态**：读取期间与读取失败时卡头保持空白——
+ * 「正在读取…」这份状态由内容区的占位说明表达（同一句话不在两处各写一遍）；
+ * 未登录的指引也放内容区（见 courses.ts），因为那是一句要读进去的话，
+ * 不是一行状态。
+ *
+ * 数字来自与课件区共用的同一条平台读取（courseware 响应），不另发消息；
+ * 数字读不到时头部只留本地事实（已登录 · N 门参与），失败细节由课件卡自己报。
  *
  * 将来加第二个平台时，这一行就是各平台分区自己的头部；待交数到那时再
  * 考虑上移到平台切换 tab 的徽标（GitHub 同款做法），现在不做。
@@ -26,28 +30,30 @@ export async function renderStatusLine(
     const [session, settings] = await Promise.all([getSession(), getSettings()]);
     loggedIn = session.loggedIn;
     enabled = settings.mooc.courses.filter((course) => course.enabled).length;
-  } catch (error) {
-    el.textContent = error instanceof Error ? error.message : '读取失败';
+  } catch {
+    el.textContent = '';
     return;
   }
 
+  // 未登录：卡头空白，指引在内容区
   if (!loggedIn) {
-    el.textContent = '未登录——先在浏览器里登录慕课平台，再回来读取课程列表。';
+    el.textContent = '';
     return;
   }
 
-  const parts = ['已登录', enabled === 0 ? '未选择课程' : `${enabled} 门课程参与`];
+  if (enabled === 0) {
+    el.textContent = '已登录 · 未选择课程';
+    return;
+  }
 
-  if (enabled > 0) {
-    const courseware = await (coursewareRead ?? getCourseware());
-    if (courseware.status === 'ok') {
-      const count = courseware.value.pending.auto + courseware.value.pending.manual;
-      parts.push(count === 0 ? '暂无待交' : `待交 ${count} 项`);
-      const left = courseware.value.courses.reduce((sum, entry) => sum + entry.pending, 0);
-      parts.push(left === 0 ? '课件已清' : `课件剩 ${left} 项`);
-    } else {
-      parts.push('待交与课件读取失败');
-    }
+  const parts = ['已登录', `${enabled} 门课程参与`];
+
+  const courseware = await (coursewareRead ?? getCourseware());
+  if (courseware.status === 'ok') {
+    const count = courseware.value.pending.auto + courseware.value.pending.manual;
+    parts.push(count === 0 ? '暂无待交' : `待交 ${count} 项`);
+    const left = courseware.value.courses.reduce((sum, entry) => sum + entry.pending, 0);
+    parts.push(left === 0 ? '课件已清' : `课件剩 ${left} 项`);
   }
 
   el.textContent = parts.join(' · ');

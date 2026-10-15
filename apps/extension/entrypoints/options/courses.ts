@@ -88,7 +88,7 @@ export async function renderCourses(): Promise<void> {
     listEl.replaceChildren(note(error instanceof Error ? error.message : String(error)));
     return;
   }
-  const [, courses, settings] = reads;
+  const [session, courses, settings] = reads;
 
   // 列表以配置为准（哪门课参与、带定位字段），平台读到的新列表在「读取」时并进来
   const byTerm = new Map(settings.mooc.courses.map((course) => [course.termId, course]));
@@ -97,7 +97,16 @@ export async function renderCourses(): Promise<void> {
     .filter((course): course is SelectedCourse => course !== undefined)
     .map(buildRow);
 
+  /*
+   * 状态信息分两处：卡头右侧只放加载完成后的状态（见 status-line.ts），
+   * 其余一切（未登录指引、读不到、空列表）都在这块内容区里说。
+   */
   listEl.replaceChildren();
+  if (!session.loggedIn) {
+    listEl.append(note('未登录——先在浏览器里登录慕课平台，再回来读取课程列表。'));
+    if (rows.length > 0) listEl.append(...rows);
+    return;
+  }
   if (rows.length === 0) {
     listEl.append(note('还没有课程。点「读取课程列表」从平台读取，读回来之后勾选要参与的。'));
     return;
