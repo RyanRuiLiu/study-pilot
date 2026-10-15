@@ -47,6 +47,19 @@ function plain(html: string): string {
 const BARE_LABEL = /^[\s\d、.．:：;；,，章节课时讨论题思考练习第个（）()【】\-—]+$/;
 
 /**
+ * 讨论回复的字数上限。
+ *
+ * 平台**没有下发**这个值（2026-10-15 查证）：学习页回复编辑器不设任何长度规则
+ * （`RichEditItem` 给编辑器的配置只有 value/focus/height，提交前只查非空）；
+ * 帖子对象（`getLessonUnitLearnVo`）、论坛配置（`getMocForumDto`）、回复列表与
+ * 提交协议里都没有上限字段；真机页面也无字数提示（抓包存于 .probe/discuss-1320972801
+ * 与 .probe/forum-panel-1248457514）。因此 500 是我们的产品参数（借平台「课程评价」
+ * 的同值上限）。AI 提示词与这里校验**共用这一个数**：超限由提示词事前规避，
+ * 这里只做发布前的最后一道闸（见 apps/extension/src/ai/tasks/discuss-reply.ts）。
+ */
+export const DISCUSS_REPLY_MAX_CHARS = 500;
+
+/**
  * 从讨论帖取出题目正文。取不到返回 `null`（调用方据此失败）。
  */
 function discussionQuestion(post: UnitPost): string | null {
@@ -63,7 +76,7 @@ function sanitize(generated: string): string | null {
     .replace(/https?:\/\/\S+/g, ' ') // 链接：可能是模型编的
     .replace(/\s+/g, ' ')
     .trim();
-  if (text.length < 2 || text.length > 200) return null;
+  if (text.length < 2 || text.length > DISCUSS_REPLY_MAX_CHARS) return null;
   return text;
 }
 
@@ -155,7 +168,7 @@ export const discussBehavior: UnitBehavior = {
     }
     const text = sanitize(generated.text);
     if (!text) {
-      return err(apiError(-1, 'AI 生成的讨论回复不合规（为空、过长或含链接）'));
+      return err(apiError(-1, `AI 生成的讨论回复不合规（为空、超过 ${DISCUSS_REPLY_MAX_CHARS} 字或含链接）`));
     }
 
     // 停止键：AI 生成期间按的停止，在这一步生效——不再写帖子

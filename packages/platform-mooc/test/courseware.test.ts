@@ -16,6 +16,7 @@ import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '../src/client.ts';
 import {
   BEHAVIORS,
+  DISCUSS_REPLY_MAX_CHARS,
   UNIT_TYPE,
   completeUnit,
   getCourseStructure,
@@ -322,7 +323,8 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
   it('生成失败或不合规时返回失败：不留言、也不报完成', async () => {
     const variants = [
       { ok: false as const, reason: '超时' },
-      { ok: true as const, text: '好' + '很'.repeat(300) },
+      // 超过产品上限（DISCUSS_REPLY_MAX_CHARS = 500）
+      { ok: true as const, text: '好' + '很'.repeat(500) },
       { ok: true as const, text: '   ' },
     ];
 
@@ -356,6 +358,32 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
     );
     expect(body).toContain('看这里');
     expect(body).not.toContain('example.com');
+  });
+
+  it('长度按产品上限放行/拒绝（与提示词共用一个常量，不写死数字）', async () => {
+    const question = 's0.title="3.4 讨论题";s0.content="<p>如何理解直流通路和交流通路的概念？</p>";';
+
+    // 上限以内（含边界）：照发
+    const withinLimit = '在'.repeat(DISCUSS_REPLY_MAX_CHARS - 1) + '。';
+    {
+      const { client, dwrCalls } = clientStub({ getLessonUnitLearnVo: question });
+      const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.DISCUSS }), {
+        generateText: async () => ({ ok: true, text: withinLimit }),
+      });
+      expect(result.ok).toBe(true);
+      expect(dwrCalls('addReply')).toHaveLength(1);
+    }
+
+    // 超出一个字：判失败，且不留言、不报完成
+    {
+      const { client, dwrCalls, rpcCalls } = clientStub({ getLessonUnitLearnVo: question });
+      const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.DISCUSS }), {
+        generateText: async () => ({ ok: true, text: '在'.repeat(DISCUSS_REPLY_MAX_CHARS + 1) }),
+      });
+      expect(result.ok).toBe(false);
+      expect(dwrCalls('addReply')).toHaveLength(0);
+      expect(rpcCalls('saveMocContentLearn')).toHaveLength(0);
+    }
   });
 });
 

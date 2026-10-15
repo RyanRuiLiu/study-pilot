@@ -72,8 +72,8 @@ export function isCompletable(
  * 没有登记的类型的单元返回 `skipped`，不发任何请求——平台对这种类型怎么记账
  * 没有实测过，宁可不做也不猜。
  *
- * `context` 里可以注入文本生成器（AI）；不注入时各行为用固定文案，
- * 因此「没装 AI」不会影响课件完成。
+ * `context` 里可以注入文本生成器（AI）。视频/文档/测验等行为不依赖它，
+ * 讨论单元没有它则不进计划（见 isCompletable）——不会在缺 AI 时留下一半的记录。
  */
 export async function completeUnit(
   client: MoocClient,
@@ -94,3 +94,9 @@ export type {
   TextGenerator,
   UnitBehavior,
 } from './behavior.ts';
+
+/**
+ * 讨论回复的字数上限。AI 提示词与发布前校验共用这一个数——
+ * 出口在这里，因为它是「讨论行为」的契约，不是载体自己的事。
+ */
+export { DISCUSS_REPLY_MAX_CHARS } from './discuss.ts';
