@@ -92,6 +92,12 @@ export function setRunning(running: boolean): void {
   if (running) {
     stopping = false; // 新一轮：上一轮留下的停止态不该算到它头上
     if (stopBtn) stopBtn.disabled = false;
+    /*
+     * 本弹窗发起的轮次也要启动跟随——不启动的话，进度推送被
+     * 「只在跟随期间改写」挡着，状态行会停在「正在执行」四个字上不动
+     * （Ryan 抓到：点执行看不见执行的内容；课件那边有明细，这里没有）。
+     */
+    ensureFollowing();
   }
   localRun = running;
   if (!running) stopFollowing();
@@ -106,10 +112,28 @@ export function setFollowIdleHandler(handler: () => void): void {
 export function watchRunState(): void {
   subscribeRunState((state) => {
     latest = state;
-    if (state.platforms.some((platform) => platform.state === 'running')) {
+    const running = state.platforms.some((platform) => platform.state === 'running');
+    if (running) {
       lastFinished = state.platforms.reduce((sum, platform) => sum + platform.finished, 0);
+
+      /*
+       * 一轮不论在哪里发起（弹窗/设置页），只要弹窗开着就如实跟随：
+       * 状态行立刻现身、进度实时、停止够得着——别的页面点「执行」后
+       * 切回弹窗，看到的应该就是它正在做的那件事，而不是空白。
+       */
+      stateLine?.classList.add('is-running');
+      if (!localRun) {
+        // 别处发起：行内「执行」一并禁掉（本弹窗自己点的那轮归 setRunning 管）
+        todoEl.classList.add('is-running');
+        runningNow = true;
+        applyRunEnabled();
+      }
+      ensureFollowing();
+      setText(stateEl, followText());
+      return;
     }
-    // 只在跟随（正在跑）期间改写；其他时刻由 renderState 决定状态行说什么
+
+    // 不在跑：收尾那一帧由跟随轮询的 renderState 落定（结果句/清空），这里不抢
     if (followTimer !== null) setText(stateEl, followText());
   });
 }

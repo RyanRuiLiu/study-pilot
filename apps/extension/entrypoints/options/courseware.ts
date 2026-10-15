@@ -102,19 +102,28 @@ function watchRun(): void {
       if (text !== undefined) el.textContent = text;
     }
 
-    // 按钮：跑的那门课把「执行」换成「停止」；跑完了还原
+    /*
+     * 按钮：跑的那门课把「执行」换成「停止」；一轮在跑期间其余按钮一律禁用
+     * （不论这一轮在哪里发起——后台拒并发，别让人白点）；跑完了整区还原。
+     */
     for (const [course, button] of buttonsOfCourse) {
       if (running && step !== null && course === step.course) {
         button.dataset.mode = 'stop';
         button.textContent = '停止';
         button.title = '停止执行：不再发出新的写入请求';
         if (!stopping) button.disabled = false;
-      } else if (button.dataset.mode === 'stop') {
+        continue;
+      }
+      if (running) {
+        button.disabled = true;
+        continue;
+      }
+      if (button.dataset.mode === 'stop') {
         delete button.dataset.mode;
         button.textContent = '执行';
-        button.disabled = button.dataset.empty === 'yes';
         button.title = button.dataset.emptyTitle ?? '执行：自动完成这门课余下的课件';
       }
+      button.disabled = button.dataset.empty === 'yes';
     }
 
     if (running) return;
