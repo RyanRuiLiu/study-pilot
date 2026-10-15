@@ -28,8 +28,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* 弹窗高度有限，待办区保留自己的滚动；滚动条占位（stable）——
+   条数跨越「是否出现滚动条」的界线时，内容不横向跳一下；
+   细档（thin）——320px 里系统粗条太抢眼 */
 .todo {
   max-height: 480px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }

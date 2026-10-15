@@ -60,13 +60,6 @@ export async function renderStatusLine(
     parts.push(count === 0 ? '暂无待交' : `待交 ${count} 项`);
     const left = courseware.value.courses.reduce((sum, entry) => sum + entry.pending, 0);
     parts.push(left === 0 ? '课件已清' : `课件剩 ${left} 项`);
-
-    // tab 徽标与状态行同源：同一次读取顺带写上，不为它多读一次（0 隐藏）
-    const badge = document.getElementById('tab-count-mooc');
-    if (badge !== null) {
-      badge.textContent = count === 0 ? '' : String(count);
-      badge.hidden = count === 0;
-    }
   }
 
   el.classList.remove('is-loading');

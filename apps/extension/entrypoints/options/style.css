@@ -14,6 +14,12 @@
 
 * { box-sizing: border-box; }
 
+/* 滚动条占位：三个 tab 的内容长短不一，滚动条出现/消失不挤动版面
+   （通用/智慧树短、慕课长——没有这一条，切 tab 会横向跳一下） */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   background: var(--paper);
@@ -46,13 +52,12 @@ body {
   margin-bottom: var(--space-12);
 }
 
-/* 两个列表都可能很长：限高到五六行，内部滚动 */
-#course-list,
-#courseware-list {
-  max-height: 320px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
+/*
+ * 列表不再限高内滚：课程多时跟随整页滚动。
+ * 先前给两个列表各设了 320px 的内部滚动——课程多寡不同会让「有的卡有
+ * 滚动条、有的没有」，内容宽度跟着差 15px，切来切去都在跳（Ryan 反馈）。
+ * 设置页的标准做法就是整页一条滚动条。
+ */
 
 /* ---------- 表单 ---------- */
 
