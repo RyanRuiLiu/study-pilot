@@ -67,6 +67,9 @@ secretStr = base64( AES-128-CBC( JSON(载荷+dateFormate), key=cKey, iv="1g3qqdh
 - **zwsds** = base64(`studiedLessonDto.id`)，取自 `prelearningNote` 响应。
 - **ewssw** = 时间证明序列：起手 `"0,1"`；此后每 2 秒追加 `parseInt(Ke/5)+2`（Ke 为当时累计秒；1× 播放时每秒 +1）。
   金样本 57 段 `[0,1,83,84,84,85,85,85,…,103,104,104,105,105]`（Ke 405→525 区间）——**单测直接对拍这一段**。
+- **第 10 位 token = deviceUuid + `"zhs"`**（实测：服务端会校验——换成未登记值即报「参数解码发生错误」）。
+  deviceUuid 来源已定位：**`getLoginUserInfo`（免签）响应里带 uuid**，首页应用写入 `CASLOGC`，学习页只读。
+  platform-zhs 用同一来源：每次会话从该接口取 uuid，不自己造。
 - 服务端判定：`百分比 = 观看秒/视频时长 ≥ 81%` 即完成（源码 `M()`）；成功响应 `{"code":0,…,"data":{"submitSuccess":true}}`。
 - 错误码：`-10` 多端播放警告、`-12` 网易易盾人机验证、`403` 会话问题（源码与响应码一致）。
 
@@ -107,9 +110,9 @@ packages/platform-zhs/
 
 ## 4. 配置
 
-- `Settings.zhihuishu: { deviceUuid: string; courses: ZhsCourse[] }`（ZhsCourse：courseId/recruitId/name/enabled/secret…）。
+- `Settings.zhihuishu: { courses: ZhsCourse[] }`（ZhsCourse：courseId/recruitId/name/enabled/secret…）。
 - `SETTINGS_VERSION → 8`：纯新增键（无迁移段，`mergeWithBase` 自动补默认）；`normalize` 收敛同 `mooc.courses`。
-- deviceUuid：首次生成 8 位 base62，此后固定——对应页面的 `CASLOGC.uuid`（报告末位 `uuid+"zhs"` 的料）。
+- **deviceUuid 不落配置**：每次会话从 `getLoginUserInfo` 取（唯一真实来源；页面也是从它拿到后写 CASLOGC），执行时随报告用。
 
 ## 5. 扩展接线
 
@@ -124,7 +127,11 @@ packages/platform-zhs/
   - 序列：以金样本 57 段为断言（输入 Ke 轨迹 → 输出逐段相等）。
   - report：固定单元 → 断言 sdsew 字符串与字段序。
 - **node-live（只读）**：真机读课程列表/任务树/学情（镜像 mooc 的 node-live 测试）。
-- **活体验证（probe，待 Ryan 点头）**：对最短未完成课时真跑一次完成上报 → `queryStuyInfo` 佐证 `watchState=1`（该验证会真实完成一个短课时）。
+- **活体验证（已完成 2026-10-16）**：对《创新的机会/示例选项己》(175s) 真跑一次完整上报 →
+  `saveDatabaseIntervalTimeV2` 返回 `submitSuccess:true` → `queryStuyInfo` 回读 `{studyTotalTime:175, watchState:1}`，
+  全课程完成数 22→23。**该视频 87 秒处带弹题、未作答不影响完成**（弹题不阻塞完成，v1 无需处理）。
+- **人工核验面（Ryan 提示）**：学习页侧栏 / 课程卡的「成绩分析」页可看到课程学习信息——
+  真机跑一轮后用它和 `queryStuyInfo` 交叉核验。
 
 ## 7. 二期占位（不在本轮）
 
@@ -132,7 +139,9 @@ packages/platform-zhs/
 
 ## 8. 风险与未决（实现时逐一落定）
 
-1. `studyStatus` 在完成提交时的取值：金样本为「进行中=0」；实现时对照源码确认完成提交的实际取值（不猜）。
-2. 子节视频的 `lessonId/smallLessonId` 映射：用一门含子节课（如《示例课程甲》第 X 章）验证。
+1. ~~`studyStatus` 取值~~ 已实测：用 0（金样本同值）提交，闭环通过。
+2. 子节视频的 `lessonId/smallLessonId` 映射：用一门含子节课验证（视频单元已实测的是无子节型）。
 3. 服务端对上报时间线的额外校验（易盾等）：闭环验证 + 失败如实上报；若观测到 `-12`，按 §1.5 停轮。
 4. 首页课程列表的模块号与签名路径：home bundle 内自带表，实现时从可读源码抄，不猜。
+5. 上报被服务端拒绝时的错误面（已见过：`-1 参数解码发生错误`=token/解码校验、`-5 提交参数错误`=内容与服务端状态不符）：
+   execute 里如实落 failed 信息，不重试。
