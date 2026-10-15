@@ -51,7 +51,7 @@ export function beginPlatform(
 export function enterItem(
   state: RunState,
   platform: { id: string; name: string },
-  item: { course: string; title: string },
+  item: { course: string; title: string; kind: string },
   now: number,
 ): RunState {
   const run = platformOf(state, platform);
@@ -67,6 +67,7 @@ export function enterItem(
         platformId: platform.id,
         course: item.course,
         title: item.title,
+        kind: item.kind,
         status: 'running',
         detail: '',
         at: now,
@@ -79,7 +80,7 @@ export function enterItem(
 export function completeItem(
   state: RunState,
   platform: { id: string; name: string },
-  item: { course: string; title: string },
+  item: { course: string; title: string; kind: string },
   status: Exclude<RunItemStatus, 'running'>,
   detail: string,
   now: number,
@@ -89,6 +90,7 @@ export function completeItem(
     platformId: platform.id,
     course: item.course,
     title: item.title,
+    kind: item.kind,
     status,
     detail,
     at: now,

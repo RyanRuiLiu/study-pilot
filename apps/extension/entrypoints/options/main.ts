@@ -21,6 +21,7 @@ import { initTabs } from '../../src/ui/tabs.ts';
 import { initCourseActions, renderCourses } from './courses.ts';
 import { renderCourseware } from './courseware.ts';
 import { renderParams } from './params.ts';
+import { watchRunHint } from './run-hint.ts';
 import { renderStatusLine } from './status-line.ts';
 import { initToast } from './toast.ts';
 
@@ -36,6 +37,9 @@ function init(): void {
    * 两个 tab 面板都在 DOM 里（隐藏的那个也填好），切过去就是现成的。
    */
   void renderParams();
+
+  // 运行提示不依赖任何 tab 的取数：订阅常在（见 run-hint.ts）
+  watchRunHint();
 
   void initTabs({
     onFirstActivate: (id) => {

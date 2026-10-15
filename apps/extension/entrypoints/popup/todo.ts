@@ -15,7 +15,7 @@
 
 import { getPending, getSettings, runNow } from '../../src/ui-bridge';
 import type { PendingEntry } from '../../src/ui-bridge';
-import { formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
+import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { todoEl } from './elements.ts';
 import { setRunning, showStatus } from './status.ts';
 
@@ -170,8 +170,8 @@ function note(className: string, text: string): HTMLElement {
  * 会一直留在页面上，与真正的内容并存。
  */
 function writeTodo(children: Node[]): void {
-  todoEl.classList.remove('is-loading');
-  todoEl.replaceChildren(...children);
+  todoEl?.classList.remove('is-loading');
+  todoEl?.replaceChildren(...children);
 }
 
 /** 待办区呈现失败状态。 */
@@ -257,7 +257,7 @@ export async function renderTodo(): Promise<void> {
      */
     outcome = await getPending();
   } catch (error) {
-    setTodoError(error instanceof Error ? error.message : String(error));
+    setTodoError(errorText(error));
     return;
   }
 
@@ -284,6 +284,6 @@ export async function renderTodo(): Promise<void> {
 
   writeTodo([]);
   for (const [courseName, list] of groupByCourse(entries)) {
-    todoEl.append(buildGroup(courseName, list));
+    todoEl?.append(buildGroup(courseName, list));
   }
 }

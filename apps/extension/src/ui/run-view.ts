@@ -24,6 +24,8 @@ export interface RunningItem {
   course: string;
   /** 单元/作业名 */
   title: string;
+  /** 类别（quiz / … / courseware）。界面按它分流显示：课件类进课件行，待办类进页面运行提示 */
+  kind: string;
   finished: number;
   /** 本轮计划要做的项数 */
   total: number;
@@ -42,6 +44,7 @@ export function runningItem(state: RunState | null): RunningItem | null {
       return {
         course: item.course,
         title: item.title,
+        kind: item.kind,
         finished: platform.finished,
         total: platform.total,
       };
@@ -53,6 +56,22 @@ export function runningItem(state: RunState | null): RunningItem | null {
 /** 进度一句话：「正在执行 3/7 · 第6章 单元作业」。 */
 export function progressLine(step: RunningItem): string {
   return `正在执行 ${step.finished}/${step.total} · ${step.title}`;
+}
+
+/** 此刻有没有一轮在跑——界面判断「在不在跑」的唯一判据（弹窗与设置页共用）。 */
+export function isRunning(state: RunState | null): boolean {
+  return state !== null && state.platforms.some((platform) => platform.state === 'running');
+}
+
+/** 进度一句话；有一项在跑就报它（progressLine），还没进到某一项就报到哪算哪。 */
+export function progressTextOf(state: RunState | null): string {
+  const step = runningItem(state);
+  if (step !== null) return progressLine(step);
+  const platforms = state?.platforms ?? [];
+  const total = platforms.reduce((sum, platform) => sum + platform.total, 0);
+  if (total === 0) return '正在执行';
+  const finished = platforms.reduce((sum, platform) => sum + platform.finished, 0);
+  return `正在执行 ${finished}/${total}`;
 }
 
 /** 「停止」按下后、收尾完成前显示的那句话。 */

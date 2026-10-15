@@ -3,11 +3,17 @@
  * 元素 id 改名时只有这里要跟。
  */
 
+/** 按 id 取按钮；取不到或不是按钮就是 null——不拿 `as` 硬断类型。 */
+function button(id: string): HTMLButtonElement | null {
+  const el = document.getElementById(id);
+  return el instanceof HTMLButtonElement ? el : null;
+}
+
 export const stateEl = document.getElementById('state-text');
 export const stateLine = document.getElementById('state-line');
-export const stopBtn = document.getElementById('stop-run') as HTMLButtonElement | null;
-export const todoEl = document.getElementById('todo-text') as HTMLElement;
-export const runBtn = document.getElementById('run-now') as HTMLButtonElement | null;
+export const stopBtn = button('stop-run');
+export const todoEl = document.getElementById('todo-text');
+export const runBtn = button('run-now');
 export const settingsBtn = document.getElementById('open-settings');
 
 /**

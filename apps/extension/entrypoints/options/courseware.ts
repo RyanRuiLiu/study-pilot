@@ -17,10 +17,15 @@
 
 import { getCourseware, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
 import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
-import { progressLine, runningItem, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
+import { errorText } from '../../src/ui/format.ts';
+import { isRunning, progressLine, runningItem, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { COURSEWARE_KINDS } from '../../src/ui/scopes.ts';
+import { note } from './note.ts';
 import { renderStatusLine } from './status-line.ts';
 import { toast } from './toast.ts';
+
+/** 未运行时的按钮标题；禁用时换成 dataset.emptyTitle 里的原因。 */
+const EXEC_TITLE = '执行：自动完成这门课余下的课件';
 
 /** 运行期间的按钮集合：跑的时候全部禁掉（后台也会拒并发，这里只是别让人白点）。 */
 const buttons: HTMLButtonElement[] = [];
@@ -83,20 +88,23 @@ function watchRun(): void {
   watching = true;
 
   subscribeRunState((state) => {
-    const running = state.platforms.some((platform) => platform.state === 'running');
+    const running = isRunning(state);
     // 收尾了就撤下停止态——下面的还原循环才走得对
     if (!running) stopping = false;
     if (running) {
       lastFinished = state.platforms.reduce((sum, platform) => sum + platform.finished, 0);
     }
 
-    // 正在跑的那一项（读取与措辞与弹窗共用同一份）
+    // 正在跑的那一项（读取与措辞与弹窗共用同一份）。
+    // 课件行只认课件类的步骤：待办（测验/作业…）在执行时不蹭课件板块——
+    // 它由页面右上角的运行提示报（见 run-hint.ts）。
     const step = runningItem(state);
+    const cwStep = step !== null && step.kind === 'courseware' ? step : null;
 
     // 行内小字：只有跑的那门课有；停止收尾中冻结（「正在停止…」由点击处写）
     for (const [course, el] of currents) {
       if (running && stopping) continue;
-      const text = running && step !== null && step.course === course ? progressLine(step) : undefined;
+      const text = running && cwStep !== null && cwStep.course === course ? progressLine(cwStep) : undefined;
       el.hidden = text === undefined;
       el.closest('.cw-row')?.classList.toggle('is-running', text !== undefined);
       if (text !== undefined) el.textContent = text;
@@ -107,7 +115,7 @@ function watchRun(): void {
      * （不论这一轮在哪里发起——后台拒并发，别让人白点）；跑完了整区还原。
      */
     for (const [course, button] of buttonsOfCourse) {
-      if (running && step !== null && course === step.course) {
+      if (running && cwStep !== null && course === cwStep.course) {
         button.dataset.mode = 'stop';
         button.textContent = '停止';
         button.title = '停止执行：不再发出新的写入请求';
@@ -121,7 +129,7 @@ function watchRun(): void {
       if (button.dataset.mode === 'stop') {
         delete button.dataset.mode;
         button.textContent = '执行';
-        button.title = button.dataset.emptyTitle ?? '执行：自动完成这门课余下的课件';
+        button.title = button.dataset.emptyTitle ?? EXEC_TITLE;
       }
       button.disabled = button.dataset.empty === 'yes';
     }
@@ -183,7 +191,7 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
   button.className = 'btn ghost';
   button.type = 'button';
   button.textContent = '执行';
-  button.title = '执行：自动完成这门课余下的课件';
+  button.title = EXEC_TITLE;
   if (entry.pending === 0) {
     button.disabled = true;
     button.dataset.empty = 'yes';
@@ -210,7 +218,7 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
         delete button.dataset.mode;
         button.textContent = '执行';
         button.disabled = button.dataset.empty === 'yes';
-        button.title = button.dataset.emptyTitle ?? '执行：自动完成这门课余下的课件';
+        button.title = button.dataset.emptyTitle ?? EXEC_TITLE;
         current.hidden = true;
       });
       return;
@@ -232,14 +240,6 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
   return row;
 }
 
-/** 列表区里的一句说明；error 为真时用警示色。 */
-function note(text: string, error = false): HTMLElement {
-  const el = document.createElement('p');
-  el.className = error ? 'note is-error' : 'note';
-  el.textContent = text;
-  return el;
-}
-
 export async function renderCourseware(
   read?: Promise<QueryOutcome<CoursewareSummary>>,
 ): Promise<void> {
@@ -256,7 +256,7 @@ export async function renderCourseware(
   try {
     outcome = await (read ?? getCourseware());
   } catch (error) {
-    listEl.replaceChildren(note(error instanceof Error ? error.message : String(error), true));
+    listEl.replaceChildren(note(errorText(error), true));
     return;
   }
 

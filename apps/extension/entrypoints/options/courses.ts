@@ -10,8 +10,9 @@
 import { coursePageUrl } from '@study-pilot/platform-mooc';
 import { getCourses, getSession, getSettings, refreshCourses, updateSettings } from '../../src/ui-bridge';
 import type { Settings } from '../../src/ui-bridge';
-import { formatTermRange } from '../../src/ui/format.ts';
+import { errorText, formatTermRange } from '../../src/ui/format.ts';
 import { refreshCourseViews } from './courseware.ts';
+import { note } from './note.ts';
 import { toast } from './toast.ts';
 
 type SelectedCourse = Settings['mooc']['courses'][number];
@@ -68,14 +69,6 @@ async function toggle(termId: number, enabled: boolean): Promise<void> {
   void refreshCourseViews();
 }
 
-/** 列表里的一句说明；error 为真时用警示色（读取失败如实说）。 */
-function note(text: string, error = false): HTMLElement {
-  const el = document.createElement('p');
-  el.className = error ? 'note is-error' : 'note';
-  el.textContent = text;
-  return el;
-}
-
 export async function renderCourses(): Promise<void> {
   const listEl = document.getElementById('course-list');
   if (listEl === null) return;
@@ -84,7 +77,7 @@ export async function renderCourses(): Promise<void> {
   try {
     reads = await Promise.all([getSession(), getCourses(), getSettings()]);
   } catch (error) {
-    listEl.replaceChildren(note(error instanceof Error ? error.message : String(error), true));
+    listEl.replaceChildren(note(errorText(error), true));
     return;
   }
   const [session, courses, settings] = reads;
@@ -132,7 +125,7 @@ export function initCourseActions(): void {
         await renderCourses();
       })
       .catch(async (error: unknown) => {
-        toast(`读取失败：${error instanceof Error ? error.message : String(error)}`);
+        toast(`读取失败：${errorText(error)}`);
         // 让行进说明退场，列表回到现状——不然它会一直挂着「正在读取」
         await renderCourses();
       })

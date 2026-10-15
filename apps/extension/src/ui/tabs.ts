@@ -35,6 +35,12 @@ export async function initTabs(hooks: TabsHooks = {}): Promise<void> {
   if (tabsEl === null) return;
 
   const tabs = Array.from(tabsEl.querySelectorAll<HTMLButtonElement>('.tab'));
+  const firstTab = tabs[0];
+  if (firstTab === undefined) return;
+  const first = firstTab.dataset.tab;
+  // DOM 约定（data-tab）被破坏时不猜：没有可激活的 tab 就什么都不做
+  if (!isTabId(first)) return;
+
   const panels = new Map<TabId, HTMLElement>();
   for (const tab of tabs) {
     const id = tab.dataset.tab;
@@ -95,10 +101,9 @@ export async function initTabs(hooks: TabsHooks = {}): Promise<void> {
   });
 
   const settings = await getSettings();
+  // 记忆值由 normalize 收敛过（类型即契约，不再重复校验）；
+  // 它在当前页面上不存在时（弹窗没有「通用」）落到第一个 tab。
   const remembered = settings.ui.activeTab;
-  const initial =
-    tabs.some((tab) => tab.dataset.tab === remembered) && isTabId(remembered)
-      ? remembered
-      : ((tabs[0]?.dataset.tab as TabId | undefined) ?? 'mooc');
+  const initial = tabs.some((tab) => tab.dataset.tab === remembered) ? remembered : first;
   activate(initial);
 }

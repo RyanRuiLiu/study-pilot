@@ -173,7 +173,7 @@ export function createRunner(deps: RoundDeps): Runner {
                 stopped = true;
                 break;
               }
-              const where = { course: item.group, title: item.title };
+              const where = { course: item.group, title: item.title, kind: item.kind };
               await show((state) => enterItem(state, platform, where, Date.now()));
               // 长动作会一并拿到心跳与停止柄
               const outcome = await platform.run(item, heartbeat, control);

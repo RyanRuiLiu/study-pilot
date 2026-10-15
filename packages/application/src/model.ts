@@ -104,6 +104,12 @@ export interface RunItem {
   /** 课程名。界面按「课程 · 项目」显示，不让用户去猜 id */
   course: string;
   title: string;
+  /**
+   * 类别（平台定义：慕课是 quiz / review / … / courseware）。
+   * 界面按它分流显示——课件类的进度落在课件行，待办类的落在页面运行提示，
+   * 不蹭别人的板块；核心自己仍然不解释取值。
+   */
+  kind: string;
   status: RunItemStatus;
   /** 结果说明，来自执行面，原样显示不改写 */
   detail: string;
