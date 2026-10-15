@@ -25,7 +25,7 @@ export function unitDetailsCommand(deps: MoocMessageDeps): MessageHandler {
         status: 'error',
         reason: 'NOT_LOGGED_IN',
         message: '尚未登录慕课平台',
-      } satisfies MoocResponseMap['UNIT_DETAILS']);
+      } satisfies MoocResponseMap['MOOC_UNIT_DETAILS']);
       return;
     }
 
@@ -35,15 +35,15 @@ export function unitDetailsCommand(deps: MoocMessageDeps): MessageHandler {
         deps.renew,
       );
       if (!outcome.ok) {
-        sendResponse({ status: 'error', ...recoveryFailure(outcome) } satisfies MoocResponseMap['UNIT_DETAILS']);
+        sendResponse({ status: 'error', ...recoveryFailure(outcome) } satisfies MoocResponseMap['MOOC_UNIT_DETAILS']);
         return;
       }
-      sendResponse({ status: 'ok', value: toUnitDetails(outcome.value) } satisfies MoocResponseMap['UNIT_DETAILS']);
+      sendResponse({ status: 'ok', value: toUnitDetails(outcome.value) } satisfies MoocResponseMap['MOOC_UNIT_DETAILS']);
     } catch (error) {
       sendResponse({
         status: 'error',
         message: error instanceof Error ? error.message : String(error),
-      } satisfies MoocResponseMap['UNIT_DETAILS']);
+      } satisfies MoocResponseMap['MOOC_UNIT_DETAILS']);
     }
   };
 }

@@ -29,40 +29,74 @@ export type { CoursewareProgress, CoursewareSummary } from './messages.ts';
 export type { RunState } from './messages.ts';
 export type { Tone } from './browser/run-once.ts';
 export type { Settings } from './settings';
+export type {
+  ZhsPendingEntry,
+  ZhsPendingSummary,
+  ZhsCoursewareProgress,
+  ZhsCoursewareSummary,
+} from './messages.ts';
+export type { ZhihuishuCourse } from './settings';
 
 /** 登录状态（是否登录、用户 id、会话令牌）。 */
 export function getSession() {
-  return sendToBackground({ type: 'SESSION' });
+  return sendToBackground({ type: 'MOOC_SESSION' });
 }
 
 /** 已保存的课程列表（不联网）。 */
 export function getCourses() {
-  return sendToBackground({ type: 'COURSES' });
+  return sendToBackground({ type: 'MOOC_COURSES' });
 }
 
 /** 去平台读一次课程列表并写回配置。只读，不改平台上的任何数据。 */
 export function refreshCourses() {
-  return sendToBackground({ type: 'REFRESH_COURSES' });
+  return sendToBackground({ type: 'MOOC_REFRESH_COURSES' });
 }
 
 /** 要交的东西：测验、作业、互评、自评、考试。未登录 / 读取失败如实返回。 */
 export function getPending() {
-  return sendToBackground({ type: 'PENDING_SUMMARY' });
+  return sendToBackground({ type: 'MOOC_PENDING_SUMMARY' });
 }
 
 /** 全部单元明细，逐门课从平台读一次。 */
 export function getUnitDetails() {
-  return sendToBackground({ type: 'UNIT_DETAILS' });
+  return sendToBackground({ type: 'MOOC_UNIT_DETAILS' });
 }
 
 /** 课件进度：每门课的已学 / 总数与可做数（只读，供课件区显示）。 */
 export function getCourseware() {
-  return sendToBackground({ type: 'COURSEWARE_SUMMARY' });
+  return sendToBackground({ type: 'MOOC_COURSEWARE_SUMMARY' });
 }
 
 /** 后台此刻在不在跑、上一轮记下的失败。 */
 export function getTaskState() {
   return sendToBackground({ type: 'TASK_STATE' });
+}
+
+// ---------- 智慧树：按平台专有的载荷各透一条 ----------
+
+/** 智慧树登录态（能否读 platform 数据）。 */
+export function getZhsSession() {
+  return sendToBackground({ type: 'ZHS_SESSION' });
+}
+
+/** 智慧树已保存的课程列表（不联网）。 */
+export function getZhsCourses() {
+  return sendToBackground({ type: 'ZHS_COURSES' });
+}
+
+/** 去智慧树读一次课程列表并写回配置（勾选沿用用户做过的）。 */
+export function refreshZhsCourses() {
+  return sendToBackground({ type: 'ZHS_REFRESH_COURSES' });
+}
+
+/** 智慧树待办：全部未完成的视频单元。 */
+export function getZhsPending() {
+  return sendToBackground({ type: 'ZHS_PENDING_SUMMARY' });
+}
+
+/** 智慧树课件进度：每门课的完成计数（只读）。 */
+export function getZhsCourseware() {
+  return sendToBackground({ type: 'ZHS_COURSEWARE_SUMMARY' });
 }
 
 /** 运行状态的当前快照。 */
@@ -83,8 +117,8 @@ export function runNow(
     /** 结束后要不要重读数据；界面里是同步的一行也允许 */
     refresh: () => void | Promise<void>;
   },
-  /** 执行范围：类别、课程与具体条目。课件区给 kinds: ['courseware']；弹窗单条给 ids；不给表示全部 */
-  scope?: { kinds?: string[]; group?: string; ids?: string[] },
+  /** 执行范围：平台、类别、课程与具体条目。界面每个入口都点名平台；不给表示全部（见 RunSelection） */
+  scope?: { platformId?: string; kinds?: string[]; group?: string; ids?: string[] },
 ): Promise<void> {
   return runOnce({ ...handlers, refresh: async () => handlers.refresh() }, scope);
 }

@@ -35,11 +35,16 @@ import {
   watchRunState,
 } from './status.ts';
 import { renderTodo } from './todo.ts';
+import { renderZhsTodo } from './zhihuishu-todo.ts';
+
+/** 当前 tab 的平台（'mooc' / 'zhihuishu'）：执行范围与收尾重读都按它分流。 */
+let currentPlatform = 'mooc';
 
 async function init(): Promise<void> {
   watchRunState();
+  // 执行结束后重读当前 tab 的清单（切过 tab 就以新 tab 为准）
   setFollowIdleHandler(() => {
-    void renderTodo();
+    void (currentPlatform === 'zhihuishu' ? renderZhsTodo() : renderTodo());
   });
 
   /*
@@ -52,30 +57,36 @@ async function init(): Promise<void> {
   await initTabs({
     onFirstActivate: (id) => {
       if (id === 'mooc') void renderTodo();
+      if (id === 'zhihuishu') void renderZhsTodo();
     },
     onActivate: (id) => {
-      // 「全部执行」作用于当前 tab 的平台：智慧树占位期没有可执行的内容
-      setRunScope(id === 'mooc');
+      if (id === 'mooc' || id === 'zhihuishu') currentPlatform = id;
+      // 「全部执行」作用于当前 tab 的平台；两个平台都已有可执行内容
+      setRunScope(id === 'mooc' || id === 'zhihuishu');
     },
   });
 
   runBtn?.addEventListener('click', () => {
     /*
-     * 按钮文字始终是「全部执行」，不随状态变化。
-     * 先前点下去改成「执行中」、结束后又改回来，字数从 2 变 3 再变 4，
-     * 而旁边按钮宽度固定，于是整排按钮在点击过程中被推着左右移动。
-     * 执行中的信息交给状态行表达，按钮只负责「可以点」与「不能点」。
+     * 按钮文字始终是「全部执行」，不随状态变化（理由见上方注释）。
      *
-     * 范围只发待办那几类（PENDING_KINDS）：课件不在这里点——
-     * 它没有截止时间，属于设置页的「课件」区。
+     * 范围按当前 tab 的平台给，且**点名平台**：两平台共存后，类别名不保证
+     * 互斥（「courseware」两家都用），不点名会把另一家的范围内事项也做掉。
+     *
+     *   慕课：只发待办那几类（PENDING_KINDS）——课件不在这里点，属于设置页；
+     *   智慧树：它的待办就是全部未完成单元，平台内没有别的类别。
      */
+    const scope =
+      currentPlatform === 'zhihuishu'
+        ? { platformId: 'zhihuishu' }
+        : { platformId: 'mooc', kinds: PENDING_KINDS };
     void runNow(
       {
         setStatus: showStatus,
         setEnabled: (enabled) => setRunning(!enabled),
-        refresh: () => renderTodo(),
+        refresh: () => (currentPlatform === 'zhihuishu' ? renderZhsTodo() : renderTodo()),
       },
-      { kinds: PENDING_KINDS },
+      scope,
     );
   });
 

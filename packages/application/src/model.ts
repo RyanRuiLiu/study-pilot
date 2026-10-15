@@ -43,6 +43,15 @@ export interface RunSelection {
   group?: string;
   /** 只做这几项（PlanItem.id）。弹窗上「单独完成这一条」用它 */
   ids?: string[];
+  /**
+   * 只做这个平台（PlatformTasks.id）。
+   *
+   * 界面上的执行入口都带它：弹窗的「全部执行」作用于当前 tab 的平台、
+   * 设置页每张卡的执行作用于那张卡的平台。没有它，一次点击会把所有平台
+   * 的范围内事项都做掉——两平台共存后「课件的类别名」可能相同，
+   * 单靠 kinds 分不开是谁家的课件。
+   */
+  platformId?: string;
 }
 
 /** 计划结果：要做什么 + 是否需要重新登录。 */

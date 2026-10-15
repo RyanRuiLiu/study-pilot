@@ -107,8 +107,14 @@ export type MessageHandler = (
 /** 宽松的回响应入口，只用于分发处那一层。 */
 export type AnySendResponse = (response?: unknown) => void;
 
-/** 处理器表：按请求 type 索引，`*` 是兜底。 */
-export type MessageHandlers = Record<string, MessageHandler> & { '*': MessageHandler };
+/**
+ * 处理器表：按请求 type 索引。
+ *
+ * **没有 `*` 兜底这一格**：兜底是外壳的事（没人认领的 type 由路由自己回
+ * 「处理不了」），不属于任何平台。先前兜底挂在平台的表上，
+ * 两个平台共存时会变成「谁先装配谁兜底」的不对称。
+ */
+export type MessageHandlers = Record<string, MessageHandler>;
 
 /** 后台此刻的状态：原始状态 + 由后台判定的人话结论。 */
 export interface TaskStatus {

@@ -22,6 +22,7 @@ import type {
   TaskStatus,
 } from './protocol.ts';
 import type { MoocRequest, MoocResponseMap } from './adapters/mooc/messages/payload.ts';
+import type { ZhsRequest, ZhsResponseMap } from './adapters/zhihuishu/messages/payload.ts';
 
 export * from './protocol.ts';
 /** 界面要的视图模型：定义在平台里，这里转出，界面只认这一个来源。 */
@@ -40,11 +41,23 @@ export type {
   WorkStatus,
 } from './adapters/mooc/messages/payload.ts';
 export { WORK_STATUS } from './adapters/mooc/messages/payload.ts';
+export type {
+  ZhsRequest,
+  ZhsResponseMap,
+  ZhsPendingEntry,
+  ZhsPendingSummary,
+  ZhsCoursewareProgress,
+  ZhsCoursewareSummary,
+  ZhsSessionView,
+} from './adapters/zhihuishu/messages/payload.ts';
 
 /** 外壳自己的命令。 */
 export type ShellRequest =
-  /** 执行一轮。kinds / group / ids 是范围（见 application 的 RunSelection），不给就是全部 */
-  | { type: 'RUN_SCHEDULED_TASKS'; kinds?: string[]; group?: string; ids?: string[] }
+  /**
+   * 执行一轮。platformId / kinds / group / ids 是范围（见 application 的 RunSelection），
+   * 不给就是全部。界面的每个执行入口都带平台——两平台共存后，类别名不保证互斥。
+   */
+  | { type: 'RUN_SCHEDULED_TASKS'; platformId?: string; kinds?: string[]; group?: string; ids?: string[] }
   /** 停止正在执行的一轮：做完手上这一项就不再开始下一项 */
   | { type: 'STOP_RUN' }
   /** 后台此刻在不在跑、上一轮记下的失败 */
@@ -60,10 +73,10 @@ export interface ShellResponseMap {
 }
 
 /** 全部请求：外壳 + 各平台。 */
-export type AppRequest = ShellRequest | MoocRequest;
+export type AppRequest = ShellRequest | MoocRequest | ZhsRequest;
 
 /** 全部响应：请求的 type 同时是键。 */
-export interface AppResponseMap extends ShellResponseMap, MoocResponseMap {}
+export interface AppResponseMap extends ShellResponseMap, MoocResponseMap, ZhsResponseMap {}
 
 type RequestOf<K extends AppRequest['type']> = Extract<AppRequest, { type: K }>;
 

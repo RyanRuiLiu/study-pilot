@@ -69,10 +69,10 @@ export function registerMessageHandler(deps: RouterDeps): void {
       }
       if (request?.type === 'RUN_SCHEDULED_TASKS') {
         // 范围原样交给用例：类别取值由平台定义，路由只搬运
-        const { kinds, group, ids } = request;
+        const { platformId, kinds, group, ids } = request;
         const selection =
-          kinds !== undefined || group !== undefined || ids !== undefined
-            ? { kinds, group, ids }
+          platformId !== undefined || kinds !== undefined || group !== undefined || ids !== undefined
+            ? { platformId, kinds, group, ids }
             : undefined;
         sendResponse(respondToRound(await deps.runner.runRound(selection)));
         return;
@@ -83,9 +83,13 @@ export function registerMessageHandler(deps: RouterDeps): void {
         return;
       }
 
-      // 处理器表里没有这个 type 就用兜底；兜底也说处理不了就回 undefined
-      const fallback = deps.handlers['*'];
-      const handler = request === undefined ? fallback : (deps.handlers[request.type] ?? fallback);
+      // 处理器表里没有这个 type 就回「处理不了」（undefined）——
+      // 兜底归外壳，不在任何平台的表里（见 protocol.ts 的说明）
+      const handler = request === undefined ? undefined : deps.handlers[request.type];
+      if (handler === undefined) {
+        sendResponse(undefined);
+        return;
+      }
       await handler(request as AppRequest, sendResponse as AnySendResponse);
     })().catch((error: unknown) => {
       /*

@@ -50,5 +50,6 @@ export { getCourseUnits, type ZhsUnit } from './structure.ts';
 export { buildStudyReport, type StudyReport, type StudyReportInput } from './report.ts';
 
 export { ZHS_REQUEST_RULES } from './policy/net-rules.ts';
+export { createZhsRuntime, type ZhsRuntime, type ZhsRuntimeEnv } from './runtime.ts';
 export { executeUnit, ZhsRoundHalt, type ExecuteUnitInput } from './policy/execute.ts';
 export { createZhsTasks, unitItemId, type ZhsRunDeps } from './policy/tasks.ts';

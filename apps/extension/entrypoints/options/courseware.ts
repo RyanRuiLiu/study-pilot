@@ -18,7 +18,7 @@
 import { getCourseware, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
 import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
-import { isRunning, progressLine, runningItem, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
+import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { COURSEWARE_KINDS } from '../../src/ui/scopes.ts';
 import { note } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
@@ -97,18 +97,23 @@ function watchRun(): void {
   watching = true;
 
   subscribeRunState((state) => {
-    const running = isRunning(state);
+    /*
+     * 本卡的课件行只认慕课自己的运行状态：智慧树在跑时，
+     * 它的单元（kind 同样是 courseware）不该画到慕课的行上。
+     */
+    const mooc = state.platforms.find((platform) => platform.id === 'mooc');
+    const running = mooc !== undefined && mooc.state === 'running';
     // 收尾了就撤下停止态——下面的还原循环才走得对
     if (!running) stopping = false;
     if (running) {
       sawRun = true;
-      lastFinished = state.platforms.reduce((sum, platform) => sum + platform.finished, 0);
+      lastFinished = mooc.finished;
     }
 
     // 正在跑的那一项（读取与措辞与弹窗共用同一份）。
     // 课件行只认课件类的步骤：待办（测验/作业…）在执行时不蹭课件板块——
     // 它由页面右上角的运行提示报（见 run-hint.ts）。
-    const step = runningItem(state);
+    const step = platformRunningItem(state, 'mooc');
     const cwStep = step !== null && step.kind === 'courseware' ? step : null;
 
     // 行内小字：只有跑的那门课有；停止收尾中冻结（「正在停止…」由点击处写）
@@ -250,7 +255,8 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
         setEnabled,
         refresh: refreshCourseViews,
       },
-      { kinds: COURSEWARE_KINDS, group: entry.courseName },
+      // 点名平台：两平台共存后类别名不保证互斥，这一次点击只作用于慕课
+      { platformId: 'mooc', kinds: COURSEWARE_KINDS, group: entry.courseName },
     );
   });
 

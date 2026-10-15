@@ -135,21 +135,20 @@ export interface UnitDetail {
 /** 慕课自己的请求。外壳的命令（跑一轮、运行状态等）不在这里。 */
 export type MoocRequest =
   /** 查询当前登录态 */
-  | { type: 'SESSION' }
+  | { type: 'MOOC_SESSION' }
   /** 读取已保存的课程列表（只读本地配置） */
-  | { type: 'COURSES' }
+  | { type: 'MOOC_COURSES' }
   /** 去平台重新拉一次课程列表并写回配置 */
-  | { type: 'REFRESH_COURSES' }
+  | { type: 'MOOC_REFRESH_COURSES' }
   /** 要交的东西（测验/作业/互评/自评/考试） */
-  | { type: 'PENDING_SUMMARY' }
+  | { type: 'MOOC_PENDING_SUMMARY' }
   /** 全部单元明细，逐门课从平台读一次 */
-  | { type: 'UNIT_DETAILS' }
+  | { type: 'MOOC_UNIT_DETAILS' }
   /** 课件进度：每门课的完成计数（只读） */
-  | { type: 'COURSEWARE_SUMMARY' }
+  | { type: 'MOOC_COURSEWARE_SUMMARY' }
   /** 一份作业卷的题目（得分指导注入用） */
-  | { type: 'HOMEWORK_PAPER'; tid: number }
-  /** 后台此刻的状态（由平台实现，形状属应用契约） */
-  | { type: 'TASK_STATE' };
+  | { type: 'MOOC_HOMEWORK_PAPER'; tid: number }
+;
 
 /** 课程列表里的一条：界面只需要名字与 termId 用来显示与勾选。 */
 export interface CourseBrief {
@@ -178,14 +177,13 @@ export interface CoursewareSummary {
 
 /** 每条请求对应的响应。请求的 type 同时是这里的键，改一半会被类型检查拦下。 */
 export interface MoocResponseMap {
-  SESSION: MoocSession;
-  COURSES: CourseBrief[];
-  REFRESH_COURSES:
+  MOOC_SESSION: MoocSession;
+  MOOC_COURSES: CourseBrief[];
+  MOOC_REFRESH_COURSES:
     | { ok: true; courses: CourseBrief[] }
     | { ok: false; reason: JobRejection; message?: string };
-  PENDING_SUMMARY: QueryOutcome<PendingSummary>;
-  UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
-  COURSEWARE_SUMMARY: QueryOutcome<CoursewareSummary>;
-  HOMEWORK_PAPER: QueryOutcome<PaperQuestion[]>;
-  TASK_STATE: { state: import('../../../protocol.ts').TaskState; live: import('../../../protocol.ts').LiveRunState };
+  MOOC_PENDING_SUMMARY: QueryOutcome<PendingSummary>;
+  MOOC_UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
+  MOOC_COURSEWARE_SUMMARY: QueryOutcome<CoursewareSummary>;
+  MOOC_HOMEWORK_PAPER: QueryOutcome<PaperQuestion[]>;
 }

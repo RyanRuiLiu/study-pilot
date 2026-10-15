@@ -24,13 +24,13 @@ export function homeworkPaperCommand(deps: MoocMessageDeps): MessageHandler {
       sendResponse({
         status: 'error',
         message: '请求缺少 tid',
-      } satisfies MoocResponseMap['HOMEWORK_PAPER']);
+      } satisfies MoocResponseMap['MOOC_HOMEWORK_PAPER']);
       return;
     }
 
     const info = await getHomeworkInfo(deps.client, tid);
     if (!info.ok) {
-      sendResponse({ status: 'error', message: info.error.message } satisfies MoocResponseMap['HOMEWORK_PAPER']);
+      sendResponse({ status: 'error', message: info.error.message } satisfies MoocResponseMap['MOOC_HOMEWORK_PAPER']);
       return;
     }
 
@@ -39,13 +39,13 @@ export function homeworkPaperCommand(deps: MoocMessageDeps): MessageHandler {
       phase: currentEvaluatePhase(info.value),
     });
     if (!paper.ok) {
-      sendResponse({ status: 'error', message: paper.error.message } satisfies MoocResponseMap['HOMEWORK_PAPER']);
+      sendResponse({ status: 'error', message: paper.error.message } satisfies MoocResponseMap['MOOC_HOMEWORK_PAPER']);
       return;
     }
 
     sendResponse({
       status: 'ok',
       value: paper.value.subjectiveQList ?? paper.value.objectiveQList ?? [],
-    } satisfies MoocResponseMap['HOMEWORK_PAPER']);
+    } satisfies MoocResponseMap['MOOC_HOMEWORK_PAPER']);
   };
 }

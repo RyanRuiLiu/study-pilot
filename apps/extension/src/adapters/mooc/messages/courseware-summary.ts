@@ -33,7 +33,7 @@ export function coursewareSummaryCommand(deps: MoocMessageDeps): MessageHandler 
         status: 'error',
         reason: 'NOT_LOGGED_IN',
         message: '尚未登录慕课平台',
-      } satisfies MoocResponseMap['COURSEWARE_SUMMARY']);
+      } satisfies MoocResponseMap['MOOC_COURSEWARE_SUMMARY']);
       return;
     }
 
@@ -44,7 +44,7 @@ export function coursewareSummaryCommand(deps: MoocMessageDeps): MessageHandler 
         deps.renew,
       );
       if (!outcome.ok) {
-        sendResponse({ status: 'error', ...recoveryFailure(outcome) } satisfies MoocResponseMap['COURSEWARE_SUMMARY']);
+        sendResponse({ status: 'error', ...recoveryFailure(outcome) } satisfies MoocResponseMap['MOOC_COURSEWARE_SUMMARY']);
         return;
       }
 
@@ -81,12 +81,12 @@ export function coursewareSummaryCommand(deps: MoocMessageDeps): MessageHandler 
       sendResponse({
         status: 'ok',
         value: { courses: rows, pending: { auto: pending.auto, manual: pending.manual } },
-      } satisfies MoocResponseMap['COURSEWARE_SUMMARY']);
+      } satisfies MoocResponseMap['MOOC_COURSEWARE_SUMMARY']);
     } catch (error) {
       sendResponse({
         status: 'error',
         message: error instanceof Error ? error.message : String(error),
-      } satisfies MoocResponseMap['COURSEWARE_SUMMARY']);
+      } satisfies MoocResponseMap['MOOC_COURSEWARE_SUMMARY']);
     }
   };
 }

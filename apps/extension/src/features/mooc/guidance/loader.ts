@@ -13,6 +13,6 @@ import type { QuestionLoader } from './index.ts';
 
 /** 取不到时返回 null，由调用方决定不注入。 */
 export const loadQuestions: QuestionLoader = async (tid) => {
-  const outcome = await sendToBackground({ type: 'HOMEWORK_PAPER', tid });
+  const outcome = await sendToBackground({ type: 'MOOC_HOMEWORK_PAPER', tid });
   return outcome.status === 'ok' ? outcome.value : null;
 };

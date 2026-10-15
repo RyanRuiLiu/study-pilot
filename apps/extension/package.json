@@ -16,7 +16,8 @@
     "@study-pilot/application": "workspace:*",
     "@study-pilot/core": "workspace:*",
     "@study-pilot/platform-mooc": "workspace:*",
-    "@study-pilot/transport": "workspace:*"
+    "@study-pilot/transport": "workspace:*",
+    "@study-pilot/platform-zhs": "workspace:*"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "5.0.4",

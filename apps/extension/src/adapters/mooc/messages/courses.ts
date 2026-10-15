@@ -20,7 +20,7 @@ export function coursesCommand(): MessageHandler {
         startTime: null,
         endTime: null,
         publishStatus: null,
-      })) satisfies MoocResponseMap['COURSES'],
+      })) satisfies MoocResponseMap['MOOC_COURSES'],
     );
   };
 }

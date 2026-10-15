@@ -65,11 +65,6 @@ function fakeClient(handlers: Partial<Record<string, () => unknown>>): ZhsClient
 }
 
 const SESSION_OK = () => ({ code: 0, message: null, result: { uuid: 'TESTuuid1' } });
-const UNITS_DONE_222 = {
-  data: {
-    videoChapterDtos: CHAPTERS.data.videoChapterDtos,
-  },
-};
 const STUDY_INFO = (watch222: number) => ({
   data: {
     lesson: {

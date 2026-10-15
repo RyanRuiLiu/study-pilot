@@ -21,7 +21,10 @@
 import { getTaskState, stopRun, subscribeRunState, type RunState } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
 import { isRunning, progressTextOf, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
-import { runBtn, setText, stateEl, stateLine, stopBtn, todoEl } from './elements.ts';
+import { runBtn, setText, stateEl, stateLine, stopBtn, todoEl, zhsTodoEl } from './elements.ts';
+
+/** 两个平台的待办容器：运行期间的样式对它们一视同仁（两平台平等）。 */
+const todoLists = [todoEl, zhsTodoEl];
 
 let onIdle: (() => void) | null = null;
 let latest: RunState | null = null;
@@ -39,7 +42,7 @@ let wasRunning = false;
 let sawRunning = false;
 /** 此刻有没有一轮在跑（收口 run 按钮的可用性） */
 let runningNow = false;
-/** 当前 tab 的平台允许执行吗（智慧树占位期＝不允许） */
+/** 当前 tab 的平台允许执行吗（没有可执行内容的平台为假） */
 let scopeAllowsRun = true;
 
 /** run 按钮的唯一收口：执行中禁用、平台没有可执行内容时禁用 */
@@ -47,7 +50,7 @@ function applyRunEnabled(): void {
   if (runBtn) runBtn.disabled = runningNow || !scopeAllowsRun;
 }
 
-/** 「全部执行」作用于当前 tab 的平台；占位平台没有可执行内容 */
+/** 「全部执行」作用于当前 tab 的平台；没有可执行内容的平台为假 */
 export function setRunScope(allows: boolean): void {
   scopeAllowsRun = allows;
   applyRunEnabled();
@@ -93,7 +96,7 @@ stopBtn?.addEventListener('click', () => {
 export function setRunning(running: boolean): void {
   runningNow = running;
   applyRunEnabled();
-  todoEl?.classList.toggle('is-running', running);
+  for (const list of todoLists) list?.classList.toggle('is-running', running);
   stateLine?.classList.toggle('is-running', running);
   if (running) {
     stopping = false; // 新一轮：上一轮留下的停止态不该算到它头上
@@ -128,7 +131,7 @@ export function watchRunState(): void {
       stateLine?.classList.add('is-running');
       if (!localRun) {
         // 别处发起：行内「执行」一并禁掉（本弹窗自己点的那轮归 setRunning 管）
-        todoEl?.classList.add('is-running');
+        for (const list of todoLists) list?.classList.add('is-running');
         runningNow = true;
         applyRunEnabled();
       }
@@ -180,12 +183,12 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
       // 跟在跑的一轮（哪怕不是本弹窗发起的）都该能停
       stateLine?.classList.add('is-running');
       // 别处发起的执行也要把行内的「执行」变灰（本弹窗点的那轮归 setRunning 管）
-      if (!localRun) todoEl?.classList.add('is-running');
+      if (!localRun) for (const list of todoLists) list?.classList.add('is-running');
     } else {
       wasRunning = false;
       stopping = false;
       stateLine?.classList.remove('is-running');
-      if (!localRun) todoEl?.classList.remove('is-running');
+      if (!localRun) for (const list of todoLists) list?.classList.remove('is-running');
       if (options.settleText ?? true) {
         if (status.live === 'interrupted') {
           setText(stateEl, '上次执行未正常结束，可重新执行「全部执行」');

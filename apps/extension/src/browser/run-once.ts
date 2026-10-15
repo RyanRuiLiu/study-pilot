@@ -17,14 +17,18 @@ import { stoppedLine } from '../ui/run-view.ts';
 export type Tone = 'idle' | 'busy' | 'error';
 
 /**
- * 执行范围：类别、课程与具体条目。原样转给后台，判据见 application 的 RunSelection。
- * 类别取值由平台定义（慕课是 quiz / review / self / homework / exam / courseware）。
+ * 执行范围：平台、类别、课程与具体条目。原样转给后台，判据见 application 的 RunSelection。
+ * 类别取值由平台定义（慕课是 quiz / review / self / homework / exam / courseware；
+ * 智慧树是 courseware）。**每次执行都点名平台**：两家共存后，「课件」这个类别名
+ * 两家都在用，界面上的一次点击只该作用于它自己那张卡/那个 tab 的平台。
  */
 export interface RunScope {
   kinds?: string[];
   group?: string;
   /** 只做这几项（计划项 id）。弹窗上「单独完成这一条」用它 */
   ids?: string[];
+  /** 只做这个平台（PlatformTasks.id，如 'mooc' / 'zhihuishu'） */
+  platformId?: string;
 }
 
 /** 执行期间要写状态、控按钮、结束后让入口重读清单，因此由入口传进来。 */
@@ -57,6 +61,7 @@ export async function runNow(handles: RunHandles, scope?: RunScope): Promise<voi
       ...(scope?.kinds !== undefined ? { kinds: scope.kinds } : {}),
       ...(scope?.group !== undefined ? { group: scope.group } : {}),
       ...(scope?.ids !== undefined ? { ids: scope.ids } : {}),
+      ...(scope?.platformId !== undefined ? { platformId: scope.platformId } : {}),
     });
 
     if (result.ok === false) {

@@ -1,0 +1,49 @@
+/*
+ * ZHS_PENDING_SUMMARY：待办 = 全部未完成的视频单元（按课程归拢、章节自然序）。
+ *
+ * 智慧树的单元没有截止时间概念（学习窗口由课程整体规定），因此这里不做
+ * 任何时间过滤——列出来的就是「这门课还剩哪些没看」，一条不落。
+ */
+
+import type { MessageHandler, QueryOutcome } from '../../../protocol.ts';
+import { readSession, unitItemId } from '@study-pilot/platform-zhs';
+import type { ZhsMessageDeps } from './deps.ts';
+import type { ZhsPendingEntry, ZhsPendingSummary, ZhsResponseMap } from './payload.ts';
+import { collectUnits } from './reads.ts';
+
+export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
+  return async (_request, sendResponse) => {
+    const respond = (outcome: QueryOutcome<ZhsPendingSummary>): void => {
+      sendResponse(outcome satisfies ZhsResponseMap['ZHS_PENDING_SUMMARY']);
+    };
+
+    const session = await readSession(deps.client);
+    if (!session.loggedIn) {
+      respond({ status: 'error', message: '未登录', reason: 'NOT_LOGGED_IN' });
+      return;
+    }
+
+    try {
+      const settings = await deps.config.read();
+      const enabled = settings.zhihuishu.courses.filter((course) => course.enabled);
+      const collected = await collectUnits(deps.client, enabled);
+
+      const entries: ZhsPendingEntry[] = [];
+      for (const { course, units } of collected) {
+        for (const unit of units) {
+          if (unit.done) continue;
+          entries.push({
+            itemId: unitItemId(unit),
+            courseName: course.name,
+            chapterName: unit.chapterName,
+            name: unit.name,
+            sec: unit.sec,
+          });
+        }
+      }
+      respond({ status: 'ok', value: { fetchedAt: Date.now(), total: entries.length, entries } });
+    } catch (error) {
+      respond({ status: 'error', message: error instanceof Error ? error.message : String(error) });
+    }
+  };
+}
