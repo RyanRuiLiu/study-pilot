@@ -29,13 +29,36 @@ body {
 }
 
 /*
- * 弹窗高度有限，待办区保留自己的滚动；细档（thin）——320px 里系统粗条太抢眼。
+ * 整窗封顶 600（Chrome 弹窗的上限），列向排：顶栏/状态行/ tab 条按内容占位，
+ * 剩余高度全给待办区自己滚。这一条是结构的底线——
+ * 没有它：状态行一出现（点执行时展开 ≈40px）整窗就超过 600，
+ * 于是"整个弹窗出现一条大滚动条"（Ryan 抓到的现场）。
+ * 有它：状态行出现＝从列表里让出空间，窗口本身永远不滚。
+ */
+.pop {
+  display: flex;
+  flex-direction: column;
+  max-height: 600px;
+}
+
+/* 当前可见的 tab 面板撑满剩余高度，把滚动权一路传给 .todo
+   （[hidden] 的面板必须仍然 display:none——:not([hidden]) 保住这条） */
+.tab-panel:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
+ * 待办区：弹窗里唯一滚动的地方——吃满剩余高度（flex），窗口不高过 600。
+ * 细档（thin）——320px 里系统粗条太抢眼。
  * 刻意不加 scrollbar-gutter 占位：右侧保留档会让占位骨架与内容的右距
- * 比左距宽出一档（Ryan 反馈）；列表通常在打开时就长于 480 出现滚动条，
- * 出现/消失的横移在这一档宽度下几乎看不出。
+ * 比左距宽出一档（Ryan 反馈）；细条出现/消失的横移在这一档下几乎看不出。
  */
 .todo {
-  max-height: 480px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
