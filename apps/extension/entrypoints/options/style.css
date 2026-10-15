@@ -1,4 +1,5 @@
 @import '../../src/ui/tokens.css';
+@import '../../src/ui/controls.css';
 
 /*
  * 设置页。单列，居中：页头一行概览、四张卡（账号与课程 / 课件 / 互评评语 /
@@ -7,6 +8,9 @@
  * 单列的理由：每块回答一个问题，从上往下就是使用顺序；
  * 分区导航是留给「上千像素长、七八个分区」的页面的，这里用不上。
  * 页面真长起来时再加回来，那时它才有存在条件。
+ *
+ * 间距与字号一律取 tokens.css 的标尺（--space-* / --text-*），
+ * 本文件不再出现手挑的 px；按钮骨架在 controls.css。
  */
 
 * { box-sizing: border-box; }
@@ -16,7 +20,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font);
-  font-size: 13px;
+  font-size: var(--text-md);
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
 }
@@ -24,21 +28,21 @@ body {
 .page {
   max-width: 680px;
   margin: 0 auto;
-  padding: 40px 24px 80px;
+  padding: var(--space-40) var(--space-24) var(--space-80);
 }
 
-.masthead { margin-bottom: 8px; }
+.masthead { margin-bottom: var(--space-8); }
 
 .masthead h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 .lede {
-  margin: 6px 0 0;
-  font-size: 12px;
+  margin: var(--space-8) 0 0;
+  font-size: var(--text-sm);
   color: var(--ink-faint);
 }
 
@@ -49,16 +53,16 @@ body {
  * 阴影在小面积上会显得脏，线是这套设计表达边界的方式。
  */
 .card {
-  margin-top: 16px;
-  padding: 20px 22px;
+  margin-top: var(--space-16);
+  padding: var(--space-20) var(--space-24);
   background: var(--paper-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
 }
 
 .card h2 {
-  margin: 0 0 12px;
-  font-size: 14px;
+  margin: 0 0 var(--space-12);
+  font-size: var(--text-lg);
   font-weight: 700;
 }
 
@@ -70,34 +74,42 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin: 0 0 12px;
+  gap: var(--space-12);
+  margin: 0 0 var(--space-12);
 }
 
 .card-head h2 { margin: 0; }
 
 .session {
-  margin: 0 0 4px;
-  font-size: 12px;
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
   color: var(--ink-soft);
 }
 
 .note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--ink-faint);
 }
 
 /* AI 连接测试的失败提示用它（见 params.ts） */
 .note.is-error { color: var(--warn); }
 
-/* 表单之后的结果一行；没结果时不占位置 */
-#ai-status {
+/*
+ * 卡片里跟在表单之后的附注/状态行（评语卡的说明、AI 卡的状态）：与表单留 12px，
+ * 和卡片里其他块间的节奏一致。
+ *
+ * 定在 `.card > .note` 上而不是单个 id：先前 #ai-status 单独写了 12px，
+ * 而评语卡的说明没写（实测 0px，紧贴输入框）——同一个「表单后附注」的
+ * 模式出现两种间距。
+ */
+.card > .note {
   display: block;
-  margin-top: 12px;
+  margin-top: var(--space-12);
 }
 
-#ai-status:empty { display: none; }
+/* 没内容时不占位置（AI 状态行未测试时为空） */
+.card > .note:empty { display: none; }
 
 /* ---------- 课程列表 ---------- */
 
@@ -119,16 +131,16 @@ body {
 .course-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px 0;
+  gap: var(--space-8);
+  padding: var(--space-12) 0;
   border-top: 1px dashed var(--line);
   cursor: pointer;
 }
 
-.course-row:first-child { border-top: none; padding-top: 4px; }
+.course-row:first-child { border-top: none; padding-top: var(--space-4); }
 
 .course-row input[type='checkbox'] {
-  margin: 4px 0 0;
+  margin: var(--space-4) 0 0;
   flex: none;
   accent-color: var(--accent);
   width: 14px;
@@ -139,12 +151,11 @@ body {
 .course-body {
   display: flex;
   flex-direction: column;
-  gap: 1px;
   min-width: 0;
 }
 
 .course-name {
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--ink);
   text-decoration: none;
 }
@@ -158,7 +169,7 @@ body {
 .course-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .course-meta {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--ink-faint);
 }
 
@@ -167,17 +178,17 @@ body {
 .cw-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 0;
+  gap: var(--space-12);
+  padding: var(--space-12) 0;
   border-top: 1px dashed var(--line);
 }
 
-.cw-row:first-child { border-top: none; padding-top: 4px; }
+.cw-row:first-child { border-top: none; padding-top: var(--space-4); }
 
 .cw-name {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--text-md);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -185,7 +196,7 @@ body {
 
 .cw-progress {
   flex: none;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
 }
@@ -201,7 +212,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--accent);
 }
 
@@ -210,25 +221,25 @@ body {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 10px;
+  gap: var(--space-4);
+  margin-top: var(--space-12);
 }
 
 .field-label {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--ink-soft);
 }
 
 .field input {
   width: 100%;
   height: 32px;
-  padding: 0 10px;
+  padding: 0 var(--space-12);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--paper-2);
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-md);
 }
 
 .field input:focus-visible {
@@ -240,8 +251,8 @@ body {
 .check {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: var(--space-8);
+  font-size: var(--text-md);
   cursor: pointer;
 }
 
@@ -255,25 +266,15 @@ body {
 
 /* ---------- 按钮 ---------- */
 
+/*
+ * 骨架（边框、圆角、底色、悬停、禁用、焦点环）在 src/ui/controls.css——
+ * 与弹窗共用一份。这里只留尺寸变体。
+ */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   height: 32px;
-  padding: 0 16px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--on-accent);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  padding: 0 var(--space-16);
+  font-size: var(--text-sm);
 }
-
-.btn:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
-.btn:disabled { opacity: 0.6; cursor: default; }
-.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .btn.quiet {
   background: transparent;
@@ -290,8 +291,8 @@ body {
 /* ---------- 页脚 ---------- */
 
 .foot {
-  margin-top: 24px;
-  font-size: 12px;
+  margin-top: var(--space-24);
+  font-size: var(--text-sm);
   color: var(--ink-faint);
 }
 
@@ -301,14 +302,14 @@ body {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 28px;
+  bottom: var(--space-24);
   transform: translateX(-50%);
   max-width: 80vw;
-  padding: 8px 16px;
+  padding: var(--space-8) var(--space-16);
   border-radius: var(--radius-sm);
   background: var(--ink);
   color: var(--paper-2);
-  font-size: 12px;
+  font-size: var(--text-sm);
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;

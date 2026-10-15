@@ -1,4 +1,5 @@
 @import '../../src/ui/tokens.css';
+@import '../../src/ui/controls.css';
 
 /*
  * 弹窗。宽 320px，自上而下只有两块：
@@ -11,6 +12,9 @@
  * 320 而不是更宽：宽度由最长的一行定——下行「可以替你评分，还差 N 份」
  * 加「执行」按钮加日期合起来约 290px，加上左右内边距正好收住；
  * 再宽只会让行中间多出一段空白。极端长的任务名会折行，那是内容的事。
+ *
+ * 间距与字号一律取 tokens.css 的标尺（--space-* / --text-*），
+ * 本文件不再出现手挑的 px；按钮骨架在 controls.css。
  */
 
 * { box-sizing: border-box; }
@@ -21,7 +25,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font);
-  font-size: 13px;
+  font-size: var(--text-md);
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
 }
@@ -44,8 +48,8 @@ body {
 .bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-16);
   border-bottom: 1px solid var(--line);
 }
 
@@ -56,7 +60,7 @@ body {
 .brand {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--ink);
@@ -77,14 +81,14 @@ body {
 .state {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--space-8);
   margin: 0;
   max-height: 0;
   overflow: hidden;
-  padding: 0 16px;
+  padding: 0 var(--space-16);
   border-bottom: 0 solid var(--line);
   background: var(--paper-2);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 20px;
   color: var(--ink-soft);
   transition: max-height 0.16s ease-out, padding 0.16s ease-out, border-bottom-width 0.16s ease-out;
@@ -93,7 +97,7 @@ body {
 /* 有话说时滑开：96 够三整行，长失败名单也不裁 */
 .state:not(.is-blank) {
   max-height: 96px;
-  padding: 8px 16px;
+  padding: var(--space-8) var(--space-16);
   border-bottom-width: 1px;
 }
 
@@ -106,19 +110,19 @@ body {
 /*
  * 「停止」：只在一轮进行时现身（is-running 由 status.ts 挂）。
  * 点了不再发新的写请求——长动作在下一个安全点中断，正在飞的请求落地即止。
+ *
+ * 骨架（圆角、过渡、禁用、焦点环）来自 controls.css，这里只把形态改成
+ * 次要按钮（幽灵态）：无底色、以线为边界，并给出它自己的尺寸。
  */
 .state-stop {
   display: none;
   flex: none;
   height: 20px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  padding: 0 var(--space-8);
+  border-color: var(--line);
   background: transparent;
   color: var(--ink-soft);
-  font: inherit;
-  font-size: 11px;
-  cursor: pointer;
+  font-size: var(--text-xs);
 }
 
 .state.is-running .state-stop {
@@ -127,47 +131,16 @@ body {
 }
 
 .state-stop:hover { border-color: var(--ink-faint); color: var(--ink); }
-.state-stop:disabled { opacity: 0.5; cursor: default; }
-.state-stop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .state.is-busy { color: var(--accent); }
 .state.is-error { color: var(--warn); }
 
+/* ---------- 按钮 ---------- */
+
 /*
- * 按钮骨架。三处按钮共用：顶栏的「全部执行」「更多」、行内「执行」、
- * 未登录提示的「前往登录」。尺寸与填充由各自后面的规则覆盖，
- * 骨架只写一次——改圆角、悬停节奏时只改这里。
+ * 骨架（边框、圆角、底色、悬停、禁用、焦点环）在 src/ui/controls.css——
+ * 与设置页共用一份。这里只留尺寸变体。
  */
-.act,
-.todo-run,
-.todo-login-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--on-accent);
-  font: inherit;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.act:hover,
-.todo-login-link:hover {
-  background: var(--accent-deep);
-  border-color: var(--accent-deep);
-}
-
-.act:disabled { opacity: 0.6; cursor: default; }
-
-.act:focus-visible,
-.todo-run:focus-visible,
-.todo-login-link:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 
 /*
  * 顶栏里的按钮。给一个固定宽度而不是靠 padding 撑开：
@@ -181,7 +154,7 @@ body {
   width: 68px;
   height: 26px;
   padding: 0;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 /*
@@ -216,7 +189,7 @@ body {
 .todo-empty,
 .todo-error,
 .todo-login {
-  padding: 20px 16px;
+  padding: var(--space-20) var(--space-16);
 }
 
 .todo.is-loading,
@@ -224,7 +197,7 @@ body {
 .todo-error,
 .todo-login-text {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.7;
 }
 
@@ -245,12 +218,12 @@ body {
  * 会话 cookie 关浏览器几天就会过期，用户没做错什么，
  * 只是需要重新登录一次，因此措辞与配色都不该带责备感。
  */
-.todo-login-text { margin-bottom: 12px; color: var(--ink-soft); }
+.todo-login-text { margin-bottom: var(--space-12); color: var(--ink-soft); }
 
-.todo-login-link { padding: 8px 16px; font-size: 12px; }
+.todo-login-link { padding: var(--space-8) var(--space-16); font-size: var(--text-sm); }
 
 .todo-group {
-  padding: 12px 0 4px;
+  padding: var(--space-12) 0 var(--space-4);
   border-top: 1px solid var(--line);
 }
 
@@ -259,16 +232,16 @@ body {
 .todo-course {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin: 0 0 4px;
-  padding: 0 16px;
-  font-size: 12px;
+  gap: var(--space-8);
+  margin: 0 0 var(--space-4);
+  padding: 0 var(--space-16);
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--ink);
 }
 
 /* 靠右与行内同一套做法：auto 外边距顶过去，不用 space-between */
-.todo-count { margin-left: auto; font-weight: 400; font-size: 11px; color: var(--ink-faint); }
+.todo-count { margin-left: auto; font-weight: 400; font-size: var(--text-xs); color: var(--ink-faint); }
 
 /*
  * 一条待办。整行点击去平台靠一个垫底的透明长链接（.todo-open 铺满整行）——
@@ -276,7 +249,7 @@ body {
  */
 .todo-item {
   position: relative;
-  padding: 10px 16px;
+  padding: var(--space-8) var(--space-16);
 }
 
 /*
@@ -305,29 +278,23 @@ body {
  * 整行仍是链接。叫「执行」不叫「完成」：互评一次只评一份。
  *
  * 平时只有字：主色、无底无框——按钮要是每个都顶着底色，一列下来
- * 列表就成了按钮堆（实心版、浅底版都试过，弃）。指到才浮出实心
- * （accent-deep + 白字，与顶栏按钮同一种悬停），反馈只给正在指的那一个。
+ * 列表就成了按钮堆（实心版、浅底版都试过，弃）。指到才浮出实心，
+ * 悬停由 controls.css 的共享规则提供（与顶栏按钮同一种悬停）。
  */
 .todo-run {
   position: relative;
   z-index: 1;
   flex: none;
   height: 20px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   border-color: transparent;
   background: transparent;
   color: var(--accent);
-  font-size: 11px;
-}
-
-.todo-run:hover {
-  background: var(--accent-deep);
-  border-color: var(--accent-deep);
-  color: var(--on-accent);
+  font-size: var(--text-xs);
 }
 
 /* 执行期间全部不可点：后台本来也拒并发，这里只是别让人白点 */
-.todo.is-running .todo-run { opacity: 0.5; pointer-events: none; }
+.todo.is-running .todo-run { opacity: 0.6; pointer-events: none; }
 
 /*
  * 两行结构。上行是「是什么、还剩多久」，下行是「哪一步、具体哪天」。
@@ -341,16 +308,14 @@ body {
 .todo-sub {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-8);
 }
-
-.todo-sub { margin-top: 1px; }
 
 .todo-name {
   /* 不撑满：名字多长占多长，剩余空间全让给右列（阶段与时间） */
   flex: 0 1 auto;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--ink);
   overflow-wrap: anywhere;
 }
@@ -364,7 +329,7 @@ body {
 }
 
 .todo-when {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--ink-soft);
 }
 
@@ -375,16 +340,17 @@ body {
  *
  * 靠到右端、紧挨剩余时间：它是补充说明而不是标题的一部分，左侧整条
  * 留给任务名；右列（阶段＋时间）在扫视时落点一致。用弱色。
+ * 徽标形态走小圆角而不是胶囊：这套界面里圆角按元素大小递减（见 tokens.css）。
  */
 .todo-phase {
   flex: none;
   margin-left: auto;
-  padding: 2px 6px;
+  padding: 0 var(--space-8);
   border: 1px solid var(--line);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   color: var(--ink-faint);
-  font-size: 10px;
-  line-height: 1.5;
+  font-size: var(--text-xs);
+  line-height: 18px;
   white-space: nowrap;
 }
 
@@ -403,7 +369,7 @@ body {
   /* 同理：执行按钮要紧跟在处置句后面 */
   flex: 0 1 auto;
   min-width: 0;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
 }
 
@@ -417,7 +383,6 @@ body {
  */
 .todo-date {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--ink-faint);
 }
-

@@ -1,0 +1,53 @@
+/*
+ * 交互控件基座——全扩展共用一份（弹窗、设置页）。
+ *
+ * 前置：使用方先引入 tokens.css（本文件只用它的变量，不替它引入）——
+ * 引入顺序见各页面样式表开头两行。控件自己 @import 令牌会让打包器
+ * 把同一份 :root 抽出两份（实测），所以这里刻意不引。
+ *
+ * 为什么单独一个文件：按钮的骨架（边框、圆角、底色、悬停、禁用、焦点环）
+ * 曾经在弹窗与设置页各写一份、逐字重复，改一处忘一处只是时间问题。
+ * 各页样式表只保留**尺寸变体**（顶栏按钮 26 高、设置页按钮 32 高、
+ * 状态行「停止」20 高），骨架只在这里写一次。
+ *
+ * 尺寸对照（改动时保持这张表）：
+ *   .btn           32px 高，左右 16px——设置页的表单按钮
+ *   .act           26px 高，固定 68px 宽——弹窗顶栏
+ *   .todo-run      20px 高——待办行内「执行」，静息无底无框（见弹窗样式）
+ *   .todo-login-link  行内链接式按钮
+ *   .state-stop    20px 高——状态行「停止」
+ */
+
+/* 骨架：实心主按钮。静息在主色上，白字 */
+:is(.btn, .act, .todo-run, .todo-login-link, .state-stop) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* 悬停：加深。todo-run 静息是幽灵态，指到才浮出实心——也走这一条 */
+:is(.btn, .act, .todo-run, .todo-login-link):hover {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+  color: var(--on-accent);
+}
+
+/* 禁用：整体压暗，光标收回 */
+:is(.btn, .act, .state-stop):disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 焦点环：键盘可达性，全控件一致 */
+:is(.btn, .act, .todo-run, .todo-login-link, .state-stop):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
