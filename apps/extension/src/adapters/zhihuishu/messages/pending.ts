@@ -28,12 +28,13 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
       const enabled = selectedCourses(settings);
 
       /*
-       * 两类待办各读各的（教程视频走结构读取，单元测试走考试族清单），
-       * 都读成之后按课程合并——所以待办里出现的就是**执行会动的那些**。
-       * 类别由 `kind` 标出，界面据它分组；组名不在这一层（措辞的唯一源在弹窗侧）。
+       * 两类待办：教程视频走结构读取（含学情），单元测试走考试族清单。
+       * **结构读取只做一次**——测验要的章节表由 `collectUnits` 交出复用
+       * （每门课一次结构读取）。都读成之后按课程合并，所以待办里出现的
+       * 就是**执行会动的那些**。类别由 `kind` 标出，次序与措辞在弹窗侧。
        */
       const collected = await collectUnits(deps.client, enabled);
-      const quizzes = await collectQuizzes(deps.client, enabled);
+      const quizzes = await collectQuizzes(deps.client, collected);
       const quizByCourse = new Map(quizzes.map((entry) => [entry.course.courseId, entry]));
 
       const entries: ZhsPendingEntry[] = [];
@@ -67,7 +68,6 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
         const quiz = quizByCourse.get(course.courseId);
         if (quiz !== undefined && quiz.unreadReason !== null) {
           unreadCourses.push({ courseName: course.name, reason: `单元测试读取失败：${quiz.unreadReason}` });
-          continue;
         }
         for (const item of quiz?.items ?? []) {
           entries.push({

@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { collectQuizzes } from '../src/adapters/zhihuishu/messages/reads.ts';
+import { collectQuizzes, collectUnits } from '../src/adapters/zhihuishu/messages/reads.ts';
 import type { ZhihuishuCourse } from '@study-pilot/application';
 import type { ZhsClient } from '@study-pilot/platform-zhs';
 
@@ -58,6 +58,8 @@ function fakeClient(overrides: Partial<Record<string, unknown>> = {}, failOn?: s
       if (name === failOn) throw new Error('平台拒绝了这次读取');
       const table: Record<string, unknown> = {
         videoList: CHAPTERS,
+        // 收集路径先走单元那一遍（videolist + 学情），章节表由它交出复用
+        studyInfo: { data: { lesson: {}, lv: {} } },
         examHomeworkList: { rt: { result: 'success', next: -1, studentHomeworkList: [ITEM(), ...(overrides.list as [] ?? [])] } },
       };
       if (!(name in table)) throw new Error(`假 client 没有登记 ${name}`);
@@ -66,9 +68,15 @@ function fakeClient(overrides: Partial<Record<string, unknown>> = {}, failOn?: s
   };
 }
 
+/** 走一遍真实的收集路径（章节表由单元那一遍交出复用），拿到喂给测验那一步的入参。 */
+async function oneCourse(client: ZhsClient, course: ZhihuishuCourse = COURSE) {
+  const [collected] = await collectUnits(client, [course]);
+  return collected!;
+}
+
 describe('collectQuizzes', () => {
   it('列出未交且没动过的单元测试（与执行侧同一条判据）', async () => {
-    const [result] = await collectQuizzes(fakeClient(), [COURSE]);
+    const [result] = await collectQuizzes(fakeClient(), [await oneCourse(fakeClient())]);
     expect(result!.unreadReason).toBeNull();
     expect(result!.items.map((item) => item.examName)).toEqual(['第三章单元测试']);
   });
@@ -88,7 +96,7 @@ describe('collectQuizzes', () => {
         };
       },
     };
-    const [result] = await collectQuizzes(client, [COURSE]);
+    const [result] = await collectQuizzes(client, [await oneCourse(client)]);
     expect(result!.items).toEqual([]);
   });
 
@@ -99,18 +107,18 @@ describe('collectQuizzes', () => {
         return { rt: { studentHomeworkList: [ITEM({ id: '不在章节表里的id' })] } };
       },
     };
-    const [result] = await collectQuizzes(client, [COURSE]);
+    const [result] = await collectQuizzes(client, [await oneCourse(client)]);
     expect(result!.items).toEqual([]);
   });
 
   it('读不成如实带原因回来，不静默少列', async () => {
-    const [result] = await collectQuizzes(fakeClient({}, 'examHomeworkList'), [COURSE]);
+    const [result] = await collectQuizzes(fakeClient({}, 'examHomeworkList'), [await oneCourse(fakeClient({}, 'examHomeworkList'))]);
     expect(result!.items).toEqual([]);
     expect(result!.unreadReason).toBe('平台拒绝了这次读取');
   });
 
   it('缺入口参数的课直接跳过，不当作失败', async () => {
-    const [result] = await collectQuizzes(fakeClient(), [{ ...COURSE, secret: '' }]);
+    const [result] = await collectQuizzes(fakeClient(), [await oneCourse(fakeClient(), { ...COURSE, secret: '' })]);
     expect(result!.items).toEqual([]);
     expect(result!.unreadReason).toBeNull();
   });

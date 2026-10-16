@@ -205,7 +205,15 @@ export function chapterExams(chapters: readonly ZhsChapterNode[]): ZhsChapterExa
  */
 function parseHomeworkRoute(url: string): { listId: string; examKey: string; schoolId: number } | null {
   const segments = url.split('/');
-  const at = segments.indexOf('dohomework');
+  /*
+   * **两个路由词，同一段位**（2026-10-17 实测）：
+   *   未交的章节给 `dohomework/<recruitId>/<t1>/<t2>/<courseId>/<schoolId>/<N>`
+   *   已交的章节给 `checkHomework/<recruitId>/<t1>/<t2>/<courseId>/<schoolId>`（**没有 <N>**）
+   * 标记词之后的段位完全一致，所以只认 `dohomework` 会把**已交的章节整章漏掉**——
+   * 而「已交未满分直接重做」那条路径恰恰只用得到已交章节。漏掉时它是静默的：
+   * 章节不进表 → 计划里那条分支找不到章节 → 那条功能等于没做。
+   */
+  const at = segments.findIndex((segment) => segment === 'dohomework' || segment === 'checkHomework');
   if (at < 0) return null;
   // dohomework 之后：recruitId, t1, t2, courseId, schoolId, N
   const listId = segments[at + 2];
