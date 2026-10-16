@@ -61,21 +61,24 @@ export function createTodoArea<T>(options: {
      * 与失败状态在样式与措辞上都分开：失败是一句解释，这里是给一个去处。
      * 会话 cookie 是会话级的，关浏览器几天再打开就会过期，
      * 用户遇到的多半是这种情况——他并没有做错什么，只是需要重新登录一次。
+     *
+     * 去处是**句内链接**，不另起一行做成按钮——与设置页那四处（`loginNote`）
+     * 同一形状，也是界面上「一句说明 ＋ 一个去处」的既有形状（见 index.html
+     * 的 AI 那条说明）。两平台两页面四处，形状只有这一种。
      */
     loginPrompt() {
       const box = document.createElement('div');
       box.className = 'todo-login';
 
       const text = note('todo-login-text', options.loginText);
-
       const link = document.createElement('a');
-      link.className = 'btn';
       link.href = options.loginHref;
       link.target = '_blank';
       link.rel = 'noreferrer';
       link.textContent = '前往登录';
+      text.append(link);
 
-      box.append(text, link);
+      box.append(text);
       write([box]);
     },
 

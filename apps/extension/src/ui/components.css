@@ -520,9 +520,11 @@
   color: var(--warn);
 }
 
+/* 未登录那一句：去处是句内链接（形状与设置页的 loginNote 一致），
+   所以这里不再留「按钮在下方」时的下边距 */
 .todo-login-text {
+  margin: 0;
   color: var(--ink-soft);
-  margin-bottom: var(--space-12);
 }
 
 /* ---------- 骨架 ---------- */
