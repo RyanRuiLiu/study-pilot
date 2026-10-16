@@ -108,4 +108,7 @@
   --radius-sm: 8px;
   --radius-xs: 4px;
   --radius-full: 999px;
+
+  /* 浮动面板（注入在别人页面里的做题助手）悬浮在页面内容之上，需要一层投影把层次分开 */
+  --shadow-panel: 0 6px 24px rgba(17, 18, 20, 0.14);
 }

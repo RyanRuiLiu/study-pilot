@@ -37,7 +37,7 @@ import type { WorkAutoAction } from '../src/policy/plan/types.ts';
    替身按被测代码 import 的模块分：测验在 ../src/quiz.ts，作业与互评在 ../src/review.ts。 */
 vi.mock('../src/quiz.ts', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
-  return { ...actual, getQuizPaper: vi.fn(), submitQuiz: vi.fn() };
+  return { ...actual, answerAndSubmitQuiz: vi.fn() };
 });
 
 vi.mock('../src/review.ts', async (importOriginal) => {
@@ -59,7 +59,7 @@ import {
   nextSubmission,
   submitEvaluation,
 } from '../src/review.ts';
-import { getQuizPaper, submitQuiz } from '../src/quiz.ts';
+import { answerAndSubmitQuiz } from '../src/quiz.ts';
 import { runQuiz, runReview, runSelf } from '../src/policy/execute/work.ts';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -79,8 +79,13 @@ function fail(message: string): { ok: false; error: TransportError } {
   return { ok: false, error: { kind: 'http', message } };
 }
 
-/** 平台接口的替身不碰凭证，客户端只需要一个占位。 */
-const client = {} as MoocClient;
+/**
+ * 平台接口的替身不碰凭证。只有题库（getQuizBank）会经 client.rpc 真发请求——
+ * 它是 buildAnswersWithBank 内部直接调用的模块函数，替身模块换不掉，只能从这里给。
+ * 默认空题库：「卷面没答案、题库也没有 → 不交」是下面几条失败用例的前提。
+ */
+let bank: unknown[] = [];
+const client = { rpc: { call: async () => ok(bank) } } as unknown as MoocClient;
 
 function snapshotWork(overrides: Partial<SnapshotWork> = {}): SnapshotWork {
   return {
@@ -125,7 +130,7 @@ function workAction(
 
 // ---------- 测验的夹具 ----------
 
-/** 试卷上的一道客观题：选项带正确标记（答案就在卷面上，2026-10-17 换接口）。 */
+/** 试卷夹具（runQuiz 的映射测试不再用，保留给后续用例）。 */
 function objectiveQuestion(
   id: number,
   options: Array<[number, boolean]>,
@@ -193,102 +198,21 @@ function nextOf(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  bank = [];
 });
 
 // ---------- 测验 ----------
 
 describe('runQuiz：自动完成一份单元测验', () => {
   /*
-   * 取卷（aid = 0）会覆盖该课已过期的旧答卷，这是平台自己的行为
-   * （页面点「开始测验」就是它）；答案随卷面一起回来，见 quiz.ts。
+   * 本层只验映射：取卷、主观题守卫、组答案（卷面优先、题库补缺）、
+   * 「取不到答案一道都不交」都实现在 quiz.ts 的 answerAndSubmitQuiz 里，
+   * 由 answer-submit.test.ts 用真实现覆盖。
    */
-  it('取卷失败：如实报失败，不提交', async () => {
-    vi.mocked(getQuizPaper).mockResolvedValue(fail('HTTP 403'));
+  const answerAndSubmit = vi.mocked(answerAndSubmitQuiz);
 
-    const result = await runQuiz(client, workAction('quiz'));
-
-    expect(result).toEqual({
-      tid: TID,
-      name: '第一单元测验',
-      kind: 'quiz',
-      status: 'failed',
-      detail: '取卷失败：HTTP 403',
-    });
-    expect(submitQuiz).not.toHaveBeenCalled();
-  });
-
-  it('取卷用 aid = 0：这一步同时就是页面上的「开始测验」', async () => {
-    vi.mocked(getQuizPaper).mockResolvedValue(fail('停在这里'));
-
-    await runQuiz(client, workAction('quiz'));
-
-    expect(getQuizPaper).toHaveBeenCalledWith(client, TID, 0);
-  });
-
-  it('有一道题取不到答案：一道都不提交，并说明原因', async () => {
-    vi.mocked(getQuizPaper).mockResolvedValue(
-      ok(
-        quizPaper({
-          objectiveQList: [
-            ...objectiveQuestion(11, [[101, true]]),
-            ...objectiveQuestion(12, [[103, false], [104, false]]),
-          ],
-        }),
-      ),
-    );
-
-    const result = await runQuiz(client, workAction('quiz'));
-
-    expect(result.status).toBe('failed');
-    expect(result.detail).toBe(
-      '1 道题取不到答案（卷面既无正确选项标记、也无标准答案），已跳过以免得到低分',
-    );
-    // 关键：部分作答会拿到低于预期的分数，宁可一份都不交
-    expect(submitQuiz).not.toHaveBeenCalled();
-  });
-
-  it('含主观题：failed，不自动交（只交客观部分=残缺答卷）', async () => {
-    vi.mocked(getQuizPaper).mockResolvedValue(
-      ok(
-        quizPaper({
-          objectiveQList: objectiveQuestion(11, [[101, true]]),
-          subjectiveQList: [{ id: 21, type: 10, plainTextTitle: '试述…' }],
-        }),
-      ),
-    );
-
-    const result = await runQuiz(client, workAction('quiz'));
-
-    expect(result.status).toBe('failed');
-    expect(result.detail).toBe('这份测验含 1 道主观题，需人工作答，不自动提交');
-    expect(submitQuiz).not.toHaveBeenCalled();
-  });
-
-  it('答卷没有客观题：skipped，不提交', async () => {
-    vi.mocked(getQuizPaper).mockResolvedValue(ok(quizPaper({ objectiveQList: [] })));
-
-    const result = await runQuiz(client, workAction('quiz'));
-
-    expect(result).toEqual({
-      tid: TID,
-      name: '第一单元测验',
-      kind: 'quiz',
-      status: 'skipped',
-      detail: '这份答卷没有客观题',
-    });
-    expect(submitQuiz).not.toHaveBeenCalled();
-  });
-
-  it('正常路径：答案按卷面标记填好再提交，数字与实际提交一致', async () => {
-    vi.mocked(submitQuiz).mockResolvedValue(ok(undefined));
-
-    const paper = quizPaper({
-      objectiveQList: [
-        ...objectiveQuestion(11, [[101, true], [102, false]]),
-        ...objectiveQuestion(12, [[103, true]]),
-      ],
-    });
-    vi.mocked(getQuizPaper).mockResolvedValue(ok(paper));
+  it('提交成功：按提交的题数报完成', async () => {
+    answerAndSubmit.mockResolvedValue({ status: 'submitted', matched: 2, total: 2 });
 
     const result = await runQuiz(client, workAction('quiz'));
 
@@ -299,26 +223,66 @@ describe('runQuiz：自动完成一份单元测验', () => {
       status: 'done',
       detail: '已提交 2 道客观题',
     });
-    // 提交的是取卷拿到的那一份，答案已经就地填好
-    expect(submitQuiz).toHaveBeenCalledTimes(1);
-    const submitted = vi.mocked(submitQuiz).mock.calls[0]?.[1];
-    expect(submitted).toBe(paper);
-    expect(submitted?.answers).toEqual([
-      { qid: 11, type: 1, optIds: [101], time: expect.any(Number) },
-      { qid: 12, type: 1, optIds: [103], time: expect.any(Number) },
-    ]);
   });
 
-  it('提交失败：如实报失败，不谎报完成', async () => {
-    vi.mocked(getQuizPaper).mockResolvedValue(
-      ok(quizPaper({ objectiveQList: objectiveQuestion(11, [[101, true]]) })),
-    );
-    vi.mocked(submitQuiz).mockResolvedValue(fail('服务端 500'));
+  it('取卷/提交失败：把原因原样报出来，不谎报完成', async () => {
+    answerAndSubmit.mockResolvedValue({ status: 'failed', message: '取卷失败：HTTP 403' });
 
     const result = await runQuiz(client, workAction('quiz'));
 
     expect(result.status).toBe('failed');
-    expect(result.detail).toBe('提交失败：服务端 500');
+    expect(result.detail).toBe('取卷失败：HTTP 403');
+  });
+
+  it('有题取不到答案：failed，说的是不交的原因', async () => {
+    answerAndSubmit.mockResolvedValue({
+      status: 'failed',
+      message: '1 道题取不到答案（卷面既无正确选项标记、也无标准答案），已跳过以免得到低分',
+    });
+
+    const result = await runQuiz(client, workAction('quiz'));
+
+    expect(result.status).toBe('failed');
+    expect(result.detail).toContain('取不到答案');
+  });
+
+  it('没有客观题：skipped', async () => {
+    answerAndSubmit.mockResolvedValue({ status: 'no-objective' });
+
+    const result = await runQuiz(client, workAction('quiz'));
+
+    expect(result).toEqual({
+      tid: TID,
+      name: '第一单元测验',
+      kind: 'quiz',
+      status: 'skipped',
+      detail: '这份答卷没有客观题',
+    });
+  });
+
+  it('开卷前按下停止键：skipped，连作答都不进', async () => {
+    const result = await runQuiz(client, workAction('quiz'), { stopped: () => true });
+
+    expect(result.status).toBe('skipped');
+    expect(result.detail).toBe('按停止键中断，未开卷');
+    expect(answerAndSubmit).not.toHaveBeenCalled();
+  });
+
+  it('提交前按下停止键：skipped，不提交', async () => {
+    // 停止键在「组答案期间」被执行者按下：提交前的最后一道闸必须拦住
+    let stopped = false;
+    answerAndSubmit.mockImplementation(async (_client, _tid, _termId, hooks) => {
+      stopped = true; // 组答案时用户点了停止
+      const allowed = hooks?.beforeSubmit?.() ?? true;
+      return allowed
+        ? { status: 'submitted', matched: 1, total: 1 }
+        : { status: 'stopped', matched: 1, total: 1 };
+    });
+
+    const result = await runQuiz(client, workAction('quiz'), { stopped: () => stopped });
+
+    expect(result.status).toBe('skipped');
+    expect(result.detail).toBe('按停止键中断，未提交');
   });
 });
 
