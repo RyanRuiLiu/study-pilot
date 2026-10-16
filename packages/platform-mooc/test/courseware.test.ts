@@ -222,6 +222,25 @@ describe('随堂测验：像真人一样交一份答卷', () => {
     expect(rpcCalls('saveMocContentLearn')).toHaveLength(1);
   });
 
+  it('含主观题的卷不自动交：只交客观部分等于残缺答卷', async () => {
+    const { client, rpcCalls } = clientStub({
+      getOpenQuizPaperDto: {
+        code: 0,
+        message: '',
+        result: {
+          id: 5002,
+          objectiveQList: [{ id: 11, type: 1, optionDtos: [{ id: 101, answer: true }] }],
+          subjectiveQList: [{ id: 21, type: 10, plainTextTitle: '试述…' }],
+        },
+      },
+    });
+    const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.QUESTION }));
+
+    expect(result.ok).toBe(false);
+    expect(rpcCalls('submitAnswers')).toHaveLength(0);
+    expect(rpcCalls('saveMocContentLearn')).toHaveLength(0);
+  });
+
   it('卷面取不到答案时返回失败：不交残缺答卷，也不报完成', async () => {
     const { client, rpcCalls } = clientStub({
       getOpenQuizPaperDto: {

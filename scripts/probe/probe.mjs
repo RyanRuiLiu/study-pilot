@@ -26,10 +26,13 @@
  * 用法：pnpm probe <命令>   （完整清单：pnpm probe --help）
  */
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import beautifyPkg from 'js-beautify';
+
+const beautifyJs = beautifyPkg.js;
 // 智慧树调试走包内签名客户端与端点表（相对路径导入：根 node_modules 没有 workspace 包；
 // Node 24 原生剥类型，直接吃 .ts）。这也是「调试有标准」的一半：协议实现只有包内一份。
 import {
@@ -43,6 +46,8 @@ const PROFILE = path.join(ROOT, '.probe', 'profile');
 const SESSION = path.join(ROOT, '.probe', 'browser-session.json');
 const API_DIR = path.join(ROOT, '.probe', 'api');
 const EXT_DIR = path.join(ROOT, 'apps', 'extension', '.output', 'chrome-mv3');
+/** 前端源码镜像目录：raw/ 原样、readable/ 格式化、INDEX.md 索引（本地查阅用） */
+const SRC_DIR = path.join(ROOT, '.probe', 'mooc-src');
 
 const ORIGIN = 'https://www.icourse163.org';
 /** 探测浏览器的固定调试端口。端口本身不可信，attach 前核实对端身份（见 attach()）。 */
@@ -635,6 +640,180 @@ async function zhsCall(opts) {
   }
 }
 
+// ---------------------------------------------------------------- 源码镜像
+
+/**
+ * 前端源码镜像：把 mooc 全站的前端 bundle 一次拉全、格式化、建索引。
+ *
+ * 目的与标准：要「服务端或源码说了算」时，得能方便地读源码（2026-10-17 Ryan 定）。
+ * 一次性脚本不许留在仓库，所以这件事做成本工具的一条正式命令。
+ *
+ * 覆盖（每次 fetch 全量核对，已下载的不重复拉）：
+ *   · /rc/bootstraps/main/bootstrap.js —— SPA 的分块清单，里面列出主应用全部分块；
+ *   · --url 给的页面（可多次）——页面引用的脚本（学习页的 core / pt_learn 等）；
+ *   · 默认补上首页。
+ * 产物：
+ *   .probe/mooc-src/raw/<扁平化文件名>        原样（带哈希名，可核对）
+ *   .probe/mooc-src/readable/<去哈希名>.js    格式化
+ *   .probe/mooc-src/INDEX.md                  来源 URL → 文件，以及关键标记 → 哪些文件命中
+ */
+/** 出站请求的常规浏览器 UA（与 packages/transport/src/user-agent.ts 同一口径）。 */
+const SRC_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
+
+const SRC_MARKERS = [
+  'saveDraftAnswers', 'submitAnswers', 'getOpenQuizPaperDto', 'getQuestionListByTermId',
+  'mocQuizRpcBean', 'mocHomeworkRpcBean', 'getLessonUnitLearnVo', 'saveMocContentLearn',
+  'TYPE_OBJECTIVE', 'TYPE_SUBJECTIVE', 'ANALYSE_AFTER', 'isNeedAuth',
+];
+
+const flattenName = (url) => url.replace(/^https?:\/\//, '').replace(/[^A-Za-z0-9._-]+/g, '_');
+const readableNameOf = (flat) => flat.replace(/_[0-9a-f]{8,}(?=\.js$)/gi, '').replace(/^_+/, '');
+
+/** 按域取 cookie：目标是哪个域就只发哪个域的（跨域大礼包会被 CDN/WAF 拒）。 */
+function cookiesForHost(entries, host) {
+  return entries
+    .filter((c) => {
+      const domain = String(c.domain ?? '').toLowerCase().replace(/^\./, '');
+      return domain !== '' && (host === domain || host.endsWith(`.${domain}`));
+    })
+    .map((c) => `${c.name}=${c.value}`)
+    .join('; ');
+}
+
+async function srcCollect(cookieEntries, pages) {
+  const urls = new Set();
+  const addFromText = (text) => {
+    for (const m of text.matchAll(/["'(]([^"')]*?\.js)(?:\?[^"')]*)?["')]/g)) {
+      const raw = m[1];
+      if (!raw || !/mc\.stu\.126\.net|cmc\.stu\.126\.net|edu-cms\.nosdn/.test(raw)) continue;
+      const abs = raw.startsWith('//') ? `https:${raw}` : raw;
+      if (abs.endsWith('.js')) urls.add(abs.split('?')[0]);
+    }
+  };
+  const fetchText = async (url) => {
+    const host = new URL(url).host;
+    const cookie = cookiesForHost(cookieEntries, host);
+    const res = await fetch(url, {
+      headers: {
+        ...(cookie === '' ? {} : { cookie }),
+        'user-agent': SRC_USER_AGENT,
+        referer: 'https://www.icourse163.org/',
+      },
+    });
+    return res.status === 200 ? await res.text() : '';
+  };
+
+  const bootstrap = await fetchText('https://mc.stu.126.net/rc/bootstraps/main/bootstrap.js');
+  if (bootstrap === '') throw new Error('bootstrap 拉不下来（CDN 可达性？）');
+  mkdirSync(path.join(SRC_DIR, 'raw'), { recursive: true });
+  writeFileSync(path.join(SRC_DIR, 'raw', 'bootstrap.js'), bootstrap);
+  addFromText(bootstrap);
+
+  for (const page of pages) {
+    const html = await fetchText(page);
+    if (html !== '') addFromText(html);
+  }
+  return urls;
+}
+
+async function srcFetch(opts) {
+  const cookieEntries = (() => {
+    try {
+      const saved = JSON.parse(readFileSync(SESSION, 'utf8'));
+      return (saved.cookies ?? []).filter((c) => typeof c?.name === 'string' && typeof c?.value === 'string');
+    } catch {
+      return [];
+    }
+  })();
+
+  const pages = [];
+  for (let i = 0; i < process.argv.length; i++) {
+    if (process.argv[i] === '--url' && process.argv[i + 1]) pages.push(process.argv[i + 1]);
+  }
+  if (pages.length === 0) pages.push('https://www.icourse163.org/');
+
+  console.log(`收集脚本清单（bootstrap + ${pages.length} 个页面）…`);
+  const urls = await srcCollect(cookieEntries, pages);
+  console.log(`发现脚本 ${urls.size} 个`);
+
+  mkdirSync(path.join(SRC_DIR, 'raw'), { recursive: true });
+  mkdirSync(path.join(SRC_DIR, 'readable'), { recursive: true });
+  const rows = [];
+  let downloaded = 0;
+  let beautified = 0;
+  for (const url of [...urls].sort()) {
+    const flat = flattenName(url);
+    const rawPath = path.join(SRC_DIR, 'raw', flat);
+    const readable = readableNameOf(flat);
+    const readablePath = path.join(SRC_DIR, 'readable', readable);
+    try {
+      if (!existsSync(rawPath) || opts.refetch) {
+        const res = await fetch(url, { headers: { 'user-agent': SRC_USER_AGENT } });
+        if (res.status !== 200) { rows.push({ url, note: `HTTP ${res.status}` }); continue; }
+        writeFileSync(rawPath, await res.text());
+        downloaded += 1;
+      }
+      if (!existsSync(readablePath) || opts.refetch) {
+        writeFileSync(readablePath, beautifyJs(readFileSync(rawPath, 'utf8'), { indent_size: 2, max_preserve_newlines: 2 }));
+        beautified += 1;
+      }
+      rows.push({ url, readable: rel(readablePath), size: statSync(rawPath).size });
+      process.stdout.write('.');
+    } catch (error) {
+      rows.push({ url, note: String(error).slice(0, 80) });
+    }
+  }
+  console.log(`\n新下载 ${downloaded}，新格式化 ${beautified}`);
+
+  const markerMap = new Map(SRC_MARKERS.map((m) => [m, []]));
+  for (const row of rows) {
+    if (!row.readable) continue;
+    const text = readFileSync(path.join(ROOT, row.readable), 'utf8');
+    for (const marker of SRC_MARKERS) if (text.includes(marker)) markerMap.get(marker).push(path.basename(row.readable));
+  }
+
+  const index = [
+    '# mooc 前端源码镜像（pnpm probe src fetch 生成）',
+    '',
+    `更新时间：${new Date().toISOString()}｜文件 ${rows.filter((r) => r.readable).length} 个`,
+    '',
+    '怎么查：在 readable/ 里按关键词搜（或 `pnpm probe src grep <关键词>`）——',
+    'rpc 接口名、常量名、界面文案都能直接搜到，行号与页面源码一一对应（已格式化）。',
+    '',
+    '## 关键标记 → 文件',
+    '',
+    ...SRC_MARKERS.map((m) => `- \`${m}\` → ${markerMap.get(m).slice(0, 6).join('、') || '（未命中）'}`),
+    '',
+    '## 来源 URL → 文件',
+    '',
+    '| URL | readable | 字节 |',
+    '|---|---|---|',
+    ...rows.map((r) => (r.note ? `| ${r.url} | ${r.note} | - |` : `| ${r.url} | ${r.readable} | ${r.size} |`)),
+    '',
+  ].join('\n');
+  writeFileSync(path.join(SRC_DIR, 'INDEX.md'), index);
+  console.log(`索引写好：${rel(path.join(SRC_DIR, 'INDEX.md'))}`);
+}
+
+function srcGrep(opts) {
+  const keyword = opts._?.[1] ?? opts.keyword;
+  if (!keyword) die('src grep 需要关键词：pnpm probe src grep <关键词>');
+  const dir = path.join(SRC_DIR, 'readable');
+  if (!existsSync(dir)) die('还没有镜像：先跑 pnpm probe src fetch');
+  let shown = 0;
+  for (const file of readdirSync(dir)) {
+    const lines = readFileSync(path.join(dir, file), 'utf8').split('\n');
+    for (let i = 0; i < lines.length && shown < 40; i++) {
+      if (lines[i].includes(keyword)) {
+        console.log(`${file}:${i + 1}: ${lines[i].trim().slice(0, 200)}`);
+        shown += 1;
+      }
+    }
+  }
+  if (shown === 0) console.log('（readable/ 里没有命中）');
+}
+
 // ---------------------------------------------------------------- 扩展
 
 async function findExtensionId(context) {
@@ -753,6 +932,9 @@ const USAGE = `用法：pnpm probe <命令> [选项]
                                          从采集的 HAR 里取出匹配请求的响应体
   call --bean <Bean> --method <方法>     在页面上下文发 .rpc 请求（默认只放行只读方法）
       [--body <JSON|@文件>] [--allow-write]
+  src fetch [--url <页面>...] [--refetch]  下载 mooc 全站前端源码 → .probe/mooc-src/
+                                          （raw/ 原样 + readable/ 格式化 + INDEX.md 索引）
+  src grep <关键词>                        在镜像的 readable/ 里搜（文件名:行号）
   zhs --list                             智慧树端点表（名字 / 方法 / 宿主 / 是否签名 / 读或写）
   zhs --endpoint <名字>                  调智慧树接口（Node 直发，走包内签名；附着浏览器取活 cookie）
       [--params '<JSON>|@文件'] [--allow-write]
@@ -789,6 +971,12 @@ async function main() {
     case 'call':
       await rpcCall(opts);
       break;
+    case 'src': {
+      const sub = argv[1] === 'grep' ? 'grep' : 'fetch';
+      if (sub === 'grep') srcGrep(opts);
+      else await srcFetch(opts);
+      break;
+    }
     case 'zhs':
       if (opts.list) zhsList();
       else await zhsCall(opts);

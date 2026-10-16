@@ -247,6 +247,23 @@ describe('runQuiz：自动完成一份单元测验', () => {
     expect(submitQuiz).not.toHaveBeenCalled();
   });
 
+  it('含主观题：failed，不自动交（只交客观部分=残缺答卷）', async () => {
+    vi.mocked(getQuizPaper).mockResolvedValue(
+      ok(
+        quizPaper({
+          objectiveQList: objectiveQuestion(11, [[101, true]]),
+          subjectiveQList: [{ id: 21, type: 10, plainTextTitle: '试述…' }],
+        }),
+      ),
+    );
+
+    const result = await runQuiz(client, workAction('quiz'));
+
+    expect(result.status).toBe('failed');
+    expect(result.detail).toBe('这份测验含 1 道主观题，需人工作答，不自动提交');
+    expect(submitQuiz).not.toHaveBeenCalled();
+  });
+
   it('答卷没有客观题：skipped，不提交', async () => {
     vi.mocked(getQuizPaper).mockResolvedValue(ok(quizPaper({ objectiveQList: [] })));
 

@@ -73,6 +73,9 @@ PRIVACY.md 会同步改写。
     pnpm probe call --bean <Bean> --method <getXxx> --body '{...}'
         # 在页面上下文发 .rpc 请求（慕课专用；默认只放行只读方法，写方法要 --allow-write 显式放行）
     pnpm probe shot --url <URL>             # 截一张图
+    pnpm probe src fetch [--url <页面>...]  # 拉 mooc 全站前端源码 → .probe/mooc-src/
+        # raw/ 原样 + readable/ 格式化（js-beautify）+ INDEX.md（URL→文件、关键标记→文件）
+    pnpm probe src grep <关键词>            # 在镜像里搜（文件名:行号）——查「服务端/源码怎么说」
     pnpm probe zhs --list                   # 智慧树端点表（名字 / 方法 / 宿主 / 是否签名 / 读或写）
     pnpm probe zhs --endpoint <名字> [--params '<JSON>|@文件']
         # 调智慧树接口：走包内签名客户端（Node 直发），cookie 从探测浏览器取活的；
@@ -86,7 +89,9 @@ PRIVACY.md 会同步改写。
 **调试标准（唯一姿势，别另开写法）**：找接口、抓响应一律用 `capture`（真实页面的 HAR 即事实源）
 与 `call` / `zhs`（调已知接口）；**不为一次问题另写脚本**——一次性脚本用完即删，值得留下的
 能力收进 `probe.mjs` 或包内端点表（`packages/platform-zhs/src/endpoints.ts` 是全项目唯一
-写智慧树接口路径的地方）。.probe/ 是草稿区：产物（HAR、api 响应）可留作证据，代码不留。
+写智慧树接口路径的地方）。要读**平台自己的实现**（题型枚举、提交字段、界面文案）时，先
+`probe src fetch` 把前端源码镜像到本地再搜：**源码与服务端是仅有的两个事实源，猜不算**。
+.probe/ 是草稿区：产物（HAR、api 响应、源码镜像）可留作证据，代码不留。
 
 约定：取证一律用 capture / call，**不要手写临时监听**（时序与缓存不可控，本项目曾据此误判）；
 产物一律落 `.probe/`（git 忽略），结论写进代码注释。规则全文在 `scripts/probe/probe.mjs` 头部，

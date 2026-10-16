@@ -43,7 +43,9 @@
     找接口          pnpm probe capture --url <URL>      真实页面的 HAR 即事实源
     调慕课接口      pnpm probe call --bean <B> --method <m> --body '{...}'
     调智慧树接口    pnpm probe zhs --list ／ --endpoint <名字> [--params '<JSON>']
-    .probe/         草稿区：产物（HAR、api 响应）可留作证据；代码不留
+    读平台源码      pnpm probe src fetch（镜像全站前端到 .probe/mooc-src/）
+                    ／ pnpm probe src grep <关键词>（在镜像里搜）
+    .probe/         草稿区：产物（HAR、api 响应、源码镜像）可留作证据；代码不留
 
 智慧树接口的路径只写在一处：`packages/platform-zhs/src/endpoints.ts`。要调的新接口
 先进这张表，再经 `probe zhs` 调它。

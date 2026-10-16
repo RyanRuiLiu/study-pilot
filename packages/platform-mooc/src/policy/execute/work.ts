@@ -54,6 +54,12 @@ export async function runQuiz(
     return { ...base, status: 'failed', detail: `取卷失败：${paper.error.message}` };
   }
 
+  // 含主观题的卷不自动交（同 unit-quiz 的道理：只交客观部分=残缺答卷）
+  const subjective = (paper.value.subjectiveQList ?? []).length;
+  if (subjective > 0) {
+    return { ...base, status: 'failed', detail: `这份测验含 ${subjective} 道主观题，需人工作答，不自动提交` };
+  }
+
   const built = buildAnswers(paper.value);
   if (built.total === 0) {
     return { ...base, status: 'skipped', detail: '这份答卷没有客观题' };
