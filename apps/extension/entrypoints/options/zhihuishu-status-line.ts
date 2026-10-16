@@ -1,17 +1,17 @@
 /*
  * 智慧树「账号与课程」卡头里的状态行（标题右侧，与读取按钮同一行）。
  *
- *   账号与课程   已登录 · 2 门课程参与 · 待学 122 项   [读取课程列表]
+ *   账号与课程   已登录 · 2 门课程参与 · 可代为完成 137 项   [读取课程列表]
  *
  * 与慕课那份同一条规则：只负责**加载完成后的状态**；读取期间立骨架、
  * 失败与未登录保持空白（那句话在内容区出现一次，见 zhihuishu-courses.ts）。
  *
- * 数字与课件区共用同一条平台读取（ZHS_COURSEWARE_SUMMARY），不另发消息；
- * 读不到时头部只留本地事实（已登录 · N 门参与），失败细节由课件卡自己报。
+ * 数字与课程任务卡共用同一条平台读取（ZHS_COURSE_TASKS），不另发消息；
+ * 读不到时头部只留本地事实（已登录 · N 门参与），失败细节由课程任务卡自己报。
  */
 
-import { getZhsCourseware, getZhsSession, getSettings } from '../../src/ui-bridge';
-import type { ZhsCoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
+import { getZhsCourseTasks, getZhsSession, getSettings } from '../../src/ui-bridge';
+import type { ZhsCourseTaskSummary, QueryOutcome } from '../../src/ui-bridge';
 
 /**
  * 卡头状态行立刻进入等待（骨架守位）。
@@ -26,7 +26,7 @@ export function markZhsStatusLineLoading(): void {
 }
 
 export async function renderZhsStatusLine(
-  coursewareRead?: Promise<QueryOutcome<ZhsCoursewareSummary>>,
+  tasksRead?: Promise<QueryOutcome<ZhsCourseTaskSummary>>,
 ): Promise<void> {
   const el = document.getElementById('zhs-session-text');
   if (el === null) return;
@@ -57,10 +57,14 @@ export async function renderZhsStatusLine(
   markZhsStatusLineLoading();
 
   const parts = ['已登录', `${enabled} 门课程参与`];
-  const courseware = await (coursewareRead ?? getZhsCourseware());
-  if (courseware.status === 'ok') {
-    const pending = courseware.value.pendingTotal;
-    parts.push(pending === 0 ? '暂无待学' : `待学 ${pending} 项`);
+  const tasks = await (tasksRead ?? getZhsCourseTasks());
+  if (tasks.status === 'ok') {
+    const pending = tasks.value.pendingTotal;
+    /*
+     * 措辞取常用句里的「可代为完成」（CONTRIBUTING「界面语言与文案」）：
+     * 这一个数把视频与测试两类合在一起说，用「待学」会把测试排除在外。
+     */
+    parts.push(pending === 0 ? '暂无待完成' : `可代为完成 ${pending} 项`);
   }
 
   el.classList.remove('is-loading');

@@ -6,7 +6,7 @@
 
 import type { MessageHandlers } from '../../../protocol.ts';
 import type { ZhsMessageDeps } from './deps.ts';
-import { zhsCoursewareSummaryCommand } from './courseware-summary.ts';
+import { zhsCourseTasksCommand } from './course-tasks.ts';
 import { zhsCoursesCommand } from './courses.ts';
 import { zhsPendingCommand } from './pending.ts';
 import { zhsRefreshCoursesCommand } from './refresh-courses.ts';
@@ -17,7 +17,7 @@ export function zhihuishuHandlers(deps: ZhsMessageDeps): Omit<MessageHandlers, '
     ZHS_SESSION: zhsSessionCommand(deps),
     ZHS_COURSES: zhsCoursesCommand(deps),
     ZHS_REFRESH_COURSES: zhsRefreshCoursesCommand(deps),
-    ZHS_COURSEWARE_SUMMARY: zhsCoursewareSummaryCommand(deps),
+    ZHS_COURSE_TASKS: zhsCourseTasksCommand(deps),
     ZHS_PENDING_SUMMARY: zhsPendingCommand(deps),
   };
 }

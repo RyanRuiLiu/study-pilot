@@ -16,7 +16,7 @@
 import '../../src/ui/tokens.css';
 import './style.css';
 
-import { getCourseware, getZhsCourseware } from '../../src/ui-bridge';
+import { getCourseware, getZhsCourseTasks } from '../../src/ui-bridge';
 import { initTabs } from '../../src/ui/tabs.ts';
 import { initCourseActions, renderCourses } from './courses.ts';
 import { renderCourseware } from './courseware.ts';
@@ -25,7 +25,7 @@ import { watchRunHint } from './run-hint.ts';
 import { renderStatusLine } from './status-line.ts';
 import { initToast } from './toast.ts';
 import { initZhsCourseActions, renderZhsCourses } from './zhihuishu-courses.ts';
-import { renderZhsCourseware } from './zhihuishu-courseware.ts';
+import { renderZhsCourseTasks } from './zhihuishu-course-tasks.ts';
 import { renderZhsStatusLine } from './zhihuishu-status-line.ts';
 
 function init(): void {
@@ -59,12 +59,12 @@ function init(): void {
         return;
       }
       if (id === 'zhihuishu') {
-        // 同一条装配规则：智慧树的课件进度也只读一次，状态行与课件区共用
-        const courseware = getZhsCourseware();
+        // 同一条装配规则：智慧树的课程任务也只读一次，状态行与课程任务卡共用
+        const tasks = getZhsCourseTasks();
         initZhsCourseActions();
         void renderZhsCourses();
-        void renderZhsStatusLine(courseware);
-        void renderZhsCourseware(courseware);
+        void renderZhsStatusLine(tasks);
+        void renderZhsCourseTasks(tasks);
       }
     },
   });

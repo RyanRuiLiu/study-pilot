@@ -17,7 +17,7 @@
     <div class="page">
       <!--
         页头只有名字：状态数据放在它所属的地方——未登录提示在课程卡里、
-        课件数在课件卡里、待交数是弹窗与 tab 徽标的事。页头不做仪表盘。
+        进度数在各自的进度卡里、待交数是弹窗与 tab 徽标的事。页头不做仪表盘。
       -->
       <header class="masthead">
         <h1>Study Pilot</h1>
@@ -112,8 +112,9 @@
       </section>
 
       <!--
-        智慧树：与慕课同构的两块（账号与课程、课件）。数据只在它第一次
-        成为当前 tab 时读一次（见 main.ts 的 onFirstActivate）。
+        智慧树：两块——账号与课程、课程任务（按平台自己的成绩构成组织，
+        与慕课的「课件」不是同一套划分）。数据只在它第一次成为当前 tab 时
+        读一次（见 main.ts 的 onFirstActivate）。
       -->
       <section class="tab-panel" role="tabpanel" id="panel-zhihuishu" aria-labelledby="tab-zhihuishu" data-tab="zhihuishu" hidden>
         <section class="panel">
@@ -129,18 +130,20 @@
         </section>
 
         <!--
-          课件：每门课的已学 / 总数与「执行」——智慧树的任务就是这些视频单元，
-          教学播放与进度上报都由这里驱动（执行期间行内小字与「停止」见模块注释）。
+          课程任务：每门课一张卡，按**成绩构成组件**报进度（设计文档 §2）——
+          没有「课件」一说，智慧树的组件由平台自己给（学习进度 / 平时测试 /
+          见面课 / 期末），本期能填的是学习进度这一项。
+          课名链到平台成绩分析页；执行期间卡内小字与「停止」见模块注释。
+          上次执行出错行按平台独立（见 zhihuishu-course-tasks 的 renderZhsFailure）。
         -->
         <section class="panel">
           <div class="panel-head">
-            <h2 class="panel-title">课件</h2>
-            <!-- 上次执行出错行（按平台独立，见 zhihuishu-courseware 的 renderZhsFailure） -->
-            <p class="head-status" id="zhs-courseware-status"></p>
-            <a class="btn ghost" id="zhs-courseware-action" hidden target="_blank" rel="noreferrer"></a>
+            <h2 class="panel-title">课程任务</h2>
+            <p class="head-status" id="zhs-tasks-status"></p>
+            <a class="btn ghost" id="zhs-tasks-action" hidden target="_blank" rel="noreferrer"></a>
           </div>
           <!-- 等待平台读取：块状骨架（一块），落定时整体换内容 -->
-          <div id="zhs-courseware-list">
+          <div id="zhs-tasks-list">
             <span class="skeleton skeleton-block" aria-hidden="true"></span>
           </div>
         </section>

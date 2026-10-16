@@ -77,15 +77,40 @@ export interface ZhsPendingSummary {
   unreadCourses: ZhsUnreadCourse[];
 }
 
-/** 一门课的课件进度（与课件区显示的是同一份判据）。 */
-export interface ZhsCoursewareProgress {
+/**
+ * 一门课的**成绩构成组件清单**（设计文档 §2 定案：按成绩构成组织）。
+ *
+ * 平台把每门课的成绩摊成若干组件（学习进度 / 平时测试 / 见面课 / 期末…），
+ * 设置页按同一套组件报进度——**没有「课件」这个说法**：智慧树的任务不套慕课
+ * 那套「课件/待办」二分，它的组件是平台自己给的（成绩分析页的原文口径）。
+ *
+ * 本期能填的是前两项：教程与测试（模块 1/2 已实现）。见面课与期末要等模块
+ * 4/6，**不给空行占位**——摆一行填不出的组件，人会以为那些是零。
+ */
+export interface ZhsCourseTask {
   courseId: number;
   courseName: string;
-  /** 已完成的单元数 */
-  done: number;
-  /** 单元总数 */
-  total: number;
-  /** 未完成且可执行的数量（= total - done） */
+  /** 平台成绩分析页（点课名打开；地址取自 FINDINGS §二十二 的入口记录） */
+  reportUrl: string;
+  /** 学习进度·教程：已完成的视频单元 / 全部视频单元 */
+  video: { done: number; total: number };
+  /**
+   * 学习进度·测试：已交单元测试 / 全部单元测试。
+   *
+   * 总数是**未交与已交两页签合计**——只在未交页签里数会把交过的那些漏掉，
+   * 进度就永远到不了满分。已完成数只认已交页签（平台的 flag 页签才判交没交，
+   * 别拿 state 猜，见 exam-list.ts）。
+   */
+  quiz: { done: number; total: number };
+  /**
+   * 测试那两页签没读成的原因（读成时为 null）。
+   *
+   * 与 `unread` 是两件事：`unread` 是整门课的结构没读到，这个是结构读到了、
+   * 只有作业清单那两页签失败——那时视频那半照常报数，**测试这一行按本字段
+   * 关掉数字位**，不拿 0/0 冒充「这门课没有测试」。
+   */
+  quizUnreadReason: string | null;
+  /** 这门课还剩多少项没完成（视频未看 + 单元测试未交）。状态行用 */
   pending: number;
   /**
    * 这门课的结构没读成（缺入口参数或平台读取失败）。
@@ -94,10 +119,10 @@ export interface ZhsCoursewareProgress {
   unread?: boolean;
 }
 
-/** 课件概要：每门课一行 + 汇总计数。 */
-export interface ZhsCoursewareSummary {
-  courses: ZhsCoursewareProgress[];
-  /** 待完成单元总数（状态行用） */
+/** 课程任务概要：每门课一份组件清单 + 汇总计数。 */
+export interface ZhsCourseTaskSummary {
+  courses: ZhsCourseTask[];
+  /** 待完成总数（状态行用） */
   pendingTotal: number;
 }
 
@@ -115,8 +140,8 @@ export type ZhsRequest =
   | { type: 'ZHS_COURSES' }
   /** 去平台重新拉一次课程列表并写回配置（勾选沿用用户做过的） */
   | { type: 'ZHS_REFRESH_COURSES' }
-  /** 课件进度：每门课的完成计数（只读） */
-  | { type: 'ZHS_COURSEWARE_SUMMARY' }
+  /** 课程任务：每门课的成绩构成组件进度（只读） */
+  | { type: 'ZHS_COURSE_TASKS' }
   /** 待办：全部未完成的视频单元 */
   | { type: 'ZHS_PENDING_SUMMARY' };
 
@@ -126,6 +151,6 @@ export interface ZhsResponseMap {
   ZHS_REFRESH_COURSES:
     | { ok: true; courses: ZhihuishuCourse[] }
     | { ok: false; reason: JobRejection; message?: string };
-  ZHS_COURSEWARE_SUMMARY: QueryOutcome<ZhsCoursewareSummary>;
+  ZHS_COURSE_TASKS: QueryOutcome<ZhsCourseTaskSummary>;
   ZHS_PENDING_SUMMARY: QueryOutcome<ZhsPendingSummary>;
 }

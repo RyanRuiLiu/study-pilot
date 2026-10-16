@@ -66,10 +66,25 @@ const ZHS_AUTH_COOKIE = 'CASLOGC';
 /**
  * 智慧树写端点登记表：调用它们默认被拦截，--allow-write 才放行。
  *
- * 名单是显式的（端点表只有 8 个，逐个点名比按名字前缀猜可靠——`queryCourse` 是读、
+ * 名单是显式的（逐个点名比按名字前缀猜可靠——`queryCourse` 是读、
  * `saveStudyInterval` 是写，前缀根本分不出来）。新增写端点时在这里登记。
+ *
+ * **考试族（2026-10-17 补登）**：这四个当时漏了，`--list` 把它们印成「读」，
+ * 于是交卷、建答卷这些不可逆的动作不需要 `--allow-write` 就能发出去。
+ * 端点表只写 8 个的时候漏掉情有可原，加了整族再漏就是真缺口：
+ *   `examDoHomework` 调用即建答卷（设计文档 §5：任何读取路径不得顺手开卷）；
+ *   `examSaveAnswer` 逐题写入；`examSubmit` 即刻计分、不可撤销；
+ *   `examApplyRedo` 消耗一次重做机会且分数覆盖原分数。
+ * 余下的 `examHomeworkList` / `examLookHomework` / `examRedoNum` / `examIsObject`
+ * 是纯读，不登记。
  */
-const ZHS_WRITE_ENDPOINTS = new Set(['saveStudyInterval']);
+const ZHS_WRITE_ENDPOINTS = new Set([
+  'saveStudyInterval',
+  'examDoHomework',
+  'examSaveAnswer',
+  'examSubmit',
+  'examApplyRedo',
+]);
 /** 签名盐值与协议版本——出处是 packages/transport/src/sign.ts（按线上源码还原；
  * 本文件只用于慕课的 .rpc 调试；智慧树的签名在 packages/platform-zhs/src/sign.ts，是另一套协议）。 */
 const SIGN_SALT = 'fu2s2kxcswgn5hqanx7asmlogyr5wu29';
