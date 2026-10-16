@@ -1000,7 +1000,9 @@ function readBrandTokens() {
     onAccent: pick('--on-accent'),
     font: pick('--font'),
     paper: pick('--paper'),
+    paper2: pick('--paper-2'),
     ink: pick('--ink'),
+    inkSoft: pick('--ink-soft'),
     inkFaint: pick('--ink-faint'),
     textSm: pick('--text-sm'),
     textMd: pick('--text-md'),
@@ -1141,8 +1143,12 @@ async function drawIcons(page, dir, brand) {
  * 纯透明像素数、不透明像素的范围、四角像素，以及每个颜色的像素数与包围盒。
  * 图标与商店磁贴共用这一份量法：两边要验的东西不同，量法不必各写一遍。
  * 一像素只归一色，所以颜色按「谁更特别谁在前」排（浅色之间容差要留得下区别）。
+ *
+ * box 给定时**只有颜色的计数**限定在这块区域里，尺寸/透明度/范围/四角仍是整幅的。
+ * 需要它是因为：磁贴的白底（--paper-2）与图标字母（--on-accent）都是 #ffffff，
+ * 按颜色分不出「字母画上了」——把计数限定在标记方块内部才问得出这个问题。
  */
-function measurePng({ dataUrl, colors, tolerances }) {
+function measurePng({ dataUrl, colors, tolerances, box }) {
   const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   const near = (r, g, b, target, tolerance) =>
     Math.abs(r - target[0]) <= tolerance &&
@@ -1189,6 +1195,7 @@ function measurePng({ dataUrl, colors, tolerances }) {
           bounds.right = Math.max(bounds.right, x);
           bounds.bottom = Math.max(bounds.bottom, y);
           if (alpha < 200) continue; // 抗锯齿的半透明边，算不进任何一色
+          if (box && (x < box.left || x > box.right || y < box.top || y > box.bottom)) continue;
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
@@ -1267,9 +1274,9 @@ function judgeIcon(size, m) {
 }
 
 /** 读一张图并量它。图标与商店磁贴都要走这一步。 */
-async function measureFile(page, file, colors, tolerances) {
+async function measureFile(page, file, colors, tolerances, box = null) {
   const dataUrl = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
-  return page.evaluate(measurePng, { dataUrl, colors, tolerances });
+  return page.evaluate(measurePng, { dataUrl, colors, tolerances, box });
 }
 
 /**
@@ -1437,9 +1444,14 @@ async function previewIcons(page, dir, brand) {
  * region、favor saturated colors、steer clear of large white or light-gray areas、
  * 缩到一半仍要认得出、不要拿截图充数。
  *
- * 这一版：群青满幅打底，白色标记（图标反白——白方块加群青字母；正着放与底色同色
- * 就看不见了）加品牌名与一句说明。**文字是 Ryan 2026-10-17 的选择**，与上面
- * 「避免文字」那条建议相左；上一版也有文字，且底色是浅灰——大面积浅灰同在建议之外。
+ * 这一版（Ryan 2026-10-17 定）：白底 + 蓝色图标 + 深色文字，即旧脚本的结构换成新
+ * 主题的色值。两处与上面那页建议相左，都是 Ryan 明确选的，记在这里免得下次有人
+ * 「照规范改回去」：
+ *   1. 有文字——规范说 Avoid text；
+ *   2. 大面积白底——规范说要避开大面积浅色，原文给的理由是 "assume a light gray
+ *      backdrop"：商店列表底色是浅灰，纯白磁贴会有点融进背景。
+ * 中间试过两版都被否掉：群青满幅 + 白方块标记（像蓝底上浮一张白卡片）、群青满幅 +
+ * 白字母（没有方块，标记认不出是图标）。
  *
  * 旧脚本（make-store-assets.mjs，77a2c46 删除）写死的是上一套配色：墨绿 #0f766e、
  * 墨 #101828、纸 #f7f9fb、线 #ccd2d9——这些值现在的 tokens.css 里一个都没有，
@@ -1466,14 +1478,12 @@ const STORE_TITLE = 'Study Pilot';
 const STORE_SUBTITLE = '课程待办与截止时间';
 /** 标记高度、图文间距、标题字号、说明字号各自占磁贴高度的比例，沿用旧脚本调过的值。 */
 const STORE_RATIOS = { mark: 0.42, gap: 0.13, title: 0.15, subtitle: 0.56 };
-/** 标记的圆角比例，与图标同一套。 */
-const STORE_MARK_RADIUS = 0.22;
 
 /**
  * 在页面里画一张磁贴（浏览器侧执行，不得引用本文件的任何东西）。
  * 返回 PNG 与这次排版算出来的几个数——核对要拿它们跟磁盘上的像素比对。
  */
-async function drawStore({ brand, letter, tiles, title, subtitle, ratios, markRadius }) {
+async function drawStore({ brand, letter, tiles, title, subtitle, ratios, radiusRatio, letterRatio }) {
   const blank = (w, h) => {
     const canvas = document.createElement('canvas');
     canvas.width = w;
@@ -1481,29 +1491,12 @@ async function drawStore({ brand, letter, tiles, title, subtitle, ratios, markRa
     return canvas;
   };
 
-  /*
-   * 字母按墨迹居中，与图标同一套做法：textBaseline: 'middle' 对齐的是字体
-   * 度量线，字母墨迹上下并不对称。
-   */
-  const drawLetter = (ctx, color, fontSize, centerX, centerY) => {
-    ctx.fillStyle = color;
-    ctx.font = `600 ${Math.round(fontSize)}px ${brand.font}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    const ink = ctx.measureText(letter);
-    ctx.fillText(
-      letter,
-      centerX - (ink.actualBoundingBoxRight - ink.actualBoundingBoxLeft) / 2,
-      centerY + (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2,
-    );
-  };
-
   const drawTile = (width, height) => {
     const canvas = blank(width, height);
     const ctx = canvas.getContext('2d');
 
-    // 满幅群青底：规范要求铺满整个区域，且避开大面积浅色
-    ctx.fillStyle = brand.accent;
+    // 满幅纯白底（--paper-2）：铺满整个区域，与主题的「净白页底」一致
+    ctx.fillStyle = brand.paper2;
     ctx.fillRect(0, 0, width, height);
 
     const markSize = Math.round(height * ratios.mark);
@@ -1536,16 +1529,32 @@ async function drawStore({ brand, letter, tiles, title, subtitle, ratios, markRa
     const startX = (width - groupWidth) / 2;
     const centerY = height / 2;
 
-    // 标记：图标反白（白方块 + 群青字母）
-    ctx.fillStyle = brand.onAccent;
+    /*
+     * 标记＝扩展图标本身：群青圆角方块 + 白色字母。用 Icon_ 那几个比例画，
+     * 与 public/icon/ 里那五张的来源是同一组数，方块与字母的比例不会各走各的
+     * （这里只有这十来行绘制是重述的，值都从常量来）。
+     */
+    const markRadius = markSize * radiusRatio;
+    ctx.fillStyle = brand.accent;
     ctx.beginPath();
-    ctx.roundRect(startX, centerY - markSize / 2, markSize, markSize, markSize * markRadius);
+    ctx.roundRect(startX, centerY - markSize / 2, markSize, markSize, markRadius);
     ctx.fill();
-    drawLetter(ctx, brand.accent, markSize * 0.62, startX + markSize / 2, centerY);
+    ctx.fillStyle = brand.onAccent;
+    ctx.font = `600 ${Math.round(markSize * letterRatio)}px ${brand.font}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    const markInk = ctx.measureText(letter);
+    ctx.fillText(
+      letter,
+      startX + markSize / 2 - (markInk.actualBoundingBoxRight - markInk.actualBoundingBoxLeft) / 2,
+      centerY + (markInk.actualBoundingBoxAscent - markInk.actualBoundingBoxDescent) / 2,
+    );
+    const markRight = startX + markSize;
 
     /*
-     * 文字。两行按墨迹高度整体居中：标题有 y/p 这类带下伸部的字母，说明是汉字，
-     * 两者的度量线上下留白差得多，按行高排会看着偏。
+     * 文字用墨色两级（--ink 标题 / --ink-soft 说明），与主题里「正文与次级说明」
+     * 的分工一致。两行按墨迹高度整体居中：标题有 y/p 这类带下伸部的字母，说明是
+     * 汉字，两者的度量线上下留白差得多，按行高排会看着偏。
      */
     const textHeight =
       titleBox.ascent + titleBox.descent + lineGap + subtitleBox.ascent + subtitleBox.descent;
@@ -1554,9 +1563,10 @@ async function drawStore({ brand, letter, tiles, title, subtitle, ratios, markRa
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = brand.onAccent;
+    ctx.fillStyle = brand.ink;
     ctx.font = `600 ${titleSize}px ${brand.font}`;
     ctx.fillText(title, textX, titleBaseline);
+    ctx.fillStyle = brand.inkSoft;
     ctx.font = `400 ${subtitleSize}px ${brand.font}`;
     ctx.fillText(subtitle, textX, titleBaseline + titleBox.descent + lineGap + subtitleBox.ascent);
 
@@ -1565,7 +1575,7 @@ async function drawStore({ brand, letter, tiles, title, subtitle, ratios, markRa
       titleSize,
       subtitleSize,
       markSize,
-      markRight: startX + markSize,
+      markRight,
       textRight: textX + textWidth,
     };
   };
@@ -1590,7 +1600,8 @@ async function cmdStore(opts) {
       title: STORE_TITLE,
       subtitle: STORE_SUBTITLE,
       ratios: STORE_RATIOS,
-      markRadius: STORE_MARK_RADIUS,
+      radiusRatio: ICON_RADIUS_RATIO,
+      letterRatio: ICON_LETTER_RATIO,
     });
 
     if (!opts.check) {
@@ -1615,13 +1626,17 @@ async function cmdStore(opts) {
 /**
  * 核对磁贴。
  *
- * 验规范里那几条硬要求，外加「文字真的画上去了」：
+ * 验的是「白底 + 蓝色图标 + 深色文字」这件事真的落在像素上：
  *   尺寸    与规范逐像素相符，错一个像素商店就不收
  *   满幅    不能有透明像素（规范：Fill the entire region）
- *   底色    四角都是主题色，且主题色占绝大多数（规范：favor saturated colors）
- *   文字    白像素的最右端必须超出标记的右缘——只有文字能超出，所以这一条能把
- *           「画了字」和「只画了标记」分开，而不是笼统地「有白像素」
- *   不溢出  文字块右端不出画布（旧脚本踩过标题顶边，所以留了按宽度收字号的算法）
+ *   白底    四角是 --paper-2，且它占绝大多数
+ *   标记    群青像素构成一个 markSize 见方的方块，位置就在排版算的那一处
+ *           （长宽都量，所以「方块大小不对」与「位置不对」都拦得下）
+ *   字母    标记方块**内部**要有白色像素——白底的白与字母的白同色，只有限定区域
+ *           才问得出「字母画上了没有」这个问题
+ *   文字    墨色像素的最右端必须超出标记右缘：只有文字能超出，这一条把「画了字」
+ *           与「只画了标记」分开
+ *   不溢出  文字块右端不出画布（旧脚本踩过标题顶边，故留了按宽度收字号的算法）
  */
 async function checkTiles(page, brand, drawn) {
   console.log(`\n核对 ${rel(STORE_DIR)}：`);
@@ -1633,13 +1648,13 @@ async function checkTiles(page, brand, drawn) {
       failed++;
       continue;
     }
+    const layout = drawn[tile.name];
     const measured = await measureFile(
       page,
       file,
-      { accent: brand.accent, onAccent: brand.onAccent },
-      { accent: 12, onAccent: 12 },
+      { paper: brand.paper2, accent: brand.accent, ink: brand.ink },
+      { paper: 6, accent: 12, ink: 12 },
     );
-    const layout = drawn[tile.name];
     const problems = [];
 
     if (measured.width !== tile.width || measured.height !== tile.height) {
@@ -1648,18 +1663,47 @@ async function checkTiles(page, brand, drawn) {
     if (measured.transparent !== 0) {
       problems.push(`有 ${measured.transparent} 个透明像素，规范要求铺满整个区域`);
     }
-    if (measured.corners.some(([r, g, b]) => !sameColor([r, g, b], brand.accent, 12))) {
-      problems.push(`四角不是主题色（${measured.corners.map((c) => c.slice(0, 3).join(',')).join(' / ')}）`);
+    if (measured.corners.some(([r, g, b]) => !sameColor([r, g, b], brand.paper2, 6))) {
+      problems.push(`四角不是白底（${measured.corners.map((c) => c.slice(0, 3).join(',')).join(' / ')}）`);
     }
-    const accentRatio = measured.colors.accent.pixels / measured.opaque;
-    if (accentRatio < 0.7) {
-      problems.push(`主题色只占 ${(accentRatio * 100).toFixed(1)}%，不像饱和打底`);
+    const paperRatio = measured.colors.paper.pixels / measured.opaque;
+    if (paperRatio < 0.7) {
+      problems.push(`白底只占 ${(paperRatio * 100).toFixed(1)}%，底没铺开`);
     }
-    const white = measured.colors.onAccent;
-    if (white.pixels === 0) {
-      problems.push('找不到白色像素：标记与文字都没画上');
-    } else if (white.right <= layout.markRight) {
-      problems.push(`白像素最右只到 ${white.right}，没超出标记右缘 ${layout.markRight.toFixed(0)}：文字没画上`);
+
+    // 标记：群青方块的长宽都该是 markSize，左缘落在排版算的那一处
+    const mark = measured.colors.accent;
+    const markWidth = mark.right - mark.left + 1;
+    const markHeight = mark.bottom - mark.top + 1;
+    const markLeft = layout.markRight - layout.markSize;
+    if (mark.pixels === 0) {
+      problems.push('找不到群青像素：图标没画上');
+    } else if (Math.abs(markWidth - layout.markSize) > 3 || Math.abs(markHeight - layout.markSize) > 3) {
+      problems.push(`标记方块是 ${markWidth}x${markHeight}，应为 ${layout.markSize} 见方`);
+    } else if (Math.abs(mark.left - markLeft) > 3) {
+      problems.push(`标记左缘在 ${mark.left}，应在 ${markLeft.toFixed(0)}`);
+    }
+
+    // 字母：只在标记方块内部数白色像素（白底与字母同色，见本节说明）
+    if (mark.pixels > 0) {
+      const inset = Math.round(layout.markSize * 0.12);
+      const inside = await measureFile(
+        page,
+        file,
+        { letter: brand.onAccent },
+        { letter: 6 },
+        { left: mark.left + inset, top: mark.top + inset, right: mark.right - inset, bottom: mark.bottom - inset },
+      );
+      if (inside.colors.letter.pixels === 0) {
+        problems.push('标记方块内部没有白色像素：字母没画上');
+      }
+    }
+
+    const ink = measured.colors.ink;
+    if (ink.pixels === 0) {
+      problems.push('找不到墨色像素：标题与说明都没画上');
+    } else if (ink.right <= layout.markRight) {
+      problems.push(`墨色像素最右只到 ${ink.right}，没超出标记右缘 ${layout.markRight.toFixed(0)}：文字没画上`);
     }
     if (layout.textRight > tile.width) {
       problems.push(`文字右端到 ${layout.textRight.toFixed(0)}，超出画布 ${tile.width}：会被截掉`);
@@ -1668,9 +1712,9 @@ async function checkTiles(page, brand, drawn) {
     console.log(
       [
         `  ${problems.length === 0 ? '✓' : '✗'} ${tile.name}`,
-        `主题色 ${(accentRatio * 100).toFixed(1)}%`,
-        `白像素 ${white.pixels}`,
-        `白最右 ${white.right}（标记右缘 ${layout.markRight.toFixed(0)}）`,
+        `白底 ${(paperRatio * 100).toFixed(1)}%`,
+        `标记 ${markWidth}x${markHeight}`,
+        `墨色最右 ${ink.right}（标记右缘 ${layout.markRight.toFixed(0)}）`,
         `文字右端 ${layout.textRight.toFixed(0)}`,
       ].join('  '),
     );
