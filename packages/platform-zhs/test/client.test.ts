@@ -178,6 +178,25 @@ describe('错误映射', () => {
     });
   });
 
+  it('考试族用 status 信封：字符串 "200" 是成功，"-1" 是拒绝（真机抓出来的）', async () => {
+    const ok = makeClient([
+      { match: 'student/getStudentHomework', json: { msg: '请求成功', rt: { studentHomeworkList: [] }, status: '200' } },
+    ]);
+    await expect(ok.client.call('examHomeworkList', {})).resolves.toBeDefined();
+
+    const bad = makeClient([
+      { match: 'student/getStudentHomework', json: { msg: '2', rt: null, status: '-1' } },
+    ]);
+    await expect(bad.client.call('examHomeworkList', {})).rejects.toBeInstanceOf(ZhsApiError);
+  });
+
+  it('status 是数字 -1 同样算拒绝（失败形有两套）', async () => {
+    const { client } = makeClient([
+      { match: 'student/getStudentHomework', json: { msg: '传入参数异常', status: -1 } },
+    ]);
+    await expect(client.call('examHomeworkList', {})).rejects.toBeInstanceOf(ZhsApiError);
+  });
+
   it('取钥失败不进缓存：第二次调用会再取', async () => {
     let attempts = 0;
     const fetch: FetchLike = async (url) => {

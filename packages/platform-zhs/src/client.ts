@@ -62,13 +62,35 @@ export interface ZhsClientOptions {
 }
 
 /**
- * 成功码判定（唯一一处）。两族各用一个成功码——不是兜底，是抓包事实：
+ * 成功码判定（唯一一处）。各族各用一个成功码——不是兜底，是抓包事实：
  *   学习族（studyservice）：`code: 0`（"请求成功"）；
  *   首页族（onlineservice）：`code: 200`（响应同时带 result 字段）。
  * 其余值（负数、4xx、5xx）都是拒绝，由 {@link ZhsApiError} 原样携带。
  */
 function isSuccessCode(code: number): boolean {
   return code === 0 || code === 200;
+}
+
+/**
+ * 从响应信封里取「拒绝码」；不是拒绝就返回 null。
+ *
+ * **两套信封，差别是实测出来的（2026-10-17 真机）**：
+ *   - 学习族 / 首页族：字段是 `code`（数字）；
+ *   - **考试族 / 移动端：没有 `code`，用 `status`**——成功是**字符串** `"200"`，
+ *     失败是字符串 `"-1"` 或数字 `-1`（实测两形都有：`{"msg":"2","status":"-1"}` 与
+ *     `{"msg":"传入参数异常","status":-1}`）。
+ *
+ * 只看 `code` 会让考试族的失败**静默通过**（`code` 是 undefined，`typeof` 检查直接放过）——
+ * 这条是被真机抓出来的：清单请求失败时返回的正是 `status:"-1"`。
+ *
+ * 两个字段都没有时不表态（返回 null）——不是兜底，是「这个响应没有码字段」这个事实；
+ * 真有那种端点，它本来就不靠信封表态。
+ */
+function rejectionCode(parsed: { code?: unknown; status?: unknown }): number | null {
+  if (typeof parsed.code === 'number') return isSuccessCode(parsed.code) ? null : parsed.code;
+  const status = typeof parsed.status === 'string' ? Number(parsed.status) : parsed.status;
+  if (typeof status === 'number' && Number.isFinite(status)) return status === 200 ? null : status;
+  return null;
 }
 
 export interface ZhsClient {
@@ -177,10 +199,10 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
       const response = await throttle.run(() => options.fetch(requestUrl, init));
       if (response.status !== 200) throw new ZhsHttpError(response.status);
 
-      const parsed = (await response.json()) as { code?: unknown; message?: unknown };
-      const code = parsed.code;
-      if (typeof code === 'number' && !isSuccessCode(code)) {
-        throw new ZhsApiError(code, typeof parsed.message === 'string' ? parsed.message : '');
+      const parsed = (await response.json()) as { code?: unknown; status?: unknown; message?: unknown };
+      const rejected = rejectionCode(parsed);
+      if (rejected !== null) {
+        throw new ZhsApiError(rejected, typeof parsed.message === 'string' ? parsed.message : '');
       }
       return parsed;
     },
