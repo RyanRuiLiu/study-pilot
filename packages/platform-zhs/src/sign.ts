@@ -248,12 +248,19 @@ export function formatPosition(seconds: number): string {
  * 组装签名后的表单请求体：`secretStr=…&<时间戳字段>=…`。
  * 时间戳字段名由网关族决定（学习端 `dateFormate`、首页端 `date`），
  * 值由调用方给出（它同时会放进被加密的载荷里，两处必须同一个数）。
+ *
+ * `stamp` 省略 → **外层只有 `secretStr` 一个字段**：这是考试族的形态
+ * （`studentexam-api`）。源码依据：考试应用 `fixeParam()` 返回 `{dateFormate}` 并
+ * 一并进密文，外层不再拼；抓包逐字段核对过（`.probe/zhs-sbx-submit/net-ch2.jsonl`）。
+ * 注意它与「密文里放不放时间戳」是两件事——本函数只管外层，密文那份由
+ * `endpoint.stampInside` 在 client 侧决定。
  */
 export async function wrapSignedBody(
   payload: Record<string, unknown>,
   cKey: Uint8Array<ArrayBuffer>,
-  stamp: { field: StampField; value: number },
+  stamp?: { field: StampField; value: number },
 ): Promise<string> {
   const secretStr = await aesEncrypt(payload, cKey);
+  if (stamp === undefined) return `secretStr=${encodeURIComponent(secretStr)}`;
   return `secretStr=${encodeURIComponent(secretStr)}&${stamp.field}=${stamp.value}`;
 }

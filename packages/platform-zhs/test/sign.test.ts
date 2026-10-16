@@ -115,6 +115,14 @@ describe('wrapSignedBody', () => {
     expect(home.endsWith('&date=456')).toBe(true);
   });
 
+  it('省略 stamp 时只输出 secretStr——考试族的外层形态（时间戳只在密文里）', async () => {
+    const cKey = new Uint8Array(16).fill(7);
+    const body = await wrapSignedBody({ recruitId: 900004, dateFormate: 123 }, cKey);
+    expect(body.startsWith('secretStr=')).toBe(true);
+    // 外层没有第二个字段，也没有 & 分隔符
+    expect(body).not.toContain('&');
+  });
+
   it('固定密钥与 IV 下加密是确定性的（CBC，无额外随机）', async () => {
     const cKey = new Uint8Array(16).fill(7);
     const [a, b] = await Promise.all([

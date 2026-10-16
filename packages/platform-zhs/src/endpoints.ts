@@ -10,12 +10,13 @@
  *   studentexam-api    = 3   考试族（二期）
  *   taurusexam-api     = 5   考试族（二期）
  *
- * 两族的封装差异（均来自抓包解密，逐条核对过）：
- *   - 外层时间戳字段名不同：学习族 `dateFormate`、首页族 `date`；
- *   - 时间戳是否在密文里也放一份：学习族在、首页族不在。
+ * 三族的封装差异（均来自抓包解密，逐条核对过）：
+ *   - 外层时间戳字段名不同：学习族 `dateFormate`、首页族 `date`、**考试族没有外层时间戳**；
+ *   - 时间戳是否在密文里也放一份：学习族在、首页族不在、**考试族在**（`fixeParam()` 进密文）。
  *
  * 免签端点（gf 白名单，源码 qf 列表）：`getLoginUserInfo` 等 gateway/f 接口
- * 与取钥接口 c/has——它们没有 module/stamp 字段。
+ * 与取钥接口 c/has——它们没有 module/stamp 字段。**移动端（appstudent）那一族
+ * 整族免签**，是明文表单 POST。
  */
 
 import type { StampField } from './sign.ts';
@@ -24,6 +25,9 @@ import type { StampField } from './sign.ts';
 export const ZHS_HOSTS = {
   study: 'https://studyservice-api.zhihuishu.com',
   online: 'https://onlineservice-api.zhihuishu.com',
+  exam: 'https://studentexam-api.zhihuishu.com',
+  /** 移动端业务域：神谕（草稿判分）在这里，整族免签明文表单 */
+  app: 'https://appstudent.zhihuishu.com',
   key: 'https://appcomm-user.zhihuishu.com',
 } as const;
 export type ZhsHost = keyof typeof ZHS_HOSTS;
@@ -42,7 +46,10 @@ export interface ZhsEndpoint {
   method: 'GET' | 'POST';
   /** 有值 = 签名调用（该族的取钥模块号）；免签端点没有它 */
   module?: number;
-  /** 外层时间戳字段名（仅签名端点） */
+  /**
+   * 外层时间戳字段名（仅签名端点）。**缺省 = 外层不带时间戳**——考试族的形态，
+   * 它的时间戳只在密文里；不要把它当成「用默认字段名」，那会把考试族的报文写错。
+   */
   stampField?: StampField;
   /** 时间戳是否也进密文载荷（仅签名端点；学习族 true、首页族 false） */
   stampInside?: boolean;
@@ -123,6 +130,107 @@ const ENDPOINT_TABLE = {
     module: ZHS_MODULE.study,
     stampField: 'dateFormate',
     stampInside: true,
+  },
+
+  /*
+   * ---- 考试族（studentexam-api，module 3；外层只有 secretStr）----
+   *
+   * 全部 POST。路径前缀是 `/studentExam/gateway/t/v1/`（学习族没有那段 `studentExam`）。
+   * 逐条实测：清单/开卷/作答/交卷/重做的报文形态见 `.probe/zhs-sbx-submit/`
+   * 的 net-ch2.jsonl（真实交卷全序列）与 eval-close-loop.js（作答报文逐字段）。
+   */
+
+  /** 答案通道：喂数字题号，换回题面与**正解**（`options[].result == 1`）。
+   *  属**学习族**（module 11）——它不是考试应用的接口，是学习页弹题的接口，
+   *  因随堂练习由客户端本地判分才带着正解下发（见 exam-answers.ts 的平台事实）。 */
+  popupExam: {
+    host: 'study',
+    path: '/gateway/t/v1/popupAnswer/lessonPopupExam',
+    method: 'POST',
+    module: ZHS_MODULE.study,
+    stampField: 'dateFormate',
+    stampInside: true,
+  },
+
+  /** 作业清单（作业列表：单元测试 + 见面课测验，两页签由 flag 分） */
+  examHomeworkList: {
+    host: 'exam',
+    path: '/studentExam/gateway/t/v1/student/getStudentHomework',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /** 开卷：**调用即建答卷，无二次确认**——只在执行动作里发，绝不探测性打开 */
+  examDoHomework: {
+    host: 'exam',
+    path: '/studentExam/gateway/t/v1/student/doHomework',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /** 交卷后的回顾：下发**数字题号**（答案通道与神谕的入口参数） */
+  examLookHomework: {
+    host: 'exam',
+    path: '/studentExam/gateway/t/v1/student/lookHomework',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /** 逐题作答（一题一次，真实客户端也是逐题保存） */
+  examSaveAnswer: {
+    host: 'exam',
+    path: '/studentExam/gateway/t/v1/answer/saveStudentAnswer',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /** 交卷（不可逆：即刻计分） */
+  examSubmit: {
+    host: 'exam',
+    path: '/studentExam/gateway/t/v1/answer/submit',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /** 重做次数（剩余 = 3 − rt，算式取自平台界面源码） */
+  examRedoNum: {
+    host: 'exam',
+    path: '/studentExam/gateway/t/v1/student/redoNum',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /** 申请重做（分数覆盖原分数；平台自己会先弹确认框） */
+  examApplyRedo: {
+    host: 'exam',
+    path: '/studentExam/gateway/t/v1/student/saveCourseTran',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /** 是否客观题（重做门槛：非客观题平台弹二维码，走不了这条路） */
+  examIsObject: {
+    host: 'exam',
+    path: '/studentExam/gateway/t/v1/exam/getIsObject',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+
+  /*
+   * ---- 移动端（appstudent，整族免签明文）----
+   */
+
+  /**
+   * 神谕：草稿判分。喂**数字题号**，回逐题得分 `{rt:{"<题号>":{score,done}}}`。
+   * 契约（2026-10-17 逐条真机探得）：`questionIds` 必填（缺 → HTTP 400）、
+   * 只认数字题号（喂 eid 报 `parseInt error`）、`userId` 必填（缺 → 500）。
+   * 判分是**草稿实况**（存错解 0、存正解满分），所以能在交卷前当验证器用。
+   */
+  examQuestionDoneState: {
+    host: 'app',
+    path: '/appstudent/student/exam/getQuestionDoneState',
+    method: 'POST',
   },
 } as const satisfies Record<string, ZhsEndpoint>;
 

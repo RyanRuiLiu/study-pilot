@@ -115,6 +115,33 @@ describe('签名封装形态', () => {
     expect(inner.pageSize).toBe(50);
   });
 
+  it('考试族：外层只有 secretStr，时间戳只在密文里', async () => {
+    const { client, calls } = makeClient([
+      { match: 'student/getStudentHomework', json: { code: 0, rt: { studentHomeworkList: [] } } },
+    ]);
+    await client.call('examHomeworkList', { recruitId: 900004, courseId: 9000000002, flag: 1 });
+    const post = calls.find((c) => c.url.includes('student/getStudentHomework'));
+    // 外层形态：一个字段，没有 & 分隔符
+    const form = parseForm(String(post?.init?.body));
+    expect(Object.keys(form)).toEqual(['secretStr']);
+    // 密文里那份时间戳在（stampInside），载荷字段也在
+    const inner = (await decryptSecret(form.secretStr!)) as Record<string, unknown>;
+    expect(inner.dateFormate).toBe(1792099999000);
+    expect(inner.recruitId).toBe(900004);
+    expect(inner.flag).toBe(1);
+  });
+
+  it('免签 POST（神谕）：明文表单体，不取钥、不发 secretStr', async () => {
+    const { client, calls } = makeClient([
+      { match: 'getQuestionDoneState', json: { status: '200', rt: {} } },
+    ]);
+    await client.call('examQuestionDoneState', { recruitId: 900004, questionIds: '[1]' });
+    const post = calls.find((c) => c.url.includes('getQuestionDoneState'));
+    expect(post?.init?.method).toBe('POST');
+    expect(String(post?.init?.body)).toBe('recruitId=900004&questionIds=%5B1%5D');
+    expect(calls.filter((c) => c.url.includes('c/has'))).toHaveLength(0);
+  });
+
   it('免签端点不发 secretStr，直接 GET', async () => {
     const { client, calls } = makeClient([{ match: 'getLoginUserInfo', json: { code: 0, result: {} } }]);
     await client.call('loginUserInfo');

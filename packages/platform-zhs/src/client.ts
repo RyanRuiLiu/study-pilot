@@ -128,18 +128,31 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
       let init: RequestInit;
 
       if (endpoint.module === undefined) {
-        init = {
-          method: endpoint.method,
-          headers: { accept: 'application/json', 'user-agent': BROWSER_USER_AGENT },
-          credentials: 'include',
+        /*
+         * 免签端点。GET（如遗留的 getLoginUserInfo）不带参数；
+         * POST（移动端 appstudent 那一族，如神谕）走**明文表单体**——
+         * 实测它只吃 application/x-www-form-urlencoded。
+         */
+        const headers: Record<string, string> = {
+          accept: 'application/json',
+          'user-agent': BROWSER_USER_AGENT,
         };
+        init = { method: endpoint.method, headers, credentials: 'include' };
+        if (endpoint.method === 'POST') {
+          headers['content-type'] = 'application/x-www-form-urlencoded';
+          init.body = new URLSearchParams(
+            Object.entries(payload).map(([name, value]) => [name, String(value)]),
+          ).toString();
+        }
       } else {
         const stamp = now();
         const inner = endpoint.stampInside === true ? { ...payload, dateFormate: stamp } : { ...payload };
-        const body = await wrapSignedBody(inner, await keyFor(endpoint.module), {
-          field: endpoint.stampField ?? 'dateFormate',
-          value: stamp,
-        });
+        const body = await wrapSignedBody(
+          inner,
+          await keyFor(endpoint.module),
+          // stampField 缺省 = 外层不带时间戳（考试族形态）；不回退到任何字段名
+          endpoint.stampField === undefined ? undefined : { field: endpoint.stampField, value: stamp },
+        );
         if (endpoint.method === 'GET') {
           requestUrl = `${url}?${body}`;
           init = {
