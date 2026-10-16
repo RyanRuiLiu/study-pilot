@@ -19,11 +19,10 @@ import type {
   RunScheduledTasksResponse,
 } from '../../messages.ts';
 import type { RoundResult, Runner } from '@study-pilot/application';
-import { getRunState } from '../runtime/run-state';
 
 /** 装配层给出的东西：各平台的处理器表，以及接好端口的 runner。 */
 export interface RouterDeps {
-  /** 各平台的处理器表（装配层合并后给出；`*` 是兜底） */
+  /** 各平台的处理器表（装配层合并后给出；没人认领的 type 由本路由回「处理不了」） */
   handlers: MessageHandlers;
   /** 「跑一轮」用例 */
   runner: Runner;
@@ -63,10 +62,6 @@ export function registerMessageHandler(deps: RouterDeps): void {
     const request = message as AppRequest | undefined;
 
     void (async () => {
-      if (request?.type === 'RUN_STATE') {
-        sendResponse(await getRunState());
-        return;
-      }
       if (request?.type === 'RUN_SCHEDULED_TASKS') {
         // 范围原样交给用例：类别取值由平台定义，路由只搬运
         const { platformId, kinds, group, ids } = request;

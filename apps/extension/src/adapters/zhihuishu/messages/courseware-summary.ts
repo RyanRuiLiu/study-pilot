@@ -6,7 +6,7 @@
  */
 
 import type { MessageHandler, QueryOutcome } from '../../../protocol.ts';
-import { readSession } from '@study-pilot/platform-zhs';
+import { readSession, selectedCourses } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsCoursewareSummary, ZhsResponseMap } from './payload.ts';
 import { collectUnits } from './reads.ts';
@@ -25,7 +25,7 @@ export function zhsCoursewareSummaryCommand(deps: ZhsMessageDeps): MessageHandle
 
     try {
       const settings = await deps.config.read();
-      const enabled = settings.zhihuishu.courses.filter((course) => course.enabled);
+      const enabled = selectedCourses(settings);
       const collected = await collectUnits(deps.client, enabled);
 
       let pendingTotal = 0;

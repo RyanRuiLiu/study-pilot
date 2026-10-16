@@ -9,9 +9,9 @@
  */
 
 import { manualItemId, workItemId, workPageUrl } from '@study-pilot/platform-mooc';
-import type { PendingEntry, PendingKind, PendingSummary, UnitDetail } from './messages/payload.ts';
+import type { PendingEntry, PendingKind, PendingSummary } from './messages/payload.ts';
 import { OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from '@study-pilot/platform-mooc';
-import type { Snapshot, SnapshotCourse } from '@study-pilot/platform-mooc';
+import type { SnapshotCourse } from '@study-pilot/platform-mooc';
 import { describeStatusDetail, describeWorkStatus } from './work-status';
 
 /**
@@ -55,10 +55,6 @@ const STAGE_KINDS: ReadonlySet<PendingKind> = new Set(['evaluate-homework', 'sel
  * 把真正要做的事挤下去。
  *
  * 保留几天由设置给出（settings.mooc.keepOverdueDays，默认 3 天）。
- *
- * 要看更早的，去设置页的「单元明细」：那里列全部单元，带状态与得分，
- * 全学期可查。弹窗回答「我现在做什么」，明细回答「这门课我做到哪了」，
- * 两者分工不同，因此不需要在弹窗里保留历史。
  */
 /** 这条待办是否已经旧到不该再出现在弹窗里。 */
 function isStaleOverdue(entry: PendingEntry, keepDays: number, now: number): boolean {
@@ -223,45 +219,3 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
   };
 }
 
-/**
- * 快照 → 设置页单元明细。
- *
- * 列出全部单元，不只是待办：这个页面的用途是「看清这门课我做到哪了」，
- * 所以已完成的也要在，而且带着得分，用户能对着分数确认。
- *
- * 考试与作业一样列出。考试曾经被排除，理由是「平台没有它的作答页」——
- * 那句话在接通考试之后就不成立了：考试有专门的答卷页，地址需要 examId，
- * 而 examId 随快照一起存了下来。排除它会让明细里缺一整类内容，
- * 用户在这门课到底考没考过就查不到。
- */
-export function toUnitDetails(snapshot: Snapshot, now: number = Date.now()): UnitDetail[] {
-  const details: UnitDetail[] = [];
-
-  for (const course of snapshot.courses) {
-    for (const work of course.works) {
-      const status = describeWorkStatus(work, now);
-      details.push({
-        termId: course.termId,
-        courseName: course.courseName,
-        chapterName: work.chapterName,
-        tid: work.tid,
-        name: work.name,
-        type: work.type,
-        examId: work.examId,
-        status,
-        statusDetail: describeStatusDetail(status),
-        submitted: work.submitted,
-        score: work.score,
-        totalScore: work.totalScore,
-        deadline: work.deadline,
-        evaluateDone: work.evaluateDone,
-        evaluateTotal: work.evaluateTotal,
-        courseId: course.courseId,
-        schoolShortName: course.schoolShortName,
-        mode: course.mode,
-      });
-    }
-  }
-
-  return details;
-}

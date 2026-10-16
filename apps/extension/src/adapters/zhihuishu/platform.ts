@@ -39,6 +39,7 @@ export function createZhihuishuPlatform(env: ZhsEnv): ZhsPlatform {
     config: env.config,
     client: runtime.client,
     readCookie: browserCapabilities.readCookie,
+    refreshCourses: runtime.refreshCourses,
   };
 
   return {

@@ -22,16 +22,14 @@ import { subscribeRunState } from './browser/run-feed.ts';
 import { getSettings, updateSettings } from './settings';
 
 // 视图模型：界面需要认识的就这几个形状
-export type { PendingEntry, PendingSummary, UnitDetail } from './messages.ts';
+export type { PendingEntry, PendingSummary } from './messages.ts';
 export type { QueryOutcome } from './messages.ts';
-export type { Snapshot } from './messages.ts';
 export type { CoursewareProgress, CoursewareSummary } from './messages.ts';
 export type { RunState } from './messages.ts';
 export type { Tone } from './browser/run-once.ts';
 export type { Settings } from './settings';
 export type {
   ZhsPendingEntry,
-  ZhsPendingSummary,
   ZhsCoursewareProgress,
   ZhsCoursewareSummary,
 } from './messages.ts';
@@ -55,11 +53,6 @@ export function refreshCourses() {
 /** 要交的东西：测验、作业、互评、自评、考试。未登录 / 读取失败如实返回。 */
 export function getPending() {
   return sendToBackground({ type: 'MOOC_PENDING_SUMMARY' });
-}
-
-/** 全部单元明细，逐门课从平台读一次。 */
-export function getUnitDetails() {
-  return sendToBackground({ type: 'MOOC_UNIT_DETAILS' });
 }
 
 /** 课件进度：每门课的已学 / 总数与可做数（只读，供课件区显示）。 */
@@ -99,11 +92,6 @@ export function getZhsCourseware() {
   return sendToBackground({ type: 'ZHS_COURSEWARE_SUMMARY' });
 }
 
-/** 运行状态的当前快照。 */
-export function getRunState() {
-  return sendToBackground({ type: 'RUN_STATE' });
-}
-
 /**
  * 立刻执行一轮。
  *
@@ -134,9 +122,6 @@ export function stopRun(platformId: string) {
 
 /** 订阅运行状态推送。返回退订函数。 */
 export { subscribeRunState };
-
-/** 平台状态的说法（未提交 / 互评阶段 / …）。界面按它决定显示什么，不自创字符串。 */
-export { WORK_STATUS } from './messages.ts';
 
 /** 读配置（含各平台的设置）。 */
 export { getSettings };

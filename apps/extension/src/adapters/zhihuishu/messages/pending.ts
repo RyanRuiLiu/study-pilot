@@ -6,7 +6,7 @@
  */
 
 import type { MessageHandler, QueryOutcome } from '../../../protocol.ts';
-import { readSession, unitItemId } from '@study-pilot/platform-zhs';
+import { readSession, selectedCourses, unitItemId } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsPendingEntry, ZhsPendingSummary, ZhsResponseMap } from './payload.ts';
 import { collectUnits } from './reads.ts';
@@ -25,7 +25,7 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
 
     try {
       const settings = await deps.config.read();
-      const enabled = settings.zhihuishu.courses.filter((course) => course.enabled);
+      const enabled = selectedCourses(settings);
       const collected = await collectUnits(deps.client, enabled);
 
       const entries: ZhsPendingEntry[] = [];

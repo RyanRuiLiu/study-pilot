@@ -25,7 +25,7 @@ const chromeBinary = (() => {
 
 /**
  * 调试专用 Chrome 配置目录，固定在项目内以长期保留登录 Cookie。
- * 可用环境变量 STUDY_PILOT_PROFILE 覆盖。首次 pnpm dev 后手动登录一次 MOOC。
+ * 可用环境变量 STUDY_PILOT_PROFILE 覆盖。首次 pnpm dev 后手动登录一次（MOOC 与智慧树各一次）。
  * web-ext(chrome-launcher) 启动时需该目录存在，故提前创建。已在 .gitignore 忽略。
  */
 const profileFromEnv = process.env.STUDY_PILOT_PROFILE;
@@ -37,8 +37,8 @@ mkdirSync(chromiumProfile, { recursive: true });
 /*
  * Study Pilot 扩展配置。
  *
- * 第三方工具，与任何学习平台均无关联。当前接入一个平台，
- * 架构上按平台分包，后续可增加。
+ * 第三方工具，与任何学习平台均无关联。接入两个平台（中国大学 MOOC、
+ * 智慧树），架构上按平台分包：平台的事都在各自 adapters 下，外壳不认识平台名字。
  */
 export default defineConfig({
   srcDir: '.',

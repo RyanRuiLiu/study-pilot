@@ -12,7 +12,6 @@
  * 界面侧不要直接用它：界面走 src/ui-bridge.ts，那是"只看数据"的入口。
  */
 
-import type { RunState } from '@study-pilot/application';
 import type {
   AnySendResponse,
   JobRejection,
@@ -26,29 +25,21 @@ import type { ZhsRequest, ZhsResponseMap } from './adapters/zhihuishu/messages/p
 
 export * from './protocol.ts';
 /** 界面要的视图模型：定义在平台里，这里转出，界面只认这一个来源。 */
-export type { Snapshot } from '@study-pilot/platform-mooc';
-export type { MoocSession } from '@study-pilot/platform-mooc';
 export type { CoursewareProgress } from '@study-pilot/platform-mooc';
 export type { RunState } from '@study-pilot/application';
 export type {
   MoocRequest,
   MoocResponseMap,
   PendingEntry,
-  PendingKind,
   PendingSummary,
   CoursewareSummary,
-  UnitDetail,
-  WorkStatus,
 } from './adapters/mooc/messages/payload.ts';
-export { WORK_STATUS } from './adapters/mooc/messages/payload.ts';
 export type {
   ZhsRequest,
   ZhsResponseMap,
   ZhsPendingEntry,
-  ZhsPendingSummary,
   ZhsCoursewareProgress,
   ZhsCoursewareSummary,
-  ZhsSessionView,
 } from './adapters/zhihuishu/messages/payload.ts';
 
 /** 外壳自己的命令。 */
@@ -61,15 +52,12 @@ export type ShellRequest =
   /** 停止某平台正在执行的一轮：做完手上这一项就不再开始下一项（平台之间互不影响） */
   | { type: 'STOP_RUN'; platformId: string }
   /** 某平台此刻在不在跑、它上一轮记下的失败（状态按平台独立，问谁答谁） */
-  | { type: 'TASK_STATE'; platformId: string }
-  /** 运行状态快照（进度与逐项记录） */
-  | { type: 'RUN_STATE' };
+  | { type: 'TASK_STATE'; platformId: string };
 
 export interface ShellResponseMap {
   RUN_SCHEDULED_TASKS: RunScheduledTasksResponse;
   STOP_RUN: { stopped: boolean };
   TASK_STATE: TaskStatus;
-  RUN_STATE: RunState;
 }
 
 /** 全部请求：外壳 + 各平台。 */

@@ -125,13 +125,7 @@ const packageDirs = listDirs(packagesDir);
 const packageFiles = listFiles(packagesDir);
 const appFiles = listFiles(appsDir);
 
-/*
- * R5 的例外集合。当前为空。
- *
- * 曾经的唯一例外是 wxt.config.ts（要相对 import 到 scripts/probe 里共用一份
- * 浏览器查找实现）。改用 Playwright 后，那件事由 playwright 包本身解决
- * （chromium.executablePath()），相对 import 不再跑出载体，例外随之取消。
- */
+/* R5 的例外集合。当前为空——出现过例外时在这里登记并写明为什么。 */
 const R5_ALLOWED = new Set<string>();
 
 describe('分层边界（机械核对，不靠人记）', () => {

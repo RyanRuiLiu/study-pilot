@@ -8,7 +8,6 @@
  * 把两边合起来的唯一装配点是 src/messages.ts。
  */
 
-/* 这里曾经把 CourseSummary 当课程列表的形状，而实际回的是几条：那是谎，改掉。 */
 import type { QueryOutcome, JobRejection } from '../../../protocol.ts';
 import type { CoursewareProgress, MoocSession, PaperQuestion } from '@study-pilot/platform-mooc';
 
@@ -106,29 +105,6 @@ export interface PendingSummary {
   entries: PendingEntry[];
 }
 
-/** 单个单元的明细。 */
-export interface UnitDetail {
-  termId: number;
-  courseName: string;
-  chapterName: string;
-  tid: number;
-  name: string;
-  type: 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective';
-  /** 考试自身的 id，两部分（客观题与主观题）共用它 */
-  examId: number | null;
-  status: string;
-  statusDetail: string;
-  submitted: boolean;
-  score: number | null;
-  totalScore: number | null;
-  deadline: number | null;
-  /** 互评已完成份数；只在互评阶段的作业上有值 */
-  evaluateDone: number | null;
-  evaluateTotal: number | null;
-  courseId: number;
-  schoolShortName: string;
-  mode: number;
-}
 
 // ---------- 本平台的命令 ----------
 
@@ -142,8 +118,6 @@ export type MoocRequest =
   | { type: 'MOOC_REFRESH_COURSES' }
   /** 要交的东西（测验/作业/互评/自评/考试） */
   | { type: 'MOOC_PENDING_SUMMARY' }
-  /** 全部单元明细，逐门课从平台读一次 */
-  | { type: 'MOOC_UNIT_DETAILS' }
   /** 课件进度：每门课的完成计数（只读） */
   | { type: 'MOOC_COURSEWARE_SUMMARY' }
   /** 一份作业卷的题目（得分指导注入用） */
@@ -183,7 +157,6 @@ export interface MoocResponseMap {
     | { ok: true; courses: CourseBrief[] }
     | { ok: false; reason: JobRejection; message?: string };
   MOOC_PENDING_SUMMARY: QueryOutcome<PendingSummary>;
-  MOOC_UNIT_DETAILS: QueryOutcome<UnitDetail[]>;
   MOOC_COURSEWARE_SUMMARY: QueryOutcome<CoursewareSummary>;
   MOOC_HOMEWORK_PAPER: QueryOutcome<PaperQuestion[]>;
 }
