@@ -156,7 +156,8 @@ describe('版本 8 新增的 zhihuishu 段', () => {
       secret: 'aa55aa55aa55aa55aa55aa55aa55aa55aa55aa',
       name: '示例课程甲',
       schoolName: '示例大学、另一所大学/跨校共建',
-      progressText: '27.2%',
+      startTime: 0,
+      endTime: 0,
       enabled: true,
     };
     const settings = normalize({ zhihuishu: { courses: [course] } });

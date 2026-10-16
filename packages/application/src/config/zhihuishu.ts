@@ -18,7 +18,7 @@
  * 契约：
  *   - secret 是学习页入口参数（平台下发的十六进制串），执行与读取都要它，
  *     没有它这门课进不了任务范围；
- *   - progressText 是平台给出的进度文案（形如 "27.2%"），列表展示用，不解释它。
+ *   - startTime/endTime 是平台给的开课区间，"账号与课程"那一列按慕课同一形状展示（学校 · 学期）。
  */
 export interface ZhihuishuCourse {
   /** 课程 id */
@@ -30,8 +30,9 @@ export interface ZhihuishuCourse {
   name: string;
   /** 开课学校；多校共建时是一串校名 */
   schoolName: string;
-  /** 平台给出的学习进度文案，如 "27.2%" */
-  progressText: string;
+  /** 开课区间（毫秒）；平台没给则为 0。"账号与课程"那一列与慕课同一形状：学校 · 学期 */
+  startTime: number;
+  endTime: number;
   /** 是否参与任务 */
   enabled: boolean;
 }

@@ -22,8 +22,9 @@ export interface ZhsCourseBrief {
   secret: string;
   name: string;
   schoolName: string;
-  /** 平台给出的进度文案（如 "27.2%"） */
-  progressText: string;
+  /** 开课区间（平台的 courseStartTime/courseEndTime）。0 表示平台没给 */
+  startTime: number;
+  endTime: number;
 }
 
 /** 读一次共享课（进行中）。分页给足一页——课程列表按「门」算，几十门封顶。 */
@@ -40,7 +41,8 @@ export async function getShareCourses(client: ZhsClient): Promise<ZhsCourseBrief
       secret: typeof entry.secret === 'string' ? entry.secret : '',
       name: typeof entry.courseName === 'string' ? entry.courseName : '',
       schoolName: typeof entry.schoolName === 'string' ? entry.schoolName : '',
-      progressText: typeof entry.progress === 'string' ? entry.progress : '',
+      startTime: typeof entry.courseStartTime === 'number' ? entry.courseStartTime : 0,
+      endTime: typeof entry.courseEndTime === 'number' ? entry.courseEndTime : 0,
     }));
 }
 
@@ -85,7 +87,8 @@ export function mergeCourses(
     secret: brief.secret,
     name: brief.name,
     schoolName: brief.schoolName,
-    progressText: brief.progressText,
+    startTime: brief.startTime,
+    endTime: brief.endTime,
     // 见过的课程沿用勾选；新课程默认不勾
     enabled: enabledByCourse.get(brief.courseId) ?? false,
   }));

@@ -78,7 +78,8 @@ const COURSE = {
   secret: 'hex-secret',
   name: '示例课程己',
   schoolName: '示例大学',
-  progressText: '83.2%',
+  startTime: 0,
+  endTime: 0,
   enabled: true,
 };
 

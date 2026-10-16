@@ -14,7 +14,7 @@
 
 import { getZhsCourses, getZhsSession, refreshZhsCourses, updateSettings, getSettings } from '../../src/ui-bridge';
 import type { ZhihuishuCourse } from '../../src/ui-bridge';
-import { errorText } from '../../src/ui/format.ts';
+import { errorText, formatTermRange } from '../../src/ui/format.ts';
 import { reportPageUrl } from '../../src/adapters/zhihuishu/pages.ts';
 import { markZhsTasksLoading, refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
 import { loginNote, note, ZHS_LOGIN_URL } from './note.ts';
@@ -47,8 +47,15 @@ function buildRow(course: ZhihuishuCourse): HTMLElement {
 
   const meta = document.createElement('span');
   meta.className = 'course-meta';
-  // 学校与进度文案都是读取时取回的平台事实；没有就只显示有的那个
-  meta.textContent = [course.schoolName, course.progressText].filter(Boolean).join(' · ');
+  /*
+   * 学校 · 学期区间——与慕课的勾选行同一形状（courses.ts 同位置）。
+   * 原先这里放平台给的 progress（如 "100.0%"）：同一个数在平台的**课程卡**上说的
+   * 是另一件事，与四张板块卡的组件口径时常打架（实测：一门课报 100.0%，
+   * 组件里视频远没看完）。平台原文只在成绩分析页有解释，列表里不转述它。
+   */
+  meta.textContent = [course.schoolName, formatTermRange(course.startTime, course.endTime)]
+    .filter(Boolean)
+    .join(' · ');
 
   row.append(check, name, meta);
 

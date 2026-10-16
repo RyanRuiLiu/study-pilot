@@ -22,7 +22,8 @@ describe('getShareCourses', () => {
               recruitId: 900004,
               courseName: '示例课程己',
               schoolName: '示例大学',
-              progress: '0%',
+              courseStartTime: 1789315200000,
+              courseEndTime: 1795363199000,
               secret: 'bb66bb66bb66bb66bb66bb66bb66bb66bb66bb',
             },
           ],
@@ -36,7 +37,8 @@ describe('getShareCourses', () => {
         secret: 'bb66bb66bb66bb66bb66bb66bb66bb66bb66bb',
         name: '示例课程己',
         schoolName: '示例大学',
-        progressText: '0%',
+        startTime: 1789315200000,
+        endTime: 1795363199000,
       },
     ]);
   });
@@ -63,16 +65,16 @@ describe('readCourseIsApply', () => {
 
 describe('mergeCourses', () => {
   const fresh = [
-    { courseId: 1, recruitId: 10, secret: 'a', name: '甲', schoolName: 'A 校', progressText: '10%' },
-    { courseId: 2, recruitId: 20, secret: 'b', name: '乙', schoolName: 'B 校', progressText: '0%' },
+    { courseId: 1, recruitId: 10, secret: 'a', name: '甲', schoolName: 'A 校', startTime: 100, endTime: 200 },
+    { courseId: 2, recruitId: 20, secret: 'b', name: '乙', schoolName: 'B 校', startTime: 300, endTime: 400 },
   ];
   const existing: ZhihuishuCourse[] = [
-    { courseId: 1, recruitId: 10, secret: 'old', name: '甲', schoolName: 'A 校', progressText: '9%', enabled: true },
+    { courseId: 1, recruitId: 10, secret: 'old', name: '甲', schoolName: 'A 校', startTime: 100, endTime: 200, enabled: true },
   ];
 
   it('已勾课程沿用勾选，平台事实以新读的为准', () => {
     const merged = mergeCourses(existing, fresh);
-    expect(merged[0]).toMatchObject({ courseId: 1, enabled: true, progressText: '10%', secret: 'a' });
+    expect(merged[0]).toMatchObject({ courseId: 1, enabled: true, startTime: 100, secret: 'a' });
   });
 
   it('新出现的课程默认不勾（不把用户没同意过的课拖进范围）', () => {
@@ -99,7 +101,8 @@ describe('refreshCourses', () => {
           secret: 'old',
           name: '示例课程己',
           schoolName: '示例大学',
-          progressText: '79%',
+          startTime: 1767225600000,
+          endTime: 1795363199000,
           enabled: true,
         },
       ],
@@ -128,7 +131,8 @@ describe('refreshCourses', () => {
       recruitId: 900004,
       courseName: '示例课程己',
       schoolName: '示例大学',
-      progress: '81.2%',
+      courseStartTime: 1789315200000,
+      courseEndTime: 1795363199000,
       secret: 'new',
     },
     {
@@ -136,7 +140,8 @@ describe('refreshCourses', () => {
       recruitId: 900001,
       courseName: '示例课程辛',
       schoolName: '示例大学',
-      progress: '0%',
+      courseStartTime: 0,
+      courseEndTime: 0,
       secret: 'x',
     },
   ];
@@ -147,7 +152,7 @@ describe('refreshCourses', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.courses).toMatchObject([
-      { courseId: 9000000002, progressText: '81.2%', secret: 'new', enabled: true },
+      { courseId: 9000000002, startTime: 1789315200000, secret: 'new', enabled: true },
       { courseId: 9000000004, enabled: false },
     ]);
     // 只动 zhihuishu.courses 一段，不整份回写
