@@ -49,6 +49,8 @@ export interface ExecuteUnitInput {
   unit: ZhsUnit;
   /** 设备号（CASLOGC cookie 取回；token 用料） */
   deviceUuid: string;
+  /** 课程入口数据里的 isApply（queryCourse 读回；由计划层按轮缓存后传入） */
+  isApply: number | string;
 }
 
 /** 平台侧「需要先过验证」的信号（旗标或 -12/-10 拒绝；文案里作为验证种类的名字）。 */
@@ -102,17 +104,22 @@ export async function executeUnit(
   const action = gateAction(input.recruitAndCourseId);
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
 
-  // ① 打开课时，读记录 id 与验证旗标
+  // ① 打开课时，读记录 id 与验证旗标。
+  //    载荷与真实浏览器同形（2026-10-16 金样本解密核对）：字段就这六个，
+  //    子节课时再加 lessonVideoId（= 子节 id，站点 `ee.lessonVideoId = A.id`）；
+  //    无子节时为 0 且站点会 delete——wire 上不出现，我们同样不带。
+  const note: Record<string, unknown> = {
+    ccCourseId: input.courseId,
+    chapterId: unit.chapterId,
+    isApply: input.isApply,
+    lessonId: unit.lessonId,
+    recruitId: input.recruitId,
+    videoId: unit.videoId,
+  };
+  if (unit.smallLessonId !== 0) note.lessonVideoId = unit.smallLessonId;
   let opened: { data?: { studiedLessonDto?: { id?: unknown } | null; isSlide?: unknown; isFace?: unknown } | null };
   try {
-    opened = (await client.call('prelearningNote', {
-      ccCourseId: input.courseId,
-      chapterId: unit.chapterId,
-      isApply: 1,
-      lessonId: unit.lessonId,
-      recruitId: input.recruitId,
-      videoId: unit.videoId,
-    })) as typeof opened;
+    opened = (await client.call('prelearningNote', note)) as typeof opened;
   } catch (error) {
     if (isGateRejection(error)) {
       // -12/-10 都属于滑块/点选这一族验证，统一按「人机验证」呈现

@@ -140,6 +140,7 @@ describe('run', () => {
       config,
       readCookie: readCookieLoggedIn,
       client: fakeClient({
+        queryCourse: () => ({ code: 0, data: { isApply: 1 } }),
         prelearningNote: () => {
           if (gateLeft > 0) {
             gateLeft -= 1;
@@ -230,6 +231,70 @@ describe('run', () => {
     expect(saves.map((s) => s.ke)).toEqual([1600, 2190]);
     // 位置在视频时间轴：段1 到 26:40，段2 到片尾 36:30
     expect(saves.map((s) => s.pos)).toEqual(['00:26:40', '00:36:30']);
+  });
+
+  it('prelearningNote 载荷与真实浏览器同形：子节带 lessonVideoId、无子节不带、isApply 用服务端的值', async () => {
+    const notes: Record<string, unknown>[] = [];
+    const h = harness({
+      videoList: () => ({
+        data: {
+          videoChapterDtos: [
+            {
+              id: 9,
+              name: '章',
+              videoLessons: [
+                {
+                  id: 7,
+                  name: '父',
+                  videoId: 77,
+                  videoSec: 100,
+                  videoSmallLessons: [{ id: 8, name: '子', videoId: 88, videoSec: 50 }],
+                },
+                { id: 5, name: '单节', videoId: 55, videoSec: 60, videoSmallLessons: null },
+              ],
+            },
+          ],
+        },
+      }),
+      studyInfo: () => ({ data: { lesson: {}, lv: {} } }),
+      prelearningNote: (payload) => {
+        notes.push(payload ?? {});
+        return { code: 0, data: { isSlide: false, isFace: false, studiedLessonDto: { id: 987654 } } };
+      },
+    });
+    const plan = await h.tasks.plan(0);
+    expect(plan.items).toHaveLength(2); // 子节 + 单节（都未完成）
+    await h.tasks.run(plan.items[0], async () => undefined, { stopped: () => false });
+
+    // 子节：lessonVideoId = 子节 id（金样本口径；站点 ee.lessonVideoId = A.id）
+    expect(notes[0]).toEqual({
+      ccCourseId: 1000006163,
+      chapterId: 9,
+      isApply: 1,
+      lessonId: 7,
+      lessonVideoId: 8,
+      recruitId: 473310,
+      videoId: 88,
+    });
+    // 无子节：站点 delete 该字段——wire 上不出现
+    await h.tasks.run(plan.items[1], async () => undefined, { stopped: () => false });
+    expect('lessonVideoId' in (notes[1] ?? {})).toBe(false);
+    expect(notes[1]).toMatchObject({ lessonId: 5, videoId: 55, isApply: 1 });
+  });
+
+  it('isApply 按轮缓存：同一轮里再跑一个单元不再读 queryCourse', async () => {
+    let asked = 0;
+    const h = harness({
+      queryCourse: () => {
+        asked += 1;
+        return { code: 0, data: { isApply: 1 } };
+      },
+    });
+    const plan = await h.tasks.plan(0);
+    // 同一轮内把同一项跑两次（缓存要跨单元复用，这里用两次 run 等价验证）
+    await h.tasks.run(plan.items[0], async () => undefined, { stopped: () => false });
+    await h.tasks.run(plan.items[0], async () => undefined, { stopped: () => false });
+    expect(asked).toBe(1);
   });
 
   it('isSlide 旗标 = 服务端要求验证 → 立即 ZhsRoundHalt（短文案 + 下一步动作），不发任何写', async () => {

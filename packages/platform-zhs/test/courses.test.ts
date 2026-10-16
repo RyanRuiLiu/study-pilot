@@ -1,7 +1,7 @@
 /* 课程列表：响应解析与「只沿用勾选」的合并规则。 */
 
 import { describe, expect, it } from 'vitest';
-import { getShareCourses, mergeCourses } from '../src/courses.ts';
+import { getShareCourses, mergeCourses, readCourseIsApply } from '../src/courses.ts';
 import type { ZhsClient } from '../src/client.ts';
 import type { ZhihuishuCourse } from '@study-pilot/application';
 
@@ -46,6 +46,18 @@ describe('getShareCourses', () => {
       clientReturning({ code: 200, result: { courseOpenDtos: [{ courseName: '无 id' }] } }),
     );
     expect(briefs).toEqual([]);
+  });
+});
+
+describe('readCourseIsApply', () => {
+  it('服务端给值就用（金样本实况：数字 1）', async () => {
+    expect(await readCourseIsApply(clientReturning({ code: 0, data: { isApply: 1 } }), 'hex')).toBe(1);
+  });
+
+  it('服务端没给（0 / 缺字段 / 无 data）时回落站点自己的 "1"', async () => {
+    expect(await readCourseIsApply(clientReturning({ code: 0, data: { isApply: 0 } }), 'hex')).toBe('1');
+    expect(await readCourseIsApply(clientReturning({ code: 0, data: {} }), 'hex')).toBe('1');
+    expect(await readCourseIsApply(clientReturning({ code: 0 }), 'hex')).toBe('1');
   });
 });
 

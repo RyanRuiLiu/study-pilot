@@ -20,6 +20,7 @@ import type {
 } from '@study-pilot/application';
 import type { ZhihuishuCourse } from '@study-pilot/application';
 import type { ZhsClient } from '../client.ts';
+import { readCourseIsApply } from '../courses.ts';
 import { readSession, type CookieReader } from '../session.ts';
 import { getCourseUnits, type ZhsUnit } from '../structure.ts';
 import { executeUnit, type ExecuteUnitInput } from './execute.ts';
@@ -44,6 +45,23 @@ interface UnitPayload {
 }
 
 export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
+  /**
+   * 每课一份 isApply（开课载荷用料）。真实页面每次加载读一次 queryCourse；
+   * 我们按「一轮里每课一次」对齐——plan 开始时清空，同轮各单元共用一份。
+   */
+  const isApplyByCourse = new Map<number, Promise<number | string>>();
+
+  function isApplyOf(course: ZhihuishuCourse): Promise<number | string> {
+    let entry = isApplyByCourse.get(course.courseId);
+    if (entry === undefined) {
+      entry = readCourseIsApply(deps.client, course.secret);
+      // 失败不进缓存（取钥先例）：下次调用应该重试，而不是永远拿到那个失败的 Promise
+      entry.catch(() => isApplyByCourse.delete(course.courseId));
+      isApplyByCourse.set(course.courseId, entry);
+    }
+    return entry;
+  }
+
   return {
     id: 'zhihuishu',
     name: '智慧树',
@@ -53,6 +71,7 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
     },
 
     async plan(_now: number, scope?: RunSelection): Promise<PlanResult> {
+      isApplyByCourse.clear();
       const settings = await deps.config.read();
       const selected = selectedCourses(settings, scope);
       if (selected.length === 0) return { items: [], blocked: 'no-course' };
@@ -89,12 +108,20 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
       const session = await readSession(deps.readCookie);
       if (!session.loggedIn) return { status: 'failed', message: '未登录' };
 
+      let isApply: number | string;
+      try {
+        isApply = await isApplyOf(course);
+      } catch (error) {
+        return { status: 'failed', message: error instanceof Error ? error.message : String(error) };
+      }
+
       const input: ExecuteUnitInput = {
         recruitAndCourseId: course.secret,
         courseId: course.courseId,
         recruitId: course.recruitId,
         unit,
         deviceUuid: session.uuid,
+        isApply,
       };
       // 快速模式：单元内无长等待，心跳交还给外壳自己的节奏
       return executeUnit(deps.client, input, control);
