@@ -158,6 +158,11 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
         const headers: Record<string, string> = {
           accept: 'application/json',
           'user-agent': BROWSER_USER_AGENT,
+          /*
+           * 平台自己的 ajax 都带这一枚（抓包实证：见面课页发的
+           * `listTeachMeetingStu` 就带着它）——服务端缺它会 500。
+           */
+          'x-requested-with': 'XMLHttpRequest',
         };
         init = { method: endpoint.method, headers, credentials: 'include' };
         if (endpoint.method === 'POST') {

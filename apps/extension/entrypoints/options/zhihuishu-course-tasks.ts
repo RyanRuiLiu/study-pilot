@@ -469,16 +469,31 @@ function quizRow(entry: ZhsCourseTask): HTMLElement | null {
  */
 function meetRow(entry: ZhsCourseTask): HTMLElement {
   const unread = entry.quizUnreadReason !== null;
+  if (entry.meetSessionsNote !== null) {
+    return buildRow(entry, {
+      board: ZHS_BOARDS[2].id,
+      value: '见面课未读取到',
+      valueTitle: entry.meetSessionsNote,
+      href: entry.examListUrl,
+    });
+  }
+
+  const parts: string[] = [];
+  const sessions = entry.meetSessions;
+  if (sessions !== null) {
+    // 考勤按学校口径是「看直播/回放满 80%」——这一格要说的是「还有几场得去看」
+    parts.push(sessions.total === 0 ? '无场次' : `场次 ${sessions.total}`);
+    if (sessions.upcoming > 0) parts.push(`未开始 ${sessions.upcoming}`);
+  }
+  if (unread) parts.push('测验未读取到');
+  else if (entry.meet.total > 0) parts.push(`测验 ${entry.meet.done}/${entry.meet.total}`);
+
   return buildRow(entry, {
     board: ZHS_BOARDS[2].id,
-    value: unread
-      ? '见面课测验未读取到'
-      : entry.meet.total === 0
-        ? '没有见面课测验'
-        : `测验 ${entry.meet.done}/${entry.meet.total}`,
+    value: parts.length === 0 ? '没有见面课' : parts.join(' · '),
     valueTitle: unread
       ? `作业清单读取失败：${entry.quizUnreadReason ?? ''}`
-      : '已交 / 全部见面课测验，与单元测试同一份作业清单',
+      : '场次来自见面课页自己的接口；测验与单元测试同一份作业清单。考勤＝看直播或回放满 80%（学校口径）',
     href: entry.examListUrl,
   });
 }

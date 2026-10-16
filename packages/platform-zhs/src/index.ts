@@ -85,6 +85,7 @@ export {
   type PaperQuestionFull,
 } from './exam-paper.ts';
 
+export { getMeetSessions, normalizeMeetSessions, type ZhsMeetSession } from './meet.ts';
 export { askOracle, judge, type OracleVerdict } from './oracle.ts';
 
 export { buildStudyReport, type StudyReport, type StudyReportInput } from './report.ts';

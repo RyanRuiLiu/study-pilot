@@ -119,6 +119,14 @@ export interface ZhsCourseTask {
   /** 见面课测验：已交 / 全部（与单元测试同一份清单里的另一类条目） */
   meet: { done: number; total: number };
   /**
+   * 见面课场次：总场次与未开始场次；`null` = 没读到（连同原因）。
+   * 考勤按学校口径是「看直播或回放满 80%」（Ryan 2026-10-17），所以这一格
+   * 说的是「还有几场要去看」，不是签到。
+   */
+  meetSessions: { total: number; upcoming: number } | null;
+  /** 场次没读成的原因（读成了是 null） */
+  meetSessionsNote: string | null;
+  /**
    * 期末考试（taurus 族）。读不到、或这门课的考试形态不是在线（机房/线下
    * 不走这条接口）时为 null——原因在 `finalExamNote`。
    */

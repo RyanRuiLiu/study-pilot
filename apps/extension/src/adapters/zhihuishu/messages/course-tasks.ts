@@ -23,6 +23,7 @@ import type { ZhihuishuCourse } from '@study-pilot/application';
 import { readSession, selectedCourses } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsCourseTask, ZhsCourseTaskSummary, ZhsResponseMap } from './payload.ts';
+import { getMeetSessions } from '@study-pilot/platform-zhs';
 import { collectUnits, countMeetQuizzes, countNotFullUnitTests, countUnitTests, readCourseExams, readFinalExam } from './reads.ts';
 import { examListUrl, studyPageUrl } from '../pages.ts';
 
@@ -41,6 +42,8 @@ async function unreadCourse(course: ZhihuishuCourse): Promise<ZhsCourseTask> {
     quiz: { done: 0, total: 0 },
     quizNotFull: 0,
     meet: { done: 0, total: 0 },
+    meetSessions: null,
+    meetSessionsNote: null,
     quizUnreadReason: null,
     finalExam: null,
     finalExamNote: null,
@@ -102,6 +105,24 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
         }
 
         /*
+         * 见面课场次（模块 4）：只读 + 提醒。考勤的口径是「看直播/回放满 80%」
+         * （Ryan 2026-10-17 给的学校要求），所以这一格报的是「还有几场没开始」，
+         * 签到开关原样带出、不解释。读不到就如实说，不拿 0 场冒充。
+         */
+        let meetSessions: ZhsCourseTask['meetSessions'] = null;
+        let meetSessionsNote: string | null = null;
+        try {
+          const sessions = await getMeetSessions(deps.client, course.recruitId);
+          meetSessions = {
+            total: sessions.length,
+            upcoming: sessions.filter((session) => session.status === 1).length,
+          };
+        } catch (error) {
+          meetSessionsNote = `见面课场次读取失败：${error instanceof Error ? error.message : String(error)}`;
+          partial = true;
+        }
+
+        /*
          * 期末考试：与待办共用一份读取（reads.ts 的 readFinalExam）——先问形态，
          * 只有「在线」那条分支才在这条接口上；读不到就如实说，不让空着替数据说话。
          */
@@ -140,6 +161,8 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
           quiz,
           quizNotFull,
           meet,
+          meetSessions,
+          meetSessionsNote,
           quizUnreadReason,
           finalExam,
           finalExamNote,

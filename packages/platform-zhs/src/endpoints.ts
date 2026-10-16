@@ -269,9 +269,19 @@ const ENDPOINT_TABLE = {
    * 每场带：主题/类型/状态（3=已结束、1=未开始）/起止时刻/直播与回放房间地址/
    * 签到开关/`examH5Url`（见面课测验的 dohomework 入口，尾参 /1）/测验得分。
    */
+  /**
+   * 见面课场次（模块 4）。路径与 `?examV2=ss` 都是**抓包读出来的**（2026-10-17 真机：
+   * 见面课页 `online.zhihuishu.com/onlineSchool/teachMeeting/stuList` 自己发的就是这条），
+   * FINDINGS 记的 stuonline 域那条是错的、试过 404。
+   * body `recruitId=&page.pageNo=&page.pageSize=`（表单），回 `maps[]`：
+   * `taskName/taskType/taskStatus(3=已结束,1=未开始)/startTime/endTime/courseEndTime/
+   * liveCourseUrl(replayCourseUrl)(lc 直播间/回放间)/videoId/
+   * examH5Url`（见面课测验的 dohomework 入口，尾参 /1）`/examId/meetCourseExamStatus/
+   * signOpenStatus/askLeaveStatus/taskAddr/speakerJson`
+   */
   meetSessions: {
-    host: 'stuonline',
-    path: '/json/teachMeeting/listTeachMeetingStu',
+    host: 'onlineWeb',
+    path: '/onlineSchool/json/teachMeeting/listTeachMeetingStu?examV2=ss',
     method: 'POST',
   },
 
