@@ -86,7 +86,12 @@ function isSessionFailure(error: unknown): boolean {
 }
 
 function sessionHalt(): ZhsRoundHalt {
-  return new ZhsRoundHalt('需重新登录智慧树', { platformId: 'zhihuishu', label: '打开智慧树登录', url: LOGIN_URL });
+  // 文案照抄 CONTRIBUTING「常用句」：「登录已失效，需重新登录慕课。」智慧树同句换平台名
+  return new ZhsRoundHalt('登录已失效，需重新登录智慧树', {
+    platformId: 'zhihuishu',
+    label: '打开登录页',
+    url: LOGIN_URL,
+  });
 }
 
 /** 统一的失败翻译：会话失效 → 停轮；其余原样返回给结果文案。 */
@@ -121,6 +126,30 @@ async function readLookedPaper(client: ZhsClient, target: ExamTarget) {
   return parseLookedPaper((body as { rt?: unknown }).rt);
 }
 
+/*
+ * 作答与交卷的**业务码在 `rt.statu` 里**，外层 `status` 只说这次 HTTP 调用通没通。
+ * 平台源码（1.184ad30c22bdba34ce6c.js:22563、27731-27743）：
+ *
+ *   answer/saveStudentAnswer：`statu == 1` 成功；`-10` 要图形验证码；`-20` 被禁用
+ *   answer/submit          ：`statu == 0` 成功；`-1` 是「作业已提交，不可重复提交」
+ *
+ * **两处的成功值相反**（一个 1 一个 0）——这是两个接口各自的约定，不是笔误，别写混。
+ * 不检查它就会把「要验证码」「被禁用」「重复交卷」统统当成功收下，而那正是本仓
+ * 明令禁止的吞错。
+ */
+const SAVE_STATU_OK = 1;
+/** 交卷成功有**两个**值：0 = 成功并给出分数，1 = 成功但不显示分数（转问卷）。源码逐字两分支都在。 */
+const SUBMIT_STATU_OK = new Set([0, 1]);
+/** 作答被平台挂起（要人机验证 / 被禁用）：继续跑只会加重风控。 */
+const SAVE_STATU_GATE = new Set([-10, -20]);
+
+function statuOf(body: unknown): number | null {
+  const rt = (body as { rt?: unknown } | null | undefined)?.rt as { statu?: unknown } | null | undefined;
+  const raw = rt?.statu;
+  const parsed = typeof raw === 'string' ? Number(raw) : raw;
+  return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : null;
+}
+
 /** 逐题作答（一题一次，与真实客户端同节奏）。 */
 async function saveAnswers(
   client: ZhsClient,
@@ -137,18 +166,31 @@ async function saveAnswers(
       schoolId: target.schoolId,
       courseId: target.courseId,
     });
-    await client.call('examSaveAnswer', { stuExamAnswer, recruitId: target.recruitId });
+    const body = await client.call('examSaveAnswer', { stuExamAnswer, recruitId: target.recruitId });
+    const statu = statuOf(body);
+    if (statu === SAVE_STATU_OK) continue;
+    if (statu !== null && SAVE_STATU_GATE.has(statu)) {
+      // 平台源码：-10 → emit("captchaForAnswer")、-20 → emit("disableForAnswer")
+      throw new ZhsRoundHalt(statu === -10 ? '需完成人机验证' : '无法继续作答：平台已禁用');
+    }
+    throw new ZhsApiError(statu ?? -1, `作答失败：平台返回 ${statu ?? '无 statu'}`);
   }
 }
 
 /** 交卷。`achieveCount` = 已作答题数（真实客户端也这么传）。 */
 async function submit(client: ZhsClient, target: ExamTarget, achieveCount: number): Promise<void> {
-  await client.call('examSubmit', {
+  const body = await client.call('examSubmit', {
     recruitId: target.recruitId,
     examId: target.examKey,
     stuExamId: target.listId,
     achieveCount,
   });
+  const statu = statuOf(body);
+  if (statu !== null && SUBMIT_STATU_OK.has(statu)) return;
+  throw new ZhsApiError(
+    statu ?? -1,
+    statu === -1 ? '交卷失败：作业已提交，不可重复提交' : `交卷失败：平台返回 ${statu ?? '无 statu'}`,
+  );
 }
 
 export interface OracleGate {
@@ -166,11 +208,11 @@ export interface OracleGate {
  */
 async function passOracleGate(client: ZhsClient, input: ExamRunInput): Promise<OracleGate | RunOutcome> {
   const { target, userId, questionIds, totalScore } = input;
-  if (userId === null) return { verified: false, note: '会话里没有 userId，未过神谕' };
+  if (userId === null) return { verified: false, note: '未过平台确认：会话缺少 userId' };
   if (target.examIdNum === 0 || target.stuExamIdNum === 0) {
-    return { verified: false, note: '拿不到数字卷号，未过神谕' };
+    return { verified: false, note: '未过平台确认：缺少数字卷号' };
   }
-  if (questionIds.length === 0) return { verified: false, note: '这卷还没有题号（从没交过），未过神谕' };
+  if (questionIds.length === 0) return { verified: false, note: '未过平台确认：尚无题号' };
 
   const rt = await askOracle(client, {
     recruitId: target.recruitId,
@@ -180,20 +222,20 @@ async function passOracleGate(client: ZhsClient, input: ExamRunInput): Promise<O
     questionIds,
   });
   const verdict = judge({ rt, questionIds, totalScore });
-  if (verdict.pass) return { verified: true, note: `神谕确认满分（${verdict.scoreSum}/${totalScore}）` };
+  if (verdict.pass) return { verified: true, note: `平台确认满分：${verdict.scoreSum}/${totalScore}` };
 
   const reasons: string[] = [];
-  if (totalScore === null) reasons.push('清单没给总分，判据失效');
-  if (verdict.missing.length > 0) reasons.push(`${verdict.missing.length} 题没回分`);
+  if (totalScore === null) reasons.push('清单未给总分');
+  if (verdict.missing.length > 0) reasons.push(`${verdict.missing.length} 题未回分`);
   if (verdict.zeroScored.length > 0) reasons.push(`${verdict.zeroScored.length} 题 0 分`);
-  if (verdict.scoreSum !== totalScore && totalScore !== null) reasons.push(`得分 ${verdict.scoreSum} ≠ 总分 ${totalScore}`);
-  return {
-    status: 'failed',
-    message: `神谕未通过，未交卷（${reasons.join('；')}）`,
-  };
+  if (totalScore !== null && verdict.scoreSum !== totalScore) {
+    reasons.push(`得分 ${verdict.scoreSum} 与总分 ${totalScore} 不符`);
+  }
+  return { status: 'failed', message: `未交卷：平台确认未通过，${reasons.join('，')}` };
 }
 
-function isOutcome(value: OracleGate | RunOutcome): value is RunOutcome {
+/** 几个内部小步骤都返回「结果 + 失败二选一」，用这一个守卫分流。 */
+function isOutcome<T extends object>(value: T | RunOutcome): value is RunOutcome {
   return 'status' in value;
 }
 
@@ -233,6 +275,9 @@ export async function executeExam(
     return input.key === null ? await runWithoutKey(client, input, control) : await runWithKey(client, input, control);
   } catch (error) {
     if (error instanceof ZhsRoundHalt) throw error;
+    // 作答接口也挂易盾：源码 `if (o.code && -12 == o.code) → yuDuninstance`。
+    // 与视频线同一条处置：整轮停止、如实告知，不在这里做任何验证规避。
+    if (error instanceof ZhsApiError && error.code === -12) throw new ZhsRoundHalt('需完成人机验证');
     if (isSessionFailure(error)) throw sessionHalt();
     return failed(error);
   }
@@ -250,7 +295,7 @@ async function runWithKey(client: ZhsClient, input: ExamRunInput, control: RunCo
      * 说成「什么都没发生」。
      */
     const percent = Math.round((match.answers.length / Math.max(paper.length, 1)) * 100);
-    return { status: 'failed', message: `答案键覆盖不全（${percent}%），未作答也未交卷` };
+    return { status: 'failed', message: `未作答：答案键覆盖 ${percent}%` };
   }
 
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
@@ -260,9 +305,9 @@ async function runWithKey(client: ZhsClient, input: ExamRunInput, control: RunCo
   if (isOutcome(gate)) return gate;
 
   // 安全点：交卷是这一轮唯一的不可逆动作，落在这里的停止信号必须生效
-  if (control.stopped()) return { status: 'skipped', message: '已停止（未交卷）' };
+  if (control.stopped()) return { status: 'skipped', message: '已停止：未交卷' };
   await submit(client, input.target, match.answers.length);
-  return { status: 'done', message: `已交卷（${match.answers.length} 题）· ${gate.note}` };
+  return { status: 'done', message: `已交卷：${match.answers.length} 题，${gate.note}` };
 }
 
 /**
@@ -275,10 +320,18 @@ async function harvestKey(
   client: ZhsClient,
   target: ExamTarget,
   lessonId: number,
-): Promise<{ key: Awaited<ReturnType<typeof answerKeyFromPopupExam>>; questionIds: number[]; questionCount: number }> {
+): Promise<{
+  key: AnswerKey;
+  questionIds: number[];
+  questionCount: number;
+  /** 回顾卷面——用来在动重做**之前**预判键的覆盖率 */
+  looked: readonly LookedQuestion[];
+}> {
   const looked = await readLookedPaper(client, target);
   const questionIds = questionIdsOf(looked);
-  if (questionIds.length === 0) return { key: { version: 1, correctOptionIds: [], entries: [] }, questionIds, questionCount: 0 };
+  if (questionIds.length === 0) {
+    return { key: { version: 1, correctOptionIds: [], entries: [] }, questionIds, questionCount: 0, looked };
+  }
 
   const feedBody = (await client.call('popupExam', {
     lessonId,
@@ -289,29 +342,76 @@ async function harvestKey(
   const key = answerKeyFromPopupExam(
     (feedBody.data?.lessonTestQuestionUseInterfaceDtos ?? []) as Parameters<typeof answerKeyFromPopupExam>[0],
   );
-  return { key, questionIds, questionCount: questionIds.length };
+  return { key, questionIds, questionCount: questionIds.length, looked };
 }
 
-/** 已交未满分：收割建键 → 申请重做 → 重开卷定分（不重打第一枪）。 */
-async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
-  const { target } = input;
+/**
+ * 用**回顾卷面**预判键的覆盖率，决定要不要动重做。
+ *
+ * 为什么这一判可靠：选项 id 在多次开卷之间稳定（重做换序不换 id，真机 12 分 → 100 分
+ * 那一批实证），所以「键覆盖得了回顾卷面」等价于「覆盖得了重做后的新卷面」。
+ *
+ * 为什么值得先判：申请重做要花掉一次机会。键覆盖不全时花掉它，换来的是
+ * **一份没作答的新卷**——等于白花。这几行就是「留最后一次」在代码里的落点。
+ */
+function keyCoversLookedPaper(key: AnswerKey, looked: readonly LookedQuestion[]): { ok: boolean; coverage: number } {
+  const asPaper = looked.map((question) => ({
+    eid: String(question.questionId),
+    text: question.text,
+    options: question.options,
+  }));
+  const match = matchPaper(asPaper, key);
+  return { ok: match.missing.length === 0, coverage: asPaper.length === 0 ? 0 : match.answers.length / asPaper.length };
+}
+
+/**
+ * 动重做之前的门槛：剩余次数够不够、是不是客观题。
+ * 两条都不通过就给一句给人看的话（**两条路径共用**，别在两处各判一遍）。
+ */
+async function redoGate(client: ZhsClient, target: ExamTarget): Promise<{ remaining: number } | RunOutcome> {
   const redoBody = (await client.call('examRedoNum', { recruitId: target.recruitId, examId: target.examKey })) as {
     rt?: unknown;
   };
   const remaining = remainingAttempts(redoBody.rt);
 
   const objectBody = (await client.call('examIsObject', { examId: target.examKey })) as { rt?: unknown };
-  if (Number(objectBody.rt) !== 1) {
-    return { status: 'skipped', message: '非客观题（平台走二维码通道），只提醒不动手' };
-  }
+  if (Number(objectBody.rt) !== 1) return { status: 'skipped', message: '需手动完成：非客观题' };
   if (remaining < MIN_ATTEMPTS_FOR_PROBE) {
-    return { status: 'skipped', message: `只剩 ${remaining} 次作答机会，留给你手动做` };
+    return { status: 'skipped', message: `需手动完成：仅剩 ${remaining} 次作答机会` };
   }
+  return { remaining };
+}
 
-  const harvested = await harvestKey(client, target, input.popupLessonId);
-  if (harvested.questionCount === 0) {
-    return { status: 'failed', message: '回顾没拿到题号（这卷可能不在可回顾状态），不申请重做' };
+/**
+ * 收割建键并**先判覆盖率**——两者都是只读，不花任何机会。
+ *
+ * 先判再动重做的理由：申请重做要花掉一次机会，键覆盖不全时花掉它，
+ * 换来的是一份没作答的新卷，等于白花。这是「留最后一次」在代码里的落点。
+ */
+async function prepareKey(
+  client: ZhsClient,
+  target: ExamTarget,
+  lessonId: number,
+): Promise<{ key: AnswerKey; questionIds: number[] } | RunOutcome> {
+  const harvested = await harvestKey(client, target, lessonId);
+  if (harvested.questionCount === 0) return { status: 'failed', message: '未申请重做：回顾未取到题号' };
+
+  const preview = keyCoversLookedPaper(harvested.key, harvested.looked);
+  if (!preview.ok) {
+    return { status: 'failed', message: `未申请重做：答案键覆盖 ${Math.round(preview.coverage * 100)}%` };
   }
+  return { key: harvested.key, questionIds: harvested.questionIds };
+}
+
+/** 已交未满分：收割建键 → 申请重做 → 重开卷定分（不重打第一枪）。 */
+async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
+  const { target } = input;
+
+  const gate = await redoGate(client, target);
+  if (isOutcome(gate)) return gate;
+
+  const prepared = await prepareKey(client, target, input.popupLessonId);
+  if (isOutcome(prepared)) return prepared;
 
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
   const redoApply = (await client.call('examApplyRedo', {
@@ -321,14 +421,11 @@ async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: R
     courseId: target.courseId,
   })) as { rt?: unknown };
   if (Number(redoApply.rt) !== 1) {
-    return { status: 'failed', message: '申请重做未成功（平台文案：保存申请信息失败，请重新保存）' };
+    // 后半句是平台自己的失败文案（源码 1.184ad30c22bdba34ce6c.js:11835 字面量），照抄
+    return { status: 'failed', message: '申请重做失败：保存申请信息失败，请重新保存' };
   }
 
-  const settled = await runWithKey(
-    client,
-    { ...input, key: harvested.key, questionIds: harvested.questionIds },
-    control,
-  );
+  const settled = await runWithKey(client, { ...input, key: prepared.key, questionIds: prepared.questionIds }, control);
   return settled.status === 'done' ? { status: 'done', message: `重做定分：${settled.message}` } : settled;
 }
 
@@ -336,32 +433,20 @@ async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: R
 async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
   const { target } = input;
 
-  const redoBody = (await client.call('examRedoNum', { recruitId: target.recruitId, examId: target.examKey })) as {
-    rt?: unknown;
-  };
-  const remaining = remainingAttempts(redoBody.rt);
-
-  const objectBody = (await client.call('examIsObject', { examId: target.examKey })) as { rt?: unknown };
-  if (Number(objectBody.rt) !== 1) {
-    return { status: 'skipped', message: '非客观题（平台走二维码通道），只提醒不动手' };
-  }
-  if (remaining < MIN_ATTEMPTS_FOR_PROBE) {
-    return { status: 'skipped', message: `答案键缺失且只剩 ${remaining} 次作答机会，留给你手动做` };
-  }
+  const gate = await redoGate(client, target);
+  if (isOutcome(gate)) return gate;
 
   // ① 探路一枪：无键可用，如实按卷面第一项作答——它的作用只是解锁题号
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
   const probePaper = await openExamPaper(client, target);
   const probeAnswers = firstOptionAnswers(probePaper);
   await saveAnswers(client, target, probeAnswers);
-  if (control.stopped()) return { status: 'skipped', message: '已停止（未交卷）' };
+  if (control.stopped()) return { status: 'skipped', message: '已停止：未交卷' };
   await submit(client, target, probeAnswers.length);
 
-  // ② 收割建键（只读）
-  const harvested = await harvestKey(client, target, input.popupLessonId);
-  if (harvested.questionCount === 0) {
-    return { status: 'failed', message: '探路已交卷，但回读没拿到题号——不申请重做（避免白花一次机会）' };
-  }
+  // ② 收割建键（只读），并先判覆盖率——都不花机会
+  const prepared = await prepareKey(client, target, input.popupLessonId);
+  if (isOutcome(prepared)) return prepared;
 
   // ③ 申请重做（分数覆盖）
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
@@ -372,13 +457,13 @@ async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: Ru
     courseId: target.courseId,
   })) as { rt?: unknown };
   if (Number(redoApply.rt) !== 1) {
-    return { status: 'failed', message: '申请重做未成功（平台文案：保存申请信息失败，请重新保存）' };
+    return { status: 'failed', message: '申请重做失败：保存申请信息失败，请重新保存' };
   }
 
   // ④ 重开卷定分：这一次才是要留下的分数
   const settle = await runWithKey(
     client,
-    { ...input, key: harvested.key, questionIds: harvested.questionIds },
+    { ...input, key: prepared.key, questionIds: prepared.questionIds },
     control,
   );
   return settle.status === 'done'

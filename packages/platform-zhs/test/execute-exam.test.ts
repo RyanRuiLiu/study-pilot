@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { NEVER_STOPPED, type RunControl } from '@study-pilot/application';
 import { executeExam, type ExamRunInput, type ExamTarget } from '../src/policy/execute-exam.ts';
 import type { AnswerKey } from '../src/exam-answers.ts';
-import type { ZhsClient } from '../src/client.ts';
+import { ZhsApiError, type ZhsClient } from '../src/client.ts';
 
 const TARGET: ExamTarget = {
   recruitId: 900004,
@@ -104,7 +104,7 @@ describe('有键路径', () => {
     });
     const outcome = await executeExam(client, input(), NEVER_STOPPED);
     expect(outcome.status).toBe('done');
-    expect(outcome.message).toContain('神谕确认满分');
+    expect(outcome.message).toContain('平台确认满分');
     expect(names).toEqual([
       'examDoHomework',
       'examSaveAnswer',
@@ -122,7 +122,7 @@ describe('有键路径', () => {
     });
     const outcome = await executeExam(client, input(), NEVER_STOPPED);
     expect(outcome.status).toBe('failed');
-    expect(outcome.message).toContain('神谕未通过');
+    expect(outcome.message).toContain('平台确认未通过');
     expect(outcome.message).toContain('0 分');
     expect(names).not.toContain('examSubmit');
   });
@@ -135,7 +135,7 @@ describe('有键路径', () => {
     });
     const outcome = await executeExam(client, input({ totalScore: null }), NEVER_STOPPED);
     expect(outcome.status).toBe('failed');
-    expect(outcome.message).toContain('判据失效');
+    expect(outcome.message).toContain('清单未给总分');
     expect(names).not.toContain('examSubmit');
   });
 
@@ -171,7 +171,7 @@ describe('有键路径', () => {
     };
     await expect(executeExam(client, input(), NEVER_STOPPED)).rejects.toMatchObject({
       name: 'ZhsRoundHalt',
-      action: { platformId: 'zhihuishu', label: '打开智慧树登录' },
+      action: { platformId: 'zhihuishu', label: '打开登录页' },
     });
   });
 
@@ -183,8 +183,70 @@ describe('有键路径', () => {
     });
     const outcome = await executeExam(client, input({ userId: null }), NEVER_STOPPED);
     expect(outcome.status).toBe('done');
-    expect(outcome.message).toContain('未过神谕');
+    expect(outcome.message).toContain('未过平台确认');
     expect(names).not.toContain('examQuestionDoneState');
+  });
+});
+
+describe('业务码（rt.statu）不被吞掉', () => {
+  it('作答被要求图形验证码（statu=-10）→ 整轮停止，不继续作答、不交卷', async () => {
+    const { client, names } = recordingClient({
+      examDoHomework: { rt: PAPER },
+      examSaveAnswer: { rt: { msg: '', statu: '-10' } },
+    });
+    await expect(executeExam(client, input(), NEVER_STOPPED)).rejects.toMatchObject({
+      name: 'ZhsRoundHalt',
+    });
+    expect(names.filter((n) => n === 'examSaveAnswer')).toHaveLength(1);
+    expect(names).not.toContain('examSubmit');
+  });
+
+  it('作答被拒（statu 缺失/未知）→ 如实失败，不当成功', async () => {
+    const { client, names } = recordingClient({
+      examDoHomework: { rt: PAPER },
+      examSaveAnswer: { rt: { msg: '出错了' } },
+    });
+    const outcome = await executeExam(client, input(), NEVER_STOPPED);
+    expect(outcome.status).toBe('failed');
+    expect(outcome.message).toContain('作答失败');
+    expect(names).not.toContain('examSubmit');
+  });
+
+  it('交卷 statu=1 也是成功（平台两个成功值：0 给分、1 转问卷）', async () => {
+    const { client } = recordingClient({
+      examDoHomework: { rt: PAPER },
+      examSaveAnswer: { rt: { statu: '1' } },
+      examQuestionDoneState: ORACLE_PASS,
+      examSubmit: { rt: { msg: '提交成功', statu: '1' } },
+    });
+    const outcome = await executeExam(client, input(), NEVER_STOPPED);
+    expect(outcome.status).toBe('done');
+  });
+
+  it('作答遇易盾（code=-12）→ 整轮停止，不当作普通失败', async () => {
+    // 真 client 会把 code=-12 映射成 ZhsApiError 抛出，这里直接抛，跳过替身的模拟
+    const names: string[] = [];
+    const client: ZhsClient = {
+      call: async (name) => {
+        names.push(name);
+        if (name === 'examDoHomework') return { rt: PAPER };
+        throw new ZhsApiError(-12, '需要弹出滑块验证');
+      },
+    };
+    await expect(executeExam(client, input(), NEVER_STOPPED)).rejects.toMatchObject({ name: 'ZhsRoundHalt' });
+    expect(names).not.toContain('examSubmit');
+  });
+
+  it('交卷被拒不重复提交（statu=-1）→ 如实失败并带平台原话', async () => {
+    const { client } = recordingClient({
+      examDoHomework: { rt: PAPER },
+      examSaveAnswer: { rt: { statu: '1' } },
+      examQuestionDoneState: ORACLE_PASS,
+      examSubmit: { rt: { msg: '作业已提交', statu: '-1' } },
+    });
+    const outcome = await executeExam(client, input(), NEVER_STOPPED);
+    expect(outcome.status).toBe('failed');
+    expect(outcome.message).toContain('不可重复提交');
   });
 });
 
@@ -262,7 +324,7 @@ describe('缺键路径（探路重做）', () => {
     });
     const outcome = await executeExam(client, input({ key: null, questionIds: [] }), NEVER_STOPPED);
     expect(outcome.status).toBe('failed');
-    expect(outcome.message).toContain('没拿到题号');
+    expect(outcome.message).toContain('回顾未取到题号');
     expect(names).not.toContain('examApplyRedo');
   });
 
@@ -270,7 +332,7 @@ describe('缺键路径（探路重做）', () => {
     const { client, names } = recordingClient({ ...PROBE_RESPONSES, examApplyRedo: { rt: 0 } });
     const outcome = await executeExam(client, input({ key: null, questionIds: [] }), NEVER_STOPPED);
     expect(outcome.status).toBe('failed');
-    expect(outcome.message).toContain('申请重做未成功');
+    expect(outcome.message).toContain('申请重做失败');
     expect(names.filter((n) => n === 'examDoHomework')).toHaveLength(1);
   });
 });
