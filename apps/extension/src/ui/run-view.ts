@@ -6,7 +6,7 @@
  * 现在读取与措辞收在这里，页面只决定放在哪显示。
  *
  * 两页共享的停止交互协议（顺序固定，展示各页自理）：
- *   点击停止 → 立刻显示「正在停止…」并禁用按钮 → stopRun()
+ *   点击停止 → 立刻显示「正在停止…」并禁用按钮 → stopRun(platformId)
  *   → 确实停到了（stopped）→ 记下「停过」，收尾时补一句
  *   → 没停到（多半刚好跑完）→ 撤销停止态，整行/整行还原
  *
@@ -75,6 +75,12 @@ export function isRunning(state: RunState | null): boolean {
   return state !== null && state.platforms.some((platform) => platform.state === 'running');
 }
 
+/** 某平台此刻在不在跑（弹窗状态行与平台卡片按它收窄；平台之间互不影响）。 */
+export function isPlatformRunning(state: RunState | null, platformId: string): boolean {
+  const platform = state?.platforms.find((entry) => entry.id === platformId);
+  return platform !== undefined && platform.state === 'running';
+}
+
 /** 进度一句话；有一项在跑就报它（progressLine），还没进到某一项就报到哪算哪。 */
 export function progressTextOf(state: RunState | null): string {
   const step = runningItem(state);
@@ -84,6 +90,15 @@ export function progressTextOf(state: RunState | null): string {
   if (total === 0) return '正在执行';
   const finished = platforms.reduce((sum, platform) => sum + platform.finished, 0);
   return `正在执行 ${finished}/${total}`;
+}
+
+/** 进度一句话（单平台）：弹窗状态行按当前 tab 的平台收窄时用。 */
+export function platformProgressText(state: RunState | null, platformId: string): string {
+  const step = platformRunningItem(state, platformId);
+  if (step !== null) return progressLine(step);
+  const platform = state?.platforms.find((entry) => entry.id === platformId);
+  if (platform === undefined || platform.total === 0) return '正在执行';
+  return `正在执行 ${platform.finished}/${platform.total}`;
 }
 
 /** 「停止」按下后、收尾完成前显示的那句话。 */

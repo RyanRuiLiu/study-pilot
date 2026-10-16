@@ -212,6 +212,9 @@ importers:
       '@study-pilot/platform-mooc':
         specifier: workspace:*
         version: link:../../packages/platform-mooc
+      '@study-pilot/platform-zhs':
+        specifier: workspace:*
+        version: link:../../packages/platform-zhs
       '@study-pilot/transport':
         specifier: workspace:*
         version: link:../../packages/transport
@@ -277,6 +280,22 @@ importers:
       '@study-pilot/core':
         specifier: workspace:*
         version: link:../core
+      '@study-pilot/transport':
+        specifier: workspace:*
+        version: link:../transport
+    devDependencies:
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.4
+        version: 5.0.4(@types/node@26.6.2)(@vitest/coverage-v8@5.0.4)(vite@6.4.3(@types/node@26.6.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/platform-zhs:
+    dependencies:
+      '@study-pilot/application':
+        specifier: workspace:*
+        version: link:../application
       '@study-pilot/transport':
         specifier: workspace:*
         version: link:../transport

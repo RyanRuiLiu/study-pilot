@@ -12,6 +12,11 @@ function button(id: string): HTMLButtonElement | null {
 export const stateEl = document.getElementById('state-text');
 export const stateLine = document.getElementById('state-line');
 export const stopBtn = button('stop-run');
+/** 失败的「下一步」动作位（平台在错误上附带 action 时现身，见 status.ts）。 */
+export const stateActionEl =
+  document.getElementById('state-action') instanceof HTMLAnchorElement
+    ? (document.getElementById('state-action') as HTMLAnchorElement)
+    : null;
 export const todoEl = document.getElementById('todo-text');
 export const zhsTodoEl = document.getElementById('zhs-todo-text');
 export const runBtn = button('run-now');

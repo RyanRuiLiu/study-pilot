@@ -13,23 +13,25 @@
  * 这个文件不碰存储、也不碰宿主：状态与进度都走端口（TaskStorePort / ProgressPort），
  * 平台实例由装配层给。因此它能在 Node 里用假端口跑完整路径（见 test/round.test.ts）。
  *
- * 并发有两个闸门，各管一段：
- *   本进程内的认领     runner 自己的字段。同一个进程里两个 runner 互不干扰
- *   跨进程的持久标记   canStartRun 读存储里的 runningSince
+ * 并发按平台成对存在（平台任务相互独立）：
+ *   本进程内的认领     runner 自己的字段（按平台），同一平台的两个调用方互斥
+ *   跨进程的持久标记   canStartRun 按平台读存储里的 runningSince
+ *   存储读改写         runner 内的串行队列——两平台同时在飞时，各自的状态写不互相踩
  *
- * 一条行为约定写在这，不靠读代码猜：runningSince 覆盖整轮。曾经（自动执行的年代）
- * 是每个平台一次 begin/finish，两个平台之间那一小段里持久标记是空着的，
- * 另一个进程可以挤进来起第二轮。整轮持有它修掉的是这个窗口，不是语义新加。
+ * 一条行为约定写在这，不靠读代码猜：每个平台的 begin/finish 成对覆盖它自己那一轮
+ * （包括各种提前返回）；runningSince 是**该平台**的防重入标记，不是全局锁——
+ * 智慧树在跑不占慕课的门。
  */
 
-import type { RunSelection, RunState, TaskState } from './model.ts';
+import type { RunFailureAction, RunSelection, RunState, TaskState } from './model.ts';
 import type { PlatformTasks, ProgressPort, RunControl, TaskStorePort } from './ports.ts';
 import { beginPlatform, completeItem, enterItem, finishPlatform } from './progress.ts';
 import {
   beginRun,
   canStartRun,
+  clearPlatformFailure,
   finishRun,
-  recordRunFailure,
+  recordPlatformFailure,
   touchRun,
 } from './state.ts';
 
@@ -71,16 +73,17 @@ export interface RoundDeps {
 }
 
 export interface Runner {
-  /** 跑一轮。同一进程里并发调用时，后来者得到 ALREADY_RUNNING。 */
+  /** 跑一轮。同一进程里对同一平台并发调用时，后来者得到 ALREADY_RUNNING（平台之间互不影响）。 */
   runRound(selection?: RunSelection): Promise<RoundResult>;
   /**
-   * 请求停止正在跑的一轮。返回是否真有在跑的一轮（没有就什么都不做）。
+   * 请求停止某平台正在跑的一轮。返回是否真有在跑的一轮（没有就什么都不做）。
    *
-   * 语义是「不再有新的写」：项间的循环与长动作内部的安全点都会看到这个信号，
-   * 下一个安全点即中断（安全点 = 即将发出写请求之前）。正在飞的请求让它落地，
-   * 已完成的写不回退——一次提交停到一半，比多做一项危险得多。
+   * 按平台：一家的停止不打断另一家（平台任务相互独立）。语义是「不再有新的写」：
+   * 项间的循环与长动作内部的安全点都会看到这个信号，下一个安全点即中断
+   * （安全点 = 即将发出写请求之前）。正在飞的请求让它落地，已完成的写不回退——
+   * 一次提交停到一半，比多做一项危险得多。
    */
-  stop(): boolean;
+  stop(platformId: string): boolean;
 }
 
 /** 这一项在不在范围内。范围为空表示全都要。 */
@@ -95,53 +98,105 @@ function inSelection(
   return true;
 }
 
+/**
+ * 从抛出的错误上取「下一步」动作。
+ *
+ * 结构性约定（不是平台知识）：错误对象可以附一个
+ * `action: { platformId, label, url }`，三个字段都是非空字符串就原样搬进状态
+ * （界面据此给一个跳转钮）；否则当没有——壳只搬运，不解释，也不替平台兜底造句。
+ */
+function runFailureActionOf(error: unknown): RunFailureAction | null {
+  if (typeof error !== 'object' || error === null) return null;
+  const action = (error as { action?: unknown }).action;
+  if (typeof action !== 'object' || action === null) return null;
+  const { platformId, label, url } = action as { platformId?: unknown; label?: unknown; url?: unknown };
+  if (typeof platformId !== 'string' || platformId.length === 0) return null;
+  if (typeof label !== 'string' || label.length === 0) return null;
+  if (typeof url !== 'string' || url.length === 0) return null;
+  return { platformId, label, url };
+}
+
 export function createRunner(deps: RoundDeps): Runner {
   /*
-   * 本进程内的一轮认领。
+   * 本进程内的认领（按平台）。
    *
    * 跨进程的持久标记（state.ts 的 canStartRun）管不了同一进程内的并发：「查状态 →
    * 落状态」之间隔着网络 await，同一时刻的两个调用方都在同一个 worker 里，
-   * 可以一起穿过那个窗口。这里补一道同步的。
+   * 可以一起穿过那个窗口。这里补一道同步的——认领是**按平台**的：
+   * 一家在跑不占另一家的门（平台任务相互独立）。
    */
-  let claimed = false;
+  const claimed = new Set<string>();
 
-  /** 「停止」按钮按过。每轮开始时复位；只在项间检查（见 Runner.stop 的说明）。 */
-  let stopRequested = false;
+  /** 按下的停止（按平台）。每轮开始时清掉自己平台的那条；只在项间检查（见 Runner.stop）。 */
+  const stopRequests = new Set<string>();
+
+  /*
+   * 状态读改写的串行队列。
+   *
+   * 平台相互独立之后，两个平台的轮次可能同时在飞；两份「读 → 改 → 写」
+   * 交错会丢更新（后写的赢）。队列保证每一次读改写原子地执行——存储端口
+   * 本身不需要锁，这一层就是锁。
+   */
+  let tail: Promise<unknown> = Promise.resolve();
+  const serialize = <T>(task: () => Promise<T>): Promise<T> => {
+    const next = tail.then(task, task);
+    tail = next.catch(() => undefined);
+    return next;
+  };
 
   return {
     async runRound(selection?: RunSelection): Promise<RoundResult> {
-      const now = Date.now();
-      if (!canStartRun(await deps.tasks.read(), now)) {
-        return { status: 'rejected', reason: 'ALREADY_RUNNING' };
-      }
-      if (claimed) return { status: 'rejected', reason: 'ALREADY_RUNNING' };
-      claimed = true;
-      stopRequested = false;
+      const all = deps.platforms();
+      const targets =
+        selection?.platformId !== undefined
+          ? all.filter((platform) => platform.id === selection.platformId)
+          : all;
 
-      const heartbeat = async (): Promise<void> => {
-        await deps.tasks.write(touchRun(await deps.tasks.read(), Date.now()));
-      };
-      // 停止柄：长动作在安全点问它一句（见 Runner.stop 的说明）
-      const control: RunControl = { stopped: () => stopRequested };
-      const settle = async (next: (state: TaskState) => TaskState): Promise<void> => {
-        await deps.tasks.write(next(await deps.tasks.read()));
-      };
-      const show = async (next: (state: RunState) => RunState): Promise<void> => {
-        await deps.progress.publish(next(await deps.progress.snapshot()));
-      };
+      const now = Date.now();
+      const snapshot = await deps.tasks.read();
+      for (const platform of targets) {
+        if (!canStartRun(snapshot, platform.id, now) || claimed.has(platform.id)) {
+          return { status: 'rejected', reason: 'ALREADY_RUNNING' };
+        }
+      }
+      for (const platform of targets) {
+        claimed.add(platform.id);
+        stopRequests.delete(platform.id);
+      }
+
+      const settle = (next: (state: TaskState) => TaskState): Promise<void> =>
+        serialize(async () => {
+          await deps.tasks.write(next(await deps.tasks.read()));
+        });
+      const show = (next: (state: RunState) => RunState): Promise<void> =>
+        serialize(async () => {
+          await deps.progress.publish(next(await deps.progress.snapshot()));
+        });
 
       let noCourse = false;
       let done = 0;
       let manual = 0;
       let stopped = false;
       const failed: RunFailure[] = [];
+      /** 此刻在跑哪个平台：抛错时给失败归属用（平台自己给的 action.platformId 优先）。 */
+      let currentPlatform: PlatformTasks | null = null;
 
-      await settle((state) => beginRun(state, now));
       try {
-        try {
-          for (const platform of deps.platforms()) {
-            // 范围里点名了平台时，其余平台整家跳过（界面每次执行都点名）
-            if (selection?.platformId !== undefined && platform.id !== selection.platformId) continue;
+        for (const platform of all) {
+          // 范围里点名了平台时，其余平台整家跳过（界面每次执行都点名）
+          if (selection?.platformId !== undefined && platform.id !== selection.platformId) continue;
+          currentPlatform = platform;
+
+          /** 停止柄与心跳都按平台走：一家的停止不打断另一家（见 Runner.stop 的说明）。 */
+          const control: RunControl = { stopped: () => stopRequests.has(platform.id) };
+          const heartbeat = (): Promise<void> =>
+            serialize(async () => {
+              await deps.tasks.write(touchRun(await deps.tasks.read(), platform.id, Date.now()));
+            });
+
+          // 该平台的一轮：begin → …… → finally finish（走哪种提前返回都不留残标记）
+          await settle((state) => beginRun(state, platform.id, Date.now()));
+          try {
             if (!(await platform.isReady())) {
               // 有人在等答案：立刻告诉他去登录，别让他等一轮空跑
               return { status: 'not-logged-in' };
@@ -171,7 +226,7 @@ export function createRunner(deps: RoundDeps): Runner {
             await show((state) => beginPlatform(state, platform, queue.length, Date.now()));
             for (const item of queue) {
               // 项间这道闸；长动作内部还有自己的安全点（control 一路传下去）
-              if (stopRequested) {
+              if (control.stopped()) {
                 stopped = true;
                 break;
               }
@@ -194,14 +249,21 @@ export function createRunner(deps: RoundDeps): Runner {
             }
             await show((state) => finishPlatform(state, platform));
             /*
+             * 这家跑完了（队列正常走完）：它过去的失败留痕已经被这一轮的结果取代。
+             * 半途停止不算「交代过」——不在这里清（下一次干净的一轮会清）。
+             */
+            if (!control.stopped()) {
+              await settle((state) => clearPlatformFailure(state, platform.id));
+            }
+            /*
              * 补认一次：最后一项执行期间按的停止没有「下一轮」可触发项间检查，
              * 不在这里认，整轮就会报成「完成 N 项」而不是「已停止」。
              */
-            if (stopRequested) stopped = true;
+            if (control.stopped()) stopped = true;
             if (stopped) break;
+          } finally {
+            await settle((state) => finishRun(state, platform.id, Date.now()));
           }
-        } finally {
-          await settle((state) => finishRun(state, Date.now()));
         }
 
         // 停过的一轮怎么都是「跑过」，不像无事可做
@@ -218,28 +280,34 @@ export function createRunner(deps: RoundDeps): Runner {
          * 那一步就永远不执行——界面会停在「正在执行」，而这一轮已经死了
          * （实测：智慧树 -12 中止后，进度卡挂着 running）。收尾用 {id,name}
          * 轻对象即可：finishPlatform 按 id 归位，不依赖平台实例。
+         * 平台自己的运行标记由上面那层 finally 收（begin/finish 成对）。
          */
-        for (const platform of deps.platforms()) {
+        for (const platform of all) {
           if (selection?.platformId !== undefined && platform.id !== selection.platformId) continue;
           await show((state) => finishPlatform(state, { id: platform.id, name: platform.name }));
         }
         /*
-         * 一轮的失败记下来，同时也交给调用方。
+         * 一轮的失败记下来（按平台），同时也交给调用方。
          *
-         * 记进状态那份给界面用（「上一次执行出了问题」在下次打开时还能看见）；
-         * 返回值给正在等的人一句准确的话。两条都留，因为它们服务两个时刻。
+         * 归属：平台自己给的 action.platformId 最可信；其次「此刻在跑的平台」；
+         * 还没有进到任何平台就抛了（罕见）就取选择里点名的平台；都无 → 不落平台表，
+         * 只把消息交回给调用方（不猜归属）。
          */
         const message = error instanceof Error ? error.message : String(error);
-        await settle((state) => recordRunFailure(state, message, Date.now()));
+        const action = runFailureActionOf(error);
+        const platformId = action?.platformId ?? currentPlatform?.id ?? selection?.platformId;
+        if (platformId !== undefined) {
+          await settle((state) => recordPlatformFailure(state, platformId, message, Date.now(), action));
+        }
         return { status: 'failed', message };
       } finally {
-        claimed = false;
+        for (const platform of targets) claimed.delete(platform.id);
       }
     },
 
-    stop(): boolean {
-      if (!claimed) return false;
-      stopRequested = true;
+    stop(platformId: string): boolean {
+      if (!claimed.has(platformId)) return false;
+      stopRequests.add(platformId);
       return true;
     },
   };

@@ -20,16 +20,16 @@ import type {
 } from '@study-pilot/application';
 import type { ZhihuishuCourse } from '@study-pilot/application';
 import type { ZhsClient } from '../client.ts';
-import { readSession } from '../session.ts';
+import { readSession, type CookieReader } from '../session.ts';
 import { getCourseUnits, type ZhsUnit } from '../structure.ts';
-import { executeUnit, type ExecuteTiming, type ExecuteUnitInput } from './execute.ts';
+import { executeUnit, type ExecuteUnitInput } from './execute.ts';
 
 /** 平台跑一轮需要的外界能力。由装配层创建后注入（与慕课同一形状）。 */
 export interface ZhsRunDeps {
   config: ConfigPort;
   client: ZhsClient;
-  /** 时序参数（等待与冷却的注入点；只有测试需要改它） */
-  timing?: ExecuteTiming;
+  /** 读 cookie 的宿主能力：会话判定的唯一来源（见 session.ts） */
+  readCookie: CookieReader;
 }
 
 /** 单元项的 id 与标题取名（界面展示与「只做这一条」回传都用它，必须同一份）。 */
@@ -49,7 +49,7 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
     name: '智慧树',
 
     async isReady(): Promise<boolean> {
-      return (await readSession(deps.client)).loggedIn;
+      return (await readSession(deps.readCookie)).loggedIn;
     },
 
     async plan(_now: number, scope?: RunSelection): Promise<PlanResult> {
@@ -57,7 +57,7 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
       const selected = selectedCourses(settings, scope);
       if (selected.length === 0) return { items: [], blocked: 'no-course' };
 
-      const session = await readSession(deps.client);
+      const session = await readSession(deps.readCookie);
       if (!session.loggedIn) return { items: [], needsLogin: true };
 
       const items: PlanItem[] = [];
@@ -81,12 +81,12 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
       return { items };
     },
 
-    async run(item: PlanItem, heartbeat: () => Promise<void>, control: RunControl): Promise<RunOutcome> {
+    async run(item: PlanItem, _heartbeat: () => Promise<void>, control: RunControl): Promise<RunOutcome> {
       const { course, unit } = item.payload as UnitPayload;
       if (course.secret.length === 0) {
         return { status: 'failed', message: '课程缺少入口参数，请先读取课程列表' };
       }
-      const session = await readSession(deps.client);
+      const session = await readSession(deps.readCookie);
       if (!session.loggedIn) return { status: 'failed', message: '未登录' };
 
       const input: ExecuteUnitInput = {
@@ -96,8 +96,8 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
         unit,
         deviceUuid: session.uuid,
       };
-      // 长等待（1× 壁钟）在 executeUnit 内部按段走：段间刷心跳、查停止
-      return executeUnit(deps.client, input, control, heartbeat, deps.timing ?? {});
+      // 快速模式：单元内无长等待，心跳交还给外壳自己的节奏
+      return executeUnit(deps.client, input, control);
     },
   };
 }

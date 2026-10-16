@@ -37,12 +37,26 @@ export interface StudyReportInput {
   recordId: string | number;
   /** getLoginUserInfo 取回的设备号（token = uuid + "zhs"） */
   deviceUuid: string;
+  /**
+   * 本次报告覆盖的时长（秒）。缺省 = 视频全长（单份完整报告）。
+   *
+   * 长视频要分段报（见 policy/execute.ts 的段长说明）：每段的 y/序列按
+   * `[baseSec, baseSec+lengthSec]` 的累计轴生成——语义与单份报告完全同构，
+   * 只是区间短了。
+   */
+  lengthSec?: number;
+  /**
+   * 本段在**视频时间轴**上的起点（秒）。缺省 0。
+   * 位置字段走向的是视频轴（单份完整报告 = 片尾 = lengthSec），不是累计轴——
+   * 分段上报时由执行侧给出该段起点（= 已声称看过的视频秒数）。
+   */
+  videoFromSec?: number;
 }
 
 export function buildStudyReport(input: StudyReportInput): StudyReport {
   const { unit } = input;
-  const y = unit.sec;
-  const ke = input.baseSec + unit.sec;
+  const y = input.lengthSec ?? unit.sec;
+  const ke = input.baseSec + y;
   const array = [
     input.recruitId,
     unit.lessonId,
@@ -52,11 +66,11 @@ export function buildStudyReport(input: StudyReportInput): StudyReport {
     0,
     y,
     ke,
-    formatPosition(unit.sec),
+    formatPosition((input.videoFromSec ?? 0) + y),
     `${input.deviceUuid}zhs`,
   ];
   return {
-    ewssw: buildSeries(input.baseSec, unit.sec),
+    ewssw: buildSeries(input.baseSec, y),
     sdsew: xorHexEncode(array),
     // 记录 id 是十进制字符串，base64 其 UTF-8 字节（ASCII 下等同按字符编码）
     zwsds: btoa(String(input.recordId)),

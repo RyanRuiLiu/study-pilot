@@ -65,8 +65,8 @@ export default defineBackground(() => {
     /*
      * 监听器一个都没注册上时，唯一能看见这件事的地方是界面。
      *
-     * 生产构建把 console 换成空函数，所以这里不能只打印：失败记进运行状态，
-     * 由弹窗如实显示（与「上一次执行出错」共用同一条 `lastError`）。
+     * 生产构建把 console 换成空函数，所以这里不能只打印：失败记进运行状态
+     * （记在 shell 名下，页面级状态行在当前平台无失败时会呈现它）。
      */
     void recordRunFailure(error instanceof Error ? error.message : String(error));
   }
@@ -92,9 +92,12 @@ export default defineBackground(() => {
     handlers: {
       ...mooc.handlers,
       ...zhihuishu.handlers,
-      TASK_STATE: async (_request, sendResponse) => {
+      TASK_STATE: async (request, sendResponse) => {
+        // 协议里 platformId 是必填（messages.ts 的 ShellRequest）；表内的 request 是宽松型，这里按契约收窄
+        const { platformId } = request as { platformId: string };
         const state = await getTaskState();
-        sendResponse({ state, live: liveRunState(state) });
+        // 状态按平台独立：判据只问请求点名的那家（界面问谁答谁）
+        sendResponse({ state, live: liveRunState(state, platformId) });
       },
     },
     runner,

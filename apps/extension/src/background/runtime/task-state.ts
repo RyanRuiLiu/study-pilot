@@ -11,8 +11,9 @@
  */
 
 import {
-  EMPTY_STATE,
-  recordRunFailure as migrateRecordRunFailure,
+  SHELL_PLATFORM_ID,
+  normalizeTaskState,
+  recordPlatformFailure as migrateRecordPlatformFailure,
   type TaskState,
   type TaskStorePort,
 } from '@study-pilot/application';
@@ -26,7 +27,8 @@ function storageArea() {
 
 async function read(): Promise<TaskState> {
   const raw = await storageArea().get(STATE_KEY);
-  return { ...EMPTY_STATE, ...((raw[STATE_KEY] as Partial<TaskState> | undefined) ?? {}) };
+  // 归一在应用层（迁移规则一处写）；存储里是什么都接得住
+  return normalizeTaskState(raw[STATE_KEY]);
 }
 
 async function write(state: TaskState): Promise<void> {
@@ -41,7 +43,7 @@ export async function getTaskState(): Promise<TaskState> {
   return await read();
 }
 
-/** 记下失败原因。入口侧监听器注册失败时用它——那是用户唯一能看见的地方。 */
+/** 记下外壳自己的失败（入口侧监听器注册失败时用）。非平台事件记在 SHELL_PLATFORM_ID 名下。 */
 export async function recordRunFailure(message: string, now: number = Date.now()): Promise<void> {
-  await write(migrateRecordRunFailure(await read(), message, now));
+  await write(migrateRecordPlatformFailure(await read(), SHELL_PLATFORM_ID, message, now));
 }

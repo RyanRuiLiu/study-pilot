@@ -12,7 +12,7 @@
  * 停止在下一个安全点生效：不再发新的写请求，正在飞的落地即止。
  */
 
-import { getZhsCourseware, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
+import { getTaskState, getZhsCourseware, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
 import type { ZhsCoursewareProgress, ZhsCoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
@@ -73,15 +73,42 @@ let lastFinished = 0;
 /** 订阅里见过「正在跑」：用来识别「刚刚跑完」这一瞬（开通时的空闲快照不算） */
 let sawRun = false;
 
+/**
+ * 课件卡头的「上次执行出错」行：失败留痕按平台独立（见 application 的
+ * TaskState.platforms），这里只呈现智慧树自己那条；平台给了「下一步」动作时
+ * 卡头右侧给一个跳转钮（新标签页，与「读取课程列表」同一个按钮位）。
+ * 跑动中不呈现——那一路的状态是课件行里的运行明细。
+ */
+async function renderZhsFailure(): Promise<void> {
+  const statusEl = document.getElementById('zhs-courseware-status');
+  const actionEl = document.getElementById('zhs-courseware-action');
+  if (statusEl === null || !(actionEl instanceof HTMLAnchorElement)) return;
+
+  const status = await getTaskState('zhihuishu');
+  const failure =
+    status.live === 'running' ? null : (status.state.platforms['zhihuishu']?.failure ?? null);
+
+  statusEl.classList.toggle('is-error', failure !== null);
+  statusEl.textContent = failure !== null ? `上次执行出错：${failure.message}` : '';
+
+  actionEl.hidden = failure?.action == null;
+  if (failure !== null && failure.action !== null) {
+    actionEl.textContent = failure.action.label;
+    actionEl.href = failure.action.url;
+  }
+}
+
 function watchRun(): void {
   if (watching) return;
   watching = true;
-
   subscribeRunState((state) => {
     const zhihuishu = state.platforms.find((platform) => platform.id === 'zhihuishu');
     const running = zhihuishu !== undefined && zhihuishu.state === 'running';
     if (!running) stopping = false;
     if (running) {
+      // 刚起跑：卡头的失败行让位（renderZhsFailure 读到 running 会自行清空；
+      // 收尾后由 refreshZhsCourseViews 重画回来）
+      if (!sawRun) void renderZhsFailure();
       sawRun = true;
       lastFinished = zhihuishu.finished;
     }
@@ -202,7 +229,7 @@ function buildRow(entry: ZhsCoursewareProgress): HTMLElement {
       stopping = true;
       current.hidden = false;
       current.textContent = STOPPING_TEXT;
-      void stopRun().then((result) => {
+      void stopRun('zhihuishu').then((result) => {
         if (result.stopped) {
           stoppedHere = true;
           return;
@@ -239,6 +266,9 @@ export async function renderZhsCourseware(
 ): Promise<void> {
   const listEl = document.getElementById('zhs-courseware-list');
   if (listEl === null) return;
+
+  // 卡头的「上次执行出错」行与列表走同一条渲染路径（首帧、重读、跑完都会到这里）
+  void renderZhsFailure();
 
   watchRun();
 

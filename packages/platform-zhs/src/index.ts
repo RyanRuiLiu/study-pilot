@@ -41,7 +41,7 @@ export {
   type ZhsClientOptions,
 } from './client.ts';
 
-export { readSession, type ZhsSession } from './session.ts';
+export { readSession, type ZhsSession, type CookieReader } from './session.ts';
 
 export { getShareCourses, mergeCourses, type ZhsCourseBrief } from './courses.ts';
 

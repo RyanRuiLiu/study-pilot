@@ -17,7 +17,7 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
       sendResponse(outcome satisfies ZhsResponseMap['ZHS_PENDING_SUMMARY']);
     };
 
-    const session = await readSession(deps.client);
+    const session = await readSession(deps.readCookie);
     if (!session.loggedIn) {
       respond({ status: 'error', message: '未登录', reason: 'NOT_LOGGED_IN' });
       return;

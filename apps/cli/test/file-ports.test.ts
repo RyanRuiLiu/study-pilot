@@ -42,7 +42,17 @@ describe('状态文件', () => {
   it('写进去再读回来是同一份', async () => {
     const file = tempFile();
     const store = createFileTaskStore(file);
-    const state = { ...EMPTY_STATE, runningSince: 123, lastError: '上一轮失败' };
+    const state = {
+      ...EMPTY_STATE,
+      platforms: {
+        mooc: {
+          runningSince: 123,
+          heartbeatAt: null,
+          lastFinishedAt: null,
+          failure: { message: '上一轮失败', action: null, at: 1 },
+        },
+      },
+    };
 
     await store.write(state);
 
@@ -50,11 +60,11 @@ describe('状态文件', () => {
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual(state);
   });
 
-  it('文件缺字段时以空状态补齐（手写的、旧版本的文件都能读）', async () => {
+  it('旧版本文件按新形状读取：旧顶层字段不入内，缺的平台字段以空补齐', async () => {
     const file = tempFile();
-    writeFileSync(file, JSON.stringify({ runningSince: 5 }));
+    writeFileSync(file, JSON.stringify({ runningSince: 5, lastError: '上一代字段' }));
 
-    expect(await createFileTaskStore(file).read()).toEqual({ ...EMPTY_STATE, runningSince: 5 });
+    expect(await createFileTaskStore(file).read()).toEqual(EMPTY_STATE);
   });
 });
 

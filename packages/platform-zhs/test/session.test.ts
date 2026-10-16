@@ -1,38 +1,44 @@
-/* 会话读取的形态核对（假 client，直接喂响应体）。 */
+/* 会话读取的形态核对（假 cookie 读取器，直接喂 cookie 值）。 */
 
 import { describe, expect, it } from 'vitest';
-import { readSession } from '../src/session.ts';
-import type { ZhsClient } from '../src/client.ts';
+import { readSession, type CookieReader } from '../src/session.ts';
 
-function clientReturning(body: unknown): ZhsClient {
-  return { call: async () => body };
+function cookieReturning(value: string): CookieReader {
+  return async () => value;
 }
 
 describe('readSession', () => {
-  it('登录形态：成功码且 result.uuid 非空', async () => {
-    const session = await readSession(
-      clientReturning({ code: 0, message: null, result: { uuid: 'XM8jD752', realName: '某某' } }),
-    );
+  it('登录形态：cookie 是 URL 编码的 JSON（真实观测形态），uuid 非空', async () => {
+    // 2026-10-17 chrome.cookies 实测：值是 percent-encoded JSON
+    const encoded = encodeURIComponent(JSON.stringify({ realName: '刘瑞', userId: 884054321, uuid: 'XM8jD752' }));
+    const session = await readSession(cookieReturning(encoded));
     expect(session).toEqual({ loggedIn: true, uuid: 'XM8jD752' });
   });
 
-  it('首页族成功码 200 同样算登录（getLoginUserInfo 在其家族里）', async () => {
-    const session = await readSession(clientReturning({ code: 200, result: { uuid: 'ABC' } }));
-    expect(session).toEqual({ loggedIn: true, uuid: 'ABC' });
+  it('未编码的 JSON 同样可读（解码是无害直通）', async () => {
+    const session = await readSession(cookieReturning(JSON.stringify({ uuid: 'XM8jD752' })));
+    expect(session).toEqual({ loggedIn: true, uuid: 'XM8jD752' });
   });
 
-  it('code 非 0 视为未登录', async () => {
-    const session = await readSession(clientReturning({ code: 401, message: '未登录', result: null }));
+  it('cookie 缺失（空串）视为未登录', async () => {
+    const session = await readSession(cookieReturning(''));
     expect(session).toEqual({ loggedIn: false, uuid: '' });
   });
 
   it('没有 uuid 视为未登录（不拿别的字段凑数）', async () => {
-    const session = await readSession(clientReturning({ code: 0, result: { username: 'someone' } }));
+    const session = await readSession(cookieReturning(JSON.stringify({ realName: '某人', userId: 1 })));
     expect(session).toEqual({ loggedIn: false, uuid: '' });
   });
 
-  it('result 为空对象同样视为未登录', async () => {
-    const session = await readSession(clientReturning({ code: 0, result: {} }));
+  it('uuid 不是非空字符串同样视为未登录', async () => {
+    for (const bad of [JSON.stringify({ uuid: 123 }), JSON.stringify({ uuid: '' })]) {
+      const session = await readSession(cookieReturning(bad));
+      expect(session).toEqual({ loggedIn: false, uuid: '' });
+    }
+  });
+
+  it('cookie 内容不是 JSON 视为未登录', async () => {
+    const session = await readSession(cookieReturning('not-json'));
     expect(session).toEqual({ loggedIn: false, uuid: '' });
   });
 });

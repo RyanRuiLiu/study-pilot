@@ -31,6 +31,7 @@ import {
   setFollowIdleHandler,
   setRunning,
   setRunScope,
+  setStatusPlatform,
   showStatus,
   watchRunState,
 } from './status.ts';
@@ -61,6 +62,8 @@ async function init(): Promise<void> {
     },
     onActivate: (id) => {
       if (id === 'mooc' || id === 'zhihuishu') currentPlatform = id;
+      // 状态行按当前 tab 的平台呈现（平台状态相互独立，问谁答谁）
+      setStatusPlatform(currentPlatform);
       // 「全部执行」作用于当前 tab 的平台；两个平台都已有可执行内容
       setRunScope(id === 'mooc' || id === 'zhihuishu');
     },
