@@ -18,7 +18,6 @@
 import { err, ok } from '@study-pilot/core';
 import { apiError } from '@study-pilot/transport';
 import { answerAndSubmitQuiz } from '../quiz.ts';
-import type { MoocClient } from '../client.ts';
 import { UNIT_TYPE } from '../types.ts';
 import type { UnitBehavior } from './behavior.ts';
 import { completionDto, postLearnInfo } from './reports.ts';

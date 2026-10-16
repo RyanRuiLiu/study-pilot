@@ -30,7 +30,7 @@ import { err, ok, type Result } from '@study-pilot/core';
 import { apiError, type TransportError } from '@study-pilot/transport';
 import type { MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
-import type { PaperAnswer, PaperQuestion, QuizAnswerForm, QuizInfo, QuizPaper } from './types.ts';
+import type { PaperAnswer, PaperQuestion, QuizInfo, QuizPaper } from './types.ts';
 
 // ---------- 取数 ----------
 
