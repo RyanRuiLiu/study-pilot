@@ -149,16 +149,6 @@ export async function collectQuizzes(
 /** 单元测试条目的计划项 id（与执行侧同一份取名规则）。 */
 export { quizItemId };
 
-/**
- * 平台成绩分析页（点课名打开）。
- *
- * 地址取自 FINDINGS §二十二 记的真实入口 `stuonline /stuLearnReportNew/index?recruitId=&courseId=`，
- * 不拼猜测的域名——那个域在本项目的记录里有据（`stuonline.zhihuishu.com`）。
- */
-export function reportPageUrl(recruitId: number, courseId: number): string {
-  return `https://stuonline.zhihuishu.com/stuonline/stuLearnReportNew/index?recruitId=${recruitId}&courseId=${courseId}`;
-}
-
 /** 一门课两个页签的作业条目（未交 / 已交）。 */
 export interface CourseExamTabs {
   /** 未交页签（flag=1） */

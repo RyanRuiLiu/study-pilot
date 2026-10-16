@@ -7,7 +7,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { countUnitTests, reportPageUrl } from '../src/adapters/zhihuishu/messages/reads.ts';
+import { countUnitTests } from '../src/adapters/zhihuishu/messages/reads.ts';
+import { reportPageUrl } from '../src/adapters/zhihuishu/pages.ts';
 import { zhsCourseTasksCommand } from '../src/adapters/zhihuishu/messages/course-tasks.ts';
 import type { ZhsCourseTaskSummary } from '../src/adapters/zhihuishu/messages/payload.ts';
 import type { ZhsMessageDeps } from '../src/adapters/zhihuishu/messages/deps.ts';

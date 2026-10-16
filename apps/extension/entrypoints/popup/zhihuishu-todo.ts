@@ -1,12 +1,12 @@
 /*
- * 智慧树待办区：取数、按**板块**归拢、空/失败/未登录三种状态的呈现。
+ * 智慧树待办区：取数、按课程归拢、空/失败/未登录三种状态的呈现。
  *
- * 分组轴与设置页同一套（设计文档 §2.1）：教程视频 → 单元测试 → 见面课 → 期末考试，
- * 定义在 adapters/zhihuishu/boards.ts。设置页四张卡恒在，这边只显有活的板块。
+ * 分组与慕课同一层（只按课程）；**板块是组内次序**（教程视频 → 单元测试 →
+ * 见面课 → 期末考试，定义在 adapters/zhihuishu/boards.ts，与设置页四张卡同一份）。
  *
  * 四格与慕课同构（同一格回答同一个问题），装什么由数据形态定：
- *   行1 左：名称（课程 · 条目）+ 阶段徽标   右：这件事的时间量（有截止说剩余时间，没有说时长）
- *   行2 左：处置句 + [执行]               右：落在课程的哪一处（有截止说日期，没有说章节名）
+ *   行1 左：名称 + 阶段徽标      右：这件事的时间量（有截止说剩余时间，没有说时长）
+ *   行2 左：处置句 + [执行]      右：落在课程的哪一处（有截止说日期，没有说章节名）
  * 教程视频没有截止时间（学习窗口由课程整体规定，数据未接），右列就靠时长与
  * 章节名撑起来——**空着一格与「没有这项信息」在界面上长得一样**，
  * 不能让它替数据说话。
@@ -17,7 +17,7 @@
 
 import { getSettings, getZhsPending, getZhsSession, runNow } from '../../src/ui-bridge';
 import type { ZhsPendingEntry } from '../../src/ui-bridge';
-import { ZHS_BOARDS, boardOfKind } from '../../src/adapters/zhihuishu/boards.ts';
+import { boardOrder } from '../../src/adapters/zhihuishu/boards.ts';
 import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { zhsTodoEl } from './elements.ts';
 import { createTodoArea } from './todo-area.ts';
@@ -55,19 +55,13 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
     .filter((part) => part !== '')
     .join(' · ');
 
-  // 行 1：课程 · 单元名 +「未学习」徽标
+  // 行 1：单元名 + 「未学习」徽标
   const line = document.createElement('span');
   line.className = 'todo-line';
 
-  /*
-   * 名称由行自己说全：「课程 · 条目」。分组轴改成板块之后，组头是板块名，
-   * 课程名不再有组头可挂（慕课那边是按课程分组，行里就不必重复课程）——
-   * 一行必须说清它是**哪门课的哪一条**（同 application 的 RunItem.course：
-   * 界面按「课程 · 项目」显示，不让人去猜）。
-   */
   const name = document.createElement('span');
   name.className = 'todo-name';
-  name.textContent = `${entry.courseName} · ${entry.name}`;
+  name.textContent = entry.name;
   line.append(name);
 
   const phase = document.createElement('span');
@@ -210,19 +204,26 @@ export async function renderZhsTodo(): Promise<void> {
   }
 
   /*
-   * 按**板块**归拢（设计文档 §2.1）：教程视频 → 单元测试 → 见面课 → 期末考试。
-   * 顺序与分组定义在 adapters/zhihuishu/boards.ts——设置页四张卡用的是同一份，
-   * 两处各写一遍迟早漂移成两套顺序。
+   * 一层归拢：**只按课程分组**，与慕课同一层（见 todo-area 的 buildGroup 与慕课那份）。
+   * 板块是**组内次序**，不是分组轴（Ryan 2026-10-17 定）：教程视频 → 单元测试 →
+   * 见面课 → 期末考试，取值与次序定义在 adapters/zhihuishu/boards.ts——设置页
+   * 四张卡用的是同一份，两处各写一遍迟早漂移成两套顺序。
    *
-   * **只显有活的板块**（与设置页「四板块恒在」相对）：没有条目的板块直接不出组
-   * ——「活」的判据在数据层（待办条目本身就是按活的条件收进来的）。
-   * 组内次序保持后台给的顺序（章节自然序），不再重排。
+   * 课程的次序按**首次出现**定（后台已按章节自然序给出，这里保持顺序，不重排）；
+   * 类别本身由每一行的名称说清（「第三章单元测试」/「因果图结构」），不另占一层结构。
    */
+  const grouped = new Map<string, ZhsPendingEntry[]>();
+  for (const entry of entries) {
+    const bucket = grouped.get(entry.courseName);
+    if (bucket) bucket.push(entry);
+    else grouped.set(entry.courseName, [entry]);
+  }
+
   area.write([]);
-  for (const board of ZHS_BOARDS) {
-    const list = entries.filter((entry) => boardOfKind(entry.kind) === board.id);
-    if (list.length === 0) continue;
-    zhsTodoEl?.append(area.buildGroup(board.title, list, buildRow));
+  for (const [courseName, list] of grouped) {
+    // 组内只调次序（按板块），不改变同一板块内的相对位置——sort 是稳定的
+    list.sort((left, right) => boardOrder(left.kind) - boardOrder(right.kind));
+    zhsTodoEl?.append(area.buildGroup(courseName, list, buildRow));
   }
   // 读不到的课如实列出——「读不到」与「没有要看的」长得不一样，不能混为一谈
   for (const unread of outcome.value.unreadCourses) {

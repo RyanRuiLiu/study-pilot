@@ -15,6 +15,7 @@
 import { getZhsCourses, getZhsSession, refreshZhsCourses, updateSettings, getSettings } from '../../src/ui-bridge';
 import type { ZhihuishuCourse } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
+import { reportPageUrl } from '../../src/adapters/zhihuishu/pages.ts';
 import { markZhsTasksLoading, refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
 import { loginNote, note, ZHS_LOGIN_URL } from './note.ts';
 import { markZhsStatusLineLoading } from './zhihuishu-status-line.ts';
@@ -30,9 +31,19 @@ function buildRow(course: ZhihuishuCourse): HTMLElement {
   check.type = 'checkbox';
   check.checked = course.enabled;
 
-  const name = document.createElement('span');
+  /*
+   * 点课程名打开成绩分析页；点勾选框只切换参与。
+   * 与慕课那份同一条形状（courses.ts 同位置）：名链接嵌在 label 里，
+   * 给链接加 stopPropagation，避免点击被 label 吞掉又翻转勾选。
+   */
+  const name = document.createElement('a');
   name.className = 'course-name';
+  name.href = reportPageUrl(course.recruitId, course.courseId);
+  name.target = '_blank';
+  name.rel = 'noreferrer';
   name.textContent = course.name;
+  name.title = '打开这门课的成绩分析页';
+  name.addEventListener('click', (event) => event.stopPropagation());
 
   const meta = document.createElement('span');
   meta.className = 'course-meta';

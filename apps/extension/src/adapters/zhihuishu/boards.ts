@@ -26,3 +26,13 @@ export function boardOfKind(kind: string): ZhsBoardId | null {
   const board = ZHS_BOARDS.find((candidate) => (candidate.kinds as readonly string[]).includes(kind));
   return board?.id ?? null;
 }
+
+/**
+ * 类别在板块序里的位置（弹窗组内排序用）。
+ * 不属于任何板块的排在最后——排到已知板块前面会让人以为它也是一类任务。
+ */
+export function boardOrder(kind: string): number {
+  const id = boardOfKind(kind);
+  if (id === null) return ZHS_BOARDS.length;
+  return ZHS_BOARDS.findIndex((board) => board.id === id);
+}

@@ -23,8 +23,8 @@ import type { ZhihuishuCourse } from '@study-pilot/application';
 import { readSession, selectedCourses } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsCourseTask, ZhsCourseTaskSummary, ZhsResponseMap } from './payload.ts';
-import { collectUnits, countNotFullUnitTests, countUnitTests, readCourseExams, readFinalExam, reportPageUrl } from './reads.ts';
-import { examListUrl, studyPageUrl } from '../pages.ts';
+import { collectUnits, countNotFullUnitTests, countUnitTests, readCourseExams, readFinalExam } from './reads.ts';
+import { examListUrl, reportPageUrl, studyPageUrl } from '../pages.ts';
 
 /**
  * 整门课都没读成时那份：数字一律 0 且 unread 为真。
