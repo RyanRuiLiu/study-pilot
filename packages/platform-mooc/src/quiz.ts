@@ -13,9 +13,11 @@
  *    不再有题库 RPC、全局选项索引与跨源匹配——旧链路（getQuestionListByTermId +
  *    按 id 索引）已随本次换接口退役。卷面既没有正确标记也没有标准答案的题
  *    **如实计为取不到答案**，不猜、不用题干文本匹配（Ryan：禁止不确定的匹配）。
- * 3. `answers` 形状（真机提交回读取证，2026-10-17）：
+ * 3. `answers` 形状（客户端源码 + 真机提交回读双重取证，2026-10-17）：
  *    选择类 `[{ qid, type, optIds: [选项 id…], time }]`；
  *    填空类 `[{ qid, type, optIds: null, content: { content: '标准答案', attachments: null }, time }]`。
+ *    出处：学习端测验 UI 分块（97580.*.chunk.js）的答案格式化函数——
+ *    `填空/主观/OJ ? (content || {}) : (optIds || [])`（`pnpm probe src grep optIds` 可复现）。
  * 4. 提交 `submitQuiz(paper)`：请求体 `{paperDto, preview}`，**answers 原样保留**
  *    （页面只对 `content` 做一次 emoji 清理），`submitType` 为 1。
  *

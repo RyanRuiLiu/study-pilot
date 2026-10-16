@@ -39,6 +39,28 @@ export interface QuizInfo {
 }
 
 /**
+ * 题型与编号。**唯一出处是学习端源码**（core.js 的 CONST 常量区，
+ * 2026-10-17 从 `pnpm probe src` 的镜像逐字核对）：
+ *
+ *   TYPE_OBJECTIVE_SINGLE: 1、TYPE_OBJECTIVE_MULTI: 2、TYPE_OBJECTIVE_FILLBLANK: 3、
+ *   TYPE_OBJECTIVE_JUDGE: 4、TYPE_OBJECTIVE_RICHTEXT: 5、
+ *   TYPE_SUBJECTIVE_OJ: 7（编程题）、TYPE_SUBJECTIVE_NORMAL: 10（主观题）。
+ *
+ * 学习端的界面文案只标了客观四型（KEY_LEARN_QUESTION_TYPE_SINGLE/MULTIPLE/JUDGE/FILL）；
+ * 客观四型的答案都在卷面自身（选项正确标记或 stdAnswer）。其余编号在实测卷面中未出现，
+ * 一旦出现且取不到答案，按 unresolved 如实失败——不猜（题型以服务端/源码为准）。
+ */
+export const QUESTION_TYPE = {
+  single: 1,
+  multi: 2,
+  fillblank: 3,
+  judge: 4,
+  richtext: 5,
+  oj: 7,
+  subjective: 10,
+} as const;
+
+/**
  * 试卷选项。取卷带 `withStdAnswerAndAnalyse: true` 时 `answer` 就是正确性标记
  * （2026-10-17 实测多门课；与旧题库口径抽样核对 14/14 吻合）。
  */

@@ -36,6 +36,15 @@ export const unitQuizBehavior: UnitBehavior = {
      * 一条没有作答记录的「已学」，与真人的痕迹对不上，而界面上看不出来。
      * 失败会在下一轮重试，仍不齐就交人工。
      */
+    /*
+     * 含主观题的卷不自动交：主观题平台不给标准答案（评分标准也要人工判），
+     * 只交客观部分等于留下一份残缺答卷——与「只写一半就交」同罪。
+     */
+    const subjective = (paper.value.subjectiveQList ?? []).length;
+    if (subjective > 0) {
+      return err(apiError(-1, `这份随堂测验含 ${subjective} 道主观题，需人工作答，不自动提交`));
+    }
+
     const built = buildAnswers(paper.value);
     if (built.total === 0) {
       return err(apiError(-1, '这份随堂测验没有客观题，无法按唯一路径作答'));
