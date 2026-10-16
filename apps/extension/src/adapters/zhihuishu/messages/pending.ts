@@ -87,7 +87,7 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
               chapterName: '',
               name: exam.examName,
               status: notOpen ? '未开始' : '未提交',
-              href: examListUrl(course.recruitId),
+              href: await examListUrl(course.recruitId, studyPageUrl(course.secret)),
               deadline: exam.endAt,
               sec: 0,
               opensAt: exam.startAt,
@@ -100,7 +100,7 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
               chapterName: '',
               name: '期末考试',
               status: reading.form === 2 ? '机房考试' : '线下考试',
-              href: examListUrl(course.recruitId),
+              href: await examListUrl(course.recruitId, studyPageUrl(course.secret)),
               deadline: null,
               sec: 0,
               opensAt: null,
@@ -128,7 +128,7 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
             name: item.examName,
             // 平台页签的原文就是「未提交」（FINDINGS §二十一）
             status: '未提交',
-            href: examListUrl(course.recruitId),
+            href: await examListUrl(course.recruitId, studyPageUrl(course.secret)),
             deadline: item.deadline,
             sec: 0, // 单元测试没有时长；渲染侧据此不显示时长位
             opensAt: null,

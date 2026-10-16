@@ -33,7 +33,7 @@ import { examListUrl, reportPageUrl, studyPageUrl } from '../pages.ts';
  * 这才是「不拿全 0 冒充这门课没有内容」的落点。成绩分析页仍给：
  * 读不到结构不代表那门课打不开。
  */
-function unreadCourse(course: ZhihuishuCourse): ZhsCourseTask {
+async function unreadCourse(course: ZhihuishuCourse): Promise<ZhsCourseTask> {
   return {
     courseId: course.courseId,
     courseName: course.name,
@@ -44,7 +44,7 @@ function unreadCourse(course: ZhihuishuCourse): ZhsCourseTask {
     quizUnreadReason: null,
     finalExam: null,
     finalExamNote: null,
-    examListUrl: examListUrl(course.recruitId),
+    examListUrl: await examListUrl(course.recruitId, studyPageUrl(course.secret)),
     studyUrl: studyPageUrl(course.secret),
     pending: 0,
     unread: true,
@@ -81,7 +81,7 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
         const { course } = entry;
         if (entry.unreadReason !== null) {
           partial = true;
-          courses.push(unreadCourse(course));
+          courses.push(await unreadCourse(course));
           continue;
         }
 
@@ -141,7 +141,7 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
           quizUnreadReason,
           finalExam,
           finalExamNote,
-          examListUrl: examListUrl(course.recruitId),
+          examListUrl: await examListUrl(course.recruitId, studyPageUrl(course.secret)),
           studyUrl: studyPageUrl(course.secret),
           pending,
         });

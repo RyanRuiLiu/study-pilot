@@ -16,6 +16,7 @@ export {
   rsaPublicEncrypt,
   recoverCKey,
   aesEncrypt,
+  encryptRecruitId,
   xorHexEncode,
   buildSeries,
   formatPosition,

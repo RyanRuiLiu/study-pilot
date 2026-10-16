@@ -26,6 +26,9 @@ export const ZHS_SIGNING_PUBLIC_KEY =
 /** AES 的固定 IV（源码里的字面量，两端一样）。 */
 const AES_IV_UTF8 = '1g3qqdh4jvbskb9x';
 
+/** 路由 token 的 AES 密钥（考试页 `recruitId` 那个参数；两处 base2 脚本里同一把）。 */
+const ROUTE_KEY_UTF8 = '86cc793c53dc851b';
+
 /** 请求时间戳的字段名。学习端网关用 `dateFormate`，首页端网关用 `date`。 */
 export type StampField = 'dateFormate' | 'date';
 
@@ -203,8 +206,34 @@ export async function aesEncrypt(payload: unknown, cKey: Uint8Array<ArrayBuffer>
   return bytesToBase64(new Uint8Array(cipher));
 }
 
-// ---------------------------------------------------------------- 上报编码
+/**
+ * 平台自己的 `ys(...)`：把数字 recruitId 变成考试页路由里那个 token。
+ *
+ *   `recruitId=QfOlOCbhZdru/BNPj0mbEQ==` 解出来正是 `900001`（AES-128-ECB/Pkcs7，
+ *   key 固定）——2026-10-17 用平台自己给出的链接反解核过，不猜。
+ *
+ * WebCrypto 没有 ECB。这里明文是**六位十进制**（一块），单块下 ECB 与
+ * 「CBC ＋ 全零 IV」逐字节相同（C₁ = E(P₁ ⊕ 0) = E(P₁)），所以用后者实现——
+ * 不是近似，是同一件事；补位由 WebCrypto 的 PKCS#7 处理，与平台一致。
+ */
+export async function encryptRecruitId(recruitId: number): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    textToBytes(ROUTE_KEY_UTF8),
+    'AES-CBC',
+    false,
+    ['encrypt'],
+  );
+  const zeroIv = new Uint8Array(16);
+  const cipher = await crypto.subtle.encrypt(
+    { name: 'AES-CBC', iv: zeroIv },
+    key,
+    textToBytes(String(recruitId)),
+  );
+  return bytesToBase64(new Uint8Array(cipher));
+}
 
+// ---------------------------------------------------------------- 上报编码
 /**
  * sdsew 的编码：数组 `join(';')` 后逐字符与循环键异或，输出两位小写十六进制。
  * 这把「加密」没有任何密码学含义，是客户端的混淆式编码；服务端按同法还原。
