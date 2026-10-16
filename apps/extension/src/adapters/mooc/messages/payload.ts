@@ -167,7 +167,12 @@ export interface MoocResponseMap {
   MOOC_PENDING_SUMMARY: QueryOutcome<PendingSummary>;
   MOOC_COURSEWARE_SUMMARY: QueryOutcome<CoursewareSummary>;
   MOOC_HOMEWORK_PAPER: QueryOutcome<PaperQuestion[]>;
-  MOOC_QUIZ_FILL_INDEX: QueryOutcome<Record<string, boolean>>;
+  MOOC_QUIZ_FILL_INDEX: QueryOutcome<{
+    /** 选项 id → 是否正确（选择类 / 判断题，页面是 radio/checkbox） */
+    options: Record<string, boolean>;
+    /** 填空题答案，按题目在卷面中的显示顺序；取不到答案的题是 null */
+    blanks: Array<string | null>;
+  }>;
   MOOC_QUIZ_INFO: QueryOutcome<QuizInfo>;
   MOOC_QUIZ_SUBMIT: QueryOutcome<{ matched: number; total: number }>;
 }

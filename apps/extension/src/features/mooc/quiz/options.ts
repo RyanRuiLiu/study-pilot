@@ -2,13 +2,25 @@
  * 页面侧：收集可作答的题目、识别选项 id。
  *
  * 纯 DOM 与字符串逻辑，不碰接口，因此可以单独测。
+ *
+ * 两种作答控件（实测 2026-10-17，军事理论单元测验）：
+ *   选择类（单选/多选/判断）——input[type=radio|checkbox]，选项 id 在 input 的 id 里；
+ *   填空类——一个 textarea（class 为 j-textarea inputtxt，父级 u-baseinputui；
+ *     平台新式分块里的填空组件也是 Input.TextArea）。填空题没有选项 id，
+ *     答案只能按题目在卷面中的显示顺序对（见 actions.ts 的填充）。
  */
 
 /** 选项输入框。用元素类型限定，不依赖类名。 */
 const OPTION_SELECTOR = 'input[type=radio], input[type=checkbox]';
 
+/** 填空题的作答控件。用元素类型限定，不依赖类名。 */
+const BLANK_SELECTOR = 'textarea';
+
 export interface PageQuestion {
+  /** 选择类的选项控件；填空题为空数组 */
   inputs: HTMLInputElement[];
+  /** 填空题的作答控件；选择类为 null */
+  blank: HTMLTextAreaElement | null;
 }
 
 /** 收集页面上可作答的题目，保持 DOM 顺序。 */
@@ -17,8 +29,10 @@ export function collectQuestions(): PageQuestion[] {
 
   for (const item of document.querySelectorAll('.u-questionItem')) {
     const inputs = Array.from(item.querySelectorAll<HTMLInputElement>(OPTION_SELECTOR));
-    if (inputs.length === 0) continue;
-    questions.push({ inputs });
+    const blank = item.querySelector<HTMLTextAreaElement>(BLANK_SELECTOR);
+    // 两种控件都没有的题目（如主观题）不收集
+    if (inputs.length === 0 && blank === null) continue;
+    questions.push({ inputs, blank });
   }
 
   return questions;

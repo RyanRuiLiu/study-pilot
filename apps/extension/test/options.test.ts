@@ -49,6 +49,27 @@ describe('optionIdOf', () => {
 });
 
 describe('collectQuestions', () => {
+  it('识别填空题的 textarea 作答控件（它不是 input）', () => {
+    mount(`
+      <div class="m-FillBlank u-questionItem">
+        <div class="j-answer">
+          <div class="u-baseinputui"><textarea class="j-textarea inputtxt"></textarea></div>
+        </div>
+      </div>
+    `);
+
+    const questions = collectQuestions();
+
+    expect(questions).toHaveLength(1);
+    expect(questions[0]!.inputs).toHaveLength(0);
+    expect(questions[0]!.blank).not.toBeNull();
+  });
+
+  it('两种控件都没有的题目（如主观题）不收集', () => {
+    mount('<div class=\"u-questionItem\"><div class=\"j-richTxt\">试述…</div></div>');
+    expect(collectQuestions()).toHaveLength(0);
+  });
+
   it('按 DOM 顺序收集有输入控件的题目，跳过没有的', () => {
     mount(`
       <div class="u-questionItem"></div>
