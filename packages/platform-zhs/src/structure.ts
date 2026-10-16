@@ -9,6 +9,11 @@
  *
  * 学情两表（queryStuyInfo）：lesson（无子节课时）与 lv（子节视频），
  * 键都是单元 id，值 {watchState, studyTotalTime}；watchState=1 即完成。
+ *
+ * 学情请求载荷与真实浏览器逐字段核对过（2026-10-16 金样本解密）：
+ *   lessonIds = **全部**父课时 id（含有子节的也进——站点对每个 videoLesson
+ *   都 `le.value.push(E.id)`）；lessonVideoIds = 子节 id 列表，**非空才附**
+ *   （站点：`Ae.value.length && (g.lessonVideoIds = Ae.value)`）。
  */
 
 import type { ZhsClient } from './client.ts';
@@ -42,20 +47,23 @@ export async function getCourseUnits(
 
   const units: ZhsUnit[] = [];
   const lessonIds: number[] = [];
-  const videoIds: number[] = [];
+  const smallLessonIds: number[] = [];
   for (const chapter of chapters) {
     const chapterId = num(chapter.id);
     const chapterName = str(chapter.name);
     for (const lesson of arr(chapter.videoLessons)) {
+      const lessonId = num(lesson.id);
+      // 每个父课时都进 lessonIds——含有子节的也进（与站点一致，金样本 59/59）
+      lessonIds.push(lessonId);
       const kids = arr(lesson.videoSmallLessons);
       if (kids.length > 0) {
         for (const child of kids) {
-          const id = num(child.id);
-          videoIds.push(id);
+          const childId = num(child.id);
+          smallLessonIds.push(childId);
           units.push({
             videoId: num(child.videoId),
-            lessonId: num(lesson.id),
-            smallLessonId: id,
+            lessonId,
+            smallLessonId: childId,
             chapterId,
             chapterName,
             name: str(child.name),
@@ -65,11 +73,9 @@ export async function getCourseUnits(
           });
         }
       } else {
-        const id = num(lesson.id);
-        lessonIds.push(id);
         units.push({
           videoId: num(lesson.videoId),
-          lessonId: id,
+          lessonId,
           smallLessonId: 0,
           chapterId,
           chapterName,
@@ -82,11 +88,10 @@ export async function getCourseUnits(
     }
   }
 
-  const infoBody = (await client.call('studyInfo', {
-    lessonIds,
-    recruitId: course.recruitId,
-    lessonVideoIds: videoIds,
-  })) as {
+  const infoPayload: Record<string, unknown> = { lessonIds, recruitId: course.recruitId };
+  // 子节表非空才附（站点语义；空数组不上线）
+  if (smallLessonIds.length > 0) infoPayload.lessonVideoIds = smallLessonIds;
+  const infoBody = (await client.call('studyInfo', infoPayload)) as {
     data?: {
       lesson?: Record<string, { watchState?: unknown; studyTotalTime?: unknown }> | null;
       lv?: Record<string, { watchState?: unknown; studyTotalTime?: unknown }> | null;

@@ -13,8 +13,9 @@
  * Ke = 既有累计 + 视频时长（≥ 视频时长必成立）、位置 = 片尾、序列按 1× 全程生成。
  * 不做倍速数字、不做部分时长。
  *
- * studyStatus：金样本（进行中）为 0，照此提交实测通过；完成态另有语义的
- * 可能性留待真机观测（若服务端开始按它区分，这里会最先看到差别）。
+ * studyStatus：金样本实测**恒为 0**——那条真实上报对应的课时 watchState 已是 1
+ * （看完的）、累计 408 秒，浏览器照样发 0；本地也没有别的取值来源
+ * （站点 store 里 commonCourseInfo 就带默认 {studyStatus: 0}）。照发 0。
  */
 
 import { buildSeries, formatPosition, xorHexEncode } from './sign.ts';
@@ -63,7 +64,7 @@ export function buildStudyReport(input: StudyReportInput): StudyReport {
     unit.smallLessonId,
     unit.videoId,
     unit.chapterId,
-    0,
+    0, // studyStatus：金样本恒 0（含已完成的课时）
     y,
     ke,
     formatPosition((input.videoFromSec ?? 0) + y),

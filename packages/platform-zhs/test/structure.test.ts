@@ -79,15 +79,30 @@ describe('getCourseUnits', () => {
     expect(units[2]).toMatchObject({ done: true, studyTotalTime: 500 });
   });
 
-  it('学情请求按两表分别带 lessonIds 与 lessonVideoIds（无子节归前者、子节归后者）', async () => {
+  it('学情请求载荷与真实浏览器同形：lessonIds 含全部父课时（含有子节的），子节表非空才附', async () => {
     const { client, calls } = fakeClient({ videoList: CHAPTERS, studyInfo: STUDY_INFO });
     await getCourseUnits(client, { recruitAndCourseId: 'hex', recruitId: 900003 });
     const info = calls.find((c) => c.name === 'studyInfo');
     expect(info?.payload).toEqual({
-      lessonIds: [9000000011],
+      // 金样本解密实证：站点对每个 videoLesson 都进 lessonIds（59/59）
+      lessonIds: [9000000011, 9000000012],
       recruitId: 900003,
       lessonVideoIds: [9000000009, 9000000010],
     });
+  });
+
+  it('没有子节的课不带 lessonVideoIds（站点语义：空数组不上线）', async () => {
+    const plain = {
+      data: {
+        videoChapterDtos: [
+          { id: 1, name: '章', videoLessons: [{ id: 7, name: '课', videoId: 77, videoSec: 100, videoSmallLessons: null }] },
+        ],
+      },
+    };
+    const { client, calls } = fakeClient({ videoList: plain, studyInfo: { data: { lesson: {}, lv: {} } } });
+    await getCourseUnits(client, { recruitAndCourseId: 'hex', recruitId: 1 });
+    const info = calls.find((c) => c.name === 'studyInfo');
+    expect(info?.payload).toEqual({ lessonIds: [7], recruitId: 1 });
   });
 
   it('学情缺项时按未完成、零累计处理（新课时在平台上正是这个状态）', async () => {

@@ -92,6 +92,19 @@ const ENDPOINT_TABLE = {
     stampField: 'dateFormate',
     stampInside: true,
   },
+  /**
+   * 课程入口数据（开课要用它的 isApply；学习页加载时读的第一批之一）。
+   * 载荷 `{recruitAndCourseId}` + 内藏时间戳——与真实浏览器逐字段核对过
+   * （2026-10-16 金样本解密：`data.isApply`、`data.courseInfo.courseId`）。
+   */
+  queryCourse: {
+    host: 'study',
+    path: '/gateway/t/v1/learning/queryCourse',
+    method: 'POST',
+    module: ZHS_MODULE.study,
+    stampField: 'dateFormate',
+    stampInside: true,
+  },
   /** 打开课时（取学习记录 studiedLessonDto.id——上报的 zwsds 用料） */
   prelearningNote: {
     host: 'study',

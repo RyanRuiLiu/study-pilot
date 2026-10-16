@@ -45,6 +45,28 @@ export async function getShareCourses(client: ZhsClient): Promise<ZhsCourseBrief
 }
 
 /**
+ * 课程的 isApply（开课载荷用料）。
+ *
+ * 真实页面开课前读 queryCourse（nt() 里 `R = ge.data.isApply …`），值取
+ * `data.isApply`；站点语义：**truthy 才用，否则回落字符串 `"1"`**
+ * （study-DhL5V96B.js：`R = ge.data.isApply ? ge.data.isApply : "1"`）。
+ * 金样本实况：`data.isApply = 1`（数字）。
+ */
+export async function readCourseIsApply(
+  client: ZhsClient,
+  recruitAndCourseId: string,
+): Promise<number | string> {
+  const body = (await client.call('queryCourse', { recruitAndCourseId })) as {
+    data?: { isApply?: unknown } | null;
+  };
+  const value = body.data?.isApply;
+  if ((typeof value === 'number' && value !== 0) || (typeof value === 'string' && value !== '')) {
+    return value;
+  }
+  return '1';
+}
+
+/**
  * 把新读到的列表并进用户的选择：已勾的沿用勾选，新课程补进来但不勾。
  *
  * 字段以新读的为准（进度、学校名这些是平台随学期变的），
