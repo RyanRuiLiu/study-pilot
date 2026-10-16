@@ -12,7 +12,7 @@ import { getCourses, getSession, getSettings, refreshCourses, updateSettings } f
 import type { Settings } from '../../src/ui-bridge';
 import { errorText, formatTermRange } from '../../src/ui/format.ts';
 import { refreshCourseViews } from './courseware.ts';
-import { note } from './note.ts';
+import { loginNote, note, MOOC_LOGIN_URL } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
 import { markStatusLineLoading } from './status-line.ts';
 import { toast } from './toast.ts';
@@ -104,7 +104,7 @@ export async function renderCourses(): Promise<void> {
    */
   listEl.replaceChildren();
   if (!session.loggedIn) {
-    listEl.append(note('未登录，在浏览器登录慕课后读取课程列表。'));
+    listEl.append(loginNote('未登录，在浏览器登录慕课后读取课程列表。', MOOC_LOGIN_URL));
     if (rows.length > 0) listEl.append(...rows);
     return;
   }
@@ -146,7 +146,7 @@ export function initCourseActions(): void {
           toast(`已读取 ${result.courses.length} 门课程`);
           void renderCourses();
         } else if (result.reason === 'NOT_LOGGED_IN') {
-          listEl?.replaceChildren(note('未登录，在浏览器登录慕课后读取课程列表。'));
+          listEl?.replaceChildren(loginNote('未登录，在浏览器登录慕课后读取课程列表。', MOOC_LOGIN_URL));
         } else {
           listEl?.replaceChildren(note(`读取失败：${result.message ?? result.reason}`, true));
         }

@@ -20,7 +20,7 @@ import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { COURSEWARE_KINDS } from '../../src/ui/scopes.ts';
-import { note } from './note.ts';
+import { loginNote, note, MOOC_LOGIN_URL } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
 import { renderStatusLine } from './status-line.ts';
 import { toast } from './toast.ts';
@@ -318,14 +318,12 @@ export async function renderCourseware(
   listEl.replaceChildren();
 
   if (outcome.status === 'error') {
-    listEl.append(
-      note(
-        outcome.reason === 'NOT_LOGGED_IN'
-          ? '未登录，在浏览器登录慕课后执行。'
-          : `读取失败：${outcome.message}`,
-        outcome.reason !== 'NOT_LOGGED_IN',
-      ),
-    );
+    if (outcome.reason === 'NOT_LOGGED_IN') {
+      // 未登录不是「出错」，是少做了一步：给去处，不带责备（与智慧树那份逐字同构）
+      listEl.append(loginNote('未登录，在浏览器登录慕课后执行。', MOOC_LOGIN_URL));
+      return;
+    }
+    listEl.append(note(`读取失败：${outcome.message}`, true));
     return;
   }
 
