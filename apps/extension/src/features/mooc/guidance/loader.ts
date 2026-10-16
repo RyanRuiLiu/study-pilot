@@ -17,8 +17,6 @@
  */
 
 import { sendToBackground } from '../../../messages.ts';
-import type { AnswersView } from '@study-pilot/platform-mooc';
-import type { AnswerLoader } from './answers.ts';
 import type { QuestionLoader } from './index.ts';
 
 /** 同一份数据只取一次：在途的 Promise 与成功的结果都按 key 共用。 */
@@ -56,20 +54,3 @@ export const loadQuestions: QuestionLoader = oncePerPaper(
     return outcome.status === 'ok' ? outcome.value : null;
   },
 );
-
-/** 「查看答案」的取数：后台去读页面正在看的那份卷与该卷的答案（只读）。 */
-function makeAnswerLoader(view: AnswersView): AnswerLoader {
-  return oncePerPaper(
-    (tid) => `answers:${view}:${tid}`,
-    async (tid) => {
-      const outcome = await sendToBackground({ type: 'MOOC_PAPER_ANSWERS', tid, view });
-      return outcome.status === 'ok' ? outcome.value : null;
-    },
-  );
-}
-
-/** 作答页（页面显示当前这次作答的卷）。 */
-export const loadAnswersCurrent = makeAnswerLoader('answering');
-
-/** 查看页（页面显示已提交的那份卷）。 */
-export const loadAnswersSubmitted = makeAnswerLoader('review');
