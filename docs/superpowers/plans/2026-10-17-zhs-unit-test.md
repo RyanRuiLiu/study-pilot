@@ -178,36 +178,37 @@ git commit -m "feat(zhs): 考试族端点（外层只有 secretStr）+ 免签 PO
 - Test: `packages/platform-zhs/test/session.test.ts`
 
 **Interfaces:**
-- Produces: `ZhsSession` 增加 `userId: number`（未登录为 0）
+- Produces: `ZhsSession` 增加 `userId: number | null`（缺失为 `null`，**不影响 `loggedIn`**）
 
 **平台事实：** `CASLOGC` cookie 的 JSON 里本来就有 `userId`（实测样本：`{"realName":"刘瑞",…,"userId":884054321,"uuid":"XM8jD752",…}`）。神谕必须带它，缺了报 500 `NumberFormatException`（2026-10-17 实测）。
 
+**判据（2026-10-17 实现时定）**：`loggedIn` **仍然只看 `uuid`**——视频线只要 uuid 就能跑，把 `userId` 变成登录的必要条件会让本来能用的会话失效（静默回归）。`userId` 读不到时给 `null`，由下游（答卷路径）**显式失败**；**不许拿 0 顶替**——0 会被服务端当成一个真实用户 id 静默查空，比报错更难查。
+
 - [ ] **Step 1: 写失败的测试**
 
-在 `test/session.test.ts` 追加（沿用该文件已有的 cookie 替身写法）：
+在 `test/session.test.ts` 追加（沿用该文件已有的 `cookieReturning` 替身）：
 
 ```ts
-test('从 CASLOGC 读出 userId（神谕入参）', async () => {
-  const cookie = encodeURIComponent(JSON.stringify({ uuid: 'XM8jD752', userId: 884054321 }));
-  const session = await readSession(async () => cookie);
+it('登录形态：uuid 与 userId 都取到', async () => {
+  const cookie = encodeURIComponent(JSON.stringify({ realName: '刘瑞', userId: 884054321, uuid: 'XM8jD752' }));
+  const session = await readSession(cookieReturning(cookie));
   expect(session).toEqual({ loggedIn: true, uuid: 'XM8jD752', userId: 884054321 });
 });
 
-test('userId 缺失时按未登录处理，不拿 0 凑数', async () => {
-  const cookie = encodeURIComponent(JSON.stringify({ uuid: 'XM8jD752' }));
-  const session = await readSession(async () => cookie);
-  expect(session.loggedIn).toBe(false);
+it('userId 缺失不影响登录（视频线只要 uuid），但显式给 null 而不是 0', async () => {
+  const session = await readSession(cookieReturning(JSON.stringify({ uuid: 'XM8jD752' })));
+  expect(session).toEqual({ loggedIn: true, uuid: 'XM8jD752', userId: null });
 });
 ```
 
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `pnpm --filter @study-pilot/platform-zhs test test/session.test.ts`
-Expected: FAIL —— `userId` 不存在于返回对象
+Expected: FAIL —— 现有断言里没有 `userId` 字段
 
 - [ ] **Step 3: 实现**
 
-`readSession` 的判据同时要求 `uuid` 与 `userId` 为非空字符串/有限数字；任一缺失按未登录处理（**不拿 0 凑数**——神谕拿 0 会静默查不到东西）。未登录分支返回 `{ loggedIn: false, uuid: '', userId: 0 }`。
+`readSession` 的 `uuid` 判据不动；`userId` 仅在 `typeof === 'number' && Number.isFinite` 时取该值，否则 `null`。**该文件里已有的 6 条 `toEqual` 断言要一并补上字段**——它们是形态核对，形状变了就该跟着变。
 
 - [ ] **Step 4: 跑测试确认通过，然后提交**
 
