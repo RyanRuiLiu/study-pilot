@@ -67,8 +67,8 @@ export function normalizeHomeworkList(rt: unknown): ZhsExamListItem[] {
       examName: str(entry.examName),
       meetCourseType: num(entry.meetCourseType),
       state: num(entry.state),
-      score: numOrNull(entry.score),
-      totalScore: numOrNull(entry.totalScore),
+      score: numberLike(entry.score),
+      totalScore: numberLike(entry.totalScore),
       chapterName: str(entry.cpOrderNumber) === '' ? null : str(entry.cpOrderNumber),
     });
   }
@@ -98,7 +98,18 @@ function num(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
-/** 分值之类的可选数字：取不到给 null（**不是 0**——0 分和「没给分」是两件事）。 */
-function numOrNull(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+/**
+ * 分值之类的可选数字：取不到给 null（**不是 0**——0 分和「没给分」是两件事）。
+ *
+ * **必须同时认字符串**：清单的 `score` / `totalScore` 实测是**字符串**
+ * （`"10"` / `"100"`，2026-10-17 全量核对 46 个条目字段集），而 `state` /
+ * `meetCourseType` 是数字。同一个响应里类型不统一是平台事实，不是笔误。
+ */
+function numberLike(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
