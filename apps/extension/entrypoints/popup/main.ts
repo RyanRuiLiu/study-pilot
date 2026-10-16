@@ -77,7 +77,8 @@ async function init(): Promise<void> {
      * 互斥（「courseware」两家都用），不点名会把另一家的范围内事项也做掉。
      *
      *   慕课：只发待办那几类（PENDING_KINDS）——课件不在这里点，属于设置页；
-     *   智慧树：它的待办就是全部未完成单元，平台内没有别的类别。
+     *   智慧树：不套慕课的「待办/课件」二分（设计文档 §3 模块 5），只点名平台；
+     *     它的待办现在有两类（教程视频与单元测试），两类都该被这一轮做掉。
      */
     const scope =
       currentPlatform === 'zhihuishu'
