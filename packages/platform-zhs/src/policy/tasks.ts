@@ -164,14 +164,23 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
           });
         };
 
-        // ① 未交页签里我们接手的那些：没动过的照常做，重做已申请的**直接接管**
+        /*
+         * ① 未交页签里我们接手的那些。**单元测试与见面课测验同一判据、同一处**：
+         * 平台的「重做」只按 `examId` 判，不分题型（源码 `9.c58d…js:11803`：
+         * `getIsObject(examId)` ＋ `3 - redoNum(examId).rt > 0`，全流程无 meetCourseType
+         * 分支），所以这里也不分——平台不分，我们分了就是自造分歧。
+         */
         for (const item of pending) {
-          if (item.meetCourseType !== 0 || !needsWork(item)) continue;
+          if (!needsWork(item)) continue;
           pushQuiz(item, item.totalScore, item.state === HOMEWORK_STATE.redone ? 'redoOpen' : 'fresh');
         }
-        // ② 已交但没满分的（Ryan 口径：直接走第二次——收割建键是只读的，不用重打第一枪）
+        /*
+         * ② 已交但没满分的（Ryan 口径：直接走第二次——收割建键是只读的，不用重打第一枪）。
+         * 同样不分题型：门槛由 `getIsObject` ＋ 剩余次数在**执行侧**把（见 remainingGate），
+         * 那里是一处，别在这儿按题型再判一遍。
+         */
         for (const item of history) {
-          if (item.meetCourseType !== 0 || item.state !== HOMEWORK_STATE.submitted) continue;
+          if (item.state !== HOMEWORK_STATE.submitted) continue;
           if (item.score === null || item.totalScore === null || item.score >= item.totalScore) continue;
           pushQuiz(item, item.totalScore, 'submitted');
         }

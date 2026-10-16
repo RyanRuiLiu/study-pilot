@@ -121,9 +121,14 @@ export async function collectQuizzes(
          * 判据用 `needsWork`（与 `plan()` 同一个）：未动过的与「重做已申请」的都收，
          * 后者按 Ryan 口径直接接管。
          */
-        items: page.items.filter(
-          (item) => item.meetCourseType === 0 && needsWork(item) && known.has(item.id),
-        ),
+        /*
+         * 两类**同一判据、同一处**：单元测试（`meetCourseType=0`）与见面课测验（`=1`）
+         * 本来就在同一个列表、同一个页签、同一套 state（FINDINGS §二十一），
+         * 而且平台的**重做**也只按 `examId` 判、不分题型
+         * （源码 `9.c58d…js:11803`：`getIsObject(examId)` ＋ `3 - redoNum(examId).rt > 0`，
+         *  全流程没有任何 meetCourseType 分支）。既然平台不分，我们也不分。
+         */
+        items: page.items.filter((item) => known.has(item.id) && needsWork(item)),
         unreadReason: null,
       });
     } catch (error) {

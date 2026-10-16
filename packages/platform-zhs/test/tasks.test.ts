@@ -434,9 +434,25 @@ describe('plan：单元测试项', () => {
     expect(payload.totalScore).toBe(100);
   });
 
-  it('见面课测验（meetCourseType=1）不进本期计划', async () => {
-    const { tasks } = planWith([item({ meetCourseType: 1, cpOrderNumber: null })], []);
-    expect(quizzesOf((await tasks.plan(0)).items)).toEqual([]);
+  it('见面课测验与单元测试同一判据：没动过的进计划、进法一样', async () => {
+    const { tasks } = planWith([item({ meetCourseType: 1 })], []);
+    const quiz = quizzesOf((await tasks.plan(0)).items);
+    expect(quiz).toHaveLength(1);
+    expect((quiz[0]!.payload as { enter: string }).enter).toBe('fresh');
+  });
+
+  it('见面课测验重做已申请也进计划（平台的重做只按 examId 判，不分题型）', async () => {
+    const { tasks } = planWith([item({ meetCourseType: 1, state: 5 })], []);
+    const quiz = quizzesOf((await tasks.plan(0)).items);
+    expect(quiz).toHaveLength(1);
+    expect((quiz[0]!.payload as { enter: string }).enter).toBe('redoOpen');
+  });
+
+  it('见面课测验已交未满分也进计划——门槛在执行侧一处把（getIsObject ＋ 剩余次数）', async () => {
+    const { tasks } = planWith([], [item({ meetCourseType: 1, state: 4, score: '60', totalScore: '100' })]);
+    const quiz = quizzesOf((await tasks.plan(0)).items);
+    expect(quiz).toHaveLength(1);
+    expect((quiz[0]!.payload as { enter: string }).enter).toBe('submitted');
   });
 
   it('计划是只读的：两个页签都读，但绝不开卷', async () => {
