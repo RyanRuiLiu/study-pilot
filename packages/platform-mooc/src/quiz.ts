@@ -45,37 +45,6 @@ export async function getQuizInfo(
   });
 }
 
-/** 开考信息。响应顶层的 `aid` 才是当前活跃答卷。 */
-export interface OpenQuizInfo {
-  tid: number | string;
-  /**
-   * 当前未完成的答卷 id。这是读写作答时应当使用的 aid。
-   *
-   * 注意不要用 `targetAnswerform.aid` 代替它：后者是最近一次**已提交**的记录，
-   * 与当前答卷不是同一份。用错 aid 会导致写入落到另一份答卷上，
-   * 表现为「保存返回成功但页面看不到」。
-   */
-  aid?: number | null;
-  targetAnswerform?: QuizAnswerForm | null;
-  totalTryCount?: number | null;
-  usedTryCount?: number | null;
-  [key: string]: unknown;
-}
-
-/**
- * 取测验的开考信息。页面进入做题页时调用的就是这个接口。
- */
-export async function getOpenQuizInfo(
-  client: MoocClient,
-  tid: number,
-): Promise<Result<OpenQuizInfo, TransportError>> {
-  return client.rpc.call<OpenQuizInfo>(
-    ENDPOINTS.openQuizInfo.bean,
-    ENDPOINTS.openQuizInfo.method,
-    { tid, targetAid: null, isDraft: false },
-  );
-}
-
 /**
  * 取测验试卷。
  *

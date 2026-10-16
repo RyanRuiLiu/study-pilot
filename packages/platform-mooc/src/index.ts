@@ -59,7 +59,6 @@ export {
 
 export {
   getQuizInfo,
-  getOpenQuizInfo,
   getQuizPaper,
   buildAnswers,
   buildAnswersWithBank,
@@ -71,7 +70,6 @@ export {
   buildFillIndex,
   saveDraft,
   submitQuiz,
-  type OpenQuizInfo,
   type BuildAnswersResult,
   type BuildAnswersOptions,
   type AnswerIndex,

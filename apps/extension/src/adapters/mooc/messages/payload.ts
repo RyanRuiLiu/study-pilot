@@ -9,7 +9,7 @@
  */
 
 import type { QueryOutcome, JobRejection } from '../../../protocol.ts';
-import type { CoursewareProgress, MoocSession, OpenQuizInfo, PaperQuestion } from '@study-pilot/platform-mooc';
+import type { CoursewareProgress, MoocSession, PaperQuestion, QuizInfo } from '@study-pilot/platform-mooc';
 
 /**
  * 单元状态。平台的叫法，不自创。
@@ -168,6 +168,6 @@ export interface MoocResponseMap {
   MOOC_COURSEWARE_SUMMARY: QueryOutcome<CoursewareSummary>;
   MOOC_HOMEWORK_PAPER: QueryOutcome<PaperQuestion[]>;
   MOOC_QUIZ_FILL_INDEX: QueryOutcome<Record<string, boolean>>;
-  MOOC_QUIZ_INFO: QueryOutcome<OpenQuizInfo>;
+  MOOC_QUIZ_INFO: QueryOutcome<QuizInfo>;
   MOOC_QUIZ_SUBMIT: QueryOutcome<{ matched: number; total: number }>;
 }
