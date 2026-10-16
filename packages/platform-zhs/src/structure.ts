@@ -152,6 +152,8 @@ export interface ZhsChapterExam {
   examId: number;
   /** 数字 stuExamId（神谕入参） */
   stuExamId: number;
+  /** 学校 id（开卷/回顾/作答报文都要） */
+  schoolId: number;
 }
 
 /**
@@ -177,20 +179,27 @@ export function chapterExams(chapters: readonly ZhsChapterNode[]): ZhsChapterExa
       examKey: route.examKey,
       examId,
       stuExamId,
+      schoolId: route.schoolId,
     });
   }
   return exams;
 }
 
-/** 取 `…/dohomework/<recruitId>/<t1>/<t2>/…` 的两枚 8 字符串；形态不符返回 null。 */
-function parseHomeworkRoute(url: string): { listId: string; examKey: string } | null {
+/**
+ * 取 `…/dohomework/<recruitId>/<t1>/<t2>/<courseId>/<schoolId>/<N>` 的路由段；
+ * 形态不符返回 null（**按段位取，不在整串里正则找**——课程号也是数字，正则会认错）。
+ */
+function parseHomeworkRoute(url: string): { listId: string; examKey: string; schoolId: number } | null {
   const segments = url.split('/');
   const at = segments.indexOf('dohomework');
   if (at < 0) return null;
-  const listId = segments[at + 2]; // dohomework 之后：recruitId, t1, t2, …
+  // dohomework 之后：recruitId, t1, t2, courseId, schoolId, N
+  const listId = segments[at + 2];
   const examKey = segments[at + 3];
+  const schoolId = Number(segments[at + 5]);
   if (listId === undefined || examKey === undefined || listId === '' || examKey === '') return null;
-  return { listId, examKey };
+  if (!Number.isFinite(schoolId) || schoolId === 0) return null;
+  return { listId, examKey, schoolId };
 }
 
 function num(value: unknown): number {

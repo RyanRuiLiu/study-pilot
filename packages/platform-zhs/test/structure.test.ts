@@ -136,7 +136,7 @@ describe('chapterExams', () => {
 
   it('四个 id 都取到：路线段给 8 字符串，DTO 给数字那对', () => {
     expect(chapterExams(withExams)).toEqual([
-      { chapterName: '第一章', listId: 'elQdaA6j', examKey: 'e8NaaJzy', examId: 67291230, stuExamId: 3214675458 },
+      { chapterName: '第一章', listId: 'elQdaA6j', examKey: 'e8NaaJzy', examId: 67291230, stuExamId: 3214675458, schoolId: 6729 },
     ]);
   });
 
