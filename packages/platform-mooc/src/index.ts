@@ -68,6 +68,8 @@ export {
   hasAnswer,
   fillAnswersFromBank,
   loadViewAnswers,
+  answerAndSubmitQuiz,
+  buildFillIndex,
   saveDraft,
   submitQuiz,
   type OpenQuizInfo,

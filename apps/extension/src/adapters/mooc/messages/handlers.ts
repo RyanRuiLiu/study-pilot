@@ -15,6 +15,7 @@ import { coursesCommand } from './courses.ts';
 import { homeworkPaperCommand } from './homework-paper.ts';
 import { paperAnswersCommand } from './paper-answers.ts';
 import { pendingCommand } from './pending.ts';
+import { quizFillIndexCommand, quizInfoCommand, quizSubmitCommand } from './quiz-helper.ts';
 import { refreshCoursesCommand } from './refresh-courses.ts';
 import { sessionCommand } from './session.ts';
 
@@ -27,5 +28,8 @@ export function moocHandlers(deps: MoocMessageDeps): MessageHandlers {
     MOOC_COURSEWARE_SUMMARY: coursewareSummaryCommand(deps),
     MOOC_HOMEWORK_PAPER: homeworkPaperCommand(deps),
     MOOC_PAPER_ANSWERS: paperAnswersCommand(deps),
+    MOOC_QUIZ_FILL_INDEX: quizFillIndexCommand(deps),
+    MOOC_QUIZ_INFO: quizInfoCommand(deps),
+    MOOC_QUIZ_SUBMIT: quizSubmitCommand(deps),
   };
 }

@@ -269,6 +269,116 @@ export async function buildAnswersWithBank(
   return ok(buildAnswers(paper, { answerIndex: buildAnswerIndex(bank.value), now }));
 }
 
+// ---------- 做题助手：填充用的选项索引 ----------
+
+/**
+ * 填充助手用的索引：选项 id → 是否为正确答案。
+ *
+ * 两个来源按同样的优先级合并（与「查看答案」一致）：
+ *   · 先铺**题库**（跨次作答可用，单元测验在提交前只有它有答案）；
+ *   · 再用**页面当前这份卷**自己的标记覆盖（本次作答的权威；随堂测验的卷面带答案）。
+ *
+ * 只读：当前卷取 `getQuizInfo` 顶层的 aid（页面正在做的那份）。**绝不 aid = 0**——
+ * 那会在服务端新建一份答题表单，等价于点「开始测验」。
+ */
+export async function buildFillIndex(
+  client: MoocClient,
+  tid: number,
+  termId: number,
+): Promise<Result<AnswerIndex, TransportError>> {
+  const index = new Map<string, boolean>();
+
+  const bank = await getQuizBank(client, termId);
+  if (!bank.ok) return bank;
+  for (const [optionId, correct] of buildAnswerIndex(bank.value)) index.set(optionId, correct);
+
+  const info = await getQuizInfo(client, tid);
+  if (!info.ok) return info;
+
+  const aid = aidOf(info.value);
+  if (aid !== null) {
+    const paper = await getQuizPaper(client, tid, aid);
+    if (!paper.ok) return paper;
+    for (const question of paper.value.objectiveQList ?? []) {
+      for (const option of question.optionDtos ?? []) {
+        if (option.answer === true || option.answer === false) {
+          index.set(String(option.id), option.answer);
+        }
+      }
+    }
+  }
+
+  return ok(index);
+}
+
+// ---------- 作答并提交（唯一实现） ----------
+
+/**
+ * 一次「作答并提交」的结果。
+ *
+ * 做成判别联合而不是「错误文本」：调用方要按结果决定状态（提交了=完成、
+ * 没有客观题=跳过、取不到答案=失败），靠字符串比对来区分是脆的。
+ */
+export type QuizSubmitOutcome =
+  | { status: 'submitted'; matched: number; total: number }
+  | { status: 'stopped'; matched: number; total: number }
+  | { status: 'no-objective' }
+  | { status: 'failed'; message: string };
+
+export interface QuizSubmitHooks {
+  /**
+   * 提交前最后一道闸。返回 false 则中止（不再提交）。
+   * 无人值守的执行传停止键；用户点按钮的场景不需要。
+   */
+  beforeSubmit?: () => boolean;
+}
+
+/**
+ * 作答并提交一份测验。
+ *
+ * **唯一实现**：无人值守的自动执行与做题助手的「提交答案」按钮都走这里，
+ * 不允许在别处再写一份（两处的判据——主观题守卫、取不到答案不交——必须一致）。
+ *
+ * 步骤：取卷（`aid = 0`；已有进行中的答卷时返回的就是那一份）→ 含主观题不交
+ * （只交客观部分=残缺答卷）→ 组答案（卷面自带优先，缺的用题库按选项 id 补）→
+ * 有题取不到答案就**一道都不交**（部分作答会拿到低于预期的分数）→ 提交。
+ */
+export async function answerAndSubmitQuiz(
+  client: MoocClient,
+  tid: number,
+  termId: number,
+  hooks: QuizSubmitHooks = {},
+): Promise<QuizSubmitOutcome> {
+  const paper = await getQuizPaper(client, tid, 0);
+  if (!paper.ok) return { status: 'failed', message: `取卷失败：${paper.error.message}` };
+
+  const subjective = (paper.value.subjectiveQList ?? []).length;
+  if (subjective > 0) {
+    return { status: 'failed', message: `这份测验含 ${subjective} 道主观题，需人工作答，不自动提交` };
+  }
+
+  const builtResult = await buildAnswersWithBank(client, termId, paper.value);
+  if (!builtResult.ok) return { status: 'failed', message: `取答案失败：${builtResult.error.message}` };
+  const built = builtResult.value;
+
+  if (built.total === 0) return { status: 'no-objective' };
+  if (built.unresolved.length > 0) {
+    return {
+      status: 'failed',
+      message: `${built.unresolved.length} 道题取不到答案（卷面既无正确选项标记、也无标准答案），已跳过以免得到低分`,
+    };
+  }
+
+  if (hooks.beforeSubmit !== undefined && !hooks.beforeSubmit()) {
+    return { status: 'stopped', matched: built.matched, total: built.total };
+  }
+
+  const submitted = await submitQuiz(client, paper.value);
+  if (!submitted.ok) return { status: 'failed', message: `提交失败：${submitted.error.message}` };
+
+  return { status: 'submitted', matched: built.matched, total: built.total };
+}
+
 // ---------- 写操作 ----------
 //
 // 以下两个函数会改变服务端状态。调用前请确认目标单元已过期且已提交。

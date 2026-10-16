@@ -17,7 +17,8 @@
 
 import { err, ok } from '@study-pilot/core';
 import { apiError } from '@study-pilot/transport';
-import { buildAnswersWithBank, getQuizPaper, submitQuiz } from '../quiz.ts';
+import { answerAndSubmitQuiz } from '../quiz.ts';
+import type { MoocClient } from '../client.ts';
 import { UNIT_TYPE } from '../types.ts';
 import type { UnitBehavior } from './behavior.ts';
 import { completionDto, postLearnInfo } from './reports.ts';
@@ -26,40 +27,20 @@ export const unitQuizBehavior: UnitBehavior = {
   type: UNIT_TYPE.QUESTION,
   ready: (unit) => unit.contentId > 0,
   async run(client, unit) {
-    const paper = await getQuizPaper(client, unit.contentId, 0);
-    if (!paper.ok) return paper;
-
     /*
-     * 只有一条路径：取卷（答案随卷面）→ 组答案 → 交卷 → 报完成。
+     * 只有一条路径：作答并提交（唯一实现见 quiz.ts 的 answerAndSubmitQuiz，
+     * 做题助手的提交按钮走同一个函数）→ 报完成。
      *
-     * 因此答案组不齐时**返回失败**，不退化成「只标完成」——那样会留下
-     * 一条没有作答记录的「已学」，与真人的痕迹对不上，而界面上看不出来。
+     * 因此答案组不齐、含主观题等情况一律返回失败，不退化成「只标完成」——
+     * 那样会留下一条没有作答记录的「已学」，与真人的痕迹对不上。
      * 失败会在下一轮重试，仍不齐就交人工。
      */
-    /*
-     * 含主观题的卷不自动交：主观题平台不给标准答案（评分标准也要人工判），
-     * 只交客观部分等于留下一份残缺答卷——与「只写一半就交」同罪。
-     */
-    const subjective = (paper.value.subjectiveQList ?? []).length;
-    if (subjective > 0) {
-      return err(apiError(-1, `这份随堂测验含 ${subjective} 道主观题，需人工作答，不自动提交`));
-    }
+    const outcome = await answerAndSubmitQuiz(client, unit.contentId, unit.termId);
 
-    // 卷面自带答案直接用；没带（未提交的单元测验）按 termId 用题库补
-    const builtResult = await buildAnswersWithBank(client, unit.termId, paper.value);
-    if (!builtResult.ok) return builtResult;
-    const built = builtResult.value;
-    if (built.total === 0) {
+    if (outcome.status === 'failed') return err(apiError(-1, outcome.message));
+    if (outcome.status === 'no-objective') {
       return err(apiError(-1, '这份随堂测验没有客观题，无法按唯一路径作答'));
     }
-    if (built.unresolved.length > 0) {
-      return err(
-        apiError(-1, `${built.unresolved.length} 道题取不到答案（卷面既无正确选项标记、也无标准答案），未作答以免留下残缺记录`),
-      );
-    }
-
-    const submitted = await submitQuiz(client, paper.value);
-    if (!submitted.ok) return submitted;
 
     const result = await postLearnInfo(client, completionDto(unit));
     return result.ok ? ok('reported') : result;
