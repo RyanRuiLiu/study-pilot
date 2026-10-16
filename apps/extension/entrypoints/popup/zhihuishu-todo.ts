@@ -160,7 +160,7 @@ export async function renderZhsTodo(): Promise<void> {
   const settings = await getSettings();
   const courses = settings.zhihuishu.courses.filter((course) => course.enabled);
   if (courses.length === 0) {
-    area.write([area.note('todo-empty', '尚未选择参与任务的课程，在「更多」的智慧树页读取并勾选。')]);
+    area.write([area.note('todo-empty', '尚未选择参与任务的课程，在「更多」中读取并勾选。')]);
     return;
   }
 
