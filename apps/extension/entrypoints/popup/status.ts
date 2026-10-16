@@ -243,7 +243,7 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
       if (!localRun) for (const list of Object.values(todoLists)) list?.classList.remove('is-running');
       if (options.settleText ?? true) {
         if (status.live === 'interrupted') {
-          setText(stateEl, '上次执行未正常结束，可重新执行「全部执行」');
+          setText(stateEl, '上次执行未正常结束，可重新执行');
         } else if (stoppedHere !== null && stoppedHere.platform === statusPlatform) {
           /*
            * 本弹窗按过停止、且确实停到了**这个平台**：留一句收尾而不是清空。
@@ -253,7 +253,7 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
           setText(stateEl, stoppedLine(stoppedHere.done));
           stoppedHere = null;
         } else if (failure !== null) {
-          setText(stateEl, `上次执行出错：${failure.message}`);
+          setText(stateEl, `上次执行失败：${failure.message}`);
           stateLine?.classList.add('is-error');
         } else {
           setText(stateEl, '');

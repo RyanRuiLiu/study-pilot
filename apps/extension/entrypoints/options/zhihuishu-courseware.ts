@@ -23,7 +23,7 @@ import { renderZhsStatusLine } from './zhihuishu-status-line.ts';
 import { toast } from './toast.ts';
 
 /** 未运行时的按钮标题；禁用时换成 dataset.emptyTitle 里的原因。 */
-const EXEC_TITLE = '执行：完成这门课剩下的视频单元';
+const EXEC_TITLE = '执行：完成这门课余下的视频单元';
 
 /** 运行期间的按钮集合：跑的时候全部禁掉（后台也会拒并发，这里只是别让人白点）。 */
 const buttons: HTMLButtonElement[] = [];
@@ -90,7 +90,7 @@ async function renderZhsFailure(): Promise<void> {
     status.live === 'running' ? null : (status.state.platforms['zhihuishu']?.failure ?? null);
 
   statusEl.classList.toggle('is-error', failure !== null);
-  statusEl.textContent = failure !== null ? `上次执行出错：${failure.message}` : '';
+  statusEl.textContent = failure !== null ? `上次执行失败：${failure.message}` : '';
 
   actionEl.hidden = failure?.action == null;
   if (failure !== null && failure.action !== null) {
@@ -135,7 +135,7 @@ function watchRun(): void {
       if (running && step !== null && course === step.course) {
         button.dataset.mode = 'stop';
         button.textContent = '停止';
-        button.title = '停止执行：不再发出新的写入请求';
+        button.title = '停止：不再发出新的写入请求';
         if (!stopping) button.disabled = false;
         continue;
       }
@@ -195,13 +195,13 @@ function buildRow(entry: ZhsCoursewareProgress): HTMLElement {
      * 这里给一句悬停说明去向。
      */
     progress.textContent = '未读取到内容';
-    progress.title = '这门课的结构没有读成；点击上方「读取课程列表」刷新后再看';
+    progress.title = '未读取到这门课的结构，点击上方「读取课程列表」刷新。';
   } else if (entry.total === 0) {
     progress.textContent = '未读取到内容';
-    progress.title = '平台返回的结构是空的';
+    progress.title = '平台未返回课程结构';
   } else {
     progress.textContent = `已学 ${entry.done}/${entry.total}`;
-    progress.title = `尚余 ${entry.pending} 个视频单元`;
+    progress.title = `余 ${entry.pending} 个视频单元`;
   }
 
   const button = document.createElement('button');
@@ -212,13 +212,13 @@ function buildRow(entry: ZhsCoursewareProgress): HTMLElement {
   if (entry.pending === 0 && entry.unread !== true) {
     button.disabled = true;
     button.dataset.empty = 'yes';
-    button.dataset.emptyTitle = entry.total === 0 ? '未能读取到这门课的内容' : '这门课的单元已全部完成';
+    button.dataset.emptyTitle = entry.total === 0 ? '未读取到这门课的内容' : '这门课的单元已全部完成';
     button.title = button.dataset.emptyTitle;
   }
   if (entry.unread === true) {
     button.disabled = true;
     button.dataset.empty = 'yes';
-    button.dataset.emptyTitle = '这门课的结构没有读成';
+    button.dataset.emptyTitle = '未读取到这门课的结构';
     button.title = button.dataset.emptyTitle;
   }
   buttonsOfCourse.set(entry.courseName, button);
@@ -292,7 +292,7 @@ export async function renderZhsCourseware(
     listEl.append(
       note(
         outcome.reason === 'NOT_LOGGED_IN'
-          ? '未登录——先在浏览器中登录智慧树。'
+          ? '未登录，在浏览器登录智慧树后执行。'
           : `读取失败：${outcome.message}`,
         outcome.reason !== 'NOT_LOGGED_IN',
       ),
@@ -301,7 +301,7 @@ export async function renderZhsCourseware(
   }
 
   if (outcome.value.courses.length === 0) {
-    listEl.append(note('尚未选择参与任务的课程（见上方「账号与课程」）。'));
+    listEl.append(note('尚未选择参与任务的课程，见上方「账号与课程」。'));
     return;
   }
 

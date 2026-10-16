@@ -671,7 +671,7 @@ describe('runReview：自动完成一份作业的互评', () => {
     const result = await runReview(...args);
 
     expect(result.status).toBe('skipped');
-    expect(result.detail).toBe('当前没有可评的答卷，下次会再试');
+    expect(result.detail).toBe('暂无可评答卷，将在下一轮重试');
     expect(submitEvaluation).not.toHaveBeenCalled();
   });
 

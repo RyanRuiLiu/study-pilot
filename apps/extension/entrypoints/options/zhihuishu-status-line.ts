@@ -60,7 +60,7 @@ export async function renderZhsStatusLine(
   const courseware = await (coursewareRead ?? getZhsCourseware());
   if (courseware.status === 'ok') {
     const pending = courseware.value.pendingTotal;
-    parts.push(pending === 0 ? '任务已清' : `待学 ${pending} 项`);
+    parts.push(pending === 0 ? '暂无待学' : `待学 ${pending} 项`);
   }
 
   el.classList.remove('is-loading');

@@ -278,5 +278,5 @@ export async function runReview(
       detail: `已评 ${completed} 份，还差 ${stillNeeded} 份但暂无可评答卷`,
     };
   }
-  return { ...base, status: 'skipped', detail: '当前没有可评的答卷，下次会再试' };
+  return { ...base, status: 'skipped', detail: '暂无可评答卷，将在下一轮重试' };
 }

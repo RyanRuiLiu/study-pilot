@@ -70,7 +70,7 @@ export async function renderStatusLine(
     const count = courseware.value.pending.auto + courseware.value.pending.manual;
     parts.push(count === 0 ? '暂无待交' : `待交 ${count} 项`);
     const left = courseware.value.courses.reduce((sum, entry) => sum + entry.pending, 0);
-    parts.push(left === 0 ? '课件已清' : `课件剩 ${left} 项`);
+    parts.push(left === 0 ? '课件已完成' : `课件剩 ${left} 项`);
   }
 
   el.classList.remove('is-loading');

@@ -27,7 +27,7 @@ export function pendingCommand(deps: MoocMessageDeps): MessageHandler {
       sendResponse({
         status: 'error',
         reason: 'NOT_LOGGED_IN',
-        message: '尚未登录慕课平台',
+        message: '未登录',
       } satisfies MoocResponseMap['MOOC_PENDING_SUMMARY']);
       return;
     }

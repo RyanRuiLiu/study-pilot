@@ -30,7 +30,7 @@ describe('withSessionRecovery', () => {
     expect(outcome).toEqual({
       ok: false,
       kind: 'login',
-      message: '登录已失效，且自动恢复没有成功',
+      message: '登录已失效，自动恢复未成功',
     });
   });
 

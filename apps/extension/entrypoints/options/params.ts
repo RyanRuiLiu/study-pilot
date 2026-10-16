@@ -29,7 +29,7 @@ function setStatus(text: string, isError: boolean): void {
 
 /** 权限被撤回时的说法。扩展自己无法重新申请静态声明的权限，只能指明去处。 */
 const REVOKED_HINT =
-  '浏览器中已撤回对智谱（open.bigmodel.cn）的访问许可：在扩展详情页开启「网站访问权限」后重试';
+  '智谱访问许可已撤回：在扩展详情页开启「网站访问权限」后重试';
 
 export async function renderParams(): Promise<void> {
   const settings = await getSettings();

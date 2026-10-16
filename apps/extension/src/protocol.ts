@@ -74,11 +74,11 @@ export const RUN_STATE_PORT = 'run-state';
 
 /** 拒绝原因对应的用户可读说明（对这个联合是穷尽的）。 */
 export const REJECTION_MESSAGES: Record<JobRejection, string> = {
-  NO_SELECTED_COURSE: '没有可执行的课程，请先选择参与任务的课程',
-  NOT_LOGGED_IN: '尚未登录，请先在浏览器中登录课程平台的账号',
-  ALREADY_RUNNING: '正在执行，请稍后再试',
-  FETCH_FAILED: '请求平台失败',
-  NO_USER_ID: '无法读取账号信息，请确认已登录后重试',
+  NO_SELECTED_COURSE: '没有可执行的课程，先选择参与任务的课程',
+  NOT_LOGGED_IN: '未登录，在浏览器登录平台账号',
+  ALREADY_RUNNING: '正在执行，稍后再试',
+  FETCH_FAILED: '平台请求失败',
+  NO_USER_ID: '无法读取账号信息，确认登录后重试',
 };
 
 
