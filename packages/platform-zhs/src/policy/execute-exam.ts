@@ -44,7 +44,7 @@ import {
   type LookedQuestion,
 } from '../exam-paper.ts';
 import { askOracle, judge } from '../oracle.ts';
-import { ZhsRoundHalt } from './execute.ts';
+import { gateAction, gateHaltMessage, ZhsRoundHalt } from './execute.ts';
 
 /** 一张卷的入口参数（清单 + 章节测验条目合成）。 */
 export interface ExamTarget {
@@ -88,6 +88,8 @@ export interface ExamRunInput {
   popupLessonId: number;
   /** 进会话的方式（见 `ExamEnter`）；不给按 `fresh` */
   enter?: ExamEnter;
+  /** 该课的学习页入口参数（门的「下一步」去处；与视频线同一个地址） */
+  recruitAndCourseId: string;
 }
 
 /** 会话失效（CAS SSO 过期）的去处：站点首页（登录入口在导航里）。 */
@@ -157,8 +159,29 @@ async function readLookedPaper(client: ZhsClient, target: ExamTarget) {
 const SAVE_STATU_OK = 1;
 /** 交卷成功有**两个**值：0 = 成功并给出分数，1 = 成功但不显示分数（转问卷）。源码逐字两分支都在。 */
 const SUBMIT_STATU_OK = new Set([0, 1]);
+/**
+ * 平台按**接口自己的约定**给的业务码被拒（`rt.statu`：作答 -10/-20、交卷 -1）。
+ *
+ * 与 `ZhsApiError` 分开是有原因的：那是**信封码**（`code`），-1/-12 在里面指的是
+ * 「账号被挂起，等一次人机验证」；而交卷的 `statu=-1` 说的是「作业已提交，不可重复
+ * 提交」。同一个数字在两个通道里意思相反，混在一处处置就会把「已提交」误判成「要验证」。
+ */
+class ZhsStatuError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ZhsStatuError';
+  }
+}
+
 /** 作答被平台挂起（要人机验证 / 被禁用）：继续跑只会加重风控。 */
 const SAVE_STATU_GATE = new Set([-10, -20]);
+/**
+ * 账号被挂起时作答接口回的错误码：`-12`（源码：`-12 → yuDuninstance`）与 `-1`
+ * （同一道门在保存通道上的回码——`.probe/zhs-gate-log.txt` 里 isSlide=true 期间
+ * 每条保存都是 -1，Ryan 2026-10-17 报的那次 4 项失败也是它）。两者处置相同：
+ * 整轮停止、如实说「需完成人机验证」，并把去处交给界面。
+ */
+const ZHS_GATE_CODES = new Set([-12, -1]);
 
 function statuOf(body: unknown): number | null {
   const rt = (body as { rt?: unknown } | null | undefined)?.rt as { statu?: unknown } | null | undefined;
@@ -172,6 +195,7 @@ async function saveAnswers(
   client: ZhsClient,
   target: ExamTarget,
   answers: readonly AnswerPayload[],
+  recruitAndCourseId: string,
 ): Promise<void> {
   for (const answer of answers) {
     if (answer.eid === '' || answer.optionIds.length === 0) continue; // 空作答不发（不污染答卷）
@@ -188,9 +212,11 @@ async function saveAnswers(
     if (statu === SAVE_STATU_OK) continue;
     if (statu !== null && SAVE_STATU_GATE.has(statu)) {
       // 平台源码：-10 → emit("captchaForAnswer")、-20 → emit("disableForAnswer")
-      throw new ZhsRoundHalt(statu === -10 ? '需完成人机验证' : '无法继续作答：平台已禁用');
+      throw statu === -10
+        ? new ZhsRoundHalt(gateHaltMessage('人机验证'), gateAction(recruitAndCourseId))
+        : new ZhsRoundHalt('无法继续作答：平台已禁用');
     }
-    throw new ZhsApiError(statu ?? -1, `作答失败：平台返回 ${statu ?? '无 statu'}`);
+    throw new ZhsStatuError(`作答失败：平台返回 ${statu ?? '无 statu'}`);
   }
 }
 
@@ -204,8 +230,7 @@ async function submit(client: ZhsClient, target: ExamTarget, achieveCount: numbe
   });
   const statu = statuOf(body);
   if (statu !== null && SUBMIT_STATU_OK.has(statu)) return;
-  throw new ZhsApiError(
-    statu ?? -1,
+  throw new ZhsStatuError(
     statu === -1 ? '交卷失败：作业已提交，不可重复提交' : `交卷失败：平台返回 ${statu ?? '无 statu'}`,
   );
 }
@@ -300,7 +325,9 @@ export async function executeExam(
     if (error instanceof ZhsRoundHalt) throw error;
     // 作答接口也挂易盾：源码 `if (o.code && -12 == o.code) → yuDuninstance`。
     // 与视频线同一条处置：整轮停止、如实告知，不在这里做任何验证规避。
-    if (error instanceof ZhsApiError && error.code === -12) throw new ZhsRoundHalt('需完成人机验证');
+    if (error instanceof ZhsApiError && ZHS_GATE_CODES.has(error.code)) {
+      throw new ZhsRoundHalt(gateHaltMessage('人机验证'), gateAction(input.recruitAndCourseId));
+    }
     if (isSessionFailure(error)) throw sessionHalt();
     return failed(error);
   }
@@ -325,7 +352,7 @@ async function runWithKey(client: ZhsClient, input: ExamRunInput, control: RunCo
   }
 
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
-  await saveAnswers(client, input.target, planToAnswers(paper, plan.answers));
+  await saveAnswers(client, input.target, planToAnswers(paper, plan.answers), input.recruitAndCourseId);
 
   const gate = await passOracleGate(client, input);
   if (isOutcome(gate)) return gate;
@@ -512,7 +539,7 @@ async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: Ru
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
   const probePaper = await openExamPaper(client, target);
   const probeAnswers = firstOptionAnswers(probePaper);
-  await saveAnswers(client, target, probeAnswers);
+  await saveAnswers(client, target, probeAnswers, input.recruitAndCourseId);
   if (control.stopped()) return { status: 'skipped', message: '已停止：未交卷' };
   await submit(client, target, probeAnswers.length);
 

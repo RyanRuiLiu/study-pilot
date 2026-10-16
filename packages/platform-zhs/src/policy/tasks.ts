@@ -250,6 +250,7 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
       totalScore,
       popupLessonId: chapter.lessonId,
       enter,
+      recruitAndCourseId: course.secret,
     };
     return executeExam(deps.client, input, control);
   }

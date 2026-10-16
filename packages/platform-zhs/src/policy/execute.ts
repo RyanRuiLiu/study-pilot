@@ -91,12 +91,12 @@ function verifyPageUrl(recruitAndCourseId: string): string {
  * 「下一步」不写进句子里，走 action 结构化字段（按钮与去处由界面呈现；
  * 去处只存在于站点学习页，全量源码检索无独立验证 URL）。
  */
-function gateHaltMessage(signal: string): string {
+export function gateHaltMessage(signal: string): string {
   return `需完成${signal}`;
 }
 
 /** 门的「下一步」：打开该课学习页（新标签页）完成验证。文案按 README 动作词习惯。 */
-function gateAction(recruitAndCourseId: string): RunFailureAction {
+export function gateAction(recruitAndCourseId: string): RunFailureAction {
   return { platformId: 'zhihuishu', label: '打开验证页', url: verifyPageUrl(recruitAndCourseId) };
 }
 

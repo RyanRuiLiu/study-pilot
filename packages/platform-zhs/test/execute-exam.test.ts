@@ -90,6 +90,7 @@ function input(overrides: Partial<ExamRunInput> = {}): ExamRunInput {
     questionIds: [111, 222],
     totalScore: 4,
     popupLessonId: 1000058306,
+    recruitAndCourseId: 'hex-secret',
     ...overrides,
   };
 }
@@ -235,6 +236,38 @@ describe('业务码（rt.statu）不被吞掉', () => {
     };
     await expect(executeExam(client, input(), NEVER_STOPPED)).rejects.toMatchObject({ name: 'ZhsRoundHalt' });
     expect(names).not.toContain('examSubmit');
+  });
+
+  it('作答遇挂起的另一个信封码（code=-1）→ 同一条处置，并把「打开验证页」带上', async () => {
+    /*
+     * -1 是同一道门在保存通道上的回码（`.probe/zhs-gate-log.txt` 里 isSlide=true
+     * 期间每条保存都是 -1）。它此前没被映射，界面上只剩一句「智慧树接口返回
+     * code=-1」——用户看不出平台要的是「人来过一次验证」。这里钉住处置与去处。
+     */
+    const client: ZhsClient = {
+      call: async (name) => {
+        if (name === 'examDoHomework') return { rt: PAPER };
+        throw new ZhsApiError(-1, '');
+      },
+    };
+    await expect(executeExam(client, input(), NEVER_STOPPED)).rejects.toMatchObject({
+      name: 'ZhsRoundHalt',
+      message: '需完成人机验证',
+      action: { platformId: 'zhihuishu', label: '打开验证页' },
+    });
+  });
+
+  it('交卷的 statu=-1（已提交）不是门：信封码才有门的含义', async () => {
+    // 同一个数字在两个通道里意思相反，处置不许混（见 ZhsStatuError 的说明）
+    const { client } = recordingClient({
+      examDoHomework: { rt: PAPER },
+      examSaveAnswer: { rt: { statu: '1' } },
+      examQuestionDoneState: ORACLE_PASS,
+      examSubmit: { rt: { msg: '作业已提交，不可重复提交', statu: '-1' } },
+    });
+    const outcome = await executeExam(client, input(), NEVER_STOPPED);
+    expect(outcome.status).toBe('failed');
+    expect(outcome.message).toContain('作业已提交');
   });
 
   it('交卷被拒不重复提交（statu=-1）→ 如实失败并带平台原话', async () => {
