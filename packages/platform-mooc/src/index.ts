@@ -63,16 +63,18 @@ export {
   buildAnswers,
   buildAnswersWithBank,
   getQuizBank,
-  buildAnswerIndex,
   hasAnswer,
-  fillAnswersFromBank,
   answerAndSubmitQuiz,
   buildFillIndex,
+  resolveAnswers,
+  paperHasAllAnswers,
+  firstFillAnswer,
   saveDraft,
   submitQuiz,
   type BuildAnswersResult,
   type BuildAnswersOptions,
   type AnswerIndex,
+  type FillAnswers,
 } from './quiz.ts';
 
 /*

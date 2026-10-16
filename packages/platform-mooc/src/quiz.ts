@@ -113,38 +113,106 @@ export function buildAnswerIndex(bank: PaperQuestion[]): AnswerIndex {
   return index;
 }
 
-/** 这道题卷面上有没有答案（正确选项标记，或填空类的标准答案）。 */
+/*
+ * 卷面 + 题库 → 带答案的题（**唯一实现**）
+ * -----------------------------------------
+ * 填充（做题助手）与提交（一键执行、面板的提交按钮）都从这里取答案，
+ * 不允许在别处再写一套补缺——两处曾经各写一遍，一道题在两处会得到不同的答案。
+ *
+ * 规则只有一条：**卷面自带的答案是权威**（本次作答的事实）；卷面没带的
+ * （未提交的单元测验，平台在提交前不给），用题库按**该题型自己的键**补齐：
+ *
+ *   选择类 / 判断题 —— 选项 id。选项 id 全站唯一，题库与卷面同一空间
+ *     （实测：本卷 9 道选择/判断全部命中，且命中的题库题 testId 都等于本卷）。
+ *   填空类 —— **同卷题号**。填空题没有选项，选项 id 这条键用不上；题库题的
+ *     `testId` 是它归属的那份卷、`position` 是该卷内的题号，实测与本卷题
+ *     一一对应（军事理论第二章单元测验 12/12，含 3 道填空题的 stdAnswer）。
+ *     **不需要、也不允许用题干文本去匹配**（Ryan 定）。
+ *
+ * 两条键都取不到的题保持没有答案，由调用方如实处理（提交时计入 unresolved，不猜）。
+ */
+
+/**
+ * 填空题标准答案里表示「多个可接受答案」的分隔符。
+ *
+ * 名字与值都取自平台源码（pub/s/core.js:18961、rc/main/assets 分块:1843）：
+ *   FILL_BLANK_SPLITCHAR: "##%_YZPRLFH_%##"
+ *   FILL_BLANK_SPLITCHARREG: /(##%_YZPRLFH_%##)/g
+ *   展示时 C = f.stdAnswer?.split(s.FILL_BLANK_SPLITCHAR) || [];
+ *         N = C.length ? C.join("或") : f.stdAnswer;   // 「马其诺或马奇诺」
+ * 即：这是「同义答案」，学生填其中任一个都算对；提交取第一个。
+ */
+const FILL_BLANK_SPLITCHAR = '##%_YZPRLFH_%##';
+
+/** 取填空题标准答案里的第一个可接受答案（平台展示为「甲或乙」时取「甲」）。 */
+export function firstFillAnswer(stdAnswer: string): string {
+  return stdAnswer.split(FILL_BLANK_SPLITCHAR)[0]?.trim() ?? '';
+}
+
+/** 这道题有没有答案（正确选项标记，或标准答案文本）。 */
 export function hasAnswer(question: PaperQuestion): boolean {
   if ((question.optionDtos ?? []).some((option) => option.answer === true)) return true;
   return typeof question.stdAnswer === 'string' && question.stdAnswer.trim() !== '';
 }
 
 /**
- * 用题库给**卷面没带答案**的题补上正确标记（按选项 id 查）。
+ * 把题库的答案并进卷面（**唯一实现**；规则见本段文件头）。
  *
- * 卷面已经带答案的题原样保留：卷面是本次作答的权威，题库只补未提交时的缺口。
- * 题库里也查不到的题原样返回（仍是没有答案），由调用方如实呈现，不猜。
- * 返回新对象，不改服务端响应本身。
+ * 索引建一次（选项 id → 题；「同卷题号」→ 题），再逐题查——题库最大见过
+ * 一千三百多题，逐题全表扫是 O(n×m)。
+ * 卷面已带答案的题原样保留；没带的按题型各自的键到题库取；再取不到就不给。
+ * 返回新对象，不改服务端响应。
  */
-export function fillAnswersFromBank(
+export function resolveAnswers(
   questions: PaperQuestion[],
-  index: AnswerIndex,
+  bank: PaperQuestion[],
+  tid: number,
 ): PaperQuestion[] {
+  const byOptionId = new Map<string, PaperQuestion>();
+  const bySameTestPosition = new Map<number, PaperQuestion>();
+  for (const entry of bank) {
+    for (const option of entry.optionDtos ?? []) byOptionId.set(String(option.id), entry);
+    if (entry.testId === tid && typeof entry.position === 'number') {
+      bySameTestPosition.set(entry.position, entry);
+    }
+  }
+
   return questions.map((question) => {
     if (hasAnswer(question)) return question;
 
     const options = question.optionDtos ?? [];
-    const known = options.some((option) => index.has(String(option.id)));
-    if (!known) return question;
 
+    // 填空类：按「同卷题号」取库中题的 stdAnswer（填空题没有选项，选项 id 这条键用不上）
+    if (options.length === 0) {
+      if (typeof question.position !== 'number') return question;
+      const fromBank = bySameTestPosition.get(question.position);
+      const answer = typeof fromBank?.stdAnswer === 'string' ? firstFillAnswer(fromBank.stdAnswer) : '';
+      return answer === '' ? question : { ...question, stdAnswer: answer };
+    }
+
+    // 选择类 / 判断题：按选项 id 找库中同题，再把标记逐一抄到卷面选项上
+    const fromBank = options
+      .map((option) => byOptionId.get(String(option.id)))
+      .find((entry) => entry !== undefined);
+    if (fromBank === undefined) return question;
+
+    const marks = new Map(
+      (fromBank.optionDtos ?? []).map((option) => [String(option.id), option.answer ?? null]),
+    );
+    if (!options.some((option) => marks.has(String(option.id)))) return question;
     return {
       ...question,
       optionDtos: options.map((option) => ({
         ...option,
-        answer: index.get(String(option.id)) ?? null,
+        answer: marks.get(String(option.id)) ?? null,
       })),
     };
   });
+}
+
+/** 整卷是否都已经有答案（都齐了就不必读题库）。 */
+export function paperHasAllAnswers(questions: PaperQuestion[]): boolean {
+  return questions.every((question) => hasAnswer(question));
 }
 
 // ---------- 答案构造 ----------
@@ -169,19 +237,12 @@ export interface BuildAnswersResult {
  * 就地修改 `paper.answers`，因为提交（以及可选的草稿保存）读的是同一个对象。
  */
 export interface BuildAnswersOptions {
-  /** 卷面没带答案的题用题库补（未提交的单元测验就没有答案，见 getQuizBank）。 */
-  answerIndex?: AnswerIndex;
   now?: number;
 }
 
 export function buildAnswers(paper: QuizPaper, options: BuildAnswersOptions = {}): BuildAnswersResult {
   const now = options.now ?? Date.now();
-  const questions =
-    options.answerIndex === undefined
-      ? (paper.objectiveQList ?? [])
-      : fillAnswersFromBank(paper.objectiveQList ?? [], options.answerIndex);
-  // 补过答案后写回卷面：提交读的是卷面上的这一份
-  if (options.answerIndex !== undefined) paper.objectiveQList = questions;
+  const questions = paper.objectiveQList ?? [];
   const answers: PaperAnswer[] = [];
   const unresolved: number[] = [];
 
@@ -216,10 +277,10 @@ export function buildAnswers(paper: QuizPaper, options: BuildAnswersOptions = {}
 }
 
 /**
- * 构造提交用的答案：卷面自带答案直接用，缺的用题库按选项 id 补。
+ * 构造提交用的答案：先把答案并齐（resolveAnswers，唯一实现），再按卷面构造提交载荷。
  *
- * 随堂测验的卷面自带答案，这一步不会读题库；单元测验的卷面不带，就读题库补。
- * 补完仍缺的题如实计入 unresolved——调用方据此不提交，不猜。
+ * 随堂测验的卷面自带答案，这一步不会读题库；单元测验的卷面不带，读题库按题型
+ * 各自的键补齐。补完仍缺的题如实计入 unresolved——调用方据此不提交，不猜。
  */
 export async function buildAnswersWithBank(
   client: MoocClient,
@@ -228,13 +289,12 @@ export async function buildAnswersWithBank(
   now: number = Date.now(),
 ): Promise<Result<BuildAnswersResult, TransportError>> {
   const questions = paper.objectiveQList ?? [];
-  if (!questions.some((question) => !hasAnswer(question))) {
-    return ok(buildAnswers(paper, { now }));
+  if (!paperHasAllAnswers(questions)) {
+    const bank = await getQuizBank(client, termId);
+    if (!bank.ok) return bank;
+    paper.objectiveQList = resolveAnswers(questions, bank.value, paper.tid);
   }
-
-  const bank = await getQuizBank(client, termId);
-  if (!bank.ok) return bank;
-  return ok(buildAnswers(paper, { answerIndex: buildAnswerIndex(bank.value), now }));
+  return ok(buildAnswers(paper, { now }));
 }
 
 /** 响应顶层的 aid（当前活跃答卷）。0 或缺失表示没有。 */
@@ -243,46 +303,63 @@ function aidOf(value: unknown): number | null {
   return typeof aid === 'number' && aid > 0 ? aid : null;
 }
 
-// ---------- 做题助手：填充用的选项索引 ----------
+// ---------- 做题助手：填充用的答案 ----------
 
 /**
- * 填充助手用的索引：选项 id → 是否为正确答案。
+ * 填充助手要的两样东西：
+ *   options —— 选项 id → 是否正确（选择类/判断题，页面是 radio/checkbox）；
+ *   blanks  —— 填空题的答案文本，**按题目在卷面中的显示顺序**（页面是 contenteditable，
+ *              没有 id 可查，按显示顺序对；平台的渲染顺序就是卷面数组的顺序）。
  *
- * 两个来源按优先级合并（卷面是自己的权威，题库补未提交时的缺口）：
- *   · 先铺**题库**（跨次作答可用，单元测验在提交前只有它有答案）；
- *   · 再用**页面当前这份卷**自己的标记覆盖（本次作答的权威；随堂测验的卷面带答案）。
+ * 答案来自 resolveAnswers——与提交**同一份实现**，不在这里另写一套补缺。
  *
- * 只读：当前卷取 `getQuizInfo` 顶层的 aid（页面正在做的那份）。**绝不 aid = 0**——
+ * 只读：当前卷取 getQuizInfo 顶层的 aid（页面正在做的那份）。**绝不 aid = 0**——
  * 那会在服务端新建一份答题表单，等价于点「开始测验」。
  */
+export interface FillAnswers {
+  options: AnswerIndex;
+  blanks: Array<string | null>;
+}
+
 export async function buildFillIndex(
   client: MoocClient,
   tid: number,
   termId: number,
-): Promise<Result<AnswerIndex, TransportError>> {
-  const index = new Map<string, boolean>();
-
-  const bank = await getQuizBank(client, termId);
-  if (!bank.ok) return bank;
-  for (const [optionId, correct] of buildAnswerIndex(bank.value)) index.set(optionId, correct);
-
+): Promise<Result<FillAnswers, TransportError>> {
   const info = await getQuizInfo(client, tid);
   if (!info.ok) return info;
 
   const aid = aidOf(info.value);
-  if (aid !== null) {
-    const paper = await getQuizPaper(client, tid, aid);
-    if (!paper.ok) return paper;
-    for (const question of paper.value.objectiveQList ?? []) {
-      for (const option of question.optionDtos ?? []) {
-        if (option.answer === true || option.answer === false) {
-          index.set(String(option.id), option.answer);
-        }
+  if (aid === null) return err(apiError(-1, '没有正在作答的卷，页面上没有可作答的题目'));
+
+  const paper = await getQuizPaper(client, tid, aid);
+  if (!paper.ok) return paper;
+
+  const shown = paper.value.objectiveQList ?? [];
+  let resolved = shown;
+  if (!paperHasAllAnswers(shown)) {
+    const bank = await getQuizBank(client, termId);
+    if (!bank.ok) return bank;
+    resolved = resolveAnswers(shown, bank.value, tid);
+  }
+
+  const options = new Map<string, boolean>();
+  for (const question of resolved) {
+    for (const option of question.optionDtos ?? []) {
+      if (option.answer === true || option.answer === false) {
+        options.set(String(option.id), option.answer);
       }
     }
   }
 
-  return ok(index);
+  const blanks = resolved
+    .filter((question) => (question.optionDtos ?? []).length === 0)
+    .map((question) => {
+      const answer = typeof question.stdAnswer === 'string' ? question.stdAnswer.trim() : '';
+      return answer === '' ? null : answer;
+    });
+
+  return ok({ options, blanks });
 }
 
 // ---------- 作答并提交（唯一实现） ----------

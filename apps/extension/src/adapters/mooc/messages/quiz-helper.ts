@@ -41,7 +41,7 @@ export function quizFillIndexCommand(deps: MoocMessageDeps): MessageHandler {
     // Map 过不了消息通道，转成普通对象交回
     sendResponse({
       status: 'ok',
-      value: Object.fromEntries(index.value),
+      value: { options: Object.fromEntries(index.value.options), blanks: index.value.blanks },
     } satisfies MoocResponseMap['MOOC_QUIZ_FILL_INDEX']);
   };
 }
