@@ -151,6 +151,27 @@ body {
   color: var(--ink-faint);
 }
 
+/*
+ * 板块区之上的一条状态行（失败留痕 ＋ 平台给的「下一步」）。
+ *
+ * 零件与卡头同一套（卡片层的 `.head-status` ＋ `.btn.ghost`），只是**不在一张卡里**
+ * ——那四张板块卡没有哪一张独占这条留痕（见 index.html 的说明）。
+ * 因此这里自己定它跟上下卡片的距离：上下各 12px，与卡片之间的距离同一条；
+ * 卡片层的 `.head-status` 是「头行里的一个格子」（`margin-left:auto` 贴右、
+ * 靠段落的默认外边距撑头行高度），在这一行里两样都不对，就地撤回。
+ */
+.task-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin: var(--space-12) 0;
+}
+
+.task-status > .head-status {
+  flex: 1;
+  margin: 0;
+}
+
 a { color: var(--accent); }
 
 a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
