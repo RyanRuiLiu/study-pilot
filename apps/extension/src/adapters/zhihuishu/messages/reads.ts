@@ -23,6 +23,10 @@ import {
   type ZhsChapterNode,
   type ZhsExamListItem,
   type ZhsUnit,
+  EXAM_FORM,
+  getExamForm,
+  getFinalExam,
+  type ZhsFinalExam,
 } from '@study-pilot/platform-zhs';
 
 export interface CourseUnits {
@@ -211,4 +215,55 @@ export function countUnitTests(tabs: CourseExamTabs): { done: number; total: num
 
   // 已交页签里的条目必然也在 ids 里（它就是那么进去的），所以直接取大小
   return { done: doneIds.size, total: ids.size };
+}
+
+/**
+ * 已交单元测试里**未满分**的卷数。
+ *
+ * 直接数已交页签条目自带的 score/totalScore（平台在清单里就给了）——
+ * 不逐卷去读 examRedoNum：那是「还能不能重做」的问题，属执行前的闸（execute-exam），
+ * 这里回答的是「还是不是满分」，两个问题别混成一个（设计文档 §2.1 的两个口径）。
+ * 分数缺失（null）的条目**不计入**：读不到就别说它未满分。
+ */
+export function countNotFullUnitTests(tabs: CourseExamTabs): number {
+  return tabs.submitted.filter(
+    (item) =>
+      item.meetCourseType === MEET_COURSE_TYPE.unitTest &&
+      item.score !== null &&
+      item.totalScore !== null &&
+      item.totalScore > 0 &&
+      item.score < item.totalScore,
+  ).length;
+}
+
+/*
+ * 期末考试：一份读取，两处使用（待办与课程任务卡走同一个函数——两处各读一遍
+ * 就会各自漂移出不同的空/失败措辞，那正是本仓要消灭的）。
+ *
+ * 先问形态（只有「在线」那条分支才在这条接口上，机房/线下读不到），再读条目。
+ * 全程只读：`getStudentFinalExam` 不建任何答卷（对照 §5 的 dohomework 那条界）。
+ */
+export interface FinalExamReading {
+  /** 读到的那一条（一门课目前实测最多一条）；没有/不适用时为 null */
+  exam: ZhsFinalExam | null;
+  /** 考试形态（1=在线 2=机房 3=线下；读不到为 0）。待办据此区分「机房/线下也有考试」与「没有期末」 */
+  form: number;
+  /** 读不到或不适用时的如实一句（可用时为 null） */
+  note: string | null;
+}
+
+export async function readFinalExam(
+  client: ZhsClient,
+  course: Pick<ZhihuishuCourse, 'recruitId' | 'courseId'>,
+): Promise<FinalExamReading> {
+  const form = await getExamForm(client, { recruitId: course.recruitId, courseId: course.courseId });
+  if (form === EXAM_FORM.room) return { exam: null, form, note: '期末考试在机房进行，这里读不到' };
+  if (form === EXAM_FORM.offline) return { exam: null, form, note: '期末考试为线下考试，这里读不到' };
+  if (form !== EXAM_FORM.online) return { exam: null, form, note: '未读取到这门课的考试形态' };
+
+  const list = await getFinalExam(client, { recruitId: course.recruitId, courseId: course.courseId });
+  const first = list[0] ?? null;
+  return first === null
+    ? { exam: null, form, note: '这门课没有期末考试' }
+    : { exam: first, form, note: null };
 }

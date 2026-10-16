@@ -20,6 +20,7 @@
  */
 
 import type { ZhsClient } from './client.ts';
+import { parsePlatformTime } from './exam-list.ts';
 
 /** 考试形态（`exam/getExamType`）。只有 `online` 那条分支会取期末。 */
 export const EXAM_FORM = {
@@ -44,9 +45,10 @@ export interface ZhsFinalExam {
   totalScore: string;
   /** 限时（分钟） */
   limitTime: number;
-  /** 开考窗口（平台的本地时间字符串，原样带出，不猜时区） */
-  startTime: string;
-  endTime: string;
+  /** 开考时刻（毫秒）；解析不出为 null。与作业清单的 deadline 同一口径 */
+  startAt: number | null;
+  /** 结束时刻（毫秒，平台的 endDate）；解析不出为 null */
+  endAt: number | null;
   /** 剩余机会（实测 1；0 表示没有机会了） */
   remainCount: number;
   /** 出卷老师（成绩页那套叫法：examUserName） */
@@ -78,8 +80,8 @@ export function normalizeFinalExam(rt: unknown): ZhsFinalExam[] {
       problemNum: num(item.problemNum),
       totalScore: str(item.totalScore),
       limitTime: num(item.limitTime),
-      startTime: str(item.startTime),
-      endTime: str(item.endDate),
+      startAt: parsePlatformTime(item.startTime),
+      endAt: parsePlatformTime(item.endDate),
       remainCount: num(item.faStudentExamRemainCount),
       teacherName: str(item.examUserName),
     };

@@ -15,7 +15,7 @@
 import { getZhsCourses, getZhsSession, refreshZhsCourses, updateSettings, getSettings } from '../../src/ui-bridge';
 import type { ZhihuishuCourse } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
-import { refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
+import { markZhsTasksLoading, refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
 import { loginNote, note, ZHS_LOGIN_URL } from './note.ts';
 import { markZhsStatusLineLoading } from './zhihuishu-status-line.ts';
 import { skeletonBlock } from './skeleton.ts';
@@ -108,8 +108,7 @@ export function initZhsCourseActions(): void {
     if (button instanceof HTMLButtonElement) button.disabled = true;
     const listEl = document.getElementById('zhs-course-list');
     if (listEl !== null) listEl.replaceChildren(skeletonBlock());
-    const tasksEl = document.getElementById('zhs-tasks-list');
-    if (tasksEl !== null) tasksEl.replaceChildren(skeletonBlock());
+    markZhsTasksLoading();
     markZhsStatusLineLoading();
     void refreshZhsCourses()
       .then((result) => {

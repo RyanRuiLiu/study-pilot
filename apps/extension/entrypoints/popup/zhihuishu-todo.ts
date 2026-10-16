@@ -1,9 +1,12 @@
 /*
- * 智慧树待办区：取数、按课程归拢、空/失败/未登录三种状态的呈现。
+ * 智慧树待办区：取数、按**板块**归拢、空/失败/未登录三种状态的呈现。
+ *
+ * 分组轴与设置页同一套（设计文档 §2.1）：教程视频 → 单元测试 → 见面课 → 期末考试，
+ * 定义在 adapters/zhihuishu/boards.ts。设置页四张卡恒在，这边只显有活的板块。
  *
  * 四格与慕课同构（同一格回答同一个问题），装什么由数据形态定：
- *   行1 左：名称 + 阶段徽标      右：这件事的时间量（有截止说剩余时间，没有说时长）
- *   行2 左：处置句 + [执行]      右：落在课程的哪一处（有截止说日期，没有说章节名）
+ *   行1 左：名称（课程 · 条目）+ 阶段徽标   右：这件事的时间量（有截止说剩余时间，没有说时长）
+ *   行2 左：处置句 + [执行]               右：落在课程的哪一处（有截止说日期，没有说章节名）
  * 教程视频没有截止时间（学习窗口由课程整体规定，数据未接），右列就靠时长与
  * 章节名撑起来——**空着一格与「没有这项信息」在界面上长得一样**，
  * 不能让它替数据说话。
@@ -13,7 +16,8 @@
  */
 
 import { getSettings, getZhsPending, getZhsSession, runNow } from '../../src/ui-bridge';
-import type { ZhsPendingEntry, ZhsPendingKind } from '../../src/ui-bridge';
+import type { ZhsPendingEntry } from '../../src/ui-bridge';
+import { ZHS_BOARDS, boardOfKind } from '../../src/adapters/zhihuishu/boards.ts';
 import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { zhsTodoEl } from './elements.ts';
 import { createTodoArea } from './todo-area.ts';
@@ -25,15 +29,7 @@ function durationText(sec: number): string {
   return `约 ${Math.round(sec / 60)} 分钟`;
 }
 
-/**
- * 类别的次序：**测试在前、教程视频在后**（2026-10-17 Ryan 定）。
- *
- * 只在**组内排序**用，不做分组——分组与慕课一致（只按课程一层，
- * 见 `todo-area` 的 `buildGroup` 与慕课那份 `groupByCourse`）。
- * 类别本身由每一行的名称说清（「第三章单元测试」/「因果图结构」），
- * 慕课也是这么做的（它的类别只进 aria-label，不占位置）。
- */
-const KIND_ORDER: Record<ZhsPendingKind, number> = { quiz: 0, meetQuiz: 1, courseware: 2 };
+
 
 function buildRow(entry: ZhsPendingEntry): HTMLElement {
   const item = document.createElement('div');
@@ -59,13 +55,19 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
     .filter((part) => part !== '')
     .join(' · ');
 
-  // 行 1：单元名 + 「未学习」徽标
+  // 行 1：课程 · 单元名 +「未学习」徽标
   const line = document.createElement('span');
   line.className = 'todo-line';
 
+  /*
+   * 名称由行自己说全：「课程 · 条目」。分组轴改成板块之后，组头是板块名，
+   * 课程名不再有组头可挂（慕课那边是按课程分组，行里就不必重复课程）——
+   * 一行必须说清它是**哪门课的哪一条**（同 application 的 RunItem.course：
+   * 界面按「课程 · 项目」显示，不让人去猜）。
+   */
   const name = document.createElement('span');
   name.className = 'todo-name';
-  name.textContent = entry.name;
+  name.textContent = `${entry.courseName} · ${entry.name}`;
   line.append(name);
 
   const phase = document.createElement('span');
@@ -83,7 +85,13 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
    */
   const when = document.createElement('span');
   when.className = 'todo-when';
-  if (entry.deadline !== null) {
+  /*
+   * 期末考试没开考时，这一格说「M-D 开考」：说「还剩多少天到截止」会让人
+   * 以为现在就能做（设计文档 §2.1 的期末条目）。开考后走下面两条常规分支。
+   */
+  if (entry.opensAt !== null && Date.now() < entry.opensAt) {
+    when.textContent = `${formatDate(entry.opensAt)} 开考`;
+  } else if (entry.deadline !== null) {
     if (isUrgent(entry.deadline)) when.classList.add('is-urgent');
     when.textContent = `${relativeDay(entry.deadline)} ${formatClock(entry.deadline)}`.trim();
   } else if (entry.sec > 0) {
@@ -94,7 +102,19 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
   const sub = document.createElement('span');
   sub.className = 'todo-sub';
 
+  /*
+   * 期末考试**不自动**（设计文档 §2.1）：只读展示 + 可点（整行点开作业考试列表页）。
+   * 处置句用与慕课人工项同一套词汇「需手动完成」，并且**不给「执行」按钮**——
+   * 按钮在那儿就等于许诺能把这件事做掉。
+   */
   const handling = document.createElement('span');
+  if (entry.kind === 'finalExam') {
+    handling.className = 'todo-handling';
+    handling.textContent = '需手动完成';
+    sub.append(handling);
+    item.append(line, when, sub, buildDate(entry));
+    return item;
+  }
   handling.className = 'todo-handling is-auto';
   handling.textContent = '可代为完成';
   sub.append(handling);
@@ -124,12 +144,16 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
    * 常年缺一块，而「它属于哪一章」是这一格放得下的真信息：章节名。
    * 两样都没有就留空——宁可空着，也不编一个值出来。
    */
+  item.append(line, when, sub, buildDate(entry));
+  return item;
+}
+
+/** 行 2 右列：这一条落在课程的哪一处（有截止说日期，没有说章节名）。 */
+function buildDate(entry: ZhsPendingEntry): HTMLElement {
   const date = document.createElement('span');
   date.className = 'todo-date';
   date.textContent = entry.deadline !== null ? formatDate(entry.deadline) : entry.chapterName;
-
-  item.append(line, when, sub, date);
-  return item;
+  return date;
 }
 
 /** 一句提示文案的段落元素。 */
@@ -186,24 +210,19 @@ export async function renderZhsTodo(): Promise<void> {
   }
 
   /*
-   * 一层归拢：只按课程分组（与慕课一致，见 `todo-area` 的 `buildGroup`）。
-   * 两类事混在同一组里，靠每行的名称说清自己是什么（「第三章单元测试」/
-   * 「因果图结构」）——类别不另占一层结构，KIND_ORDER 只调组内次序。
+   * 按**板块**归拢（设计文档 §2.1）：教程视频 → 单元测试 → 见面课 → 期末考试。
+   * 顺序与分组定义在 adapters/zhihuishu/boards.ts——设置页四张卡用的是同一份，
+   * 两处各写一遍迟早漂移成两套顺序。
    *
-   * 课程的次序按**首次出现**定（后台已按章节自然序给出，这里保持顺序，不重排）。
+   * **只显有活的板块**（与设置页「四板块恒在」相对）：没有条目的板块直接不出组
+   * ——「活」的判据在数据层（待办条目本身就是按活的条件收进来的）。
+   * 组内次序保持后台给的顺序（章节自然序），不再重排。
    */
-  const grouped = new Map<string, ZhsPendingEntry[]>();
-  for (const entry of entries) {
-    const bucket = grouped.get(entry.courseName);
-    if (bucket) bucket.push(entry);
-    else grouped.set(entry.courseName, [entry]);
-  }
-
   area.write([]);
-  for (const [courseName, list] of grouped) {
-    // 组内只调次序（测试在前），不改变类别次序之外的相对位置——sort 是稳定的
-    list.sort((left, right) => KIND_ORDER[left.kind] - KIND_ORDER[right.kind]);
-    zhsTodoEl?.append(area.buildGroup(courseName, list, buildRow));
+  for (const board of ZHS_BOARDS) {
+    const list = entries.filter((entry) => boardOfKind(entry.kind) === board.id);
+    if (list.length === 0) continue;
+    zhsTodoEl?.append(area.buildGroup(board.title, list, buildRow));
   }
   // 读不到的课如实列出——「读不到」与「没有要看的」长得不一样，不能混为一谈
   for (const unread of outcome.value.unreadCourses) {

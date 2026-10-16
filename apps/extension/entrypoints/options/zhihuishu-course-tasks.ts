@@ -1,27 +1,31 @@
 /*
- * 智慧树「课程任务」卡：每门课一张卡，按**成绩构成组件**报进度，与「执行」。
+ * 智慧树「课程任务」：**四张板块卡**（设计文档 §2.1，2026-10-17 Ryan 定）。
  *
- * 没有「课件」一说（设计文档 §2 定案）：智慧树的任务不套慕课那套「课件/待办」
- * 二分，它的组件由平台自己给——卡上逐行就是成绩分析页的那几个组件，用官方名、
- * 报官方数。本期能填的是「学习进度（教程+测试）」这一项；见面课与期末要等
- * 模块 4/6，**不给空行占位**（摆一行填不出的组件，人会以为那些是零）。
+ *   教程视频 → 单元测试 → 见面课 → 期末考试          （平台自己的顺序）
  *
- * 课名链到平台自己的成绩分析页——那是这门课成绩的唯一事实源，组件口径也出自那里。
+ * 一张卡一个板块（`.panel`），卡里一行一门课（行模板 `.ct-row`：课名 | 数据 | 动作）。
+ * **四个板块恒在**——数据还没接入的那块由卡里的如实一句承担，不摆空行占位。
+ * 板块的定义与顺序在 adapters/zhihuishu/boards.ts（弹窗用的是同一份）。
  *
- * 「执行」就是对这门课**剩下的待办**的授权：视频单元走「取记录 → 全时长 1× 上报
- * → 回读确认」，单元测试走答卷会话（口径见平台包 report.ts / policy/execute-exam.ts）。
- * 它写平台、不可撤销，因此按钮文案直说做了什么。
+ * 点击落点（Ryan 反复强调过，勿改）：
+ *   课名         → 平台成绩分析页（组件口径的唯一事实源，见 reportUrl）
+ *   视频那一行   → 学习页（studyUrl）
+ *   测试/期末那行 → **作业考试列表页**（examListUrl），**不是开考那一卷**：
+ *                  dohomework 路由一打开就在服务端建答卷（设计文档 §5）
  *
- * 执行期间进度与「停止」都在这门课自己那卡；结果用底部浮层提示。
- * 运行状态的读取按平台收窄（platformRunningItem('zhihuishu')）——
- * 慕课在跑时不该画到这里，反之亦然。
+ * 「执行」是**按板块**的授权（教程视频 → kind=courseware；单元测试 → kind=quiz），
+ * 一条待办一条授权，范围由点击的那一行说清。期末考试**不自动**（只读展示 + 可点），
+ * 因此那一行没有「执行」。
  *
- * 停止在下一个安全点生效：不再发新的写请求，正在飞的落地即止。
+ * 没有「课件」一说（设计文档 §2 定案）：智慧树的任务不套慕课那套「课件/待办」二分。
+ * 执行期间进度与「停止」都在这门课那个板块那一行上；结果用底部浮层提示。
+ * 运行状态的读取按平台收窄（platformRunningItem('zhihuishu')）。
  */
 
 import { getTaskState, getZhsCourseTasks, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
 import type { ZhsCourseTask, ZhsCourseTaskSummary, QueryOutcome } from '../../src/ui-bridge';
-import { errorText } from '../../src/ui/format.ts';
+import { errorText, formatDate } from '../../src/ui/format.ts';
+import { ZHS_BOARDS, boardOfKind, type ZhsBoardId } from '../../src/adapters/zhihuishu/boards.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { loginNote, note, ZHS_LOGIN_URL } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
@@ -58,12 +62,11 @@ function setEnabled(enabled: boolean): void {
 /**
  * 重读课程任务区。跑完一轮之后、课程勾选变动之后、以及读取课程列表之后都用它。
  *
- * 重读即是等待：先换与首帧一致的块状骨架（同时把旧范围算出的旧数字撤下）。
- * 卡头状态行自带骨架，见 zhihuishu-status-line.ts。
+ * 重读即是等待：四张卡换成同样的四张、卡里先立骨架（同时把旧范围算出的旧数字
+ * 撤下）。卡头状态行自带骨架，见 zhihuishu-status-line.ts。
  */
 export async function refreshZhsTaskViews(): Promise<void> {
-  const listEl = document.getElementById('zhs-tasks-list');
-  if (listEl !== null) listEl.replaceChildren(skeletonBlock());
+  markZhsTasksLoading();
   const fresh = getZhsCourseTasks();
   await Promise.all([renderZhsStatusLine(fresh), renderZhsCourseTasks(fresh)]);
 }
@@ -81,12 +84,16 @@ let lastFinished = 0;
 let sawRun = false;
 
 /**
- * 卡头的「上次执行出错」行：失败留痕按平台独立（见 application 的
- * TaskState.platforms），这里只呈现智慧树自己那条；平台给了「下一步」动作时
- * 卡头右侧给一个跳转钮（新标签页，与「读取课程列表」同一个按钮位）。
- * 跑动中不呈现——那一路的状态是课程任务卡里的运行明细。
+ * 课程任务这一块的状态行（四张板块卡之上）：「上次执行出错」。
+ *
+ * 失败留痕按平台独立（见 application 的 TaskState.platforms），这里只呈现智慧树
+ * 自己那条；平台给了「下一步」动作时右侧给一个跳转钮——形状与课件卡头那条逐字
+ * 同构（courseware.ts 的 renderFailure），两处的「一句说明 ＋ 一个去处」只有这一种长相。
+ * 它不落在任何一张板块卡的卡头：失败是按平台记的，四张卡里没有哪一张独占它。
+ * 跑动中不呈现——那一路的状态是板块行里的运行明细。
  */
 async function renderZhsFailure(): Promise<void> {
+  const headEl = document.getElementById('zhs-tasks-head');
   const statusEl = document.getElementById('zhs-tasks-status');
   const actionEl = document.getElementById('zhs-tasks-action');
   if (statusEl === null || !(actionEl instanceof HTMLAnchorElement)) return;
@@ -95,7 +102,7 @@ async function renderZhsFailure(): Promise<void> {
   const failure =
     status.live === 'running' ? null : (status.state.platforms['zhihuishu']?.failure ?? null);
 
-  statusEl.classList.toggle('is-error', failure !== null);
+  if (headEl !== null) headEl.hidden = failure === null;
   statusEl.textContent = failure !== null ? `上次执行失败：${failure.message}` : '';
 
   actionEl.hidden = failure?.action == null;
@@ -123,22 +130,25 @@ function watchRun(): void {
     // 正在跑的那一项（读取与措辞与弹窗共用同一份；按平台收窄）
     const step = platformRunningItem(state, 'zhihuishu');
 
-    // 卡内小字：只有跑的那门课有；停止收尾中冻结（「正在停止…」由点击处写）
-    for (const [course, el] of currents) {
+    // 正在跑的那一行 = 这门课 × 它那一项的类别所属板块（一行一门课，键要带板块）
+    const runningKey =
+      step !== null ? `${step.course}:${boardOfKind(step.kind) ?? ''}` : null;
+
+    // 卡内小字：只有跑的那一行有；停止收尾中冻结（「正在停止…」由点击处写）
+    for (const [key, el] of currents) {
       if (running && stopping) continue;
-      const text = running && step !== null ? progressLine(step) : undefined;
-      const onThisCourse = running && step !== null && step.course === course;
-      el.hidden = !onThisCourse;
-      el.closest('.ct-card')?.classList.toggle('is-running', onThisCourse);
-      if (onThisCourse && text !== undefined) el.textContent = text;
+      const onThisRow = running && runningKey !== null && runningKey === key;
+      el.hidden = !onThisRow;
+      el.closest('.ct-row')?.classList.toggle('is-running', onThisRow);
+      if (onThisRow && step !== null) el.textContent = progressLine(step);
     }
 
     /*
      * 按钮：跑的那门课把「执行」换成「停止」；一轮在跑期间其余按钮一律禁用
      * （不论这一轮在哪里发起——后台拒并发，别让人白点）；跑完了整区还原。
      */
-    for (const [course, button] of buttonsOfCourse) {
-      if (running && step !== null && course === step.course) {
+    for (const [key, button] of buttonsOfCourse) {
+      if (running && runningKey !== null && key === runningKey) {
         button.dataset.mode = 'stop';
         button.textContent = '停止';
         button.title = '停止：不再发出新的写入请求';
@@ -173,35 +183,30 @@ function watchRun(): void {
   });
 }
 
-/** 一行成绩组件：左官方名、右官方数。读不成时由 value 里的话说清，不摆 0。 */
-function buildPart(label: string, value: string, title?: string): HTMLElement[] {
-  const name = document.createElement('span');
-  name.className = 'ct-label';
-  name.textContent = label;
-
-  const text = document.createElement('span');
-  text.className = 'ct-value';
-  text.textContent = value;
-  if (title !== undefined) text.title = title;
-
-  return [name, text];
-}
-
 /**
- * 一门课的卡：头上是课名（链到平台成绩分析页）与运行明细、「执行」/「停止」，
- * 下面逐行是这门课的成绩构成组件。
+ * 一行：课名（链成绩分析页）+ 运行小字 + 数据 + 动作；**整行点去这块的页面**。
+ *
+ * 三个点击落点各归各的：垫底的长链接是这一块在平台上的页面（`.todo-open`，
+ * 与弹窗同一手法），课名与「执行」浮在它之上——课名去成绩分析页，按钮去执行。
  */
-function buildCard(entry: ZhsCourseTask): HTMLElement {
-  const card = document.createElement('div');
-  card.className = 'ct-card';
+function buildRow(
+  entry: ZhsCourseTask,
+  input: { board: ZhsBoardId; value: string; valueTitle?: string; href: string; action?: HTMLButtonElement },
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'ct-row';
 
-  const head = document.createElement('div');
-  head.className = 'ct-head';
+  const open = document.createElement('a');
+  open.className = 'todo-open';
+  open.href = input.href;
+  open.target = '_blank';
+  open.rel = 'noreferrer';
+  open.setAttribute('aria-label', `打开${entry.courseName}这块任务在平台的页面`);
+  row.append(open);
 
   const group = document.createElement('span');
   group.className = 'cw-group';
 
-  // 课名是平台成绩分析页的入口：组件口径与官方数都在那一页
   const name = document.createElement('a');
   name.className = 'ct-name';
   name.href = entry.reportUrl;
@@ -209,67 +214,72 @@ function buildCard(entry: ZhsCourseTask): HTMLElement {
   name.rel = 'noreferrer';
   name.textContent = entry.courseName;
   name.title = '打开这门课的成绩分析页';
+  group.append(name);
 
   const current = document.createElement('span');
   current.className = 'cw-current';
   current.hidden = true;
-  currents.set(entry.courseName, current);
+  currents.set(`${entry.courseName}:${input.board}`, current);
+  group.append(current);
 
-  group.append(name, current);
-  head.append(group);
+  const text = document.createElement('span');
+  text.className = 'cw-progress';
+  text.textContent = input.value;
+  if (input.valueTitle !== undefined) text.title = input.valueTitle;
 
+  row.append(group, text);
+  if (input.action !== undefined) {
+    buttonsOfCourse.set(`${entry.courseName}:${input.board}`, input.action);
+    row.append(input.action);
+  }
+  return row;
+}
+
+/**
+ * 「执行」按钮。同一个课程同一时刻只有一个板块能跑（后台拒并发），
+ * 但按钮各归各行：谁被点了谁变「停止」，其余行在跑动期间禁用。
+ */
+function buildRunButton(
+  entry: ZhsCourseTask,
+  board: (typeof ZHS_BOARDS)[number],
+  options: { empty: boolean; emptyTitle: string; title: string },
+): HTMLButtonElement {
   const button = document.createElement('button');
   button.className = 'btn ghost';
   button.type = 'button';
   button.textContent = '执行';
-  button.title = EXEC_TITLE;
-  /*
-   * 禁用判据必须建立在**读全了**的前提上。
-   *
-   * `pending === 0` 是个显示计数器：读不全时它只是下界（测试那两页签没读到，
-   * 或者清单超过一页），拿它说「已无待完成项」就是**用一个可能错的数替执行侧
-   * 做了决定**——按钮灰着，而执行本来还有活可干，人只会以为没事做。
-   * 读不全时不禁用：执行侧现读现算，让它自己判。
-   */
-  const known = entry.unread !== true && entry.quizUnreadReason === null;
-  if (known && entry.pending === 0) {
-    button.disabled = true;
-    button.dataset.empty = 'yes';
-    button.dataset.emptyTitle = '这门课已无待完成项';
-    button.title = button.dataset.emptyTitle;
-  }
-  if (entry.unread === true) {
-    button.disabled = true;
-    button.dataset.empty = 'yes';
-    button.dataset.emptyTitle = '未读取到这门课的结构';
-    button.title = button.dataset.emptyTitle;
-  }
-  buttonsOfCourse.set(entry.courseName, button);
-  head.append(button);
+  button.title = options.title;
+  button.dataset.board = board.id;
+  button.dataset.empty = options.empty ? 'yes' : 'no';
+  if (options.empty) button.disabled = true;
+
+  buttons.push(button);
 
   button.addEventListener('click', () => {
+    const current = currents.get(`${entry.courseName}:${board.id}`);
     // 同一枚按钮两种身份：跑着的时候它是「停止」
     if (button.dataset.mode === 'stop') {
       button.disabled = true;
       stopping = true;
-      current.hidden = false;
-      current.textContent = STOPPING_TEXT;
+      if (current) {
+        current.hidden = false;
+        current.textContent = STOPPING_TEXT;
+      }
       void stopRun('zhihuishu').then((result) => {
         if (result.stopped) {
           stoppedHere = true;
           return;
         }
-        // 没停到（多半是刚好已经跑完）：整卡还原，别挂着「正在停止」
         stopping = false;
         delete button.dataset.mode;
         button.textContent = '执行';
         button.disabled = button.dataset.empty === 'yes';
-        button.title = button.dataset.emptyTitle ?? EXEC_TITLE;
-        current.hidden = true;
+        button.title = button.dataset.empty === 'yes' ? options.emptyTitle : options.title;
+        if (current) current.hidden = true;
       });
       return;
     }
-    stopping = false; // 新一轮开始：上一轮留下的停止态不该算到它头上
+    stopping = false;
     localRun = true;
     void runNow(
       {
@@ -278,51 +288,78 @@ function buildCard(entry: ZhsCourseTask): HTMLElement {
         refresh: refreshZhsTaskViews,
       },
       /*
-       * **不带 kinds**：智慧树不套用慕课的「待办/课件」二分（设计文档 §3 模块 5 定案），
-       * 它的范围就是「这门课」。带上 categories 会把单元测试（kind=quiz）挡在外面——
-       * 待办里列着它、点执行却不做它，正是这个仓反复要消灭的那种错位。
+       * 按板块授权：只做这一类的待办（教程视频 = courseware、单元测试 = quiz）。
+       * 类别取值由平台包定义，这里原样传，不解释。
        */
-      { platformId: 'zhihuishu', group: entry.courseName },
+      { platformId: 'zhihuishu', group: entry.courseName, kinds: [...board.kinds] },
     );
   });
 
-  const parts = document.createElement('div');
-  parts.className = 'ct-parts';
+  return button;
+}
 
-  if (entry.unread === true) {
-    /*
-     * 结构没读成（缺入口参数或平台读取失败）：只说事实，数字不显示——
-     * 不拿全 0 冒充「这门课没有内容」。原因在读取时的提示里说过，
-     * 这里给一句悬停说明去向。
-     */
-    parts.append(
-      ...buildPart('学习进度（教程+测试）', '未读取到内容', '未读取到这门课的结构，点击上方「读取课程列表」刷新。'),
-    );
-  } else {
-    /*
-     * 官方名与官方口径（设计文档 §1.2，成绩分析页原文）：
-     * 「学习进度 = 教程进度 + 测试进度」——两半都在这一行里说清。
-     *
-     * 测试那半读不成时只换那一半的措辞（`quizUnreadReason`），
-     * 视频那半照常报数：能报的报，报不了的说明，不整行撤掉。
-     */
-    const quizText =
-      entry.quizUnreadReason === null
-        ? `单元测试 ${entry.quiz.done}/${entry.quiz.total}`
-        : '单元测试未读取到';
-    parts.append(
-      ...buildPart(
-        '学习进度（教程+测试）',
-        `视频 ${entry.video.done}/${entry.video.total} · ${quizText}`,
-        entry.quizUnreadReason === null
-          ? '教程与测试各自的完成数，口径同平台的成绩分析页'
-          : `单元测试读取失败：${entry.quizUnreadReason}`,
-      ),
-    );
-  }
+/**
+ * 一张板块卡：一张 `.panel`，卡头是板块名；卡里装什么由调用方给
+ * （行、等待的骨架、或一句如实的说明）。
+ */
+function buildBoardCard(board: (typeof ZHS_BOARDS)[number], body: Node[]): HTMLElement {
+  const card = document.createElement('section');
+  card.className = 'panel';
 
-  card.append(head, parts);
+  const head = document.createElement('div');
+  head.className = 'panel-head';
+  const title = document.createElement('h2');
+  title.className = 'panel-title';
+  title.textContent = board.title;
+  head.append(title);
+  card.append(head, ...body);
   return card;
+}
+
+/**
+ * 一块板块卡的内容：一行一门课，没读到结构的逐课写清，一行都没有时给一句说明
+ * （不摆空行占位——空行会被读成零）。
+ */
+function boardRows(
+  board: (typeof ZHS_BOARDS)[number],
+  courses: ZhsCourseTask[],
+  rows: (entry: ZhsCourseTask) => HTMLElement | null,
+  emptyLine: string,
+): Node[] {
+  const body: Node[] = [];
+  for (const entry of courses) {
+    if (entry.unread === true) {
+      // 结构没读到：不拿全 0 冒充，逐课写清（与课件行同一表现）
+      body.push(rowOfUnread(entry, board));
+      continue;
+    }
+    const row = rows(entry);
+    if (row !== null) body.push(row);
+  }
+  if (body.length === 0) body.push(note(emptyLine));
+  return body;
+}
+
+/**
+ * 等待平台读取：**四个板块恒在**，各自卡里一块骨架守位。
+ *
+ * 不在列表区摆一块大骨架顶替四张卡——那是「这一整块还没东西」的说法，
+ * 而四张卡的形状与落定后一致，读回来时只有卡里的内容换，版面不跳。
+ */
+export function markZhsTasksLoading(): void {
+  const listEl = document.getElementById('zhs-tasks-list');
+  if (listEl === null) return;
+  listEl.replaceChildren(...ZHS_BOARDS.map((board) => buildBoardCard(board, [skeletonBlock()])));
+}
+
+/** 结构没读到的一行：只说事实，数字不显示。 */
+function rowOfUnread(entry: ZhsCourseTask, board: (typeof ZHS_BOARDS)[number]): HTMLElement {
+  return buildRow(entry, {
+    board: board.id,
+    value: '未读取到内容',
+    valueTitle: '未读取到这门课的结构，点击上方「读取课程列表」刷新。',
+    href: board.id === 'video' ? entry.studyUrl : entry.examListUrl,
+  });
 }
 
 export async function renderZhsCourseTasks(
@@ -331,7 +368,10 @@ export async function renderZhsCourseTasks(
   const listEl = document.getElementById('zhs-tasks-list');
   if (listEl === null) return;
 
-  // 卡头的「上次执行出错」行与列表走同一条渲染路径（首帧、重读、跑完都会到这里）
+  // 等待：四张卡先在（读回来只换卡里的内容，版面不跳）
+  markZhsTasksLoading();
+
+  // 失败留痕与列表走同一条渲染路径（首帧、重读、跑完都会到这里）
   void renderZhsFailure();
 
   watchRun();
@@ -348,9 +388,8 @@ export async function renderZhsCourseTasks(
     return;
   }
 
-  listEl.replaceChildren();
-
   if (outcome.status === 'error') {
+    listEl.replaceChildren();
     if (outcome.reason === 'NOT_LOGGED_IN') {
       // 未登录不是「出错」，是少做了一步：给按钮把人送去登录，而不是只留一句话
       listEl.append(loginNote('未登录，在浏览器登录智慧树后执行。', ZHS_LOGIN_URL));
@@ -361,9 +400,90 @@ export async function renderZhsCourseTasks(
   }
 
   if (outcome.value.courses.length === 0) {
-    listEl.append(note('尚未选择参与任务的课程，见上方「账号与课程」。'));
+    listEl.replaceChildren(note('尚未选择参与任务的课程，见上方「账号与课程」。'));
     return;
   }
 
-  listEl.append(...outcome.value.courses.map(buildCard));
+  const courses = outcome.value.courses;
+  const [video, quiz, meet, final] = ZHS_BOARDS;
+
+  /*
+   * 四张卡按平台顺序排出，**恒在**（数据没接入的那块由卡里的如实一句承担）。
+   * 每张卡里的行是「这门课在这个板块上的样子」。
+   */
+  listEl.replaceChildren(
+    buildBoardCard(video, boardRows(video, courses, videoRow, '没有需要看的视频。')),
+    buildBoardCard(quiz, boardRows(quiz, courses, quizRow, '没有单元测试。')),
+    buildBoardCard(meet, boardRows(meet, courses, () => null, '见面课数据尚未接入。')),
+    buildBoardCard(final, boardRows(final, courses, finalRow, '未读取到期末考试。')),
+  );
+}
+
+/** 教程视频那一行：进度 + 执行（kind=courseware）。 */
+function videoRow(entry: ZhsCourseTask): HTMLElement | null {
+  const done = entry.video.done === entry.video.total;
+  return buildRow(entry, {
+    value: `视频 ${entry.video.done}/${entry.video.total}`,
+    valueTitle: '已完成 / 全部视频单元，口径同平台的成绩分析页',
+    board: ZHS_BOARDS[0].id,
+    href: entry.studyUrl,
+    action: buildRunButton(entry, ZHS_BOARDS[0], {
+      empty: done,
+      emptyTitle: '这门课的视频都看完了',
+      title: '执行：完成这门课没看完的视频',
+    }),
+  });
+}
+
+/**
+ * 单元测试那一行：设计文档 §2.1 的两个口径一起给——
+ * 「已交 x/y」问交没交，「其中 N 卷未满分」问还剩多少可做。
+ * 读不到那两页签时整行如实降级（不拿 0/0 冒充）。
+ */
+function quizRow(entry: ZhsCourseTask): HTMLElement | null {
+  const unread = entry.quizUnreadReason !== null;
+  const value = unread
+    ? '单元测试未读取到'
+    : `已交 ${entry.quiz.done}/${entry.quiz.total} · 其中 ${entry.quizNotFull} 卷未满分`;
+  return buildRow(entry, {
+    value,
+    valueTitle: unread
+      ? `单元测试读取失败：${entry.quizUnreadReason ?? ''}`
+      : '前一个数是已交的卷数（进度），后一个数是其中还没拿满分的卷数（还能不能做）',
+    board: ZHS_BOARDS[1].id,
+    href: entry.examListUrl,
+    action: buildRunButton(entry, ZHS_BOARDS[1], {
+      // 「还有没有可做的」执行侧现读现算（未满分的卷还要看剩余重做次数），这里只在能确定全齐时禁用
+      empty: !unread && entry.quiz.done === entry.quiz.total && entry.quizNotFull === 0,
+      emptyTitle: '这门课的单元测试都交了，且都是满分',
+      title: '执行：完成这门课没交的单元测试',
+    }),
+  });
+}
+
+/**
+ * 期末考试那一行：只读展示 + 可点（整行去作业考试列表页），**没有执行**——
+ * 期末不自动（设计文档 §2.1）。读不到/不适用时把这门课的实情写在这一行里。
+ *
+ * 两个口径都只由**时间与次数**说：开考了没有看 `startAt`，还能不能做看
+ * `remainCount`。`state` 那个数是平台的原始字段（取值含义属模块 1 的实况），
+ * 这一行不拿它猜措辞。
+ */
+function finalRow(entry: ZhsCourseTask): HTMLElement | null {
+  if (entry.finalExam === null) {
+    if (entry.finalExamNote === null) return null;
+    return buildRow(entry, { board: ZHS_BOARDS[3].id, value: entry.finalExamNote, href: entry.examListUrl });
+  }
+  const exam = entry.finalExam;
+  const parts: string[] = [];
+  if (exam.startAt !== null) {
+    parts.push(Date.now() < exam.startAt ? `${formatDate(exam.startAt)} 开考` : '已开考');
+  }
+  parts.push(exam.remainCount > 0 ? `剩余 ${exam.remainCount} 次` : '已无剩余机会');
+  return buildRow(entry, {
+    board: ZHS_BOARDS[3].id,
+    value: parts.join(' · '),
+    valueTitle: exam.examName,
+    href: entry.examListUrl,
+  });
 }

@@ -19,7 +19,7 @@ import type { ZhihuishuCourse } from '@study-pilot/application';
  * 与 `PlanItem.kind` 同一套取值（计划里就是这么标的），所以待办与执行范围
  * 天然对得上。智慧树的成绩构成有四类，这里先落前两类可执行的两类。
  */
-export type ZhsPendingKind = 'courseware' | 'quiz' | 'meetQuiz';
+export type ZhsPendingKind = 'courseware' | 'quiz' | 'meetQuiz' | 'finalExam';
 
 /** 设置页与弹窗里的一条待办。 */
 export interface ZhsPendingEntry {
@@ -58,6 +58,13 @@ export interface ZhsPendingEntry {
    * 给 0 并在渲染侧据此不显示该位置（不拿 0 冒充「0 分钟」）。
    */
   sec: number;
+  /**
+   * 开考时刻（毫秒）——**只有期末考试有**。
+   *
+   * 它没开考时，行 1 右该说「M-D 开考」而不是「剩余多少天到截止」：
+   * 后者会让人以为现在就能做。没开的期末由渲染侧据它与当前时刻切换措辞。
+   */
+  opensAt: number | null;
 }
 
 /** 一门课没读成的事实（待办里如实呈现，不静默消失——见 pending.ts）。 */
@@ -102,6 +109,35 @@ export interface ZhsCourseTask {
    * 别拿 state 猜，见 exam-list.ts）。
    */
   quiz: { done: number; total: number };
+  /**
+   * 已交单元测试里**未满分**的卷数。
+   *
+   * 成绩取自已交页签条目自带的 score/totalScore 两个字段（平台在清单里就给了，
+   * 不再逐卷多发一次请求）。与 `quiz.done` 一起构成设计文档 §2.1 要的两个口径：
+   * 「已交 3/20 · 其中 1 卷未满分」——进度问「交没交」，这一项问「还是不是满分」。
+   * 测试那两页签没读成时给 0，由 `quizUnreadReason` 明说那一行整体不可信。
+   */
+  quizNotFull: number;
+  /**
+   * 期末考试（taurus 族）。读不到、或这门课的考试形态不是在线（机房/线下
+   * 不走这条接口）时为 null——原因在 `finalExamNote`。
+   */
+  finalExam: {
+    examName: string;
+    /** 1 = 未提交（实测；其余取值原样带出） */
+    state: number;
+    /** 开考/结束时刻（毫秒；解析不出为 null） */
+    startAt: number | null;
+    endAt: number | null;
+    /** 剩余机会 */
+    remainCount: number;
+  } | null;
+  /** 期末那一栏读不到/不适用时的如实一句（可用时为 null） */
+  finalExamNote: string | null;
+  /** 作业考试列表页：单元测试与期末两块的落点（点开不建答卷，见 pages.ts） */
+  examListUrl: string;
+  /** 学习页：教程视频那块的落点 */
+  studyUrl: string;
   /**
    * 测试那两页签没读成的原因（读成时为 null）。
    *

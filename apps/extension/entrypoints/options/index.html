@@ -130,23 +130,32 @@
         </section>
 
         <!--
-          课程任务：每门课一张卡，按**成绩构成组件**报进度（设计文档 §2）——
-          没有「课件」一说，智慧树的组件由平台自己给（学习进度 / 平时测试 /
-          见面课 / 期末），本期能填的是学习进度这一项。
-          课名链到平台成绩分析页；执行期间卡内小字与「停止」见模块注释。
-          上次执行出错行按平台独立（见 zhihuishu-course-tasks 的 renderZhsFailure）。
+          课程任务区：**四张板块卡**（教程视频 → 单元测试 → 见面课 → 期末考试，
+          平台自己的顺序；设计文档 §2.1），一张卡一个板块——四块各有各的进度与
+          「执行」，所以是四张卡而不是一张。卡里一行一门课，四块恒在（数据还没
+          接入的那块由卡里的如实一句承担，不摆空行占位）。
+          没有「课件」一说：智慧树的任务不套慕课那套「课件/待办」二分。
+          失败留痕在四张卡之上：它按平台记（见 application 的 TaskState.platforms），
+          四张卡里没有哪一张独占它。
         -->
-        <section class="panel">
-          <div class="panel-head">
-            <h2 class="panel-title">课程任务</h2>
-            <p class="head-status" id="zhs-tasks-status"></p>
-            <a class="btn ghost" id="zhs-tasks-action" hidden target="_blank" rel="noreferrer"></a>
-          </div>
-          <!-- 等待平台读取：块状骨架（一块），落定时整体换内容 -->
-          <div id="zhs-tasks-list">
-            <span class="skeleton skeleton-block" aria-hidden="true"></span>
-          </div>
-        </section>
+        <!--
+          课程任务这一块的**状态行**（四张卡之上）：上次执行的失败留痕 ＋ 平台给的
+          「下一步」。按平台记（见 application 的 TaskState.platforms），四张卡里
+          没有哪一张独占它，所以它不进任何一张卡——形状照抄课件卡头那条
+          （`.head-status.is-error` ＋ ghost 动作按钮，见 zhihuishu-course-tasks 的
+          renderZhsFailure）：一句说明 ＋ 一个去处，界面上只有这一种形状。
+        -->
+        <div class="panel-head" id="zhs-tasks-head" hidden>
+          <p class="head-status is-error" id="zhs-tasks-status"></p>
+          <a class="btn ghost" id="zhs-tasks-action" hidden target="_blank" rel="noreferrer"></a>
+        </div>
+        <!--
+          四张板块卡（教程视频 → 单元测试 → 见面课 → 期末考试）由 JS 画出：
+          等待时也是这四张（卡里立骨架，markZhsTasksLoading）。板块清单只写在
+          src/adapters/zhihuishu/boards.ts 一处，静态标记里再抄一份，改一处漏一处
+          只是时间问题。
+        -->
+        <div id="zhs-tasks-list"></div>
       </section>
 
       <!-- 页脚：版本与出处。它不是内容，一行弱色就够，不占一张卡 -->

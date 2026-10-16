@@ -36,10 +36,10 @@ describe('normalizeFinalExam', () => {
     expect(exam?.examId).toBe('wDlL1OAw');
   });
 
-  it('时间窗取 startTime/endDate 两个字段，原样带出', () => {
+  it('时间窗解析成毫秒（本地时间口径，与作业清单同一条解析）', () => {
     const [exam] = normalizeFinalExam(sample);
-    expect(exam?.startTime).toBe('2026-11-23 00:00:00');
-    expect(exam?.endTime).toBe('2026-11-29 23:59:59');
+    expect(exam?.startAt).toBe(new Date(2026, 10, 23, 0, 0, 0).getTime());
+    expect(exam?.endAt).toBe(new Date(2026, 10, 29, 23, 59, 59).getTime());
   });
 
   it('剩余机会取 faStudentExamRemainCount；总分按字符串带出', () => {
@@ -60,7 +60,7 @@ describe('normalizeFinalExam', () => {
     const [exam] = normalizeFinalExam([{ id: 'x' }]);
     expect(exam?.examId).toBe('');
     expect(exam?.remainCount).toBe(0);
-    expect(exam?.startTime).toBe('');
+    expect(exam?.startAt).toBeNull();
   });
 
   it('形态枚举与实测一致', () => {

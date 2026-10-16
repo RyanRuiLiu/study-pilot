@@ -23,7 +23,8 @@ import type { ZhihuishuCourse } from '@study-pilot/application';
 import { readSession, selectedCourses } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsCourseTask, ZhsCourseTaskSummary, ZhsResponseMap } from './payload.ts';
-import { collectUnits, countUnitTests, readCourseExams, reportPageUrl } from './reads.ts';
+import { collectUnits, countNotFullUnitTests, countUnitTests, readCourseExams, readFinalExam, reportPageUrl } from './reads.ts';
+import { examListUrl, studyPageUrl } from '../pages.ts';
 
 /**
  * 整门课都没读成时那份：数字一律 0 且 unread 为真。
@@ -39,7 +40,12 @@ function unreadCourse(course: ZhihuishuCourse): ZhsCourseTask {
     reportUrl: reportPageUrl(course.recruitId, course.courseId),
     video: { done: 0, total: 0 },
     quiz: { done: 0, total: 0 },
+    quizNotFull: 0,
     quizUnreadReason: null,
+    finalExam: null,
+    finalExamNote: null,
+    examListUrl: examListUrl(course.recruitId),
+    studyUrl: studyPageUrl(course.secret),
     pending: 0,
     unread: true,
   };
@@ -82,11 +88,37 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
         const videoDone = entry.units.filter((unit) => unit.done).length;
 
         let quiz = { done: 0, total: 0 };
+        let quizNotFull = 0;
         let quizUnreadReason: string | null = null;
         try {
-          quiz = countUnitTests(await readCourseExams(deps.client, course));
+          const tabs = await readCourseExams(deps.client, course);
+          quiz = countUnitTests(tabs);
+          quizNotFull = countNotFullUnitTests(tabs);
         } catch (error) {
           quizUnreadReason = error instanceof Error ? error.message : String(error);
+          partial = true;
+        }
+
+        /*
+         * 期末考试：与待办共用一份读取（reads.ts 的 readFinalExam）——先问形态，
+         * 只有「在线」那条分支才在这条接口上；读不到就如实说，不让空着替数据说话。
+         */
+        let finalExam: ZhsCourseTask['finalExam'] = null;
+        let finalExamNote: string | null = null;
+        try {
+          const reading = await readFinalExam(deps.client, course);
+          finalExamNote = reading.note;
+          if (reading.exam !== null) {
+            finalExam = {
+              examName: reading.exam.examName,
+              state: reading.exam.state,
+              startAt: reading.exam.startAt,
+              endAt: reading.exam.endAt,
+              remainCount: reading.exam.remainCount,
+            };
+          }
+        } catch (error) {
+          finalExamNote = `期末读取失败：${error instanceof Error ? error.message : String(error)}`;
           partial = true;
         }
 
@@ -105,7 +137,12 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
           reportUrl: reportPageUrl(course.recruitId, course.courseId),
           video: { done: videoDone, total: entry.units.length },
           quiz,
+          quizNotFull,
           quizUnreadReason,
+          finalExam,
+          finalExamNote,
+          examListUrl: examListUrl(course.recruitId),
+          studyUrl: studyPageUrl(course.secret),
           pending,
         });
       }

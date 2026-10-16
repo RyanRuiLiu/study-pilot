@@ -9,21 +9,10 @@ import type { MessageHandler, QueryOutcome } from '../../../protocol.ts';
 import { quizItemId, readSession, selectedCourses, unitItemId } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsPendingEntry, ZhsPendingSummary, ZhsResponseMap, ZhsUnreadCourse } from './payload.ts';
-import { collectQuizzes, collectUnits } from './reads.ts';
+import { readFinalExam, collectQuizzes, collectUnits } from './reads.ts';
 
-/*
- * 落点 URL 拼装（两个地址都是摸底记下来的真实页面，不自造）：
- *   学习页    wisdom-mooc 的 study/index?recruitAndCourseId=——执行侧的门也用这个地址
- *   作业考试  考试入口的列表页，**不是某一卷**：dohomework 地址一打开就建答卷，
- *             绝不能做整行点击的落点（设计文档 §5）
- */
-function studyPageUrl(recruitAndCourseId: string): string {
-  return `https://wisdom-mooc.zhihuishu.com/study/index?recruitAndCourseId=${encodeURIComponent(recruitAndCourseId)}`;
-}
-
-function examListUrl(recruitId: number): string {
-  return `https://exam.zhihuishu.com/onlineExam/studentExam/stuExam?recruitId=${recruitId}`;
-}
+// 落点 URL 都在 ../pages.ts（一处拼、界面各处共用；理由见那个文件）
+import { examListUrl, studyPageUrl } from '../pages.ts';
 
 export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
@@ -75,6 +64,52 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
             href: studyPageUrl(course.secret),
             deadline: null, // 课程学习窗口尚未接入；界面上两格如实留空
             sec: unit.sec,
+            opensAt: null,
+          });
+        }
+
+        /*
+         * 期末考试（板块四）。判据就是设计文档 §2.1 的那条：**有这个考试就显**，
+         * 不看开考窗口——它是待办（用户要去做），只是我们不做（只读展示 + 可点）。
+         * 形态是机房/线下时读不到细节，但「有考试」这件事是确定的，也如实列一行；
+         * 没有期末、或形态读不到，则什么都不列（不是待办）。
+         * 真失败（请求抛错）走 unreadCourses 那条既有通道，不静默。
+         */
+        try {
+          const reading = await readFinalExam(deps.client, course);
+          if (reading.exam !== null) {
+            const exam = reading.exam;
+            const notOpen = exam.startAt !== null && Date.now() < exam.startAt;
+            entries.push({
+              itemId: `final:${course.courseId}`,
+              kind: 'finalExam',
+              courseName: course.name,
+              chapterName: '',
+              name: exam.examName,
+              status: notOpen ? '未开始' : '未提交',
+              href: examListUrl(course.recruitId),
+              deadline: exam.endAt,
+              sec: 0,
+              opensAt: exam.startAt,
+            });
+          } else if (reading.form === 2 || reading.form === 3) {
+            entries.push({
+              itemId: `final:${course.courseId}`,
+              kind: 'finalExam',
+              courseName: course.name,
+              chapterName: '',
+              name: '期末考试',
+              status: reading.form === 2 ? '机房考试' : '线下考试',
+              href: examListUrl(course.recruitId),
+              deadline: null,
+              sec: 0,
+              opensAt: null,
+            });
+          }
+        } catch (error) {
+          unreadCourses.push({
+            courseName: course.name,
+            reason: `期末读取失败：${error instanceof Error ? error.message : String(error)}`,
           });
         }
 
@@ -96,6 +131,7 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
             href: examListUrl(course.recruitId),
             deadline: item.deadline,
             sec: 0, // 单元测试没有时长；渲染侧据此不显示时长位
+            opensAt: null,
           });
         }
       }

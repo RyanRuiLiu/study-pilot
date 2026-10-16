@@ -9,14 +9,15 @@
  *   .course-row  16px | minmax(0,1fr) | auto        （勾选行）
  *   .cw-row      minmax(0,1fr) | 96px | auto        （数据行）
  *   .todo-item   minmax(0,1fr) | auto（两行）        （待办条）
- *   .ct-card     卡片：头行 + 若干「官方名 — 官方数」组件行  （课程任务卡）
+ *   .ct-row      minmax(0,1fr) | auto | auto        （板块行）
  * 两条规矩（见规格文档第 4 节）：
  *   「状态贴文字」——徽标跟标题后、「执行」跟处置句后、运行明细跟课名后；
  *   「时间归右列」——剩余时间/日期/进度右对齐、等宽数字，与状态无关不横移。
- * 加新行必须从这四条模板里挑，或先更新规格文档并在此登记。
- * `.ct-card` 是 2026-10-17 登记进来的：它承载的不是一条记录而是一组
- * 「官方名 + 官方数」（智慧树的成绩构成组件，设计文档 §2），
- * 与 `.cw-row` 的「一条记录三列」不是同一种形状，因此另立模板而不是硬塞。
+ * 加新行必须从这四条模板里挑，或在此登记。
+ * `.ct-row` 是 2026-10-17 登记进来的：智慧树四张板块卡里的一行一门课
+ * （设计文档 §2.1）。与 `.cw-row` 只差数据列——板块的数据是一句话
+ * （「已交 3/20 · 其中 1 卷未满分」），宽度随内容；`.cw-row` 那个 96px
+ * 装的是「已学 12/64」，两句不是同一种宽度。整行可点，因此这一行要定位。
  */
 
 /* ---------- 面板 ---------- */
@@ -265,9 +266,8 @@
 
 /* 运行态：整行浅主色底（水平向外 8px 出血，保持列对齐）；
    进度不撤，动作列原地变成「停止」（按钮身份由 courseware.ts 切换）。
-   课程任务卡同理——两个模板共用这一条，出血与配色只写一次 */
-.cw-row.is-running,
-.ct-card.is-running {
+   课件与课程任务两个页面共用这一条，出血与配色只写一次 */
+.cw-row.is-running {
   background: var(--accent-wash);
   border-radius: var(--radius-sm);
   padding-right: var(--space-8);
@@ -276,35 +276,45 @@
   margin-left: calc(var(--space-8) * -1);
 }
 
-/* ---------- 课程任务卡（设置页·智慧树） ---------- */
+/* ---------- 板块行（设置页·智慧树四张板块卡） ---------- */
 
 /*
- * 一门课一张卡：头行是课名（链到平台成绩分析页）、运行明细与动作，
- * 下面逐行是这门课的成绩构成组件——**左官方名、右官方数**。
- * 卡与卡之间用发丝线分隔，不打成两个面板（同属「课程任务」这一块）。
+ * 一行一门课：课名（链成绩分析页）| 数据 | 动作。
+ * **整行可点**——垫底一条透明长链接去「这一块」在平台上的页面（同弹窗
+ * `.todo-open` 的手法）；课名与「执行」浮在它之上，各管各的点击语义。
  */
-.ct-card {
+.ct-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  column-gap: var(--space-12);
+  align-items: center;
   padding: var(--space-8) 0;
 }
 
-.ct-card + .ct-card {
-  border-top: 1px solid var(--line);
+/* 指向与运行态：整行铺底（水平向外 8px 出血，保持列对齐） */
+.ct-row:hover,
+.ct-row.is-running {
+  border-radius: var(--radius-sm);
+  padding-right: var(--space-8);
+  padding-left: var(--space-8);
+  margin-right: calc(var(--space-8) * -1);
+  margin-left: calc(var(--space-8) * -1);
 }
 
-.ct-head {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-8);
-  min-width: 0;
-  padding: var(--space-4) 0;
+.ct-row:hover {
+  background: var(--hover);
 }
 
-.ct-head > .cw-group {
-  flex: 1 1 auto;
+.ct-row.is-running {
+  background: var(--accent-wash);
 }
 
-/* 课名：平台成绩分析页的入口。链上表现与「账号与课程」的课名同一套 */
+/* 课名：平台成绩分析页的入口。链上表现与「账号与课程」的课名同一套；
+   浮在整行长链接之上，点击语义归它 */
 .ct-name {
+  position: relative;
+  z-index: 1;
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -326,30 +336,11 @@
   outline-offset: 2px;
 }
 
-.ct-head > .btn {
-  flex: none;
-  align-self: center;
-}
-
-/* 组件行：左名字可省略、右数字右对齐等宽（与「时间归右列」同一条规矩） */
-.ct-parts {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: var(--space-12);
-  row-gap: var(--space-4);
-}
-
-.ct-label {
-  font-size: var(--text-sm);
-  color: var(--ink-soft);
-}
-
-.ct-value {
+/* 动作列：按钮同样浮在长链接之上 */
+.ct-row .btn {
+  position: relative;
+  z-index: 1;
   justify-self: end;
-  text-align: right;
-  font-size: var(--text-sm);
-  color: var(--ink-faint);
-  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- 待办条（弹窗） ---------- */

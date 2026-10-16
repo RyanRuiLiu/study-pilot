@@ -189,7 +189,7 @@ function num(value: unknown): number {
  * 串里不带时区，按**本地时间**解析——平台自己的显示语义就是本地时间，换时区解释会差几小时。
  * 形态不符或解析出 NaN 一律给 null：宁可在界面上留空，也不要一个错的时间。
  */
-function parsePlatformTime(value: unknown): number | null {
+export function parsePlatformTime(value: unknown): number | null {
   if (typeof value !== 'string') return null;
   const matched = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(value.trim());
   if (matched === null) return null;
