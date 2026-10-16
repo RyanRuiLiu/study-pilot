@@ -62,6 +62,7 @@ export {
   getOpenQuizInfo,
   getQuizPaper,
   buildAnswers,
+  loadSubmittedPaper,
   saveDraft,
   submitQuiz,
   type OpenQuizInfo,

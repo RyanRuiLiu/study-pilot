@@ -183,6 +183,50 @@ export function buildAnswers(paper: QuizPaper, now: number = Date.now()): BuildA
 // 且提交时 answers 保留原样，并不清空。
 
 /**
+ * 取一份既有答卷的题目（连同答案），供「查看答案」用。
+ *
+ * 统一用于测验与考试（客观题）：两者共用 mocQuizRpcBean 一族——
+ *   ① `getQuizInfo(tid)` 顶层的 `targetAnswerform.aid` 是当前活跃/最近一份答卷；
+ *      从未作答时为 null（没有既有答卷就如实说明，不新开一份：开卷在考试上是
+ *      「开始考试」的副作用，绝不能为看答案触发）。
+ *   ② 用该 aid 取卷并带 `withStdAnswerAndAnalyse: true`：对已存在的答卷是纯读，
+ *      答案随卷面下发（选项标记 / stdAnswer / 主观题 analyse）。
+ *
+ * 门控如实呈现：平台在未到放答案的时点不会给答案（卷面没有标记），
+ * 调用方据 `unanswered` / 无答案计数如实显示，绝不猜。
+ *
+ * @param aid 指定看哪一份答卷（考试页 URL 里的 targetAid）；缺省取 targetAnswerform。
+ */
+export async function loadSubmittedPaper(
+  client: MoocClient,
+  tid: number,
+  aid?: number,
+): Promise<
+  | { ok: true; aid: number; paper: QuizPaper }
+  | { ok: false; reason: 'no-submission' | 'fetch-failed'; message: string }
+> {
+  let targetAid = aid ?? null;
+  if (targetAid === null) {
+    const info = await getQuizInfo(client, tid);
+    if (!info.ok) {
+      return { ok: false, reason: 'fetch-failed', message: info.error.message };
+    }
+    const form = (info.value as { targetAnswerform?: { aid?: unknown } | null }).targetAnswerform;
+    const candidate = typeof form?.aid === 'number' ? form.aid : null;
+    if (candidate === null) {
+      return { ok: false, reason: 'no-submission', message: '还没有作答过，没有可查看的答卷' };
+    }
+    targetAid = candidate;
+  }
+
+  const paper = await getQuizPaper(client, tid, targetAid);
+  if (!paper.ok) {
+    return { ok: false, reason: 'fetch-failed', message: paper.error.message };
+  }
+  return { ok: true, aid: targetAid, paper: paper.value };
+}
+
+/**
  * 保存草稿。请求携带 `answers`，答案由此落到服务端答题表单。
  */
 export async function saveDraft(

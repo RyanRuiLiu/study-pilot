@@ -122,6 +122,13 @@ export type MoocRequest =
   | { type: 'MOOC_COURSEWARE_SUMMARY' }
   /** 一份作业卷的题目（得分指导注入用） */
   | { type: 'MOOC_HOMEWORK_PAPER'; tid: number }
+  /**
+   * 一份**既有答卷**的题目与答案（「查看答案」注入用；测验与考试统一）。
+   *
+   * 只读：取不到既有答卷（从未作答）时如实返回失败——绝不新开一份，
+   * 那在考试上等价于点「开始考试」（有副作用）。
+   */
+  | { type: 'MOOC_PAPER_ANSWERS'; tid: number; aid?: number }
 ;
 
 /** 课程列表里的一条：界面只需要名字与 termId 用来显示与勾选。 */
@@ -159,4 +166,5 @@ export interface MoocResponseMap {
   MOOC_PENDING_SUMMARY: QueryOutcome<PendingSummary>;
   MOOC_COURSEWARE_SUMMARY: QueryOutcome<CoursewareSummary>;
   MOOC_HOMEWORK_PAPER: QueryOutcome<PaperQuestion[]>;
+  MOOC_PAPER_ANSWERS: QueryOutcome<PaperQuestion[]>;
 }

@@ -53,7 +53,13 @@ export function coursePageUrl(course: {
  *
  * 与 `SnapshotWork['type']` 里的工作项类型同一套叫法，测验、作业与两种考试。
  */
-export type WorkKind = 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective';
+export type WorkKind =
+  | 'quiz'
+  | 'quiz-score'
+  | 'homework'
+  | 'exam-objective'
+  | 'exam-score'
+  | 'exam-subjective';
 
 /** 页面上认出来的位置：四类作答区之外统一算 `other`。 */
 export type WorkView = WorkKind | 'other';
@@ -67,8 +73,10 @@ export type WorkView = WorkKind | 'other';
  */
 const WORK_ROUTE: Record<WorkKind, string> = {
   quiz: 'learn/quiz',
+  'quiz-score': 'learn/quizscore',
   homework: 'learn/hw',
   'exam-objective': 'learn/examObject',
+  'exam-score': 'learn/examObjectScore',
   'exam-subjective': 'learn/examSubjective',
 };
 

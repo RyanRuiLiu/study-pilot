@@ -9,10 +9,17 @@
  */
 
 import { sendToBackground } from '../../../messages.ts';
+import type { AnswerLoader } from './answers.ts';
 import type { QuestionLoader } from './index.ts';
 
 /** 取不到时返回 null，由调用方决定不注入。 */
 export const loadQuestions: QuestionLoader = async (tid) => {
   const outcome = await sendToBackground({ type: 'MOOC_HOMEWORK_PAPER', tid });
+  return outcome.status === 'ok' ? outcome.value : null;
+};
+
+/** 「查看答案」的取数：后台读一份既有答卷（只读；从未作答时如实失败）。 */
+export const loadAnswers: AnswerLoader = async (tid) => {
+  const outcome = await sendToBackground({ type: 'MOOC_PAPER_ANSWERS', tid });
   return outcome.status === 'ok' ? outcome.value : null;
 };
