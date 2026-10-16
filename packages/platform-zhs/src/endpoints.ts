@@ -33,6 +33,8 @@ export const ZHS_HOSTS = {
   key: 'https://appcomm-user.zhihuishu.com',
   /** 见面课与成绩分析域（FINDINGS §二十二：接口**免签明文**，只需 CAS SSO） */
   stuonline: 'https://stuonline.zhihuishu.com',
+  /** 见面课网页域（考试应用菜单里的实名地址：`//online.zhihuishu.com/onlineSchool/teachMeeting/stuList`） */
+  onlineWeb: 'https://online.zhihuishu.com',
 } as const;
 export type ZhsHost = keyof typeof ZHS_HOSTS;
 
