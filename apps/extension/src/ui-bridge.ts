@@ -31,8 +31,8 @@ export type { Settings } from './settings';
 export type {
   ZhsPendingEntry,
   ZhsPendingKind,
-  ZhsCoursewareProgress,
-  ZhsCoursewareSummary,
+  ZhsCourseTask,
+  ZhsCourseTaskSummary,
 } from './messages.ts';
 export type { ZhihuishuCourse } from './settings';
 
@@ -88,9 +88,9 @@ export function getZhsPending() {
   return sendToBackground({ type: 'ZHS_PENDING_SUMMARY' });
 }
 
-/** 智慧树课件进度：每门课的完成计数（只读）。 */
-export function getZhsCourseware() {
-  return sendToBackground({ type: 'ZHS_COURSEWARE_SUMMARY' });
+/** 智慧树课程任务：每门课的成绩构成组件进度（只读）。 */
+export function getZhsCourseTasks() {
+  return sendToBackground({ type: 'ZHS_COURSE_TASKS' });
 }
 
 /**

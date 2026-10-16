@@ -39,8 +39,8 @@ export type {
   ZhsResponseMap,
   ZhsPendingEntry,
   ZhsPendingKind,
-  ZhsCoursewareProgress,
-  ZhsCoursewareSummary,
+  ZhsCourseTask,
+  ZhsCourseTaskSummary,
 } from './adapters/zhihuishu/messages/payload.ts';
 
 /** 外壳自己的命令。 */

@@ -56,8 +56,8 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
       for (const { course, units, unreadReason } of collected) {
         /*
          * 读不到的课必须被看见：它们的单元进不了 entries，若这里不记一笔，
-         * 界面就会得出「这门课没有要看的」这个错误结论（课件卡对同一份读取
-         * 结果报「未读取到内容」，待办这边曾经静默吞掉）。
+         * 界面就会得出「这门课没有要看的」这个错误结论（课程任务卡对同一份
+         * 读取结果会明说「未读取到内容」，待办这边曾经静默吞掉）。
          */
         if (unreadReason !== null) {
           unreadCourses.push({ courseName: course.name, reason: unreadReason });

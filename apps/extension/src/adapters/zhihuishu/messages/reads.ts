@@ -1,7 +1,7 @@
 /*
  * 智慧树的读取原语：按勾选的课程收集单元表。
  *
- * 课件概要（每门课一行）与待办（逐单元一条）看的是**同一份读取结果**——
+ * 课程任务（每门课一行组件）与待办（逐单元一条）看的是**同一份读取结果**——
  * 都由这里收一次，上层各自映射。各读各的会让设置页一开就发两遍同样的请求，
  * 而两处显示的是同一件事（慕课那边靠 CoursewareSummary 合并也是这个理由）。
  *
@@ -15,6 +15,7 @@ import {
   getCourseUnits,
   getExamList,
   isActionable,
+  MEET_COURSE_TYPE,
   quizItemId,
   readCourseChapters,
   unitItemId,
@@ -71,7 +72,7 @@ export async function collectUnits(
   return results;
 }
 
-/** 按课程分组的单元条目（待办与课件共用的形状）。 */
+/** 按课程分组的单元条目（待办与课程任务共用的形状）。 */
 export { unitItemId };
 
 /** 一门课里还没做的单元测试（待办里与教程视频并列的那一类）。 */
@@ -130,3 +131,65 @@ export async function collectQuizzes(
 
 /** 单元测试条目的计划项 id（与执行侧同一份取名规则）。 */
 export { quizItemId };
+
+/**
+ * 平台成绩分析页（点课名打开）。
+ *
+ * 地址取自 FINDINGS §二十二 记的真实入口 `stuonline /stuLearnReportNew/index?recruitId=&courseId=`，
+ * 不拼猜测的域名——那个域在本项目的记录里有据（`stuonline.zhihuishu.com`）。
+ */
+export function reportPageUrl(recruitId: number, courseId: number): string {
+  return `https://stuonline.zhihuishu.com/stuonline/stuLearnReportNew/index?recruitId=${recruitId}&courseId=${courseId}`;
+}
+
+/** 一门课两个页签的作业条目（未交 / 已交）。 */
+export interface CourseExamTabs {
+  /** 未交页签（flag=1） */
+  pending: ZhsExamListItem[];
+  /** 已交页签（flag=2） */
+  submitted: ZhsExamListItem[];
+}
+
+/**
+ * 读一门课的两个页签。
+ *
+ * 与 `collectQuizzes` 分开：那份只列**执行会动的**（未交页签 + `state=1` + 章节对得上），
+ * 供待办用；这一份要的是**全部单元测试**，供「学习进度·测试」计数。
+ * 判据不同——拿执行范围去报进度，进度就永远不是真的进度。
+ */
+export async function readCourseExams(
+  client: ZhsClient,
+  course: ZhihuishuCourse,
+): Promise<CourseExamTabs> {
+  const base = { recruitId: course.recruitId, courseId: course.courseId };
+  const [pending, submitted] = [
+    await getExamList(client, { ...base, submitted: false }),
+    await getExamList(client, { ...base, submitted: true }),
+  ];
+  return { pending, submitted };
+}
+
+/**
+ * 单元测试的完成计数（纯函数：两个页签 → 分数）。
+ *
+ * 两件事都在这里定死：
+ *   - **只数单元测试**（`meetCourseType=0`）——见面课测验是另一个组件，
+ *     混进来会让「学习进度·测试」变成两样东西的和；
+ *   - **按条目 id 去重**。真机实测（2026-10-17，沙箱课）两页签不重叠：
+ *     未交 17 条（含 1 条 `state=5`）＋ 已交 3 条 ＝ 20 条，正好二十章。
+ *     去重是防「重做留下第二条目」把分母撑大——数错不如数稳。
+ *     同一 id 若真同时出现，以**已交页签**为准（那才是平台判的交没交）。
+ */
+export function countUnitTests(tabs: CourseExamTabs): { done: number; total: number } {
+  const unitTests = (items: readonly ZhsExamListItem[]): ZhsExamListItem[] =>
+    items.filter((item) => item.meetCourseType === MEET_COURSE_TYPE.unitTest);
+
+  const ids = new Set<string>();
+  for (const item of [...unitTests(tabs.pending), ...unitTests(tabs.submitted)]) ids.add(item.id);
+
+  const doneIds = new Set<string>();
+  for (const item of unitTests(tabs.submitted)) doneIds.add(item.id);
+
+  // 已交页签里的条目必然也在 ids 里（它就是那么进去的），所以直接取大小
+  return { done: doneIds.size, total: ids.size };
+}

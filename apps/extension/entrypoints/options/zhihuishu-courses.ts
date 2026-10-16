@@ -1,7 +1,7 @@
 /*
  * 智慧树「账号与课程」卡：读取课程列表、勾选参与。
  *
- * 「参与」是任务的范围：弹窗的待办与课件区都只算勾选过的课程。
+ * 「参与」是任务的范围：弹窗的待办与课程任务卡都只算勾选过的课程。
  *
  * 与慕课那张卡的差别：课程行没有学期时间轴可显示，课程名也不做站外链接——
  * 平台的课程入口参数（secret）只在库内使用，学习页 URL 随课程世代而异
@@ -15,7 +15,7 @@
 import { getZhsCourses, getZhsSession, refreshZhsCourses, updateSettings, getSettings } from '../../src/ui-bridge';
 import type { ZhihuishuCourse } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
-import { refreshZhsCourseViews } from './zhihuishu-courseware.ts';
+import { refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
 import { note } from './note.ts';
 import { markZhsStatusLineLoading } from './zhihuishu-status-line.ts';
 import { skeletonBlock } from './skeleton.ts';
@@ -57,8 +57,8 @@ async function toggle(courseId: number, enabled: boolean): Promise<void> {
   );
   await updateSettings({ zhihuishu: { courses } });
   toast(enabled ? '已加入任务范围' : '已移出任务范围');
-  // 参与范围变了：课件区与状态行都按它算——一起重读
-  void refreshZhsCourseViews();
+  // 参与范围变了：课程任务卡与状态行都按它算——一起重读
+  void refreshZhsTaskViews();
 }
 
 export async function renderZhsCourses(): Promise<void> {
@@ -97,8 +97,8 @@ export async function renderZhsCourses(): Promise<void> {
 /**
  * 「读取课程列表」按钮：**把首次加载原样再跑一遍**（与慕课同一条交互标准）。
  *
- * 进入等待：点击那一刻，课程列表、卡头状态行、课件区三块同时换骨架；
- * 落定与首次加载同一套长相：成功 → 列表落定为新内容，状态行与课件区随后重读；
+ * 进入等待：点击那一刻，课程列表、卡头状态行、课程任务卡三块同时换骨架；
+ * 落定与首次加载同一套长相：成功 → 列表落定为新内容，状态行与课程任务卡随后重读；
  * 未登录 → 列表落为未登录指引；失败 → 列表落为错误行——不回落旧列表、
  * 不另弹失败 toast（那都会让「点了没读成」看起来像什么都没发生）。
  */
@@ -108,8 +108,8 @@ export function initZhsCourseActions(): void {
     if (button instanceof HTMLButtonElement) button.disabled = true;
     const listEl = document.getElementById('zhs-course-list');
     if (listEl !== null) listEl.replaceChildren(skeletonBlock());
-    const coursewareEl = document.getElementById('zhs-courseware-list');
-    if (coursewareEl !== null) coursewareEl.replaceChildren(skeletonBlock());
+    const tasksEl = document.getElementById('zhs-tasks-list');
+    if (tasksEl !== null) tasksEl.replaceChildren(skeletonBlock());
     markZhsStatusLineLoading();
     void refreshZhsCourses()
       .then((result) => {
@@ -121,11 +121,11 @@ export function initZhsCourseActions(): void {
         } else {
           listEl?.replaceChildren(note(`读取失败：${result.message ?? result.reason}`, true));
         }
-        void refreshZhsCourseViews();
+        void refreshZhsTaskViews();
       })
       .catch((error: unknown) => {
         listEl?.replaceChildren(note(`读取失败：${errorText(error)}`, true));
-        void refreshZhsCourseViews();
+        void refreshZhsTaskViews();
       })
       .finally(() => {
         if (button instanceof HTMLButtonElement) button.disabled = false;
