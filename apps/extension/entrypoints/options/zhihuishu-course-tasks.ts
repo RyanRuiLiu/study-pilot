@@ -475,7 +475,7 @@ function meetRow(entry: ZhsCourseTask): HTMLElement {
       board: ZHS_BOARDS[2].id,
       value: '见面课未读取到',
       valueTitle: entry.meetSessionsNote,
-      href: meetPageUrl(),
+      href: meetPageUrl(entry.recruitId),
     });
   }
 
@@ -495,7 +495,7 @@ function meetRow(entry: ZhsCourseTask): HTMLElement {
     valueTitle: unread
       ? `作业清单读取失败：${entry.quizUnreadReason ?? ''}`
       : '场次来自见面课页自己的接口；测验与单元测试同一份作业清单。考勤＝看直播或回放满 80%（学校口径）',
-    href: meetPageUrl(),
+    href: meetPageUrl(entry.recruitId),
   });
 }
 

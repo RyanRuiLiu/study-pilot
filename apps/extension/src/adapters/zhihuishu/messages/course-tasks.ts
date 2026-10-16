@@ -37,6 +37,7 @@ import { examListUrl, studyPageUrl } from '../pages.ts';
 async function unreadCourse(course: ZhihuishuCourse): Promise<ZhsCourseTask> {
   return {
     courseId: course.courseId,
+    recruitId: course.recruitId,
     courseName: course.name,
     video: { done: 0, total: 0 },
     quiz: { done: 0, total: 0 },
@@ -160,6 +161,7 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
 
         courses.push({
           courseId: course.courseId,
+          recruitId: course.recruitId,
           courseName: course.name,
           video: { done: videoDone, total: entry.units.length },
           quiz,

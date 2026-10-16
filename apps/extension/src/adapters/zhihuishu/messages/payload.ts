@@ -96,6 +96,8 @@ export interface ZhsPendingSummary {
  */
 export interface ZhsCourseTask {
   courseId: number;
+  /** 报名（学期）id——见面课页那类落点要以它为单位 */
+  recruitId: number;
   courseName: string;
   /** 学习进度·教程：已完成的视频单元 / 全部视频单元 */
   video: { done: number; total: number };

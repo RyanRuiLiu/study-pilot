@@ -37,14 +37,16 @@ export async function examListUrl(recruitId: number, studyUrl: string): Promise<
 }
 
 /**
- * 见面课页：见面课那一行的落点。
+ * 见面课页：见面课那一行的落点。**新版（V2）**，Ryan 2026-10-17 指出
+ * `online.zhihuishu.com/onlineSchool/teachMeeting/stuList` 是旧版 UI，不用它。
  *
- * 地址取自考试应用的见面课菜单（`//online.zhihuishu.com/onlineSchool/teachMeeting/stuList`，
- * 机器读出）；场次、回放与见面课测验都在那一页上，**考勤（看回放满 80%）也得从那儿进**——
+ * V2 的实名从站点自己的代码里读出（`//stuonline.zhihuishu.com/stuonline/
+ * teachMeeting/stuListV2?recruitId=`，与 FINDINGS §7 记的 `stuListV2` 一致）。
+ * 场次、回放与见面课测验都在那一页上，**考勤（看回放满 80%）也从那儿进**——
  * 回放跑在 lc 域的播放器里，协议还没核（FINDINGS §二十五）。
  */
-export function meetPageUrl(): string {
-  return 'https://online.zhihuishu.com/onlineSchool/teachMeeting/stuList';
+export function meetPageUrl(recruitId: number): string {
+  return `https://stuonline.zhihuishu.com/stuonline/teachMeeting/stuListV2?recruitId=${recruitId}`;
 }
 
 /** 成绩分析页：课名的落点（组件口径的唯一事实源，见 FINDINGS §二十二）。 */
