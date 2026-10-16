@@ -92,7 +92,15 @@ function parseArgs(argv) {
     const token = argv[i];
     if (token.startsWith('--')) {
       const key = token.slice(2);
-      if (key === 'no-ext' || key === 'allow-write' || key === 'help' || key === 'list') out[key] = true;
+      if (
+        key === 'no-ext' ||
+        key === 'allow-write' ||
+        key === 'help' ||
+        key === 'list' ||
+        key === 'check' ||
+        key === 'preview'
+      )
+        out[key] = true;
       else if (key === 'eval') (out.eval ??= []).push(argv[++i]);
       else out[key] = argv[++i];
     } else {
@@ -919,6 +927,475 @@ async function cmdShot(opts) {
   }
 }
 
+// ---------------------------------------------------------------- 扩展图标
+
+/*
+ * 生成并核对扩展图标（pnpm probe icon）。
+ *
+ * 为什么生成脚本在本文件里，而不是另起一个一次性脚本
+ * -------------------------------------------------
+ * 图标是跟着主题走的产物：主题改一次，五个尺寸都得重出。上一版生成脚本
+ * （make-icons.mjs）被当作一次性脚本删掉之后，图标就成了没有源文件的二进制——
+ * 主题从墨绿换成群青时它没跟上，而脚本里那句「与 tokens.css 的 --accent 一致」
+ * 的注释早已不成立（2026-10-17 照这条线索查出）。收进本文件，改主题后跑一次即可。
+ *
+ * 满幅，不是四周留白
+ * ------------------
+ * Chrome 应用商店的图片规范要求 128 的图里实际图形为 96x96、四周各留 16 像素
+ * 透明留白（developer.chrome.com/docs/webstore/images#icons，2026-10-17 核对原文：
+ * "The actual icon size should be 96x96 … an additional 16 pixels per side should
+ * be transparent padding"）。那条管的是 128 这一张，用于安装弹窗与商店展示；
+ * **工具栏尺寸（16/32/48）的文档里没有任何留白要求**，Chrome 也不会替工具栏图标
+ * 补边框或投影。此前把商店那条套用到了全部尺寸上，代价是工具栏里这个图标比同排的
+ * 其他扩展小一圈（Ryan 2026-10-17 指出，要求改为满幅）。商店那张若日后要单独交，
+ * 把 ICON_CONTENT_RATIO 调回 0.75 另出一张即可。
+ *
+ * 色值与字体从 tokens.css 现读
+ * ---------------------------
+ * 不在本文件重抄。手抄必然对不上——上一版就是这么漂的。现读之后，「图标用的是
+ * 主题色与主题字体」由机制保证，不再由注释保证（tokens.ts 与 tokens-parity.test.ts
+ * 治的是同一个病）。
+ */
+
+/** 扩展图标目录。WXT 的约定：public/icon/ 下的 PNG 自动进清单的 icons。 */
+const ICON_DIR = path.join(ROOT, 'apps', 'extension', 'public', 'icon');
+/**
+ * 出这几个尺寸。Chrome 文档给的用途：16 扩展页面的图标与右键菜单、32 Windows
+ * 工具栏、48 扩展管理页、128 安装弹窗与商店。96 不在 Chrome 那张表里，是 WXT
+ * 约定的补充尺寸（其他 Chromium 浏览器与高分屏用）。
+ */
+const ICON_SIZES = [16, 32, 48, 96, 128];
+/** 主画布。各尺寸都由它逐级折半缩出，五个尺寸保证是同一个形状。 */
+const ICON_MASTER_SIZE = 1024;
+/** 图形占整幅的比例。1＝满幅（理由见本节开头）。 */
+const ICON_CONTENT_RATIO = 1;
+/** 圆角占图形的比例。0.22 是应用图标的通行比例（iOS 的连续圆角为 22.37%）。 */
+const ICON_RADIUS_RATIO = 0.22;
+/** 字母字号占图形的比例，沿用原图标（0.62 × 方块）。 */
+/**
+ * 字母字号占图形的比例，沿用原图标（0.62 × 方块）。
+ *
+ * 试过 0.76：16px 更清楚，但 128 显得挤，也与原图标的比例断了。新主题的语体是
+ * 靠留白、更安静，0.62 更贴。要换只改这一个数（对照图：pnpm probe icon --preview）。
+ */
+const ICON_LETTER_RATIO = 0.62;
+/** 图形上的字母：品牌首字母。 */
+const ICON_LETTER = 'S';
+
+/**
+ * 从 tokens.css 现读品牌色与字体。
+ *
+ * 读不到就失败，不退回一个编出来的值：图标是提交进仓库的正式产物，
+ * 「某个色」比「主题色」危险得多。
+ */
+function readBrandTokens() {
+  const css = readFileSync(path.join(ROOT, 'apps/extension/src/ui/tokens.css'), 'utf8');
+  const pick = (name) => {
+    const found = css.match(new RegExp(`${name}:\\s*([^;]+);`));
+    if (!found?.[1]) die(`tokens.css 里没有 ${name}，图标无从取色`);
+    return found[1].replace(/\s+/g, ' ').trim();
+  };
+  return {
+    accent: pick('--accent'),
+    onAccent: pick('--on-accent'),
+    font: pick('--font'),
+    paper: pick('--paper'),
+    ink: pick('--ink'),
+    inkFaint: pick('--ink-faint'),
+    textSm: pick('--text-sm'),
+    textMd: pick('--text-md'),
+  };
+}
+
+async function cmdIcon(opts) {
+  const brand = readBrandTokens();
+  const dir = opts.dir ? path.resolve(ROOT, opts.dir) : ICON_DIR;
+
+  /*
+   * 自己起一只**无头**浏览器，不走 acquire()：acquire 那只带登录 profile、
+   * 且有窗口是给人看的（见 launch 的注释），画图标两样都不需要——为画一张
+   * canvas 弹出窗口，看起来像出事了。这里只要一块 canvas。
+   */
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    if (!opts.check) await drawIcons(page, dir, brand);
+    await checkIcons(page, dir, brand);
+    if (opts.preview) await previewIcons(page, dir, brand);
+  } finally {
+    await browser.close();
+  }
+}
+
+/** 在页面里画主画布、缩出各尺寸，写进目录。 */
+async function drawIcons(page, dir, brand) {
+  const drawn = await page.evaluate(
+    async ({ brand, letter, masterSize, sizes, contentRatio, radiusRatio, letterRatio }) => {
+      const blank = (w, h) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        return canvas;
+      };
+      const smoothDraw = (source, size) => {
+        const canvas = blank(size, size);
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(source, 0, 0, size, size);
+        return canvas;
+      };
+
+      const master = blank(masterSize, masterSize);
+      const ctx = master.getContext('2d');
+      const content = masterSize * contentRatio;
+      const offset = (masterSize - content) / 2;
+      const center = masterSize / 2;
+
+      ctx.fillStyle = brand.accent;
+      ctx.beginPath();
+      ctx.roundRect(offset, offset, content, content, content * radiusRatio);
+      ctx.fill();
+
+      /*
+       * 字母按**墨迹范围**定位，不用 textBaseline: 'middle'，也不用 textAlign
+       * 默认的中心：那两个对的是字体度量线和字宽，而字母的墨迹在两条轴上都不对称
+       * （旧版实测垂直方向偏上，128 的图里偏 6px）。actualBoundingBox* 给的是墨迹
+       * 四边相对对齐点的距离，用它把墨迹中心压到方块中心。
+       */
+      const fontSize = Math.round(content * letterRatio);
+      ctx.font = `700 ${fontSize}px ${brand.font}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const ink = ctx.measureText(letter);
+      ctx.fillStyle = brand.onAccent;
+      ctx.fillText(
+        letter,
+        center - (ink.actualBoundingBoxRight - ink.actualBoundingBoxLeft) / 2,
+        center + (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2,
+      );
+
+      /*
+       * 报出真正生效的是字体栈里的哪一族。图标是提交进仓库的二进制，换一台机器
+       * 重生成时字形可能就变了（栈里的 HarmonyOS Sans SC / MiSans / PingFang SC
+       * 多数机器都没装），所以把它报出来，而不是假设。
+       * 判法：逐族把候选字体与 monospace 并排量同一个字母，宽度不同即该族存在。
+       */
+      const families = brand.font.split(',').map((part) => part.trim().replace(/^['"]|['"]$/g, ''));
+      const probe = blank(8, 8).getContext('2d');
+      probe.font = `700 ${fontSize}px monospace`;
+      const monoWidth = probe.measureText(letter).width;
+      const resolved =
+        families.find((family) => {
+          probe.font = `700 ${fontSize}px "${family}", monospace`;
+          return Math.abs(probe.measureText(letter).width - monoWidth) > 0.01;
+        }) ?? '(栈里的字体都没装，落到浏览器默认无衬线)';
+
+      const out = {};
+      for (const size of sizes) {
+        // 逐级折半再落到目标尺寸：一次缩 64 倍会糊，折半的滤波是可证的
+        let current = master;
+        let dim = masterSize;
+        while (dim % 2 === 0 && dim / 2 >= size) {
+          dim /= 2;
+          current = smoothDraw(current, dim);
+        }
+        if (dim !== size) current = smoothDraw(current, size);
+        out[size] = current.toDataURL('image/png');
+      }
+      return { out, resolved, fontSize };
+    },
+    {
+      brand,
+      letter: ICON_LETTER,
+      masterSize: ICON_MASTER_SIZE,
+      sizes: ICON_SIZES,
+      contentRatio: ICON_CONTENT_RATIO,
+      radiusRatio: ICON_RADIUS_RATIO,
+      letterRatio: ICON_LETTER_RATIO,
+    },
+  );
+
+  console.log(`主题色 ${brand.accent}／字母色 ${brand.onAccent}（现读 tokens.css）`);
+  console.log(`主画布 ${ICON_MASTER_SIZE}，图形占 ${ICON_CONTENT_RATIO * 100}%，字母 ${drawn.fontSize}px`);
+  console.log(`字母实际字体：${drawn.resolved}`);
+
+  mkdirSync(dir, { recursive: true });
+  for (const size of ICON_SIZES) {
+    const base64 = drawn.out[size].replace(/^data:image\/png;base64,/, '');
+    if (!base64) die(`${size}.png 没画出来`);
+    writeFileSync(path.join(dir, `${size}.png`), Buffer.from(base64, 'base64'));
+  }
+  console.log(`已写入 ${rel(dir)}`);
+}
+
+/**
+ * 在页面里量一张图标（浏览器侧执行，不得引用本文件的任何东西）。
+ * 返回尺寸、不透明像素的范围、四角 alpha、主题色占比、字母墨迹的包围盒。
+ */
+function measureIcon({ dataUrl, accent, onAccent }) {
+  const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const near = (r, g, b, target, tolerance) =>
+    Math.abs(r - target[0]) <= tolerance &&
+    Math.abs(g - target[1]) <= tolerance &&
+    Math.abs(b - target[2]) <= tolerance;
+
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onerror = () => reject(new Error('PNG 解不开'));
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(image, 0, 0);
+      const { width, height } = canvas;
+      const { data } = ctx.getImageData(0, 0, width, height);
+
+      const accentRgb = rgb(accent);
+      const letterRgb = rgb(onAccent);
+      let opaque = 0;
+      let accentPixels = 0;
+      let letterPixels = 0;
+      const bounds = { left: width, top: height, right: -1, bottom: -1 };
+      const ink = { left: width, top: height, right: -1, bottom: -1 };
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          const alpha = data[i + 3];
+          if (alpha === 0) continue;
+          opaque++;
+          bounds.left = Math.min(bounds.left, x);
+          bounds.top = Math.min(bounds.top, y);
+          bounds.right = Math.max(bounds.right, x);
+          bounds.bottom = Math.max(bounds.bottom, y);
+          if (alpha < 200) continue; // 抗锯齿的半透明边，算不进任何一色
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          if (near(r, g, b, accentRgb, 12)) {
+            accentPixels++;
+          } else if (near(r, g, b, letterRgb, 24)) {
+            letterPixels++;
+            ink.left = Math.min(ink.left, x);
+            ink.top = Math.min(ink.top, y);
+            ink.right = Math.max(ink.right, x);
+            ink.bottom = Math.max(ink.bottom, y);
+          }
+        }
+      }
+
+      const alphaAt = (x, y) => data[(y * width + x) * 4 + 3];
+      resolve({
+        width,
+        height,
+        accentRatio: accentPixels / opaque,
+        letterPixels,
+        bounds,
+        ink,
+        corners: [alphaAt(0, 0), alphaAt(width - 1, 0), alphaAt(0, height - 1), alphaAt(width - 1, height - 1)],
+      });
+    };
+    image.src = dataUrl;
+  });
+}
+
+/** 字母墨迹的包围盒中心相对图形中心的偏移（像素）。 */
+function inkOffset(m) {
+  return {
+    x: (m.ink.left + m.ink.right + 1) / 2 - m.width / 2,
+    y: (m.ink.top + m.ink.bottom + 1) / 2 - m.height / 2,
+  };
+}
+
+/** 判据。每条都对着本节开头要的那件事，凑合过去的核对等于没有核对。 */
+function judgeIcon(size, m) {
+  const problems = [];
+  if (m.width !== size || m.height !== size) {
+    problems.push(`尺寸是 ${m.width}x${m.height}，应为 ${size}x${size}`);
+  }
+  // 满幅：不透明像素必须顶到四条边，一条都不能留
+  const { left, top, right, bottom } = m.bounds;
+  if (left !== 0 || top !== 0 || right !== m.width - 1 || bottom !== m.height - 1) {
+    problems.push(`图形没满幅：不透明范围 x ${left}..${right} / y ${top}..${bottom}，应为 0..${m.width - 1}`);
+  }
+  // 圆角：四个角必须透明，否则画出来是方块
+  if (m.corners.some((alpha) => alpha !== 0)) {
+    problems.push(`四角不透明（alpha ${m.corners.join('/')}），圆角没生效`);
+  }
+  // 主体是主题色：底色占不透明像素的绝大多数
+  if (m.accentRatio < 0.5) {
+    problems.push(`主题色只占不透明像素的 ${(m.accentRatio * 100).toFixed(1)}%，不像底色`);
+  }
+  // 字母画上了
+  if (m.letterPixels === 0) {
+    problems.push('找不到字母的像素');
+  } else {
+    const offset = inkOffset(m);
+    // 容差 1px：墨迹边缘在缩图时落到哪个像素由取整决定，这是栅格化的下限
+    if (Math.abs(offset.x) > 1 || Math.abs(offset.y) > 1) {
+      problems.push(`字母没居中：中心偏 ${offset.x.toFixed(1)} / ${offset.y.toFixed(1)} px`);
+    }
+  }
+  return problems;
+}
+
+/**
+ * 核对目录里的图标：把文件读回来逐像素量。
+ *
+ * 量的是「说了什么就验什么」，不是「命令没报错就算对」。在页面上量而不在 Node 里
+ * 解 PNG：浏览器本来就认 PNG，不必为此引一个解码器。
+ */
+async function checkIcons(page, dir, brand) {
+  console.log(`\n核对 ${rel(dir)}：`);
+  let failed = 0;
+  for (const size of ICON_SIZES) {
+    const file = path.join(dir, `${size}.png`);
+    if (!existsSync(file)) {
+      console.log(`  ✗ ${size}.png 缺失`);
+      failed++;
+      continue;
+    }
+    const dataUrl = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
+    const measured = await page.evaluate(measureIcon, {
+      dataUrl,
+      accent: brand.accent,
+      onAccent: brand.onAccent,
+    });
+    const problems = judgeIcon(size, measured);
+    const offset = inkOffset(measured);
+    console.log(
+      [
+        `  ${problems.length === 0 ? '✓' : '✗'} ${String(size).padStart(3)}.png`,
+        `满幅 ${measured.bounds.left}..${measured.bounds.right}`,
+        `主题色 ${(measured.accentRatio * 100).toFixed(1)}%`,
+        `字母偏 ${offset.x.toFixed(1)}/${offset.y.toFixed(1)}px`,
+      ].join('  '),
+    );
+    for (const problem of problems) console.log(`      ${problem}`);
+    if (problems.length > 0) failed++;
+  }
+  if (failed > 0) die(`\n${failed} 个尺寸没通过核对。`);
+  console.log('  全部通过。');
+}
+
+/**
+ * 出对照图 → .probe/shots/icon-preview.png
+ *
+ * 图标必须在**真实尺寸**下判：128 的漂亮不代表 16 的不糊，而 16 才是工具栏上的样子。
+ * 所以各尺寸按 1:1 并排摆一遍，再把小尺寸放大摆一遍（放大用最近邻，看的是真实像素，
+ * 不是插值出来的假平滑）。浅底与深底各一条：商店规范要求两种底上都看得清。
+ */
+async function previewIcons(page, dir, brand) {
+  const dataUrls = {};
+  for (const size of ICON_SIZES) {
+    const file = path.join(dir, `${size}.png`);
+    if (!existsSync(file)) die(`${rel(file)} 不存在，先出图标再出对照图`);
+    dataUrls[size] = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
+  }
+
+  const sheet = await page.evaluate(
+    async ({ dataUrls, brand, sizes }) => {
+      const load = (url) =>
+        new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onerror = () => reject(new Error('PNG 解不开'));
+          image.onload = () => resolve(image);
+          image.src = url;
+        });
+      const images = {};
+      for (const size of sizes) images[size] = await load(dataUrls[size]);
+
+      const margin = 24;
+      const labelWidth = 150;
+      const gap = 16;
+      const captionHeight = 22;
+      const oneToOne = [...sizes].sort((a, b) => b - a); // 大 → 小
+      const magnified = [
+        { size: 16, factor: 8 },
+        { size: 32, factor: 4 },
+        { size: 48, factor: 2 },
+      ];
+      const rowWidth = (widths) => widths.reduce((sum, w) => sum + w, 0) + gap * (widths.length - 1);
+      const contentLeft = margin + labelWidth;
+      const width =
+        contentLeft + Math.max(rowWidth(oneToOne), rowWidth(magnified.map((m) => m.size * m.factor))) + margin;
+      const oneHeight = Math.max(...oneToOne) + 24;
+      const zoomHeight = Math.max(...magnified.map((m) => m.size * m.factor)) + captionHeight + 16;
+      const height = margin * 2 + (oneHeight + gap + oneHeight + gap + zoomHeight + gap + zoomHeight);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      const label = (bandTop, bandHeight, title, detail, color) => {
+        ctx.fillStyle = color;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.font = `600 ${brand.textMd}px ${brand.font}`;
+        ctx.fillText(title, margin, bandTop + bandHeight / 2 - 9);
+        ctx.font = `${brand.textSm}px ${brand.font}`;
+        ctx.fillText(detail, margin, bandTop + bandHeight / 2 + 9);
+      };
+
+      let bandTop = margin;
+      const bands = [
+        { title: '1:1 浅色底', detail: oneToOne.join(' / '), background: brand.paper, ink: brand.inkFaint, kind: 'one' },
+        { title: '1:1 深色底', detail: oneToOne.join(' / '), background: brand.ink, ink: brand.paper, kind: 'one' },
+        { title: '放大 浅色底', detail: magnified.map((m) => `${m.size}×${m.factor}`).join('  '), background: brand.paper, ink: brand.inkFaint, kind: 'zoom' },
+        { title: '放大 深色底', detail: magnified.map((m) => `${m.size}×${m.factor}`).join('  '), background: brand.ink, ink: brand.paper, kind: 'zoom' },
+      ];
+
+      for (const band of bands) {
+        const bandHeight = band.kind === 'one' ? oneHeight : zoomHeight;
+        ctx.fillStyle = band.background;
+        ctx.fillRect(0, bandTop, width, bandHeight);
+        label(bandTop, bandHeight, band.title, band.detail, band.ink);
+
+        if (band.kind === 'one') {
+          let x = contentLeft;
+          for (const size of oneToOne) {
+            ctx.drawImage(images[size], x, bandTop + (bandHeight - size) / 2, size, size);
+            x += size + gap;
+          }
+        } else {
+          let x = contentLeft;
+          const groupTop = bandTop + (bandHeight - captionHeight - Math.max(...magnified.map((m) => m.size * m.factor))) / 2;
+          for (const { size, factor } of magnified) {
+            const side = size * factor;
+            // 关掉平滑：放大要看的是真实像素，插值出来的平滑会掩盖糊
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(images[size], x, groupTop, side, side);
+            ctx.imageSmoothingEnabled = true;
+            ctx.fillStyle = band.ink;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.font = `${brand.textSm}px ${brand.font}`;
+            ctx.fillText(`${size}px ×${factor}`, x + side / 2, groupTop + side + 6);
+            x += side + gap;
+          }
+        }
+        bandTop += bandHeight + gap;
+      }
+      return canvas.toDataURL('image/png');
+    },
+    {
+      dataUrls,
+      sizes: ICON_SIZES,
+      brand,
+    },
+  );
+
+  const file = path.join(ROOT, '.probe', 'shots', 'icon-preview.png');
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, Buffer.from(sheet.replace(/^data:image\/png;base64,/, ''), 'base64'));
+  console.log(`\n对照图 → ${rel(file)}`);
+}
+
 // ---------------------------------------------------------------- 入口
 
 const USAGE = `用法：pnpm probe <命令> [选项]
@@ -939,6 +1416,10 @@ const USAGE = `用法：pnpm probe <命令> [选项]
   zhs --endpoint <名字>                  调智慧树接口（Node 直发，走包内签名；附着浏览器取活 cookie）
       [--params '<JSON>|@文件'] [--allow-write]
   ext id | ext reload                    打印扩展 id / 重载扩展（要求探测浏览器在运行）
+  icon [--check] [--preview] [--dir <目录>]
+                                         生成扩展图标 → apps/extension/public/icon/
+                                         （色值与字体现读 tokens.css；--check 只核对不生成；
+                                           --preview 另出对照图 → .probe/shots/icon-preview.png）
   shot --url <URL> [--out <文件>]        截图
   kill                                   关闭探测浏览器
 `;
@@ -983,6 +1464,9 @@ async function main() {
       break;
     case 'ext':
       await extCommand(opts);
+      break;
+    case 'icon':
+      await cmdIcon(opts);
       break;
     case 'state': {
       const sub = argv[1];
