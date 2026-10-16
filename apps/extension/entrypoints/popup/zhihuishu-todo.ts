@@ -35,8 +35,12 @@ const KIND_LABEL: Record<ZhsPendingKind, string> = {
   quiz: '单元测试',
 };
 
-/** 组内类别的固定次序：与成绩构成自上而下同序（教程进度在前，测试在后）。 */
-const KIND_ORDER: ZhsPendingKind[] = ['courseware', 'quiz'];
+/**
+ * 组内类别的固定次序：**测试在前，教程视频在后**（2026-10-17 Ryan 定）。
+ * 与成绩构成里「平时测试成绩」排在「学习进度·教程」之后不同——这里的理由是可执行性：
+ * 测试是要一题一题做的硬活，视频是量大的常规活，待办先露前者。
+ */
+const KIND_ORDER: ZhsPendingKind[] = ['quiz', 'courseware'];
 
 function buildRow(entry: ZhsPendingEntry): HTMLElement {
   const item = document.createElement('div');
