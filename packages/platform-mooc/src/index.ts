@@ -62,10 +62,12 @@ export {
   getOpenQuizInfo,
   getQuizPaper,
   buildAnswers,
-  loadSubmittedPaper,
+  loadViewAnswers,
   saveDraft,
   submitQuiz,
   type OpenQuizInfo,
+  type AnswerRow,
+  type AnswersView,
   type BuildAnswersResult,
 } from './quiz.ts';
 
