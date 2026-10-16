@@ -45,7 +45,35 @@ export { readSession, type ZhsSession, type CookieReader } from './session.ts';
 
 export { getShareCourses, mergeCourses, refreshCourses, selectedCourses, type ZhsCourseBrief } from './courses.ts';
 
-export { getCourseUnits, type ZhsUnit } from './structure.ts';
+export {
+  chapterExams,
+  getCourseUnits,
+  readCourseChapters,
+  type ZhsChapterExam,
+  type ZhsChapterNode,
+  type ZhsUnit,
+} from './structure.ts';
+
+export {
+  getExamList,
+  HOMEWORK_STATE,
+  isActionable,
+  MEET_COURSE_TYPE,
+  normalizeHomeworkList,
+  type ZhsExamListItem,
+} from './exam-list.ts';
+
+export {
+  buildAnswerBody,
+  parseLookedPaper,
+  parsePaper,
+  questionIdsOf,
+  type AnswerPayload,
+  type LookedQuestion,
+  type PaperQuestionFull,
+} from './exam-paper.ts';
+
+export { askOracle, judge, type OracleVerdict } from './oracle.ts';
 
 export { buildStudyReport, type StudyReport, type StudyReportInput } from './report.ts';
 
@@ -57,6 +85,7 @@ export {
   mergeKeys,
   normalizeQuestionText,
   planAnswering,
+  remainingAttempts,
   type AnswerKey,
   type AnswerKeyEntry,
   type AnswerPlan,
@@ -70,4 +99,10 @@ export {
 export { ZHS_REQUEST_RULES } from './policy/net-rules.ts';
 export { createZhsRuntime, type ZhsRuntime, type ZhsRuntimeEnv } from './runtime.ts';
 export { executeUnit, ZhsRoundHalt, type ExecuteUnitInput } from './policy/execute.ts';
-export { createZhsTasks, unitItemId, type ZhsRunDeps } from './policy/tasks.ts';
+export {
+  executeExam,
+  openExamPaper,
+  type ExamRunInput,
+  type ExamTarget,
+} from './policy/execute-exam.ts';
+export { createZhsTasks, quizItemId, unitItemId, type ZhsRunDeps } from './policy/tasks.ts';

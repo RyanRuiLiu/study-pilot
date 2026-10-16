@@ -63,6 +63,14 @@ export interface ExamRunInput {
   totalScore: number | null;
   /** 建键时喂弹题通道的课时 id（该章第一个课时） */
   popupLessonId: number;
+  /**
+   * 这卷**已经交过一次**（清单「已提交」页签里的未满分卷）。
+   *
+   * Ryan 口径（2026-10-17）：这种卷不重打第一枪——题号早就解锁，
+   * 直接收割建键 → 申请重做 → 重开卷定分。它与"从没交过"的区别只有这一步：
+   * **必须先申请重做再开卷**，否则开到的是那份已交的卷面。
+   */
+  alreadySubmitted?: boolean;
 }
 
 /** 会话失效（CAS SSO 过期）的去处：站点首页（登录入口在导航里）。 */
@@ -221,6 +229,7 @@ export async function executeExam(
 ): Promise<RunOutcome> {
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
   try {
+    if (input.alreadySubmitted === true) return await runAfterSubmit(client, input, control);
     return input.key === null ? await runWithoutKey(client, input, control) : await runWithKey(client, input, control);
   } catch (error) {
     if (error instanceof ZhsRoundHalt) throw error;
@@ -256,6 +265,73 @@ async function runWithKey(client: ZhsClient, input: ExamRunInput, control: RunCo
   return { status: 'done', message: `已交卷（${match.answers.length} 题）· ${gate.note}` };
 }
 
+/**
+ * 收割建键（**纯只读**）：`lookHomework` 取全题号 → 弹题通道按题号换正解。
+ *
+ * 这是第一期唯一的键来源（设计文档 §7-5：不落盘，用完即弃）。它**不消耗任何
+ * 作答机会**——这也是「已交未满分的卷不重打第一枪」能成立的原因。
+ */
+async function harvestKey(
+  client: ZhsClient,
+  target: ExamTarget,
+  lessonId: number,
+): Promise<{ key: Awaited<ReturnType<typeof answerKeyFromPopupExam>>; questionIds: number[]; questionCount: number }> {
+  const looked = await readLookedPaper(client, target);
+  const questionIds = questionIdsOf(looked);
+  if (questionIds.length === 0) return { key: { version: 1, correctOptionIds: [], entries: [] }, questionIds, questionCount: 0 };
+
+  const feedBody = (await client.call('popupExam', {
+    lessonId,
+    recruitId: target.recruitId,
+    courseId: target.courseId,
+    questionIds: questionIds.join(','),
+  })) as { data?: { lessonTestQuestionUseInterfaceDtos?: unknown } | null };
+  const key = answerKeyFromPopupExam(
+    (feedBody.data?.lessonTestQuestionUseInterfaceDtos ?? []) as Parameters<typeof answerKeyFromPopupExam>[0],
+  );
+  return { key, questionIds, questionCount: questionIds.length };
+}
+
+/** 已交未满分：收割建键 → 申请重做 → 重开卷定分（不重打第一枪）。 */
+async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
+  const { target } = input;
+  const redoBody = (await client.call('examRedoNum', { recruitId: target.recruitId, examId: target.examKey })) as {
+    rt?: unknown;
+  };
+  const remaining = remainingAttempts(redoBody.rt);
+
+  const objectBody = (await client.call('examIsObject', { examId: target.examKey })) as { rt?: unknown };
+  if (Number(objectBody.rt) !== 1) {
+    return { status: 'skipped', message: '非客观题（平台走二维码通道），只提醒不动手' };
+  }
+  if (remaining < MIN_ATTEMPTS_FOR_PROBE) {
+    return { status: 'skipped', message: `只剩 ${remaining} 次作答机会，留给你手动做` };
+  }
+
+  const harvested = await harvestKey(client, target, input.popupLessonId);
+  if (harvested.questionCount === 0) {
+    return { status: 'failed', message: '回顾没拿到题号（这卷可能不在可回顾状态），不申请重做' };
+  }
+
+  if (control.stopped()) return { status: 'skipped', message: '已停止' };
+  const redoApply = (await client.call('examApplyRedo', {
+    recruitId: target.recruitId,
+    examId: target.examKey,
+    description: '',
+    courseId: target.courseId,
+  })) as { rt?: unknown };
+  if (Number(redoApply.rt) !== 1) {
+    return { status: 'failed', message: '申请重做未成功（平台文案：保存申请信息失败，请重新保存）' };
+  }
+
+  const settled = await runWithKey(
+    client,
+    { ...input, key: harvested.key, questionIds: harvested.questionIds },
+    control,
+  );
+  return settled.status === 'done' ? { status: 'done', message: `重做定分：${settled.message}` } : settled;
+}
+
 /** 缺键：先看门槛，再走「探路 → 收割 → 重做定分」。 */
 async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
   const { target } = input;
@@ -281,21 +357,11 @@ async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: Ru
   if (control.stopped()) return { status: 'skipped', message: '已停止（未交卷）' };
   await submit(client, target, probeAnswers.length);
 
-  // ② 收割建键：题号 → 弹题通道换正解
-  const looked = await readLookedPaper(client, target);
-  const questionIds = questionIdsOf(looked);
-  if (questionIds.length === 0) {
+  // ② 收割建键（只读）
+  const harvested = await harvestKey(client, target, input.popupLessonId);
+  if (harvested.questionCount === 0) {
     return { status: 'failed', message: '探路已交卷，但回读没拿到题号——不申请重做（避免白花一次机会）' };
   }
-  const feedBody = (await client.call('popupExam', {
-    lessonId: input.popupLessonId,
-    recruitId: target.recruitId,
-    courseId: target.courseId,
-    questionIds: questionIds.join(','),
-  })) as { data?: { lessonTestQuestionUseInterfaceDtos?: unknown } | null };
-  const key = answerKeyFromPopupExam(
-    (feedBody.data?.lessonTestQuestionUseInterfaceDtos ?? []) as Parameters<typeof answerKeyFromPopupExam>[0],
-  );
 
   // ③ 申请重做（分数覆盖）
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
@@ -310,7 +376,11 @@ async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: Ru
   }
 
   // ④ 重开卷定分：这一次才是要留下的分数
-  const settle = await runWithKey(client, { ...input, key, questionIds }, control);
+  const settle = await runWithKey(
+    client,
+    { ...input, key: harvested.key, questionIds: harvested.questionIds },
+    control,
+  );
   return settle.status === 'done'
     ? { status: 'done', message: `探路后重做定分：${settle.message}` }
     : settle;

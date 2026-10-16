@@ -1,7 +1,7 @@
 /* 计划与执行：项的形状、闭环成功路径、-12 整轮中止、写出前停止。 */
 
 import { describe, expect, it } from 'vitest';
-import type { ConfigPort, Settings } from '@study-pilot/application';
+import type { ConfigPort, PlanItem, Settings } from '@study-pilot/application';
 import type { ZhsClient } from '../src/client.ts';
 import { ZhsApiError } from '../src/client.ts';
 import { createZhsTasks, unitItemId } from '../src/policy/tasks.ts';
@@ -54,13 +54,16 @@ const CHAPTERS = {
   },
 };
 
+/** 作业清单的默认响应：空表。多数用例不关心测验，测验用例显式登记它。 */
+const EMPTY_HOMEWORK = { rt: { result: 'success', next: -1, studentHomeworkList: [] } };
+
 /** 假 client：按接口名分派，可逐次覆盖；handler 能拿到载荷（分段类用例要验 it）。 */
 function fakeClient(
   handlers: Partial<Record<string, (payload?: Record<string, unknown>) => unknown>>,
 ): ZhsClient {
   return {
     call: async (name, payload) => {
-      const handler = handlers[name];
+      const handler = handlers[name] ?? (name === 'examHomeworkList' ? () => EMPTY_HOMEWORK : undefined);
       if (handler === undefined) throw new Error(`假 client 没有登记 ${name}`);
       return handler(payload);
     },
@@ -346,5 +349,109 @@ describe('run', () => {
     };
     const outcome = await tasks.run(item, async () => undefined, { stopped: () => false });
     expect(outcome).toMatchObject({ status: 'failed' });
+  });
+});
+
+describe('plan：单元测试项', () => {
+  // 形态取自真机：examUrl 的 t1 就是清单条目的 id（这一条是「章节测验 ↔ 清单」的连接键）
+  const EXAM_URL =
+    '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/900004/DEMOc003/DEMOd004/9000000002/9001/0';
+  const CHAPTERS_WITH_EXAM = {
+    data: {
+      videoChapterDtos: [
+        {
+          id: 9000000008,
+          name: '第一章',
+          videoLessons: [{ id: 1, name: '课', videoId: 111, videoSec: 100, videoSmallLessons: null }],
+          studentExamDto: { id: 9000000037, state: 1, exam: { id: 90000006, type: 1 }, examUrl: EXAM_URL },
+        },
+      ],
+    },
+  };
+  const item = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    id: 'DEMOc003',
+    examId: 'DEMOd004',
+    examName: '第一章单元测试',
+    meetCourseType: 0,
+    state: 1,
+    cpOrderNumber: '第一章',
+    score: null,
+    totalScore: '100',
+    ...over,
+  });
+
+  function planWith(pending: Array<Record<string, unknown>>, history: Array<Record<string, unknown>>) {
+    const flags: number[] = [];
+    const client = fakeClient({
+      videoList: () => CHAPTERS_WITH_EXAM,
+      studyInfo: () => ({ data: { lesson: { '1': { watchState: 1, studyTotalTime: 100 } }, lv: {} } }),
+      examHomeworkList: (payload) => {
+        const flag = Number((payload as { flag?: unknown } | undefined)?.flag);
+        flags.push(flag);
+        return { rt: { result: 'success', next: -1, studentHomeworkList: flag === 1 ? pending : history } };
+      },
+    });
+    return { tasks: createZhsTasks({ config, client, readCookie: readCookieLoggedIn }), flags };
+  }
+
+  const quizzesOf = (items: ReadonlyArray<PlanItem>) => items.filter((entry) => entry.kind === 'quiz');
+
+  it('未交且没动过的单元测试进计划，kind=quiz、id 认清单条目', async () => {
+    const { tasks } = planWith([item()], []);
+    const plan = await tasks.plan(0);
+    const quiz = quizzesOf(plan.items);
+    expect(quiz).toHaveLength(1);
+    expect(quiz[0]).toMatchObject({
+      id: 'zhs-quiz-DEMOc003',
+      group: '示例课程己',
+      title: '第一章单元测试',
+      mode: 'auto',
+    });
+    const payload = quiz[0]!.payload as { alreadySubmitted: boolean; totalScore: number | null };
+    expect(payload.alreadySubmitted).toBe(false);
+    expect(payload.totalScore).toBe(100); // 清单给的是字符串 "100"，归一成了数字
+  });
+
+  it('已交未满分的卷进计划，且标记 alreadySubmitted（不用重打第一枪）', async () => {
+    const { tasks } = planWith([], [item({ state: 4, score: '60', totalScore: '100' })]);
+    const quiz = quizzesOf((await tasks.plan(0)).items);
+    expect(quiz).toHaveLength(1);
+    expect((quiz[0]!.payload as { alreadySubmitted: boolean }).alreadySubmitted).toBe(true);
+  });
+
+  it('已交满分的卷不进计划', async () => {
+    const { tasks } = planWith([], [item({ state: 4, score: '100', totalScore: '100' })]);
+    expect(quizzesOf((await tasks.plan(0)).items)).toEqual([]);
+  });
+
+  it('未交页签里 state=5（重做过、语义未查明）不进计划——不猜着做', async () => {
+    const { tasks } = planWith([item({ state: 5 })], []);
+    expect(quizzesOf((await tasks.plan(0)).items)).toEqual([]);
+  });
+
+  it('见面课测验（meetCourseType=1）不进本期计划', async () => {
+    const { tasks } = planWith([item({ meetCourseType: 1, cpOrderNumber: null })], []);
+    expect(quizzesOf((await tasks.plan(0)).items)).toEqual([]);
+  });
+
+  it('计划是只读的：两个页签都读，但绝不开卷', async () => {
+    const { tasks, flags } = planWith([item()], []);
+    await tasks.plan(0);
+    expect([...flags].sort()).toEqual([1, 2]);
+
+    // 把开卷做成地雷：计划阶段踩到就抛
+    const mined = createZhsTasks({
+      config,
+      readCookie: readCookieLoggedIn,
+      client: fakeClient({
+        videoList: () => CHAPTERS_WITH_EXAM,
+        studyInfo: () => ({ data: { lesson: {}, lv: {} } }),
+        examHomeworkList: () => EMPTY_HOMEWORK,
+        examDoHomework: () => {
+          throw new Error('计划阶段不许开卷');
+        },
+      }),
+    });
+    await expect(mined.plan(0)).resolves.toBeDefined();
   });
 });
