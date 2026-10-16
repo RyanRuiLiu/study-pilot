@@ -27,6 +27,7 @@ import { getTaskState, getZhsCourseTasks, runNow, stopRun, subscribeRunState } f
 import type { ZhsCourseTask, ZhsCourseTaskSummary, QueryOutcome } from '../../src/ui-bridge';
 import { errorText, formatDate } from '../../src/ui/format.ts';
 import { ZHS_BOARDS, boardOfKind, type ZhsBoardId } from '../../src/adapters/zhihuishu/boards.ts';
+import { meetPageUrl } from '../../src/adapters/zhihuishu/pages.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { loginNote, note, ZHS_LOGIN_URL } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
@@ -474,7 +475,7 @@ function meetRow(entry: ZhsCourseTask): HTMLElement {
       board: ZHS_BOARDS[2].id,
       value: '见面课未读取到',
       valueTitle: entry.meetSessionsNote,
-      href: entry.examListUrl,
+      href: meetPageUrl(),
     });
   }
 
@@ -494,7 +495,7 @@ function meetRow(entry: ZhsCourseTask): HTMLElement {
     valueTitle: unread
       ? `作业清单读取失败：${entry.quizUnreadReason ?? ''}`
       : '场次来自见面课页自己的接口；测验与单元测试同一份作业清单。考勤＝看直播或回放满 80%（学校口径）',
-    href: entry.examListUrl,
+    href: meetPageUrl(),
   });
 }
 

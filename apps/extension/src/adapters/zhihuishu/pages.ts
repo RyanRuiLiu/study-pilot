@@ -36,6 +36,17 @@ export async function examListUrl(recruitId: number, studyUrl: string): Promise<
   return `https://onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList?recruitId=${token}&fromUrl=${encodeURIComponent(studyUrl)}`;
 }
 
+/**
+ * 见面课页：见面课那一行的落点。
+ *
+ * 地址取自考试应用的见面课菜单（`//online.zhihuishu.com/onlineSchool/teachMeeting/stuList`，
+ * 机器读出）；场次、回放与见面课测验都在那一页上，**考勤（看回放满 80%）也得从那儿进**——
+ * 回放跑在 lc 域的播放器里，协议还没核（FINDINGS §二十五）。
+ */
+export function meetPageUrl(): string {
+  return 'https://online.zhihuishu.com/onlineSchool/teachMeeting/stuList';
+}
+
 /** 成绩分析页：课名的落点（组件口径的唯一事实源，见 FINDINGS §二十二）。 */
 export function reportPageUrl(recruitId: number, courseId: number): string {
   return `https://stuonline.zhihuishu.com/stuonline/stuLearnReportNew/index?recruitId=${recruitId}&courseId=${courseId}`;
