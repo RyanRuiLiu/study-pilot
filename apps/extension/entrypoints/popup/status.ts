@@ -77,11 +77,29 @@ export function setStatusPlatform(platformId: string): void {
   void renderState();
 }
 
-/** 状态行显示一条结果或过程。执行的两处入口（顶栏「全部执行」、行内「执行」）共用。 */
-export function showStatus(text: string, tone: 'idle' | 'busy' | 'error'): void {
+/** 状态行显示一条结果或过程（模块内用；对外唯一的口子是 statusWriterFor）。 */
+function showStatus(text: string, tone: 'idle' | 'busy' | 'error'): void {
   stateLine?.classList.toggle('is-busy', tone === 'busy');
   stateLine?.classList.toggle('is-error', tone === 'error');
   setText(stateEl, text);
+}
+
+/**
+ * 执行句柄里的 setStatus：**结果只写回发起平台的状态行**。
+ *
+ * 从点击执行到落结果句隔着整轮网络，期间用户可能已经切走 tab——
+ * 这家的结果（「完成 N 项」「1 项未完成」「已停止…」）不该长在那家的行上。
+ * 切走之后那行归那家管（tab 激活时 renderState 已重画过）；这家的结局
+ * 在切回来时按状态行自己的规则重新落定（停止句 / 失败留痕，见 renderState）。
+ *
+ * 三个执行入口（顶栏「全部执行」、两类待办行内「执行」）都从这里取 setStatus。
+ */
+export function statusWriterFor(
+  platformId: string,
+): (text: string, tone: 'idle' | 'busy' | 'error') => void {
+  return (text, tone) => {
+    if (statusPlatform === platformId) showStatus(text, tone);
+  };
 }
 
 /*

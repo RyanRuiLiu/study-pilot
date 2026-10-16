@@ -15,7 +15,7 @@ import { getSettings, getZhsPending, runNow } from '../../src/ui-bridge';
 import type { ZhsPendingEntry } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
 import { zhsTodoEl } from './elements.ts';
-import { setRunning, showStatus } from './status.ts';
+import { setRunning, statusWriterFor } from './status.ts';
 
 /** 时长文案：分钟为主，不足一分钟明确说，不四舍五入成「0 分钟」。 */
 function durationText(sec: number): string {
@@ -64,7 +64,7 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
   button.addEventListener('click', () => {
     void runNow(
       {
-        setStatus: showStatus,
+        setStatus: statusWriterFor('zhihuishu'),
         setEnabled: (enabled) => setRunning(!enabled),
         refresh: () => renderZhsTodo(),
       },
