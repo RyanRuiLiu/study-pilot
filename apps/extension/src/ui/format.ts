@@ -43,7 +43,8 @@ function pad(value: number): string {
  * 返回空串表示「平台未提供该时间」（约定用 0 表示）。
  */
 export function formatMonth(timestamp: number): string {
-  if (timestamp <= 0) return '';
+  // 非有限值（缺失/NaN）与 0 一样按「平台没给」处理——契约就是「未提供给空串」
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
   const date = new Date(timestamp);
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
 }

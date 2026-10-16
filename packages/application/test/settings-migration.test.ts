@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
  * 从包的入口直接导入，不走扩展侧 settings 的门：后者会连带 storage.ts，
  * 而它顶层就建立存储项、读 browser.runtime，测试环境里必然抛错。
  */
-import { DEFAULT_MOOC, DEFAULT_SETTINGS, normalize } from '../src/index.ts';
+import { DEFAULT_MOOC, DEFAULT_SETTINGS, SETTINGS_VERSION, normalize } from '../src/index.ts';
 
 /*
  * 版本 2 → 5：两段迁移连着跑。版本 2 的存量数据是最老的形状
@@ -106,7 +106,7 @@ describe('版本 6：AI 地址钉死在智谱', () => {
       ai: { enabled: true, baseUrl: 'https://api.example.com/v1', model: 'glm-4-flash', apiKey: 'k' },
     });
     expect('baseUrl' in out.ai).toBe(false);
-    expect(out.version).toBe(8);
+    expect(out.version).toBe(SETTINGS_VERSION);
   });
 
   it('模型留空退回默认（glm-4-flash）——空模型会让「已启用」与「生成器可用」互相矛盾', () => {
@@ -146,7 +146,7 @@ describe('版本 8 新增的 zhihuishu 段', () => {
   it('存量数据（没有这个键）补上空课程表', () => {
     const settings = normalize({ version: 7, mooc: {}, ai: {}, ui: { activeTab: 'mooc' } });
     expect(settings.zhihuishu).toEqual({ courses: [] });
-    expect(settings.version).toBe(8);
+    expect(settings.version).toBe(SETTINGS_VERSION);
   });
 
   it('已勾的课程原样保留（数组是整体替换的契约）', () => {
@@ -167,5 +167,54 @@ describe('版本 8 新增的 zhihuishu 段', () => {
   it('课程表被写成非数组时保留空表，不采纳野值', () => {
     const settings = normalize({ zhihuishu: { courses: '两门课' } });
     expect(settings.zhihuishu.courses).toEqual([]);
+  });
+});
+
+/*
+ * 版本 9：课程表每条把平台的进度文案换成开课区间。数组元素的键 `mergeWithBase`
+ * 补不上，只能搬——不搬的话存量课读出来是 undefined，界面上显示成 NaN
+ * （Ryan 报的就是这个）。
+ */
+describe('版本 9：课程表搬成开课区间', () => {
+  it('带旧进度文案、没有区间的存量课：进度丢掉，区间写 0（= 平台没给）', () => {
+    const settings = normalize({
+      version: 8,
+      zhihuishu: {
+        courses: [
+          {
+            courseId: 9000000003,
+            recruitId: 900002,
+            secret: 'hex',
+            name: '示例课程乙',
+            schoolName: '示例大学',
+            progressText: '100.0%',
+            enabled: true,
+          },
+        ],
+      },
+    });
+    expect(settings.zhihuishu.courses).toEqual([
+      {
+        courseId: 9000000003,
+        recruitId: 900002,
+        secret: 'hex',
+        name: '示例课程乙',
+        schoolName: '示例大学',
+        startTime: 0,
+        endTime: 0,
+        enabled: true,
+      },
+    ]);
+  });
+
+  it('只有一端缺的也补齐成 0，另一端照旧', () => {
+    const settings = normalize({
+      version: 8,
+      zhihuishu: { courses: [{ courseId: 1, recruitId: 2, startTime: 1789315200000 }] },
+    });
+    expect(settings.zhihuishu.courses[0]).toMatchObject({
+      startTime: 1789315200000,
+      endTime: 0,
+    });
   });
 });

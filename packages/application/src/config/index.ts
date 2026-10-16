@@ -67,7 +67,35 @@ export interface Settings {
  * 纯新增，不需要迁移段：存量数据没有这个键，合并时补上空课程表——
  * 「一门课都没勾」本来就是新平台上线时的真实状态，没有需要搬的旧值。
  */
-export const SETTINGS_VERSION = 8;
+/*
+ * 版本 9：`zhihuishu.courses` 每条把平台的进度文案（`progressText`）换成开课区间
+ * （`startTime`/`endTime`）。课程表是**数组**，`mergeWithBase` 只按骨架补顶层键、
+ * 补不进数组元素——不搬这一段，存量课读出来就是 undefined，界面上显示成 NaN。
+ * 区间平台没给则写 0（约定：0 = 没给，界面略去那一格）。
+ */
+function migrateZhsCourseRange(raw: Json): Json {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+  const source = raw as Record<string, unknown>;
+  const zhihuishu = source.zhihuishu;
+  if (zhihuishu === null || typeof zhihuishu !== 'object' || Array.isArray(zhihuishu)) return raw;
+  const section = zhihuishu as Record<string, unknown>;
+  if (!Array.isArray(section.courses)) return raw;
+
+  const courses = section.courses.map((entry) => {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+    const course = entry as Record<string, unknown>;
+    if (typeof course.startTime === 'number' && typeof course.endTime === 'number') return entry;
+    const { progressText: _dropped, ...rest } = course;
+    return {
+      ...rest,
+      startTime: typeof course.startTime === 'number' ? course.startTime : 0,
+      endTime: typeof course.endTime === 'number' ? course.endTime : 0,
+    };
+  });
+  return { ...source, zhihuishu: { ...section, courses } };
+}
+
+export const SETTINGS_VERSION = 9;
 
 export const DEFAULT_SETTINGS: Settings = {
   version: SETTINGS_VERSION,
@@ -210,7 +238,7 @@ export function mergeWithBase<T>(base: T, patch: Json): T {
  *     与「生成器可用」互相矛盾——设置页看是开着的，讨论单元却因缺模型进不了计划。
  */
 export function normalize(raw: Json): Settings {
-  const migrated = toManualShape(migrateScheduleToTopLevel(raw));
+  const migrated = migrateZhsCourseRange(toManualShape(migrateScheduleToTopLevel(raw)));
   const merged = mergeWithBase(DEFAULT_SETTINGS, migrated);
   const comment = merged.mooc.reviewComment;
   const model = merged.ai.model;
