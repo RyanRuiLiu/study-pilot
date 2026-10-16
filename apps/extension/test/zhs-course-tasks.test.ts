@@ -162,4 +162,32 @@ describe('zhsCourseTasksCommand', () => {
     expect(course!.reportUrl).toContain('stuLearnReportNew');
     expect(course!.reportUrl).toContain('recruitId=473310');
   });
+
+  it('清单恰好满一页 → 当没读成：不拿截断的清单算进度，汇总数也给 null', async () => {
+    const deps = fakeDeps();
+    const full = Array.from({ length: 100 }, (_, index) => ({
+      id: `id-${index}`,
+      examId: 'e',
+      examName: '单元测试',
+      meetCourseType: 0,
+      state: 1,
+      score: null,
+      totalScore: '100',
+    }));
+    (deps.client as unknown as { call: unknown }).call = async (name: string, params: { flag?: number }) => {
+      if (name === 'videoList') return CHAPTERS;
+      if (name === 'studyInfo') return { data: { lesson: { 11: { watchState: 1 } }, lv: {} } };
+      if (name === 'examHomeworkList') {
+        return params.flag === 2 ? { rt: { studentHomeworkList: [] } } : { rt: { studentHomeworkList: full } };
+      }
+      throw new Error(`假 client 没有登记 ${name}`);
+    };
+
+    const outcome = await run(deps);
+    const summary = (outcome as { value: ZhsCourseTaskSummary }).value;
+    expect(summary.courses[0]!.quizUnreadReason).toBe('作业清单超过一页，未取全');
+    // 汇总数不报（下界当确定值就是静默降级），视频那一半照常
+    expect(summary.pendingTotal).toBeNull();
+    expect(summary.courses[0]!.video).toEqual({ done: 1, total: 2 });
+  });
 });

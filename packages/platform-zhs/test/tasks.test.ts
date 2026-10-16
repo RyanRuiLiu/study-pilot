@@ -407,16 +407,16 @@ describe('plan：单元测试项', () => {
       title: '第一章单元测试',
       mode: 'auto',
     });
-    const payload = quiz[0]!.payload as { alreadySubmitted: boolean; totalScore: number | null };
-    expect(payload.alreadySubmitted).toBe(false);
+    const payload = quiz[0]!.payload as { enter: string; totalScore: number | null };
+    expect(payload.enter).toBe('fresh');
     expect(payload.totalScore).toBe(100); // 清单给的是字符串 "100"，归一成了数字
   });
 
-  it('已交未满分的卷进计划，且标记 alreadySubmitted（不用重打第一枪）', async () => {
+  it('已交未满分的卷进计划，进法是 submitted（先申请重做，不重打第一枪）', async () => {
     const { tasks } = planWith([], [item({ state: 4, score: '60', totalScore: '100' })]);
     const quiz = quizzesOf((await tasks.plan(0)).items);
     expect(quiz).toHaveLength(1);
-    expect((quiz[0]!.payload as { alreadySubmitted: boolean }).alreadySubmitted).toBe(true);
+    expect((quiz[0]!.payload as { enter: string }).enter).toBe('submitted');
   });
 
   it('已交满分的卷不进计划', async () => {
@@ -424,9 +424,14 @@ describe('plan：单元测试项', () => {
     expect(quizzesOf((await tasks.plan(0)).items)).toEqual([]);
   });
 
-  it('未交页签里 state=5（重做过、语义未查明）不进计划——不猜着做', async () => {
+  it('未交页签里 state=5（已交过、重做已申请）进计划，进法是 redoOpen——直接接管，不再申请重做', async () => {
     const { tasks } = planWith([item({ state: 5 })], []);
-    expect(quizzesOf((await tasks.plan(0)).items)).toEqual([]);
+    const quiz = quizzesOf((await tasks.plan(0)).items);
+    expect(quiz).toHaveLength(1);
+    const payload = quiz[0]!.payload as { enter: string; totalScore: number | null };
+    expect(payload.enter).toBe('redoOpen');
+    // state=5 的清单条目 score 为 null、totalScore 仍是 100（真机实测），神谕判据照常成立
+    expect(payload.totalScore).toBe(100);
   });
 
   it('见面课测验（meetCourseType=1）不进本期计划', async () => {

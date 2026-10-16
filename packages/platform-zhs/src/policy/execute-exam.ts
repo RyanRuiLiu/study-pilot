@@ -1,12 +1,14 @@
 /*
  * 单元测试的答卷会话（「1× 直发」形态；2026-10-17 定稿）。
  *
- * 一条线性会话，两种进法：
+ * 一条线性会话，按 `Enter` 三选一进：
  *
- *   有键 → 开卷 → 套键作答 → **过神谕** → 交卷 →（回读由调用方做）
- *   无键 → 查门槛（剩余次数 / 客观题）→ 开卷 → 首答探路 → 交卷
+ *   从没交过（有键）→ 开卷 → 套键作答 → **过神谕** → 交卷 →（回读由调用方做）
+ *   从没交过（无键）→ 查门槛（剩余次数 / 客观题）→ 开卷 → 首答探路 → 交卷
  *          → lookHomework 取题号 → 弹题通道换正解 → 建键 → 申请重做
  *          → 重开卷 → 套键作答 → 过神谕 → 交卷
+ *   已交未满分      → 收割建键 → **申请重做** → 开卷套键作答 → 过神谕 → 交卷
+ *   重做已申请      → 收割建键 → **不再申请**，直接接管那份开着的答卷 → 过神谕 → 交卷
  *
  * 三个安全事实（都来自实测或平台源码，改这段之前先读）：
  *
@@ -59,6 +61,19 @@ export interface ExamTarget {
   stuExamIdNum: number;
 }
 
+/**
+ * 这卷在平台上的状态——**决定从哪条路进会话**（取自清单的页签与 `state`）。
+ *
+ * 三态而不是布尔：`submitted` 与 `redoOpen` 都要先收割建键，差别只在
+ * **要不要申请重做**，而那一件事会吃掉一次机会——用布尔拼会把这个差别藏起来。
+ *
+ *   `fresh`     从没交过（未交页签 + `state=1`）：缺键时走探路重做
+ *   `submitted` 已交未满分（已交页签 + `state=4`）：收割建键 → **申请重做** → 开卷定分
+ *   `redoOpen`  已交过、重做**已申请**（未交页签 + `state=5`）：直接接管那份开着的答卷，
+ *               **绝不能再申请一次**——重做已经用掉了，再申请是白吃一次机会
+ */
+export type ExamEnter = 'fresh' | 'submitted' | 'redoOpen';
+
 export interface ExamRunInput {
   target: ExamTarget;
   /** 会话 userId（神谕入参）；null = CASLOGC 里没有，验证做不了 */
@@ -71,14 +86,8 @@ export interface ExamRunInput {
   totalScore: number | null;
   /** 建键时喂弹题通道的课时 id（该章第一个课时） */
   popupLessonId: number;
-  /**
-   * 这卷**已经交过一次**（清单「已提交」页签里的未满分卷）。
-   *
-   * Ryan 口径（2026-10-17）：这种卷不重打第一枪——题号早就解锁，
-   * 直接收割建键 → 申请重做 → 重开卷定分。它与"从没交过"的区别只有这一步：
-   * **必须先申请重做再开卷**，否则开到的是那份已交的卷面。
-   */
-  alreadySubmitted?: boolean;
+  /** 进会话的方式（见 `ExamEnter`）；不给按 `fresh` */
+  enter?: ExamEnter;
 }
 
 /** 会话失效（CAS SSO 过期）的去处：站点首页（登录入口在导航里）。 */
@@ -279,8 +288,14 @@ export async function executeExam(
 ): Promise<RunOutcome> {
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
   try {
-    if (input.alreadySubmitted === true) return await runAfterSubmit(client, input, control);
-    return input.key === null ? await runWithoutKey(client, input, control) : await runWithKey(client, input, control);
+    switch (input.enter ?? 'fresh') {
+      case 'submitted':
+        return await runAfterSubmit(client, input, control);
+      case 'redoOpen':
+        return await runRedoOpen(client, input, control);
+      default:
+        return input.key === null ? await runWithoutKey(client, input, control) : await runWithKey(client, input, control);
+    }
   } catch (error) {
     if (error instanceof ZhsRoundHalt) throw error;
     // 作答接口也挂易盾：源码 `if (o.code && -12 == o.code) → yuDuninstance`。
@@ -398,18 +413,23 @@ async function redoGate(client: ZhsClient, target: ExamTarget): Promise<{ remain
  *
  * 先判再动重做的理由：申请重做要花掉一次机会，键覆盖不全时花掉它，
  * 换来的是一份没作答的新卷，等于白花。这是「留最后一次」在代码里的落点。
+ *
+ * `abandoned` 是失败文案的前缀：**被放弃的是哪一步**（两条路不一样——
+ * 一条是没申请重做，一条是没接管那份开着的答卷）。判据共用一份，
+ * 文案各自说清，别在两个调用点各写一遍判据。
  */
 async function prepareKey(
   client: ZhsClient,
   target: ExamTarget,
   lessonId: number,
+  abandoned: string,
 ): Promise<{ key: AnswerKey; questionIds: number[] } | RunOutcome> {
   const harvested = await harvestKey(client, target, lessonId);
-  if (harvested.questionCount === 0) return { status: 'failed', message: '未申请重做：回顾未取到题号' };
+  if (harvested.questionCount === 0) return { status: 'failed', message: `${abandoned}：回顾未取到题号` };
 
   const preview = keyCoversLookedPaper(harvested.key, harvested.looked);
   if (!preview.ok) {
-    return { status: 'failed', message: `未申请重做：答案键覆盖 ${Math.round(preview.coverage * 100)}%` };
+    return { status: 'failed', message: `${abandoned}：答案键覆盖 ${Math.round(preview.coverage * 100)}%` };
   }
   return { key: harvested.key, questionIds: harvested.questionIds };
 }
@@ -421,7 +441,7 @@ async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: R
   const gate = await redoGate(client, target);
   if (isOutcome(gate)) return gate;
 
-  const prepared = await prepareKey(client, target, input.popupLessonId);
+  const prepared = await prepareKey(client, target, input.popupLessonId, '未申请重做');
   if (isOutcome(prepared)) return prepared;
 
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
@@ -440,6 +460,30 @@ async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: R
   return settled.status === 'done' ? { status: 'done', message: `重做定分：${settled.message}` } : settled;
 }
 
+/**
+ * 已交过、重做**已申请**（`state=5`）：直接接管那份开着的答卷。
+ *
+ * 与 `runAfterSubmit` 只差一步，而那一步正是全部要害：**这里不申请重做**。
+ * 申请一次会吃掉一次机会，而这一卷的重做早就用掉了——按 Ryan 口径
+ * （2026-10-17）「按没做过一样对待，直接接管」，所以走到这和走到一张没做过的卷
+ * 没区别：收割建键（纯只读）→ 开卷套键作答 → 过神谕 → 交卷。
+ *
+ * 不问 `redoGate`：那道闸是**花机会之前**的门槛（剩余次数够不够、是不是客观题），
+ * 这条路不花机会，而「过得了神谕的那一枪是确定的满分，剩几次都交」（§3 模块 3）。
+ * 客观题与否由覆盖率判据兜住——非客观题的键覆盖不了卷面，`prepareKey` 会拦下。
+ */
+async function runRedoOpen(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
+  const prepared = await prepareKey(client, input.target, input.popupLessonId, '未接管');
+  if (isOutcome(prepared)) return prepared;
+
+  const settled = await runWithKey(
+    client,
+    { ...input, key: prepared.key, questionIds: prepared.questionIds },
+    control,
+  );
+  return settled.status === 'done' ? { status: 'done', message: `接管重做定分：${settled.message}` } : settled;
+}
+
 /** 缺键：先看门槛，再走「探路 → 收割 → 重做定分」。 */
 async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
   const { target } = input;
@@ -456,7 +500,7 @@ async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: Ru
   await submit(client, target, probeAnswers.length);
 
   // ② 收割建键（只读），并先判覆盖率——都不花机会
-  const prepared = await prepareKey(client, target, input.popupLessonId);
+  const prepared = await prepareKey(client, target, input.popupLessonId, '未申请重做');
   if (isOutcome(prepared)) return prepared;
 
   // ③ 申请重做（分数覆盖）

@@ -1,7 +1,7 @@
 /* 作业清单归一的形态核对（纯函数喂真机样本形态；读取只核对载荷与 flag 映射）。 */
 
 import { describe, expect, it } from 'vitest';
-import { getExamList, isActionable, normalizeHomeworkList } from '../src/exam-list.ts';
+import { EXAM_LIST_PAGE_SIZE, getExamList, isActionable, needsWork, normalizeHomeworkList } from '../src/exam-list.ts';
 import type { ZhsClient } from '../src/client.ts';
 
 describe('normalizeHomeworkList', () => {
@@ -94,6 +94,31 @@ describe('isActionable', () => {
   });
 });
 
+describe('needsWork', () => {
+  const at = (state: number): boolean =>
+    needsWork({
+      id: 'x',
+      examId: 'y',
+      examName: '',
+      meetCourseType: 0,
+      state,
+      score: null,
+      totalScore: null,
+      chapterName: null,
+      problemNum: null,
+      deadline: null,
+    });
+
+  it('没动过的与「重做已申请」的都收——后者按 Ryan 口径直接接管', () => {
+    expect(at(1)).toBe(true);
+    expect(at(5)).toBe(true);
+  });
+
+  it('已交的（state=4）不进——它在已交页签里另有一条判据管', () => {
+    expect(at(4)).toBe(false);
+  });
+});
+
 describe('getExamList', () => {
   function fakeClient(response: unknown): { client: ZhsClient; calls: Array<{ name: string; payload: unknown }> } {
     const calls: Array<{ name: string; payload: unknown }> = [];
@@ -107,6 +132,29 @@ describe('getExamList', () => {
       },
     };
   }
+
+  it('恰好满一页时 complete=false——总数不可信，宁可说没读全', async () => {
+    const full = Array.from({ length: EXAM_LIST_PAGE_SIZE }, (_, index) => ({
+      id: `id-${index}`,
+      examId: 'e',
+      examName: '第三章单元测试',
+      meetCourseType: 0,
+      state: 1,
+    }));
+    const { client } = fakeClient({ rt: { studentHomeworkList: full } });
+    const page = await getExamList(client, { recruitId: 1, courseId: 2, submitted: false });
+    expect(page.items).toHaveLength(EXAM_LIST_PAGE_SIZE);
+    expect(page.complete).toBe(false);
+  });
+
+  it('不足一页时 complete=true（实测最大 20 条，一门课二十章）', async () => {
+    const { client } = fakeClient({
+      rt: { studentHomeworkList: [{ id: 'a', examId: 'e', examName: 'x', meetCourseType: 0, state: 1 }] },
+    });
+    const page = await getExamList(client, { recruitId: 1, courseId: 2, submitted: true });
+    expect(page.items).toHaveLength(1);
+    expect(page.complete).toBe(true);
+  });
 
   it('未提交页签 → flag=1；一次取全（pageSize=100）', async () => {
     const { client, calls } = fakeClient({ rt: { studentHomeworkList: [] } });
