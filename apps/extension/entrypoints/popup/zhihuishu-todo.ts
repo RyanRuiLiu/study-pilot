@@ -12,7 +12,7 @@
  * 平台（platformId 见 main.ts）。
  */
 
-import { getSettings, getZhsPending, runNow } from '../../src/ui-bridge';
+import { getSettings, getZhsPending, getZhsSession, runNow } from '../../src/ui-bridge';
 import type { ZhsPendingEntry, ZhsPendingKind } from '../../src/ui-bridge';
 import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { zhsTodoEl } from './elements.ts';
@@ -145,6 +145,18 @@ const area = createTodoArea<ZhsPendingEntry>({
 
 /** 渲染智慧树待办。 */
 export async function renderZhsTodo(): Promise<void> {
+  /*
+   * **未登录先于「没勾课程」判**：没登录时什么都做不了，而「没勾课程」是下一步的事。
+   * 顺序反了会把人指向一个他到了也做不成事的地方——Ryan 报的正是这个：
+   * 登录已失效时弹窗说的是「尚未选择参与任务的课程」，而真相与课程无关。
+   * 慕课那份同一条次序，两处一起改（ruling 见那边同位置注释）。
+   */
+  const session = await getZhsSession();
+  if (!session.loggedIn) {
+    area.loginPrompt();
+    return;
+  }
+
   const settings = await getSettings();
   const courses = settings.zhihuishu.courses.filter((course) => course.enabled);
   if (courses.length === 0) {
