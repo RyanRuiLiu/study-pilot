@@ -20,10 +20,10 @@ export const ANSWER_SOURCE_ATTRIBUTE = 'data-study-pilot-answer-source';
 export const GUIDANCE_LABEL = '得分指导';
 
 /**
- * 一份作业的标识。
+ * 一份作业的标识（`homework:tid`）。
  *
- * 带 kind 前缀是为将来留位：考试的取卷接口不同（会在服务端创建答卷），
- * 那时来源必须能区分作业与考试，否则「这份块是谁的」判断会串台。
+ * 前缀是「族」：注入块按族区分归属，换卷时只清理本族的旧块。
+ * 主观题考试页与作业页共用这一族（同一个取卷管线），因此前缀不叫 exam。
  */
 export function answerSource(tid: number): string {
   return `homework:${tid}`;

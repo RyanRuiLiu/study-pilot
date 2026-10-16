@@ -59,13 +59,22 @@ export {
 
 export {
   getQuizInfo,
-  getOpenQuizInfo,
   getQuizPaper,
   buildAnswers,
+  buildAnswersWithBank,
+  getQuizBank,
+  hasAnswer,
+  answerAndSubmitQuiz,
+  buildFillIndex,
+  resolveAnswers,
+  paperHasAllAnswers,
+  firstFillAnswer,
   saveDraft,
   submitQuiz,
-  type OpenQuizInfo,
   type BuildAnswersResult,
+  type BuildAnswersOptions,
+  type AnswerIndex,
+  type FillAnswers,
 } from './quiz.ts';
 
 /*

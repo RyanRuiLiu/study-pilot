@@ -33,6 +33,10 @@ export interface QuizInfo {
   usedTryCount?: number | null;
   questionCount?: number | null;
   canRetake?: boolean | null;
+  /** 卷面总分（实测 getQuizInfo 顶层带它；面板上显示「总分：」用）。 */
+  totalScore?: number | null;
+  /** 测验名。 */
+  name?: string | null;
   evaluateStart?: number | null;
   evaluateEnd?: number | null;
   [key: string]: unknown;

@@ -1,5 +1,5 @@
 /*
- * 作业页的得分指导：取卷、插入、幂等与生命周期。
+ * 得分指导（作业页与主观题考试页）：取卷、插入、幂等与生命周期。
  *
  * 数据来源：`getHomeworkPaperDto` 响应的 `subjectiveQList[].judgeDtos[]`。
  * 每道题可以有一个或多个评分点，每个评分点的 `msg` 是含图片与文字的富文本，
@@ -13,8 +13,10 @@
  * 生产用的取卷实现见 `loader.ts`（那个文件才碰消息通道，本文件保持纯 DOM，
  * 因此可以在 Node 里用假取卷端口直接测）。
  *
- * 考试页暂不注入：主观题考试的取卷会在服务端创建答卷（等价于点「开始考试」），
- * 那是一个有副作用的动作，等明确需要并且想清楚风险再做。
+ * 主观题考试页（#/learn/examSubjective）与作业页共用这一条：两处的题目结构相同
+ * （.u-questionItem / .qaDescription / .j-answer），取卷返回的 judgeDtos 同构
+ * （2026-10-17 真机验证：示例课程戊期末考试页注入正常）。已开始的考试才进得了这个
+ * 路由，因此取卷是纯读，不会替用户点「开始考试」。
  */
 
 import type { PaperQuestion } from '@study-pilot/platform-mooc';
@@ -95,7 +97,9 @@ export async function injectGuidance(load: QuestionLoader, tid: number): Promise
     const anchor = anchorOf(item);
     if (!anchor) continue;
 
-    anchor.insertAdjacentElement('afterend', buildAnswerBlock(question, source));
+    // 没有可展示的内容（评分点为空）就不放块
+    const block = buildAnswerBlock(question, source);
+    if (block !== null) anchor.insertAdjacentElement('afterend', block);
   }
 }
 
