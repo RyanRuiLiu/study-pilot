@@ -72,9 +72,13 @@ function buildAnswersBlock(row: AnswerRow, source: string): HTMLElement | null {
   if (answered === null) return null;
 
   const correct = (answered.optionDtos ?? [])
-    .filter((option) => option.answer === true)
-    .map((option) => String(option.content ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim())
-    .filter((text) => text !== '');
+    .map((option, index) => ({ option, letter: String.fromCharCode(65 + index) }))
+    .filter(({ option }) => option.answer === true)
+    .map(({ option, letter }) => {
+      const text = String(option.content ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      // 内容是图片的选项没有文字，平台自己的答案就是选项字母（考试查看页「正确答案：A」同款）
+      return text !== '' ? text : letter;
+    });
   const stdAnswer = typeof answered.stdAnswer === 'string' ? answered.stdAnswer.trim() : '';
   const reference = correct.length > 0 ? correct.join('、') : stdAnswer;
   const analyseHtml = String(answered.analyse ?? '').trim();

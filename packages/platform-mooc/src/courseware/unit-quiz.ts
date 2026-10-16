@@ -17,7 +17,7 @@
 
 import { err, ok } from '@study-pilot/core';
 import { apiError } from '@study-pilot/transport';
-import { buildAnswers, getQuizPaper, submitQuiz } from '../quiz.ts';
+import { buildAnswersWithBank, getQuizPaper, submitQuiz } from '../quiz.ts';
 import { UNIT_TYPE } from '../types.ts';
 import type { UnitBehavior } from './behavior.ts';
 import { completionDto, postLearnInfo } from './reports.ts';
@@ -45,7 +45,10 @@ export const unitQuizBehavior: UnitBehavior = {
       return err(apiError(-1, `这份随堂测验含 ${subjective} 道主观题，需人工作答，不自动提交`));
     }
 
-    const built = buildAnswers(paper.value);
+    // 卷面自带答案直接用；没带（未提交的单元测验）按 termId 用题库补
+    const builtResult = await buildAnswersWithBank(client, unit.termId, paper.value);
+    if (!builtResult.ok) return builtResult;
+    const built = builtResult.value;
     if (built.total === 0) {
       return err(apiError(-1, '这份随堂测验没有客观题，无法按唯一路径作答'));
     }
