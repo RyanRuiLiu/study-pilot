@@ -32,7 +32,7 @@ import {
   setRunning,
   setRunScope,
   setStatusPlatform,
-  showStatus,
+  statusWriterFor,
   watchRunState,
 } from './status.ts';
 import { renderTodo } from './todo.ts';
@@ -83,9 +83,10 @@ async function init(): Promise<void> {
       currentPlatform === 'zhihuishu'
         ? { platformId: 'zhihuishu' }
         : { platformId: 'mooc', kinds: PENDING_KINDS };
+    // 结果只写回发起平台的状态行（切走 tab 后那行归那家管；见 statusWriterFor）
     void runNow(
       {
-        setStatus: showStatus,
+        setStatus: statusWriterFor(currentPlatform),
         setEnabled: (enabled) => setRunning(!enabled),
         refresh: () => (currentPlatform === 'zhihuishu' ? renderZhsTodo() : renderTodo()),
       },

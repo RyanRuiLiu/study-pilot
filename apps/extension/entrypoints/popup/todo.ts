@@ -17,7 +17,7 @@ import { getPending, getSettings, runNow } from '../../src/ui-bridge';
 import type { PendingEntry } from '../../src/ui-bridge';
 import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { todoEl } from './elements.ts';
-import { setRunning, showStatus } from './status.ts';
+import { setRunning, statusWriterFor } from './status.ts';
 
 /** 每类待办对应什么，以及点进去打开哪个页面（href 由平台拼好，这里不拼 URL）。 */
 const KIND_TEXT: Record<PendingEntry['kind'], string> = {
@@ -135,7 +135,7 @@ function buildRow(entry: PendingEntry): HTMLElement {
     button.addEventListener('click', () => {
       void runNow(
         {
-          setStatus: showStatus,
+          setStatus: statusWriterFor('mooc'),
           setEnabled: (enabled) => setRunning(!enabled),
           refresh: () => renderTodo(),
         },
