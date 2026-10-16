@@ -233,7 +233,7 @@ describe('题库补答案（resolveAnswers）', () => {
       { id: 9002, type: 3, testId: TID, position: 1, stdAnswer: '示例选项辛' },
     ];
 
-    target.objectiveQList = resolveAnswers(target.objectiveQList, bank, TID);
+    target.objectiveQList = resolveAnswers(target.objectiveQList ?? [], bank, TID);
     const result = buildAnswers(target);
 
     expect(result.matched).toBe(2);

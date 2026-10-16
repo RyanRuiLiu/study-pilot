@@ -131,14 +131,14 @@ function workAction(
 // ---------- 测验的夹具 ----------
 
 /** 试卷夹具（runQuiz 的映射测试不再用，保留给后续用例）。 */
-function objectiveQuestion(
+export function objectiveQuestion(
   id: number,
   options: Array<[number, boolean]>,
 ): NonNullable<QuizPaper['objectiveQList']> {
   return [{ id, type: 1, optionDtos: options.map(([optionId, answer]) => ({ id: optionId, answer })) }];
 }
 
-function quizPaper(overrides: Partial<QuizPaper> = {}): QuizPaper {
+export function quizPaper(overrides: Partial<QuizPaper> = {}): QuizPaper {
   return { tid: TID, aid: 55, objectiveQList: [], ...overrides };
 }
 
