@@ -11,7 +11,7 @@
  * 只负责「怎么显示」，「点击后做什么」由入口以参数注入（否则与 actions 互相引用成环）。
  */
 
-import type { OpenQuizInfo } from '@study-pilot/platform-mooc';
+import type { QuizInfo } from '@study-pilot/platform-mooc';
 import { TOKENS } from '../../../ui/tokens.ts';
 import { STAGE_DESCRIPTIONS, type QuizStage } from '../quiz-stage.ts';
 import { loadQuizInfo } from './data.ts';
@@ -261,7 +261,7 @@ export function applyStage(panel: ActivePanel, stage: QuizStage): void {
  *
  * 只放总分：它与面板的动作直接相关——面板要做的是按答案作答，总分说明这值多少分。
  */
-function buildInfoRow(info: OpenQuizInfo): HTMLElement | null {
+function buildInfoRow(info: QuizInfo): HTMLElement | null {
   const total = info.totalScore;
   if (typeof total !== 'number' || total <= 0) return null;
 
