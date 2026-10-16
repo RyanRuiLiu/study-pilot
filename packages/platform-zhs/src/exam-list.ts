@@ -7,9 +7,13 @@
  *     ——`dateFormate` 由 client 的签名封装按族补，这里不传；
  *   - **页签由 flag 分**，官方名「未提交（flag=1）/ 已提交（flag=2）」；
  *   - `pageSize: 100` 一页取全（实测：最大的一门课 13 条）；
+ *   - **页号是 0 基**：实测 `pageNum=1` 回空表、`pageNum=0` 才出条目；
  *   - **一个列表两类条目**：`meetCourseType` 0 = 单元测试（`cpOrderNumber` 是章节名）、
  *     1 = 见面课测验（条目名 = 场次名，`cpOrderNumber` 为 null）；
- *   - 状态 `state`：1 = 未提交、4 = 已提交（实测唯二值）。
+ *   - **`flag` 页签才判「交没交」，别拿 `state` 猜**：2026-10-17 真机在沙箱课看到
+ *     `state` 至少三值——1（未动）、4（已交，落在「已提交」页签）、5（重做过的那卷，
+ *     落在「未提交」页签且 `score` 为 null）。所以「要不要做」的判据是
+ *     `flag=1 页签 && state === 1`，其余状态一律**如实呈现、不动手**。
  *
  * 归一与读取分开：`normalizeHomeworkList` 是纯函数（可离线核对形态），
  * `getExamList` 只负责发一次请求。取不到的字段一律给 null——**不猜**。
@@ -23,11 +27,20 @@ export const MEET_COURSE_TYPE = {
   meetingQuiz: 1,
 } as const;
 
-/** `state` 的两个实测取值。 */
+/** `state` 的实测取值（2026-10-17 沙箱课）。5 的语义未查明——不是「已交」就是「别的」，一律不当可做。 */
 export const HOMEWORK_STATE = {
-  unsubmitted: 1,
+  /** 未动过 */
+  untouched: 1,
+  /** 已提交（落在 flag=2 页签） */
   submitted: 4,
+  /** 重做过的那卷：落在 flag=1 页签、`score` 为 null（语义待查） */
+  redoneUnknown: 5,
 } as const;
+
+/** 这一条是不是「可以动手做」的（未交页签 + 未动过）。其余状态只呈现、不写。 */
+export function isActionable(item: ZhsExamListItem): boolean {
+  return item.state === HOMEWORK_STATE.untouched;
+}
 
 export interface ZhsExamListItem {
   /** 清单条目 id——lookHomework 的 `studentExamId` 用料 */
@@ -85,7 +98,9 @@ export async function getExamList(
     courseId: input.courseId,
     flag: input.submitted ? 2 : 1,
     pageSize: 100,
-    pageNum: 1,
+    // 页号是 **0 基**：实测 pageNum=1 回空表，pageNum=0 才出条目
+    // （真机脚本 eval-replay.js 用的就是 0）。别按 1 基的直觉改回来。
+    pageNum: 0,
   })) as { rt?: unknown };
   return normalizeHomeworkList(body.rt);
 }
