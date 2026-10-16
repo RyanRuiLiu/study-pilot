@@ -1,5 +1,4 @@
 node_modules/
-dist/
 .output/
 .wxt/
 .dev-profile/
@@ -16,6 +15,10 @@ __pycache__/
 # 探测工作区：抓下来的原始响应、截图、临时产物。不入库。
 # 这些是调试过程的材料，不是项目内容，而且可能带着账号与课程数据。
 .probe/
+
+# 逆向镜像（镜像站点 JS 的可读化副本）。按 .reverse/INDEX.md 自己的声明不入库：
+# 它是重新生成即可的调研材料，不是项目内容；生成器已删除，磁盘上的副本保留作考证。
+.reverse/
 
 # Playwright MCP 的暂存目录（偶尔手动看一眼时产生；正式工具以 pnpm probe 为准）
 .playwright-mcp/

@@ -6,7 +6,7 @@
  * 把它们拼成本项目需要的样子：
  *
  *   浏览器      Playwright 管理的 Chromium（`pnpm exec playwright install chromium` 装一次）
- *   登录态      Playwright storageState → .probe/mooc-session.json
+ *   登录态      Playwright storageState → .probe/browser-session.json
  *               （open 时若 profile 里缺 cookie，会自动从导出文件补上，不必人工重登）
  *   流量取证    HAR（trace.har，Chrome DevTools / Fiddler / Charles 都能直接打开）
  *   调接口      page.evaluate(fetch) 在页面上下文里发请求（call 命令；写方法默认拦截）
@@ -29,7 +29,7 @@ import { chromium } from 'playwright';
 
 const ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const PROFILE = path.join(ROOT, '.probe', 'profile');
-const SESSION = path.join(ROOT, '.probe', 'mooc-session.json');
+const SESSION = path.join(ROOT, '.probe', 'browser-session.json');
 const API_DIR = path.join(ROOT, '.probe', 'api');
 const EXT_DIR = path.join(ROOT, 'apps', 'extension', '.output', 'chrome-mv3');
 
@@ -45,7 +45,8 @@ const OWNER_COOKIE = 'study-pilot-probe-owner';
 const OWNER_URL = `http://127.0.0.1:${CDP_PORT}/`;
 /** 判定登录态的三个会话 cookie（NTESSTUDYSI 未登录时也有，另两个才是关键）。 */
 const AUTH_COOKIES = ['STUDY_SESS', 'STUDY_INFO', 'NTESSTUDYSI'];
-/** 签名盐值与协议版本——唯一出处是 packages/transport/src/sign.ts（按线上源码还原）。 */
+/** 签名盐值与协议版本——出处是 packages/transport/src/sign.ts（按线上源码还原；
+ * 本文件只用于慕课的 .rpc 调试；智慧树的签名在 packages/platform-zhs/src/sign.ts，是另一套协议）。 */
 const SIGN_SALT = 'fu2s2kxcswgn5hqanx7asmlogyr5wu29';
 /** 只读方法前缀白名单：写方法直接拦截，这是硬约束不是建议（账号数据不可逆）。 */
 const READONLY_PREFIXES = ['get', 'list', 'search', 'query', 'has', 'is', 'can', 'check', 'page', 'find'];
@@ -204,7 +205,7 @@ async function release(handle) {
  * 打开会话导出里、浏览器 profile 里还缺着的 cookie。
  *
  * 登录事实存两处：浏览器 profile（活的，站点会持续更新它）与
- * .probe/mooc-session.json（导出的快照）。profile 丢了（重装、换机、被清）时
+ * .probe/browser-session.json（导出的快照）。profile 丢了（重装、换机、被清）时
  * 用快照补回来，就不用再人工登录一次。只补「缺的」——profile 里已有的以 profile 为准。
  */
 async function injectMissingCookies(context) {
@@ -602,7 +603,7 @@ async function cmdShot(opts) {
 const USAGE = `用法：pnpm probe <命令> [选项]
 
   open [--no-ext]                        起探测浏览器（持久登录；关窗即退出）
-  state export                           把当前登录导出到 .probe/mooc-session.json（Playwright storageState）
+  state export                           把当前登录导出到 .probe/browser-session.json（Playwright storageState）
   state check                            核对导出文件与浏览器当前登录是否一致
   capture --url <URL> [--out <名字>]     抓取页面 → .probe/<名字>/
       [--wait <毫秒>] [--eval <代码>...]    产物：trace.har + page.html + console.jsonl + shot.png + scripts/

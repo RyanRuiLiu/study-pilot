@@ -14,8 +14,6 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "sourceMap": true,
     "allowImportingTsExtensions": true,
     "noEmit": true
   }

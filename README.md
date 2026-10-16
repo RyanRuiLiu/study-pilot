@@ -1,9 +1,11 @@
 # Study Pilot
 
-中国大学 MOOC 的学习助手（Chrome / Edge 扩展，MV3；另有命令行载体）。它读你在平台上的
-课程、作业与测验，把「还剩什么」列出来；能替你做的事（看课件、客观题测验、互评、自评）
-在你点下按钮时完成——没有定时任务，也不会在你没点的时候写任何东西。
-**考试永远不自动提交**。
+学习平台助手（Chrome / Edge 扩展，MV3；另有命令行载体），接入两个平台：
+中国大学 MOOC 与智慧树。它读你在平台上的课程、作业与测验，把「还剩什么」列出来；
+能替你做的事（看课件、客观题测验、互评、自评）在你点下按钮时完成——没有定时任务，
+也不会在你没点的时候写任何东西。考试目前不自动提交；自动化考试在二期设计中
+（docs/superpowers/specs/2026-10-16-zhs-task-modules-design.md），落地时本文件与
+PRIVACY.md 会同步改写。
 
 这份文件是唯一的说明。规则不写在这里，写在代码里：每条约定都放在它约束的那个文件顶部。
 唯一的机器检查是 tsc 与 vitest（见下）。
@@ -15,7 +17,7 @@
     pnpm -r test            # 各包测试
     pnpm build              # 构建扩展（apps/extension/.output/chrome-mv3）
 
-三条冒烟（可选，后两条要本地已有登录会话）：
+四条冒烟（可选，后两条要本地已有登录会话）：
 
     pnpm --filter @study-pilot/platform-mooc exec vitest run test/plan-smoke.test.ts
         # 证明计划逻辑不碰浏览器（用一个会抛异常的 browser 代理）
@@ -27,21 +29,24 @@
         # 从探测浏览器导出登录态到 .probe/（Playwright storageState；见「真机调试」一节）
 
     pnpm --filter @study-pilot/extension exec vitest run test/node-live.test.ts
-        # 在 Node 里直连平台读课程列表（只读，不写平台）
+        # 在 Node 里直连平台读慕课课程列表（只读，不写平台；无会话文件时跳过）
 
 装到浏览器：chrome://extensions → 开发者模式 → 加载已解压的扩展程序 →
 选 apps/extension/.output/chrome-mv3。
 
-命令行载体（第二个载体；courses / pending 只读，run 默认预演）：
+命令行载体（第二个载体；与扩展同覆盖——两个平台都接；courses / pending 只读，run 默认预演）：
 
-    node apps/cli/src/main.ts courses --cookies .probe/mooc-session.json --config .probe/cli-config.json
-        # 去平台读课程列表；加 --select <termId> 把它勾上并写进配置文件
-    node apps/cli/src/main.ts pending --cookies .probe/mooc-session.json --config .probe/cli-config.json
-        # 读一遍并算出要做什么（可自动 / 需人工），不改平台上的任何数据
-    node apps/cli/src/main.ts run --cookies .probe/mooc-session.json --config .probe/cli-config.json
+    node apps/cli/src/main.ts courses --cookies .probe/browser-session.json --config .probe/cli-config.json
+        # 去两个平台各读一次课程列表（同一个会话文件里两家的 cookie 都有）；
+        # 加 --select <id> 把那门课勾进配置：慕课是 termId（单选，勾上它即取消其余），
+        # 智慧树是 courseId（逐门切换，再跑一次即反向）；可加 --platform 只读一家
+    node apps/cli/src/main.ts pending --cookies .probe/browser-session.json --config .probe/cli-config.json
+        # 读一遍并算出要做什么（可自动 / 需人工），不改平台上的任何数据；--platform 收窄
+    node apps/cli/src/main.ts run --cookies .probe/browser-session.json --config .probe/cli-config.json
         # 预演这一轮会做什么；**加 --yes 才真的执行**——写平台会改账号上的学习记录且不可撤销，
         # 所以默认只摆出来，动手必须显式授权（扩展那边等价的是用户点按钮）
-        # 可加 --kind courseware,quiz 与 --course <课程名> 收窄范围；预演与执行两侧同样生效
+        # 可加 --platform mooc|zhihuishu、--kind courseware,quiz 与 --course <课程名>
+        # 收窄范围；预演与执行两侧同样生效
 
 直接跑 TS 即可：Node 22+ 会剥掉类型，而包内的相对导入都带 .ts 扩展名，因此不经打包也能加载。
 要单文件分发时再打包：pnpm --filter @study-pilot/cli build → apps/cli/dist/main.mjs（esbuild）。
@@ -53,7 +58,7 @@
     pnpm exec playwright install chromium   # Playwright 管理的 Chromium（探测与 pnpm dev 共用）
     pnpm probe open                         # 起探测浏览器（持久登录；关窗即退出）
 
-    # 首次在窗口里登录一次慕课，然后把它导出给 CLI / Node 用：
+    # 首次在窗口里登录（慕课与智慧树各登录一次），然后把它导出给 CLI / Node 用：
     pnpm probe state export
 
 日常：
@@ -65,9 +70,13 @@
     pnpm probe har --dir <名字> --match <URL 片段> [--out <文件>]
         # 从采集的 HAR 里取出匹配请求的响应体
     pnpm probe call --bean <Bean> --method <getXxx> --body '{...}'
-        # 在页面上下文发 .rpc 请求（默认只放行只读方法，写方法被拦截）
-    pnpm probe ext reload                   # 改完扩展：重载（不用重开浏览器；要求探测浏览器在运行）
+        # 在页面上下文发 .rpc 请求（慕课专用；默认只放行只读方法，写方法要 --allow-write 显式放行）
+    pnpm probe shot --url <URL>             # 截一张图
+    pnpm probe ext id | ext reload          # 打印扩展 id / 重载扩展（要求探测浏览器在运行）
     pnpm probe kill                         # 关闭探测浏览器
+
+智慧树接口没有 .rpc 形态（签名协议是 another 一套，实现在 packages/platform-zhs/src/sign.ts），
+真机调用走 CLI（上面的 courses / pending）或 capture 取证；两个平台共用同一个探测浏览器与登录态。
 
 约定：取证一律用 capture / call，**不要手写临时监听**（时序与缓存不可控，本项目曾据此误判）；
 产物一律落 `.probe/`（git 忽略），结论写进代码注释。规则全文在 `scripts/probe/probe.mjs` 头部，
@@ -77,13 +86,17 @@
 
     packages/
       core/          小工具（md5、Result 等）
-      transport/     慕课 DWR 传输：签名、请求、错误分类、节流
+      transport/     HTTP 协议层共用件：浏览器 UA、节流、错误分类（慕课的签名/DWR 也在这）
       platform-mooc/ 慕课一个包，两半：接口层（读课程/作业/测验、取卷、提交、评分）
                      与策略层 policy/（会话、读取、计划、执行、厂商装配）
+      platform-zhs/  智慧树一个包，同一分法：签名/接口清单/客户端/会话/课程/任务树/上报，
+                     与策略层 policy/（计划、执行、空网规）——截图答案引擎（exam-answers.ts）
+                     是二期考试模块的地基，已在包里
       application/   载体无关的应用层：模型、端口、配置、状态机、「跑一轮」用例
       ai/            OpenAI 兼容接口（讨论区留言用，可选）
     apps/extension/  载体一：浏览器扩展
-      src/adapters/   慕课的消息与视图适配器、本载体补的那半装配
+      src/adapters/mooc/      慕课的消息与视图适配器
+      src/adapters/zhihuishu/ 智慧树的消息适配器（课程/待办/课件概览与会话）
       src/background/ 消息路由与运行状态（执行只由人点按钮发起）
       src/browser/    宿主能力：cookie、请求头改写、运行状态推送、执行入口
       src/settings/   配置落到浏览器存储（形状与规范化在 packages/application）
@@ -91,14 +104,34 @@
       src/ui/         界面共用：设计令牌、格式化、执行范围的分类
       src/ai/         AI 用例：提示词与生成器（把 packages/ai 接给策略层）
       src/ui-bridge.ts  界面唯一的取数入口
-      entrypoints/    后台装配、弹窗、设置页、作业页内容脚本
+      entrypoints/    后台装配、弹窗（含 zhihuishu-todo）、设置页（含智慧树卡片）、内容脚本
       test/           测试（boundaries.test.ts 是分层的机械核对）
-    apps/cli/        载体二：命令行
+    apps/cli/        载体二：命令行（两个平台都接）
       src/config-store.ts  配置端口落到一个 JSON 文件
-      src/host.ts          会话从浏览器导出的 cookie 文件读
-      src/fetch.ts         出站请求头自己设（命令行没有 declarativeNetRequest）
-      src/main.ts          命令：courses / pending（都只读）
+      src/task-store.ts    运行状态落到一个 JSON 文件（跨次运行的中断判定用）
+      src/host.ts          会话从浏览器导出的 cookie 文件读（两个平台各取各的域）
+      src/fetch.ts         出站请求头按平台自己设（命令行没有 declarativeNetRequest）
+      src/progress.ts      执行进度打到标准输出
+      src/main.ts          命令：courses / pending / run（run 默认预演，--yes 才写）
     scripts/probe/   真机调试唯一入口（pnpm probe；见「真机调试」一节）
+    docs/superpowers/specs/  设计记录（三家：界面语言、智慧树 v1 适配器、智慧树二期模块；
+                             状态行写明哪份已实现、哪份待实现）
+
+## 新人从哪读起
+
+改代码按这个顺序读，能最快建立全图（三句话背下来更省事）：
+
+    核心用例在 application，平台事实在 platform-*，载体（扩展 / 命令行）只做搬运。
+
+    1. packages/application/src/ports.ts        应用层与载体之间的唯一接口
+    2. packages/application/src/round.ts        「跑一轮」用例：先读这个再看平台
+    3. packages/platform-*/src/index.ts         两家平台各自的出口面（先看导出清单与头注释）
+    4. packages/*/src/policy/assembly.ts | tasks.ts   一轮怎么装配、做什么怎么计划
+    5. apps/extension/entrypoints/background.ts 载体一：把两个平台接进一条消息路由
+    6. apps/cli/src/main.ts                     载体二：更小更直白，读完就懂「载体只是壳」
+
+规则不在别处：每条约定都写在它约束的那个文件顶部。新写的东西放哪一层，
+读 `apps/extension/test/boundaries.test.ts` 的六条边界（跑 pnpm -r test 就会核对）。
 
 ## 边界与唯一的约定
 
@@ -112,7 +145,7 @@ src/browser、src/settings。这是"界面可以换人重写、核心可以独�
 改平台数据的写操作只在 packages/* 的执行面与触发它的载体侧（消息路由、界面）里发生；
 执行的发起者永远是人——扩展里是弹窗与设置页上的按钮，命令行里是 --yes；
 一轮随时可以停：不再发新的写请求，手上正在飞的请求落地即止；
-考试提交永远由人触发。
+考试提交目前由人触发（自动化考试在二期设计中，见文件开头）。
 
 ## 用词（唯一叫法）
 
@@ -126,7 +159,9 @@ src/browser、src/settings。这是"界面可以换人重写、核心可以独�
     状态行              报「正在执行 / 已完成 / 上次出错」的那一行（弹窗与设置页）
     快照                一次真实读取的内存结果：读完即用，不落存储、不缓存
     现读现算            平台数据的原则：界面上的每个数字都来自刚发出的请求
-    待办 / 课件         两类事的叫法：要交的工作项（quiz/homework/…）与代刷的课件单元
+    待办 / 课件         慕课两类事的叫法：要交的工作项（quiz/homework/…）与代刷的课件单元；
+                        智慧树不套用这个二分——它的界面对齐「成绩构成」四件套
+                        （平时/平时测试/见面课/期末），视频单元只是其中「平时」的执行面
     挂起                会话失效且恢复失败：本轮如实收尾不写任何东西，等重新登录
 
 ### 文案（界面上的话，2026-10-15 定稿）
@@ -148,9 +183,9 @@ src/browser、src/settings。这是"界面可以换人重写、核心可以独�
     可代为完成 / 可代为评分，尚差 N 份 / 需手动完成 / N 项需手动处理
     尚未读取到课程。点击「读取课程列表」从平台获取，获取后勾选要参与的课程。
     登录状态已失效，需重新登录慕课平台后方可读取待办。
+    登录状态已失效，需重新登录智慧树平台后方可读取待办。
     上次执行未正常结束，可重新执行「全部执行」。
-    智慧树尚未接入。功能就绪后，课程与课件将在此处显示。
-    平台要求完成一次人机验证
+    平台要求完成一次人机验证 / 平台提示多端播放：本轮已停止，请先关闭其他正在学习的窗口再试
     打开验证页
 
 ## 数据从哪来
@@ -168,4 +203,6 @@ src/browser、src/settings。这是"界面可以换人重写、核心可以独�
 
 - AI 密钥只存本机，不进日志、不上报。
 - AI 请求只发往智谱开放平台（open.bigmodel.cn）——地址固定、唯一出口；没启用 AI 就不发。
+- 命令行载体把配置与运行状态落在你指定的 JSON 文件（默认 .probe/cli-config.json 与
+  .probe/cli-state.json），登录态从浏览器导出的会话文件读——它自己不存任何凭证。
 

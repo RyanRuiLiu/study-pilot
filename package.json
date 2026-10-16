@@ -1,7 +1,7 @@
 {
   "name": "study-pilot",
   "private": true,
-  "description": "慕课平台辅助工具：整理课程待办与截止时间，可辅助完成客观题测验",
+  "description": "学习平台辅助工具（中国大学 MOOC / 智慧树）：整理课程待办与截止时间，可辅助完成客观题测验",
   "author": "Ryan Liu",
   "license": "MIT",
   "engines": {
@@ -27,6 +27,7 @@
   "keywords": [
     "browser-extension",
     "icourse163",
+    "zhihuishu",
     "education",
     "wxt"
   ],
