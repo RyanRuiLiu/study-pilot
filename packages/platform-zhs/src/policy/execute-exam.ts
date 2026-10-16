@@ -391,21 +391,36 @@ function keyCoversLookedPaper(key: AnswerKey, looked: readonly LookedQuestion[])
 }
 
 /**
- * 动重做之前的门槛：剩余次数够不够、是不是客观题。
- * 两条都不通过就给一句给人看的话（**两条路径共用**，别在两处各判一遍）。
+ * 动重做之前的**客观题**门槛。非客观题平台弹二维码（人工通道），走不了这条路。
+ * 两条路径共用：它们都要调 `saveCourseTran`。
  */
-async function redoGate(client: ZhsClient, target: ExamTarget): Promise<{ remaining: number } | RunOutcome> {
+async function objectGate(client: ZhsClient, target: ExamTarget): Promise<RunOutcome | null> {
+  const objectBody = (await client.call('examIsObject', { examId: target.examKey })) as { rt?: unknown };
+  if (Number(objectBody.rt) !== 1) return { status: 'skipped', message: '需手动完成：非客观题' };
+  return null;
+}
+
+/**
+ * 机会门槛：这条路要花掉几次机会，就得先有几次。
+ *
+ * 两处调用，**门槛不同，理由不同**：
+ *   - 缺键（探路）：要 **≥2**——探路那一枪白打，还要留一次定分；
+ *   - 已交未满分：要 **≥1**——它不探路（题号早已解锁，收割建键是纯只读），
+ *     那一次机会是拿去定分的。Ryan 定：只剩 1 次也做，因为动手前有覆盖闸、
+ *     交卷前有神谕闸，两道都不过就不花这个钱。
+ *
+ * 剩 0 次两条路都要拦：没有机会了，`saveCourseTran` 只会被平台拒，
+ * 白跑一趟还留个失败记录。
+ */
+async function remainingGate(client: ZhsClient, target: ExamTarget, min: number): Promise<RunOutcome | null> {
   const redoBody = (await client.call('examRedoNum', { recruitId: target.recruitId, examId: target.examKey })) as {
     rt?: unknown;
   };
   const remaining = remainingAttempts(redoBody.rt);
-
-  const objectBody = (await client.call('examIsObject', { examId: target.examKey })) as { rt?: unknown };
-  if (Number(objectBody.rt) !== 1) return { status: 'skipped', message: '需手动完成：非客观题' };
-  if (remaining < MIN_ATTEMPTS_FOR_PROBE) {
+  if (remaining < min) {
     return { status: 'skipped', message: `需手动完成：仅剩 ${remaining} 次作答机会` };
   }
-  return { remaining };
+  return null;
 }
 
 /**
@@ -438,8 +453,9 @@ async function prepareKey(
 async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
   const { target } = input;
 
-  const gate = await redoGate(client, target);
-  if (isOutcome(gate)) return gate;
+  // 客观题 + **剩余 ≥1**：这条路不探路，一次机会就够（Ryan 定，见 remainingGate）
+  const gate = (await objectGate(client, target)) ?? (await remainingGate(client, target, 1));
+  if (gate !== null) return gate;
 
   const prepared = await prepareKey(client, target, input.popupLessonId, '未申请重做');
   if (isOutcome(prepared)) return prepared;
@@ -488,8 +504,9 @@ async function runRedoOpen(client: ZhsClient, input: ExamRunInput, control: RunC
 async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
   const { target } = input;
 
-  const gate = await redoGate(client, target);
-  if (isOutcome(gate)) return gate;
+  // 缺键这条路两道门槛都要过：客观题 + 剩余 ≥2（探路那一枪会白打）
+  const gate = (await objectGate(client, target)) ?? (await remainingGate(client, target, MIN_ATTEMPTS_FOR_PROBE));
+  if (gate !== null) return gate;
 
   // ① 探路一枪：无键可用，如实按卷面第一项作答——它的作用只是解锁题号
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
