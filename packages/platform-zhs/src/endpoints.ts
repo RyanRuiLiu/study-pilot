@@ -54,7 +54,12 @@ const ENDPOINT_TABLE = {
     path: '/app-commserv-user/c/has',
     method: 'GET',
   },
-  /** 登录用户信息（免签）：响应 result.uuid 即设备号（报告的 token 用料） */
+  /**
+   * 登录用户信息（免签）。**遗留端点**：站点现版前端已无任何调用点，
+   * 2026-10-17 起对工具链固定 403「未登录」——会话与设备号已改由 CASLOGC
+   * cookie 读取（见 session.ts）。条目保留，作为该族免签形态的样板
+   * （client 测试用它核对免签路径）。
+   */
   loginUserInfo: {
     host: 'online',
     path: '/gateway/f/v1/login/getLoginUserInfo',

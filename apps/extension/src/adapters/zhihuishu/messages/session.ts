@@ -7,7 +7,7 @@ import type { ZhsResponseMap } from './payload.ts';
 
 export function zhsSessionCommand(deps: ZhsMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
-    const session = await readSession(deps.client);
+    const session = await readSession(deps.readCookie);
     sendResponse({ loggedIn: session.loggedIn } satisfies ZhsResponseMap['ZHS_SESSION']);
   };
 }

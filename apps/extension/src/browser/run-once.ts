@@ -66,10 +66,15 @@ export async function runNow(handles: RunHandles, scope?: RunScope): Promise<voi
 
     if (result.ok === false) {
       /*
-       * 被拒绝的原因要具体。「正在执行」这类由并发导致的拒绝不必报错色——
-       * 它不是出错，只是时机不对。
+       * 具体优先：后台带了 message 就用它——一次抛错中止的轮次里，
+       * 它是最完整的那句话（如智慧树撞门的验证说明与去处）；
+       * 没有 message 的拒绝才退回按拒因的通用措辞。
+       * 「正在执行」这类由并发导致的拒绝不必报错色——它不是出错，只是时机不对。
        */
-      text = REJECTION_MESSAGES[result.reason];
+      text =
+        result.message !== undefined && result.message !== ''
+          ? result.message
+          : REJECTION_MESSAGES[result.reason];
       tone = result.reason === 'ALREADY_RUNNING' ? 'idle' : 'error';
     } else if (result.message) {
       // 「没有可执行的事项」属于正常结果，不用错误色

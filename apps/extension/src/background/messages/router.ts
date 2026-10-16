@@ -78,8 +78,9 @@ export function registerMessageHandler(deps: RouterDeps): void {
         return;
       }
       if (request?.type === 'STOP_RUN') {
-        // 只置一个标记；项间循环与长动作的安全点都会看它（见 Runner.stop）
-        sendResponse({ stopped: deps.runner.stop() });
+        // 只置一个标记；项间循环与长动作的安全点都会看它（见 Runner.stop）。
+        // 按平台：一家的停止不打断另一家。
+        sendResponse({ stopped: deps.runner.stop(request.platformId) });
         return;
       }
 

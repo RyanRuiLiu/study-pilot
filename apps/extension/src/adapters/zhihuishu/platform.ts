@@ -8,6 +8,7 @@
 
 import { createZhsRuntime } from '@study-pilot/platform-zhs';
 import type { ConfigPort, PlatformTasks, PlatformWiring } from '@study-pilot/application';
+import { browserCapabilities } from '../../browser/capabilities.ts';
 import type { MessageHandlers } from '../../protocol.ts';
 import type { ZhsMessageDeps } from './messages/deps.ts';
 import { zhihuishuHandlers } from './messages/handlers.ts';
@@ -22,15 +23,23 @@ export interface ZhsPlatform {
   handlers: Omit<MessageHandlers, '*'>;
   /** 要跑一轮时的平台实例 */
   tasks: () => PlatformTasks;
-  /** 外壳要观察的信号：登录靠接口探、无请求头规则 */
+  /** 外壳要观察的信号：登录靠 CASLOGC cookie 判（browserCapabilities.readCookie）、无请求头规则 */
   wiring: PlatformWiring;
 }
 
 export function createZhihuishuPlatform(env: ZhsEnv): ZhsPlatform {
   // fetch 由本载体提供：扩展后台的全局 fetch（含 cookie、走浏览器网络栈）
-  const runtime = createZhsRuntime({ config: env.config, fetch: (url, init) => fetch(url, init) });
+  const runtime = createZhsRuntime({
+    config: env.config,
+    fetch: (url, init) => fetch(url, init),
+    readCookie: browserCapabilities.readCookie,
+  });
 
-  const deps: ZhsMessageDeps = { config: env.config, client: runtime.client };
+  const deps: ZhsMessageDeps = {
+    config: env.config,
+    client: runtime.client,
+    readCookie: browserCapabilities.readCookie,
+  };
 
   return {
     handlers: zhihuishuHandlers(deps),

@@ -16,7 +16,7 @@ import type { ZhsResponseMap } from './payload.ts';
 
 export function zhsRefreshCoursesCommand(deps: ZhsMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
-    const session = await readSession(deps.client);
+    const session = await readSession(deps.readCookie);
     if (!session.loggedIn) {
       sendResponse({ ok: false, reason: 'NOT_LOGGED_IN' } satisfies ZhsResponseMap['ZHS_REFRESH_COURSES']);
       return;

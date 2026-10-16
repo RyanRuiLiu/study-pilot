@@ -67,9 +67,9 @@ export function getCourseware() {
   return sendToBackground({ type: 'MOOC_COURSEWARE_SUMMARY' });
 }
 
-/** 后台此刻在不在跑、上一轮记下的失败。 */
-export function getTaskState() {
-  return sendToBackground({ type: 'TASK_STATE' });
+/** 某平台此刻在不在跑、它上一轮记下的失败（状态按平台独立）。 */
+export function getTaskState(platformId: string) {
+  return sendToBackground({ type: 'TASK_STATE', platformId });
 }
 
 // ---------- 智慧树：按平台专有的载荷各透一条 ----------
@@ -124,12 +124,12 @@ export function runNow(
 }
 
 /**
- * 请求停止正在执行的一轮：不再发新的写请求，长动作在下一个安全点中断，
+ * 请求停止某平台正在执行的一轮：不再发新的写请求，长动作在下一个安全点中断，
  * 正在飞的请求落地即止。返回是否真有在跑的一轮；
- * 发起那一轮的人会照常收到结果（带 stopped 标记）。
+ * 发起那一轮的人会照常收到结果（带 stopped 标记）。一家的停止不打断另一家。
  */
-export function stopRun() {
-  return sendToBackground({ type: 'STOP_RUN' });
+export function stopRun(platformId: string) {
+  return sendToBackground({ type: 'STOP_RUN', platformId });
 }
 
 /** 订阅运行状态推送。返回退订函数。 */

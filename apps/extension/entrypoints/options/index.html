@@ -128,7 +128,12 @@
           教学播放与进度上报都由这里驱动（执行期间行内小字与「停止」见模块注释）。
         -->
         <section class="panel">
-          <h2 class="panel-title">课件</h2>
+          <div class="panel-head">
+            <h2 class="panel-title">课件</h2>
+            <!-- 上次执行出错行（按平台独立，见 zhihuishu-courseware 的 renderZhsFailure） -->
+            <p class="head-status" id="zhs-courseware-status"></p>
+            <a class="btn ghost" id="zhs-courseware-action" hidden target="_blank" rel="noreferrer"></a>
+          </div>
           <!-- 等待平台读取：块状骨架（一块），落定时整体换内容 -->
           <div id="zhs-courseware-list">
             <span class="skeleton skeleton-block" aria-hidden="true"></span>

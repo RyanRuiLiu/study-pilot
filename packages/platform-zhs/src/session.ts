@@ -1,17 +1,23 @@
 /*
  * 智慧树会话。
  *
- * 登录事实的来源是服务端的表��：`getLoginUserInfo`（免签接口，源码 qf 白名单里）。
- * 它同时给出 **uuid（设备号）**——页面把它存进 localStorage 的 CASLOGC 当设备身份，
- * 进度上报的第 10 位 token 就是 `uuid + "zhs"`（2026-10-16 实测：换成本地随机值
- * 会被服务端以「参数解码发生错误」拒绝）。因此本模块只认这一个来源，不自己造。
+ * 登录事实与设备号（uuid）的唯一来源是 `CASLOGC` cookie——一份 JSON：
+ *   { realName, userId, uuid, headPic, username, ... }
+ * 站点自己就用它：首页 header 的「用户名 / 安全退出」由它渲染；学习页把
+ * `JSON.parse(At("CASLOGC")).uuid` 当 deviceUuid（study-DhL5V96B.js:11069），
+ * 也就是上报里 token = `uuid + "zhs"` 的那枚值。
  *
- * 与慕课会话的差别：这里没有 cookie 解析、也没有「持久凭证换新会话」那套——
- * 智慧树的会话恢复行为尚未实测取证（未登录形态的响应长什么样）。
- * 在那之前不做推测性的恢复逻辑；未登录就是未登录，如实返回。
+ * 历史（2026-10-17 实测）：本模块最初以免签接口 `getLoginUserInfo` 判会话、取
+ * uuid。该接口是遗留端点——对已下载全量前端源码的检索里已无任何调用点，且当天
+ * 起对工具链固定返回 403「未登录」；同期学习接口与首页真实接口全部正常（会话
+ * 本身是活的）。故改为读 cookie，与站点的机制对齐，不再向服务端做「谁在登录」
+ * 的推测式提问。
+ *
+ * cookie 作用域是 `.zhihuishu.com`（任何子域读到的是同一枚），这里以 www 页
+ * 作为读取锚点；读不到返回空串——宿主能力的约定，见扩展侧 capabilities.ts。
  */
 
-import { isSuccessCode, type ZhsClient } from './client.ts';
+export type CookieReader = (origin: string, name: string) => Promise<string>;
 
 export interface ZhsSession {
   /** 是否处于登录态 */
@@ -20,22 +26,32 @@ export interface ZhsSession {
   uuid: string;
 }
 
+/** CASLOGC 的读取锚点：cookie 落在 .zhihuishu.com，任何子域等价。 */
+const SESSION_ORIGIN = 'https://www.zhihuishu.com';
+
 /**
- * getLoginUserInfo 的已实测形态（登录态）：
- *   { result: { realName, headPicUrl, uuid, username }, code: <成功码>, message: null }
- * 成功码复用 client 的统一判定（首页族用 200）。
- * 未登录形态未实测——按「非成功码或没有 uuid」处理为未登录。
- * 这个判断的服务端语义待补测（见 FINDINGS 的待办清单）。
+ * 判据（形态来自 2026-10-17 对真实 cookie 的实测）：
+ *   · cookie 不存在 → 未登录；
+ *   · cookie 值是 **URL 编码**的 JSON（真实观测：`%7B%22realName%22%3A...`），
+ *     先 decodeURIComponent 再解析；解码后不是 JSON / uuid 缺失或不是非空字符串
+ *     → 未登录（不拿别的字段凑数）。
  */
-export async function readSession(client: ZhsClient): Promise<ZhsSession> {
-  const body = (await client.call('loginUserInfo')) as {
-    code?: unknown;
-    result?: { uuid?: unknown } | null;
-  };
-  if (typeof body.code !== 'number' || !isSuccessCode(body.code) || body.result == null) {
-    return { loggedIn: false, uuid: '' };
+export async function readSession(readCookie: CookieReader): Promise<ZhsSession> {
+  const raw = await readCookie(SESSION_ORIGIN, 'CASLOGC');
+  if (raw === '') return { loggedIn: false, uuid: '' };
+  let text = raw;
+  try {
+    text = decodeURIComponent(raw);
+  } catch {
+    // 不是合法百分号编码：按原样尝试解析
   }
-  const uuid = body.result.uuid;
-  if (typeof uuid !== 'string' || uuid.length === 0) return { loggedIn: false, uuid: '' };
-  return { loggedIn: true, uuid };
+  try {
+    const parsed = JSON.parse(text) as { uuid?: unknown };
+    if (typeof parsed.uuid === 'string' && parsed.uuid.length > 0) {
+      return { loggedIn: true, uuid: parsed.uuid };
+    }
+  } catch {
+    // 解码后仍不是 JSON：按未登录处理
+  }
+  return { loggedIn: false, uuid: '' };
 }

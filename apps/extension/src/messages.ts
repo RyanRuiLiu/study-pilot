@@ -58,10 +58,10 @@ export type ShellRequest =
    * 不给就是全部。界面的每个执行入口都带平台——两平台共存后，类别名不保证互斥。
    */
   | { type: 'RUN_SCHEDULED_TASKS'; platformId?: string; kinds?: string[]; group?: string; ids?: string[] }
-  /** 停止正在执行的一轮：做完手上这一项就不再开始下一项 */
-  | { type: 'STOP_RUN' }
-  /** 后台此刻在不在跑、上一轮记下的失败 */
-  | { type: 'TASK_STATE' }
+  /** 停止某平台正在执行的一轮：做完手上这一项就不再开始下一项（平台之间互不影响） */
+  | { type: 'STOP_RUN'; platformId: string }
+  /** 某平台此刻在不在跑、它上一轮记下的失败（状态按平台独立，问谁答谁） */
+  | { type: 'TASK_STATE'; platformId: string }
   /** 运行状态快照（进度与逐项记录） */
   | { type: 'RUN_STATE' };
 

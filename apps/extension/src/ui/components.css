@@ -64,6 +64,17 @@
   background: var(--skeleton);
 }
 
+/* 卡头呈现「上次执行出错」时的警示色（错误说明与 .note.is-error 同色） */
+.head-status.is-error {
+  color: var(--warn);
+}
+
+/* 卡头里的动作按钮按需隐藏：[hidden] 必须显式写——
+   控件骨架的 display 会压过 UA 的 [hidden]（run-hint 同款先例在 options/style.css） */
+.panel-head > .btn[hidden] {
+  display: none;
+}
+
 /* 标题后直跟按钮（卡片没有状态行）时，按钮自己贴右——动作永远在面板头右端 */
 .panel-title + .btn {
   margin-left: auto;
@@ -516,7 +527,8 @@
   padding: 0;
 }
 
-/* 执行状态/结果行：全局一轮，不随 tab；平时收起到零高，有话说时滑开 */
+/* 执行状态/结果行：位置固定在顶栏与 tab 条之间；内容按当前 tab 的平台
+   （平台状态相互独立——进度、失败、停止都问当前平台，切 tab 即换内容） */
 .state {
   display: flex;
   align-items: center;
@@ -572,13 +584,20 @@
   color: var(--warn);
 }
 
-/* 「停止」：只在一轮进行时现身 */
-.state-stop {
+/* 状态行右端的动作槽：跑动时是「停止」，静止呈现失败时是平台的「下一步」动作
+   （.state-action，注册在 controls.css）。两个控件各自的显隐闸写全：
+   停止看运行态（is-running 驱动），动作看自己的 hidden 属性——互不依赖对方。 */
+.state-stop,
+.state-action {
   display: none;
   flex: none;
 }
 
 .state.is-running .state-stop {
+  display: inline-flex;
+}
+
+.state-action:not([hidden]) {
   display: inline-flex;
 }
 

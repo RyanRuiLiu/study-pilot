@@ -71,32 +71,67 @@ export interface PlanResult {
 
 // ---------- 跨次运行保留的那一份状态 ----------
 
-/** 跨次运行保留的状态。 */
-export interface TaskState {
+/**
+ * 失败的「下一步」动作：一个按钮文案 + 一个去处。
+ *
+ * 由**平台**提供（它才知道下一步是什么），外壳只搬运、不解释、不造句——
+ * 平台在抛出的错误对象上附带 `action: { platformId, label, url }` 即被接住
+ * （提取的约定与校验在 round.ts）；没有就是没有。
+ */
+export interface RunFailureAction {
+  /** 动作所属平台（PlatformTasks.id，如 'zhihuishu'） */
+  platformId: string;
+  /** 按钮文案（平台的术语，如「打开验证页」） */
+  label: string;
+  /** 点击去处（新标签页打开） */
+  url: string;
+}
+
+/** 外壳自己的留痕挂在这个键下（监听器注册失败这类非平台事件）。 */
+export const SHELL_PLATFORM_ID = 'shell';
+
+/** 一个平台最近一次失败的留痕。 */
+export interface PlatformFailure {
+  /** 失败原因（平台的措辞，外壳原样呈现） */
+  message: string;
+  /** 平台给的「下一步」；没有就是 null */
+  action: RunFailureAction | null;
+  /** 记录时刻 */
+  at: number;
+}
+
+/** 一个平台自己的运行状态（两平台各一份）。 */
+export interface PlatformRunState {
   /**
-   * 正在执行的一轮开始时间。非 null 表示上次运行没有正常结束——
+   * 该平台正在跑的一轮开始时间。非 null 表示上次运行没有正常结束——
    * 可能是正在跑，也可能是浏览器被强杀后留下的标记，两者要靠心跳区分。
    */
   runningSince: number | null;
   /**
-   * 最近一次心跳。
+   * 该平台最近一次心跳。
    *
    * 执行线程活着的时候不断刷新它。进程会被回收、浏览器会被强杀，那时
    * runningSince 还留在存储里没人清，而实际已经没有东西在跑了。
-   * 只看 runningSince 会把「残留」误报成「正在执行」——用户于是等一个
-   * 永远不会结束的动作，界面与事实分离。判据见 liveRunState。
+   * 只看 runningSince 会把「残留」误报成「正在执行」——判据见 liveRunState。
    */
   heartbeatAt: number | null;
-  /** 最近一次正常结束的时间 */
+  /** 该平台最近一次正常结束的时间 */
   lastFinishedAt: number | null;
+  /** 该平台最近一次失败的留痕；null 表示没有 */
+  failure: PlatformFailure | null;
+}
+
+/** 跨次运行保留的状态。 */
+export interface TaskState {
   /**
-   * 上一次执行留下、还没被说清楚的失败原因；null 表示没有。
+   * 各平台自己的运行状态；键 = PlatformTasks.id（外壳自己的留痕记在 SHELL_PLATFORM_ID）。
    *
-   * 一轮跑在没有控制台的地方时，不把这个记下来，「什么都没做」与
-   * 「试了但失败了」在界面上长得一模一样。一轮正常结束时清掉它：
-   * 失败已经被这一轮的结果取代了。
+   * 为什么按平台拆：平台之间**相互独立**——一家在跑不占另一家的门（智慧树
+   * 执行中慕课仍可执行），各自的失败只呈现给自己家、也只由自己家跑完一轮
+   * 来清。并发闸门、心跳与「在跑吗」的判据全部按平台做（见 state.ts）；
+   * 同一份存储上并发轮次的读改写由用例层串行化（round.ts 的队列）。
    */
-  lastError: string | null;
+  platforms: Record<string, PlatformRunState>;
 }
 
 /** 此刻处于哪种状态。 */

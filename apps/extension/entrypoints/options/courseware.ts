@@ -232,7 +232,7 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
       stopping = true;
       current.hidden = false;
       current.textContent = STOPPING_TEXT;
-      void stopRun().then((result) => {
+      void stopRun('mooc').then((result) => {
         if (result.stopped) {
           stoppedHere = true;
           return;

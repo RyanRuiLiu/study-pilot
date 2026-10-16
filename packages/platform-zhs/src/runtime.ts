@@ -4,9 +4,9 @@
  * 载体只调工厂：客户端的构造（fetch 注入、取钥缓存）与「平台任务怎么建」
  * 都是厂商的事实，第二个载体不必抄一遍——与 createMoocRuntime 同一条边界。
  *
- * 与慕课的差别只有一处：这里没有 cookie 读取与文本生成器——智慧树的请求
- * 凭 `credentials:'include'` 自带凭证，任务里也没有需要生成文本的单元；
- * 等真出现需要它们的功能再加，不放占位参数。
+ * 与慕课的差别只有一处：这里没有文本生成器——智慧树的请求凭
+ * `credentials:'include'` 自带凭证，任务里也没有需要生成文本的单元。
+ * cookie 读取用于会话判定（CASLOGC，见 session.ts），由载体注入。
  */
 
 import type { ConfigPort, PlatformTasks, PlatformWiring } from '@study-pilot/application';
@@ -14,11 +14,14 @@ import type { FetchLike } from '@study-pilot/transport';
 import { createZhsClient, type ZhsClient } from './client.ts';
 import { ZHS_REQUEST_RULES } from './policy/net-rules.ts';
 import { createZhsTasks } from './policy/tasks.ts';
+import type { CookieReader } from './session.ts';
 
 export interface ZhsRuntimeEnv {
   /** 配置端口：由载体实现（扩展侧是浏览器存储，命令行侧是文件） */
   config: ConfigPort;
   fetch: FetchLike;
+  /** 读 cookie 的宿主能力（会话判定；扩展侧是 browser.cookies，命令行侧是会话文件） */
+  readCookie: CookieReader;
 }
 
 export interface ZhsRuntime {
@@ -40,7 +43,7 @@ export function createZhsRuntime(env: ZhsRuntimeEnv): ZhsRuntime {
   const client = createZhsClient({ fetch: env.fetch });
   return {
     client,
-    tasks: () => createZhsTasks({ config: env.config, client }),
+    tasks: () => createZhsTasks({ config: env.config, client, readCookie: env.readCookie }),
     wiring: { id: 'zhihuishu', requestRules: ZHS_REQUEST_RULES },
   };
 }

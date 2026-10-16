@@ -97,7 +97,9 @@ describe('一轮的前置条件', () => {
     const at = Date.now();
     const mooc = platform('mooc', { items: [item('a', 'auto')] });
     const { runner } = setup([mooc], {
-      task: { ...EMPTY_STATE, runningSince: at, heartbeatAt: at },
+      task: {
+        platforms: { mooc: { runningSince: at, heartbeatAt: at, lastFinishedAt: null, failure: null } },
+      },
     });
 
     expect(await runner.runRound()).toEqual({ status: 'rejected', reason: 'ALREADY_RUNNING' });
@@ -112,10 +114,65 @@ describe('一轮的前置条件', () => {
      */
     const at = Date.now() - 10 * MINUTE;
     const mooc = platform('mooc', { items: [item('a', 'auto')] });
-    const { runner } = setup([mooc], { task: { ...EMPTY_STATE, runningSince: at, heartbeatAt: at } });
+    const { runner } = setup([mooc], {
+      task: {
+        platforms: { mooc: { runningSince: at, heartbeatAt: at, lastFinishedAt: null, failure: null } },
+      },
+    });
 
     expect(await runner.runRound()).toEqual({ status: 'finished', done: 1, manual: 0, failed: [] });
     expect(mooc.calls).toContain('plan');
+  });
+
+  it('一家的门不挡住另一家：防重入按平台判', async () => {
+    const at = Date.now();
+    const mooc = platform('mooc', { items: [item('a', 'auto')] });
+    const zhs = platform('zhihuishu', { items: [item('z', 'auto', 'courseware')] });
+    const { runner } = setup([mooc, zhs], {
+      task: {
+        platforms: {
+          // 智慧树在跑（心跳新鲜）；慕课不在跑
+          zhihuishu: { runningSince: at, heartbeatAt: at, lastFinishedAt: null, failure: null },
+        },
+      },
+    });
+
+    // 慕课点名自己：照常开始、跑完；智慧树整家不动
+    expect(await runner.runRound({ platformId: 'mooc' })).toMatchObject({ status: 'finished', done: 1 });
+    expect(zhs.calls).toEqual([]);
+
+    // 智慧树点名自己：被自己的门拦下
+    expect(await runner.runRound({ platformId: 'zhihuishu' })).toEqual({
+      status: 'rejected',
+      reason: 'ALREADY_RUNNING',
+    });
+  });
+
+  it('某平台跑完一轮清掉它自己的失败留痕，不动别家', async () => {
+    const mooc = platform('mooc', { items: [item('a', 'auto')] });
+    const { runner, tasks } = setup([mooc], {
+      task: {
+        platforms: {
+          mooc: {
+            runningSince: null,
+            heartbeatAt: null,
+            lastFinishedAt: 1,
+            failure: { message: '旧的', action: null, at: 1 },
+          },
+          zhihuishu: {
+            runningSince: null,
+            heartbeatAt: null,
+            lastFinishedAt: 1,
+            failure: { message: '别家的', action: null, at: 1 },
+          },
+        },
+      },
+    });
+
+    await runner.runRound({ platformId: 'mooc' });
+
+    expect(tasks.current().platforms['mooc']?.failure).toBeNull();
+    expect(tasks.current().platforms['zhihuishu']?.failure).toMatchObject({ message: '别家的' });
   });
 
   it('同一进程里两个调用方不并发起第二轮', async () => {
@@ -150,8 +207,35 @@ describe('一轮的前置条件', () => {
     const { runner, tasks } = setup([boom]);
 
     expect(await runner.runRound()).toEqual({ status: 'failed', message: '平台炸了' });
-    expect(tasks.current().runningSince).toBeNull();
-    expect(tasks.current().lastError).toBe('平台炸了');
+    expect(tasks.current().platforms['boom']?.runningSince).toBeNull();
+    expect(tasks.current().platforms['boom']?.failure?.message).toBe('平台炸了');
+    // 普通错误没有「下一步」动作：壳不替平台造句
+    expect(tasks.current().platforms['boom']?.failure?.action).toBeNull();
+  });
+
+  it('抛出的错误附带 action 时，原样落进状态（形状不完整则视为没有）', async () => {
+    const boom = platform('boom');
+    boom.plan = async () => {
+      throw Object.assign(new Error('要验证'), {
+        action: { platformId: 'zhihuishu', label: '打开验证页', url: 'https://example.com/study' },
+      });
+    };
+    const { runner, tasks } = setup([boom]);
+    await runner.runRound();
+    // 归属认平台自报的 platformId（最可信），不按「此刻在跑的那家」
+    expect(tasks.current().platforms['zhihuishu']?.failure).toMatchObject({
+      message: '要验证',
+      action: { platformId: 'zhihuishu', label: '打开验证页', url: 'https://example.com/study' },
+    });
+
+    const half = platform('half');
+    half.plan = async () => {
+      // 形状不完整（缺 url）：当没有，不当半个；失败仍归属此刻在跑的平台
+      throw Object.assign(new Error('残缺'), { action: { platformId: 'zhihuishu', label: '打开验证页' } });
+    };
+    const second = setup([half]);
+    await second.runner.runRound();
+    expect(second.tasks.current().platforms['half']?.failure?.action).toBeNull();
   });
 });
 
@@ -174,7 +258,7 @@ describe('逐平台执行', () => {
     const heartbeats: number[] = [];
     mooc.run = async (_entry, heartbeat) => {
       await heartbeat();
-      heartbeats.push(tasks.current().heartbeatAt ?? 0);
+      heartbeats.push(tasks.current().platforms['mooc']?.heartbeatAt ?? 0);
       return { status: 'done' };
     };
 
@@ -290,7 +374,7 @@ describe('停止', () => {
     mooc.run = async (entry) => {
       ran.push(entry.id);
       // 第一项的执行中间按停止：它做完，后面的不再开始
-      if (entry.id === 'a') runner.stop();
+      if (entry.id === 'a') runner.stop('mooc');
       return { status: 'done' };
     };
 
@@ -305,7 +389,23 @@ describe('停止', () => {
   });
 
   it('没有在跑的时候按停止：如实说什么都没发生', () => {
-    expect(setup([]).runner.stop()).toBe(false);
+    expect(setup([]).runner.stop('mooc')).toBe(false);
+  });
+
+  it('停止按平台：停一家不打断另一家的轮次', async () => {
+    const mooc = platform('mooc', { items: [item('a', 'auto'), item('b', 'auto')] });
+    const zhs = platform('zhihuishu', { items: [item('z', 'auto', 'courseware')] });
+    const { runner } = setup([mooc, zhs]);
+    const ran: string[] = [];
+    mooc.run = async (entry) => {
+      ran.push(entry.id);
+      // 对没在跑的智慧树按停止：无事发生，慕课的队列不受影响
+      expect(runner.stop('zhihuishu')).toBe(false);
+      return { status: 'done' };
+    };
+
+    expect(await runner.runRound({ platformId: 'mooc' })).toMatchObject({ status: 'finished', done: 2 });
+    expect(ran).toEqual(['a', 'b']);
   });
 
   it('长动作拿到的停止柄是活的：项内安全点问得到「已要求停」', async () => {
@@ -313,7 +413,7 @@ describe('停止', () => {
     const { runner } = setup([mooc]);
     let sawStopped: boolean | null = null;
     mooc.run = async (_entry, _heartbeat, control) => {
-      runner.stop();
+      runner.stop('mooc');
       // 长动作内部的安全点：这一刻就该看到停止
       sawStopped = control.stopped();
       return { status: 'skipped' };
@@ -333,7 +433,7 @@ describe('未登录', () => {
 
     expect(await runner.runRound()).toEqual({ status: 'not-logged-in' });
     expect(mooc.calls).toEqual(['isReady']);
-    expect(tasks.current().runningSince).toBeNull();
+    expect(tasks.current().platforms['mooc']?.runningSince).toBeNull();
   });
 
   it('计划里说会话失效同样回未登录', async () => {

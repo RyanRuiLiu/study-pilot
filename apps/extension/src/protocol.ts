@@ -8,34 +8,37 @@
  * 这一层不认识平台：平台的载荷（快照、题库、卷面）不在这里。
  */
 
+/** 失败的「下一步」动作（镜像 @study-pilot/application 的同名形状——见文件头「为什么单独一层」）。 */
+export interface RunFailureAction {
+  platformId: string;
+  label: string;
+  url: string;
+}
+
+/** 一个平台最近一次失败的留痕（镜像 application 的同名形状）。 */
+export interface PlatformFailure {
+  message: string;
+  action: RunFailureAction | null;
+  at: number;
+}
+
+/** 一个平台自己的运行状态（镜像 application 的同名形状）。 */
+export interface PlatformRunState {
+  runningSince: number | null;
+  heartbeatAt: number | null;
+  lastFinishedAt: number | null;
+  failure: PlatformFailure | null;
+}
+
 /** 跨次运行保留的状态。 */
 export interface TaskState {
   /**
-   * 正在执行的一轮开始时间。非 null 表示上次运行没有正常结束——
-   * 可能是正在跑，也可能是浏览器被强杀后留下的标记，两者要靠心跳区分。
-   */
-  runningSince: number | null;
-  /**
-   * 最近一次心跳。
+   * 各平台自己的运行状态；键 = PlatformTasks.id（外壳自己的留痕记在 'shell'）。
    *
-   * 执行线程活着的时候不断刷新它。MV3 的 worker 会被回收、浏览器会被强杀，
-   * 那时 runningSince 还留在存储里没人清，而实际已经没有东西在跑了。
-   * 只看 runningSince 会把「残留」误报成「正在执行」——用户于是等一个
-   * 永远不会结束的动作，界面与事实分离。判据见 liveRunState。
+   * 平台之间相互独立：一家在跑不占另一家的门，各自的失败只呈现给自己家、
+   * 也只由自己家跑完一轮来清。并发闸门、心跳与「在跑吗」的判据全部按平台做。
    */
-  heartbeatAt: number | null;
-  /** 最近一次正常结束的时间 */
-  lastFinishedAt: number | null;
-  /**
-   * 上一次执行留下、还没被说清楚的失败原因；null 表示没有。
-   *
-   * 后台跑在 service worker 里，出错时既没有控制台可看（生产构建把 console
-   * 换成空函数），也没有弹窗可等。不把这个记下来，「什么都没做」与
-   * 「试了但失败了」在界面上长得一模一样。
-   *
-   * 一轮正常结束时由 `finishRun` 清掉：失败已经被这一轮的结果取代了。
-   */
-  lastError: string | null;
+  platforms: Record<string, PlatformRunState>;
 }
 
 /** 后台此刻处于哪种状态。 */

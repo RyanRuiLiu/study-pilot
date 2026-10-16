@@ -6,15 +6,18 @@
  * 把同一份 :root 抽出两份（实测），所以这里刻意不引。
  *
  * 形态：胶囊（--radius-full）。全站只有三种尺寸：
- *   .btn          26px 高，左右 12px，12px 字——标准按钮
- *                 （设置页全部按钮、弹窗顶栏两个；顶栏定宽 68 见 components.css）
- *   .state-stop   22px 高，左右 8px，11px 字——弹窗状态行「停止」
- *   .todo-run     20px 高，11px 字，无底色——待办行内「执行」（指到才浮出实心）
+ *   .btn            26px 高，左右 12px，12px 字——标准按钮
+ *                   （设置页全部按钮、弹窗顶栏两个；顶栏定宽 68 见 components.css）
+ *   .state-stop     22px 高，左右 8px，11px 字——弹窗状态行「停止」
+ *   .state-action   与 .state-stop 同尺寸同配色——状态行失败行的「下一步」动作
+ *                   （平台上报的 action，如「打开验证页」；2026-10-17 与
+ *                   平台独立的状态一起加，注册在此，显隐规则见 components.css）
+ *   .todo-run       20px 高，11px 字，无底色——待办行内「执行」（指到才浮出实心）
  * 骨架（底色、悬停、禁用、焦点环）只在这里写一次。
  * 次按钮是「填充面」不是描边——边界不靠边框（见 tokens.css 约定）。
  */
 
-:is(.btn, .state-stop, .todo-run) {
+:is(.btn, .state-stop, .state-action, .todo-run) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -29,45 +32,48 @@
 }
 
 /* 悬停：加深。todo-run 静息是幽灵态，指到才浮出实心——也走这一条 */
-:is(.btn, .state-stop, .todo-run):hover {
+:is(.btn, .state-stop, .state-action, .todo-run):hover {
   background: var(--accent-deep);
   color: var(--on-accent);
 }
 
 /* 按下：再深一档——「按到了」的反馈要从底色上看出来（与悬浮分开两档） */
-:is(.btn, .state-stop, .todo-run):active {
+:is(.btn, .state-stop, .state-action, .todo-run):active {
   background: var(--accent-press);
   color: var(--on-accent);
 }
 
 /* 禁用：整体压暗，光标收回 */
-:is(.btn, .state-stop, .todo-run):disabled {
+:is(.btn, .state-stop, .state-action, .todo-run):disabled {
   opacity: 0.4;
   cursor: default;
 }
 
 /* 焦点环：键盘可达性，全控件一致 */
-:is(.btn, .state-stop, .todo-run):focus-visible {
+:is(.btn, .state-stop, .state-action, .todo-run):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* 次按钮（灰面）：读取课程列表、执行、更多、停止。
+/* 次按钮（灰面）：读取课程列表、执行、更多、停止、状态行动作。
    悬浮/按下各深一档：悬浮不能比静息浅（越悬越浅像要消失） */
 .btn.ghost,
-.state-stop {
+.state-stop,
+.state-action {
   background: var(--control);
   color: var(--ink-soft);
 }
 
 .btn.ghost:hover,
-.state-stop:hover {
+.state-stop:hover,
+.state-action:hover {
   background: var(--control-deep);
   color: var(--ink);
 }
 
 .btn.ghost:active,
-.state-stop:active {
+.state-stop:active,
+.state-action:active {
   background: var(--control-press);
   color: var(--ink);
 }
@@ -95,7 +101,8 @@
   font-size: var(--text-sm);
 }
 
-.state-stop {
+.state-stop,
+.state-action {
   height: 22px;
   padding: 0 var(--space-8);
   font-size: var(--text-xs);

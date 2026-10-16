@@ -6,6 +6,7 @@ import type { ZhsClient } from '../src/client.ts';
 import { ZhsApiError } from '../src/client.ts';
 import { createZhsTasks, unitItemId } from '../src/policy/tasks.ts';
 import { ZhsRoundHalt } from '../src/policy/execute.ts';
+import type { CookieReader } from '../src/session.ts';
 
 const SETTINGS: Settings = {
   version: 8,
@@ -53,18 +54,23 @@ const CHAPTERS = {
   },
 };
 
-/** 假 client：按接口名分派，可逐次覆盖。 */
-function fakeClient(handlers: Partial<Record<string, () => unknown>>): ZhsClient {
+/** 假 client：按接口名分派，可逐次覆盖；handler 能拿到载荷（分段类用例要验 it）。 */
+function fakeClient(
+  handlers: Partial<Record<string, (payload?: Record<string, unknown>) => unknown>>,
+): ZhsClient {
   return {
-    call: async (name) => {
+    call: async (name, payload) => {
       const handler = handlers[name];
       if (handler === undefined) throw new Error(`假 client 没有登记 ${name}`);
-      return handler();
+      return handler(payload);
     },
   };
 }
 
-const SESSION_OK = () => ({ code: 0, message: null, result: { uuid: 'TESTuuid1' } });
+const SESSION_COOKIE = JSON.stringify({ realName: '测试', userId: 1, uuid: 'TESTuuid1' });
+/** 会话读取的替身：登录态 = CASLOGC cookie（判据在 session.ts，形态见 session.test.ts）。 */
+const readCookieLoggedIn: CookieReader = async () => SESSION_COOKIE;
+const readCookieLoggedOut: CookieReader = async () => '';
 const STUDY_INFO = (watch222: number) => ({
   data: {
     lesson: {
@@ -80,6 +86,7 @@ describe('plan', () => {
     const tasks = createZhsTasks({
       config: { read: async () => ({ ...SETTINGS, zhihuishu: { courses: [] } }), update: async () => SETTINGS },
       client: fakeClient({}),
+      readCookie: readCookieLoggedIn,
     });
     expect(await tasks.plan(0)).toEqual({ items: [], blocked: 'no-course' });
   });
@@ -87,7 +94,8 @@ describe('plan', () => {
   it('未登录时 needsLogin（不做任何结构读取）', async () => {
     const tasks = createZhsTasks({
       config,
-      client: fakeClient({ loginUserInfo: () => ({ code: 401, result: null }) }),
+      client: fakeClient({}),
+      readCookie: readCookieLoggedOut,
     });
     expect(await tasks.plan(0)).toEqual({ items: [], needsLogin: true });
   });
@@ -96,10 +104,10 @@ describe('plan', () => {
     const tasks = createZhsTasks({
       config,
       client: fakeClient({
-        loginUserInfo: SESSION_OK,
         videoList: () => CHAPTERS,
         studyInfo: () => STUDY_INFO(0),
       }),
+      readCookie: readCookieLoggedIn,
     });
     const plan = await tasks.plan(0);
     expect(plan.items).toHaveLength(1);
@@ -114,11 +122,10 @@ describe('run', () => {
    * 有状态假 client：学情在「保存成功」后才翻成已看——
    * 计划阶段必须看到未完成（否则该单元根本不会排队），
    * 回读阶段才能看到完成（闭环才判成功）。
-   * 等待注入替身并记录：1× 节奏 = 声称 N 秒就等 N 秒壁钟。
+   * 快速模式：单元内零等待；服务端说验证（旗标/-12）→ 立即 ZhsRoundHalt 停轮。
    */
   interface RunHarness {
     tasks: ReturnType<typeof createZhsTasks>;
-    waits: number[];
     setWrote: () => boolean;
   }
   function harness(
@@ -129,18 +136,10 @@ describe('run', () => {
     let wrote = false;
     let gateLeft = options.isSlideRounds ?? 0;
     let failsLeft = options.saveFails ?? 0;
-    const waits: number[] = [];
     const tasks = createZhsTasks({
       config,
-      timing: {
-        wait: async (ms) => {
-          waits.push(ms);
-        },
-        gateCooldownMs: 5 * 60 * 1000,
-        gateAttempts: 3,
-      },
+      readCookie: readCookieLoggedIn,
       client: fakeClient({
-        loginUserInfo: SESSION_OK,
         prelearningNote: () => {
           if (gateLeft > 0) {
             gateLeft -= 1;
@@ -162,7 +161,7 @@ describe('run', () => {
         ...overrides,
       }),
     });
-    return { tasks, waits, setWrote: () => wrote };
+    return { tasks, setWrote: () => wrote };
   }
 
   async function runOne(h: RunHarness, stopped = false): Promise<unknown> {
@@ -170,14 +169,11 @@ describe('run', () => {
     return h.tasks.run(plan.items[0], async () => undefined, { stopped: () => stopped });
   }
 
-  it('闭环成功，且等待 = 声称时长（1× 节奏）×1000', async () => {
+  it('闭环成功：零等待（快速模式），数据仍为 1× 口径', async () => {
     const h = harness();
     const outcome = await runOne(h);
     expect(outcome).toMatchObject({ status: 'done' });
     expect(String((outcome as { message: string }).message)).toContain('175');
-    // 等待按段切（每段 ≤20 秒），总和必须等于 175 秒壁钟
-    expect(h.waits.reduce((sum, ms) => sum + ms, 0)).toBe(175 * 1000);
-    expect(h.waits.every((ms) => ms <= 20_000)).toBe(true);
   });
 
   it('回读未确认完成时判 failed（不拿 200 当成功）', async () => {
@@ -186,30 +182,76 @@ describe('run', () => {
     expect(outcome).toMatchObject({ status: 'failed' });
   });
 
-  it('isSlide 门先挂后解 → 冷却一次后继续完成', async () => {
-    const h = harness({}, { isSlideRounds: 1 });
+  it('超长视频分段上报：每段 ≤1600 秒，段间以服务端累计为下一段基准', async () => {
+    /*
+     * 实测边界（2026-10-17）：单份报告对 >30 分钟的视频不翻转完成；
+     * 段长上限见 execute.ts 的 SEGMENT_SEC。这里用 2190 秒（36.5 分钟）：
+     * 段1 报 1600 → 回读（服务端累计 1600）→ 段2 报 590 → 回读完成。
+     */
+    const LONG = 2190;
+    let accumulated = 0;
+    const saves: { y: number; ke: number; pos: string }[] = [];
+    /** sdsew 的逆变换（XOR 是对合的，与 xorHexEncode 同式）——把十元数组解回来。 */
+    const decode = (hex: string): string[] => {
+      let text = '';
+      for (let i = 0; i < hex.length; i += 2) {
+        text += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ 'zzpttjd'.charCodeAt((i / 2) % 7));
+      }
+      return text.split(';');
+    };
+    const h = harness({
+      videoList: () => ({
+        data: {
+          videoChapterDtos: [
+            {
+              id: 1,
+              name: '第一章',
+              videoLessons: [{ id: 2, name: '长课', videoId: 222, videoSec: LONG, videoSmallLessons: null }],
+            },
+          ],
+        },
+      }),
+      studyInfo: () => ({
+        data: {
+          lesson: { '2': { watchState: accumulated >= LONG ? 1 : 0, studyTotalTime: accumulated } },
+          lv: {},
+        },
+      }),
+      saveStudyInterval: (payload) => {
+        const parts = decode(String((payload as { sdsew: string }).sdsew));
+        saves.push({ y: Number(parts[6]), ke: Number(parts[7]), pos: String(parts[8] ?? '') });
+        accumulated = Number(parts[7]);
+        return { code: 0, data: { submitSuccess: true } };
+      },
+    });
     const outcome = await runOne(h);
     expect(outcome).toMatchObject({ status: 'done' });
-    // 总等待 = 175 秒观看到点 + 一次 5 分钟冷却（冷却同样按段切）
-    expect(h.waits.reduce((sum, ms) => sum + ms, 0)).toBe(175 * 1000 + 5 * 60 * 1000);
+    expect(saves.map((s) => s.y)).toEqual([1600, 590]);
+    expect(saves.map((s) => s.ke)).toEqual([1600, 2190]);
+    // 位置在视频时间轴：段1 到 26:40，段2 到片尾 36:30
+    expect(saves.map((s) => s.pos)).toEqual(['00:26:40', '00:36:30']);
   });
 
-  it('isSlide 门始终挂着 → 冷却重试到上限后抛 ZhsRoundHalt', async () => {
-    const h = harness({}, { isSlideRounds: 99 });
-    await expect(runOne(h)).rejects.toBeInstanceOf(ZhsRoundHalt);
+  it('isSlide 旗标 = 服务端要求验证 → 立即 ZhsRoundHalt（短文案 + 下一步动作），不发任何写', async () => {
+    const h = harness({}, { isSlideRounds: 1 });
+    const err = await runOne(h).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ZhsRoundHalt);
+    // 文案：只陈述事实、短（去向与做法走 action，不写进句子）
+    expect(String((err as Error).message)).toBe('平台要求完成一次人机验证');
+    // 动作：打开该课学习页（hex-secret 是 SETTINGS 里那门课的入口参数）
+    expect((err as ZhsRoundHalt).action).toEqual({
+      platformId: 'zhihuishu',
+      label: '打开验证页',
+      url: 'https://wisdom-mooc.zhihuishu.com/study/index?recruitAndCourseId=hex-secret',
+    });
     expect(h.setWrote()).toBe(false);
   });
 
-  it('保存撞 -12 一次 → 冷却后重试成功', async () => {
+  it('保存撞 -12 = 服务端要求验证 → 立即 ZhsRoundHalt（不重试、不等待）', async () => {
     const h = harness({}, { saveFails: 1 });
-    const outcome = await runOne(h);
-    expect(outcome).toMatchObject({ status: 'done' });
-    expect(h.waits.reduce((sum, ms) => sum + ms, 0)).toBe(175 * 1000 + 5 * 60 * 1000 + 175 * 1000);
-  });
-
-  it('保存持续 -12 → 抛 ZhsRoundHalt（整轮中止）', async () => {
-    const h = harness({}, { saveFails: 99 });
-    await expect(runOne(h)).rejects.toBeInstanceOf(ZhsRoundHalt);
+    const err = await runOne(h).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ZhsRoundHalt);
+    expect(String((err as Error).message)).toBe('平台要求完成一次人机验证');
   });
 
   it('停止柄被按到 → skipped，且不发任何写', async () => {
@@ -224,7 +266,11 @@ describe('run', () => {
       ...SETTINGS,
       zhihuishu: { courses: [{ ...SETTINGS.zhihuishu.courses[0], secret: '' }] },
     };
-    const tasks = createZhsTasks({ config: { read: async () => broken, update: async () => broken }, client: fakeClient({}) });
+    const tasks = createZhsTasks({
+      config: { read: async () => broken, update: async () => broken },
+      client: fakeClient({}),
+      readCookie: readCookieLoggedIn,
+    });
     const item = {
       id: 'x',
       group: '示例课程己',

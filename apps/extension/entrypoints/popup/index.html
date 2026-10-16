@@ -25,15 +25,6 @@
       </header>
 
       <!--
-        状态行：一轮执行的进度与结果——全局的（不分 tab，切到哪家都说哪家，
-        停止永远够得着）。文字单独一个元素：setText 会整体改写它，按钮不能住在里面。
-      -->
-      <div id="state-line" class="state is-blank">
-        <span id="state-text" class="state-text"></span>
-        <button id="stop-run" class="state-stop" type="button" title="停止执行：不再发出新的写入请求">停止</button>
-      </div>
-
-      <!--
         平台 tab：慕课 / 智慧树（规格第 13 节）。打开回到上次停留的
         平台（记忆落到「通用」时按慕课处理）；一次打开最多读一家。
         行为见 src/ui/tabs.ts。
@@ -41,6 +32,19 @@
       <div class="tabs" id="tabs" role="tablist" aria-label="平台">
         <button class="tab" role="tab" id="tab-mooc" data-tab="mooc" aria-controls="panel-mooc" aria-selected="false" tabindex="-1" type="button">慕课</button>
         <button class="tab" role="tab" id="tab-zhihuishu" data-tab="zhihuishu" aria-controls="panel-zhihuishu" aria-selected="false" tabindex="-1" type="button">智慧树</button>
+      </div>
+
+      <!--
+        状态行：**当前 tab 平台**的执行进度与结果（平台状态相互独立，切 tab 即换内容）
+        ——放在 tab 之下：状态跟着它的主体（平台独立后不再是「全局一轮」的横幅）。
+        文字单独一个元素：setText 会整体改写它，按钮不能住在里面。
+      -->
+      <div id="state-line" class="state is-blank">
+        <span id="state-text" class="state-text"></span>
+        <!-- 失败的「下一步」：平台在错误上附带 action 时现身（如撞门的「打开验证页」）。
+             控件注册在 controls.css（.state-action）；显隐由 hidden 属性驱动。 -->
+        <a id="state-action" class="state-action" hidden target="_blank" rel="noreferrer"></a>
+        <button id="stop-run" class="state-stop" type="button" title="停止执行：不再发出新的写入请求">停止</button>
       </div>
 
       <section class="tab-panel" role="tabpanel" id="panel-mooc" aria-labelledby="tab-mooc" data-tab="mooc" hidden>
