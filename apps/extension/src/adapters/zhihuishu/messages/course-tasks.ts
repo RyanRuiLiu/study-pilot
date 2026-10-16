@@ -23,7 +23,7 @@ import type { ZhihuishuCourse } from '@study-pilot/application';
 import { readSession, selectedCourses } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsCourseTask, ZhsCourseTaskSummary, ZhsResponseMap } from './payload.ts';
-import { collectUnits, countNotFullUnitTests, countUnitTests, readCourseExams, readFinalExam } from './reads.ts';
+import { collectUnits, countMeetQuizzes, countNotFullUnitTests, countUnitTests, readCourseExams, readFinalExam } from './reads.ts';
 import { examListUrl, studyPageUrl } from '../pages.ts';
 
 /**
@@ -40,6 +40,7 @@ async function unreadCourse(course: ZhihuishuCourse): Promise<ZhsCourseTask> {
     video: { done: 0, total: 0 },
     quiz: { done: 0, total: 0 },
     quizNotFull: 0,
+    meet: { done: 0, total: 0 },
     quizUnreadReason: null,
     finalExam: null,
     finalExamNote: null,
@@ -88,11 +89,13 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
 
         let quiz = { done: 0, total: 0 };
         let quizNotFull = 0;
+        let meet = { done: 0, total: 0 };
         let quizUnreadReason: string | null = null;
         try {
           const tabs = await readCourseExams(deps.client, course);
           quiz = countUnitTests(tabs);
           quizNotFull = countNotFullUnitTests(tabs);
+          meet = countMeetQuizzes(tabs);
         } catch (error) {
           quizUnreadReason = error instanceof Error ? error.message : String(error);
           partial = true;
@@ -136,6 +139,7 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
           video: { done: videoDone, total: entry.units.length },
           quiz,
           quizNotFull,
+          meet,
           quizUnreadReason,
           finalExam,
           finalExamNote,

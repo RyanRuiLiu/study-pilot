@@ -116,6 +116,8 @@ export interface ZhsCourseTask {
    * 测试那两页签没读成时给 0，由 `quizUnreadReason` 明说那一行整体不可信。
    */
   quizNotFull: number;
+  /** 见面课测验：已交 / 全部（与单元测试同一份清单里的另一类条目） */
+  meet: { done: number; total: number };
   /**
    * 期末考试（taurus 族）。读不到、或这门课的考试形态不是在线（机房/线下
    * 不走这条接口）时为 null——原因在 `finalExamNote`。

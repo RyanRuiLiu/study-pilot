@@ -412,7 +412,7 @@ export async function renderZhsCourseTasks(
   listEl.replaceChildren(
     buildBoardCard(video, boardRows(video, courses, videoRow, '没有需要看的视频。')),
     buildBoardCard(quiz, boardRows(quiz, courses, quizRow, '没有单元测试。')),
-    buildBoardCard(meet, boardRows(meet, courses, () => null, '见面课数据尚未接入。')),
+    buildBoardCard(meet, boardRows(meet, courses, meetRow, '这门课没有见面课测验。')),
     buildBoardCard(final, boardRows(final, courses, finalRow, '未读取到期末考试。')),
   );
 }
@@ -456,6 +456,29 @@ function quizRow(entry: ZhsCourseTask): HTMLElement | null {
       emptyTitle: '这门课的单元测试都交了，且都是满分',
       title: '执行：完成这门课没交的单元测试',
     }),
+  });
+}
+
+/**
+ * 见面课那一行：见面课测验的「已交 / 全部」。与单元测试**同一份清单**里的另一类
+ * 条目（`meetCourseType=1`，名字就是场次名），所以这一格是真的，不是估的。
+ *
+ * **没有「执行」**：这条路要先接场次（`examH5Url` 才是它的答卷入口，与单元测试
+ * 的入口参数不同），执行侧没验过之前不摆按钮——按钮在那儿就等于许诺能做掉。
+ * 场次与考勤（看直播/回放满 80% 得考勤分）是模块 4，接口形态还没定。
+ */
+function meetRow(entry: ZhsCourseTask): HTMLElement | null {
+  if (entry.meet.total === 0) return null;
+  const unread = entry.quizUnreadReason !== null;
+  return buildRow(entry, {
+    board: ZHS_BOARDS[2].id,
+    value: unread
+      ? '见面课测验未读取到'
+      : `测验 ${entry.meet.done}/${entry.meet.total}`,
+    valueTitle: unread
+      ? `作业清单读取失败：${entry.quizUnreadReason ?? ''}`
+      : '已交 / 全部见面课测验，与单元测试同一份作业清单',
+    href: entry.examListUrl,
   });
 }
 

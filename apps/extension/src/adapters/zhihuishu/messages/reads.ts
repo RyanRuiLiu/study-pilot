@@ -208,6 +208,22 @@ export function countUnitTests(tabs: CourseExamTabs): { done: number; total: num
 }
 
 /**
+ * 见面课测验的「已交 / 全部」——与单元测试**同一份清单**里的另一类条目
+ * （`meetCourseType=1`，条目名 = 场次名）。去重与判据同 `countUnitTests`：
+ * 按条目 id 去重、以已交页签为准。
+ */
+export function countMeetQuizzes(tabs: CourseExamTabs): { done: number; total: number } {
+  const quizzes = (items: readonly ZhsExamListItem[]): ZhsExamListItem[] =>
+    items.filter((item) => item.meetCourseType === MEET_COURSE_TYPE.meetingQuiz);
+
+  const ids = new Set<string>();
+  for (const item of [...quizzes(tabs.pending), ...quizzes(tabs.submitted)]) ids.add(item.id);
+  const doneIds = new Set<string>();
+  for (const item of quizzes(tabs.submitted)) doneIds.add(item.id);
+  return { done: doneIds.size, total: ids.size };
+}
+
+/**
  * 已交单元测试里**未满分**的卷数。
  *
  * 直接数已交页签条目自带的 score/totalScore（平台在清单里就给了）——

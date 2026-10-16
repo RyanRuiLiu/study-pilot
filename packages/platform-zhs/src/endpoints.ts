@@ -31,6 +31,8 @@ export const ZHS_HOSTS = {
   /** 移动端业务域：神谕（草稿判分）在这里，整族免签明文表单 */
   app: 'https://appstudent.zhihuishu.com',
   key: 'https://appcomm-user.zhihuishu.com',
+  /** 见面课与成绩分析域（FINDINGS §二十二：接口**免签明文**，只需 CAS SSO） */
+  stuonline: 'https://stuonline.zhihuishu.com',
 } as const;
 export type ZhsHost = keyof typeof ZHS_HOSTS;
 
@@ -256,6 +258,21 @@ const ENDPOINT_TABLE = {
     module: ZHS_MODULE.exam,
     stampInside: true,
   },
+  /*
+   * ---- 见面课（stuonline，免签明文；FINDINGS 实测）----
+   */
+
+  /**
+   * 见面课场次（模块 4）。body `recruitId=&page.pageNo=&page.pageSize=`。
+   * 每场带：主题/类型/状态（3=已结束、1=未开始）/起止时刻/直播与回放房间地址/
+   * 签到开关/`examH5Url`（见面课测验的 dohomework 入口，尾参 /1）/测验得分。
+   */
+  meetSessions: {
+    host: 'stuonline',
+    path: '/json/teachMeeting/listTeachMeetingStu',
+    method: 'POST',
+  },
+
   /** 是否客观题（重做门槛：非客观题平台弹二维码，走不了这条路） */
   examIsObject: {
     host: 'exam',
