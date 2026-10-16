@@ -26,19 +26,31 @@ export interface AnswerPayload {
   questionType: number;
 }
 
-/**
- * 卷面一道题：`exam-answers.ts` 的形状 + 作答报文要的题型 id。
- *
- * 是 `PaperQuestion` 的**扩展**（多一个字段），所以能直接喂 `matchPaper`——
- * 题型是答卷层的事，不往答案键模块里塞。
- */
-export interface PaperQuestionFull extends PaperQuestion {
-  /** 题型 id（卷面 `questionType.id`）；取不到给 0——**0 不是任何真实题型**，出现即形态变了 */
+/** 一道题的原始 DTO 与它的选项（两个接口共用的走法）。 */
+interface RawQuestion {
+  eid: string;
+  questionId: number | null;
+  text: string;
   questionType: number;
+  options: PaperOption[];
 }
 
-/** `student/doHomework` 的响应 → 卷面。形状不对的层级逐层退化，取不到的题跳过。 */
-export function parsePaper(rt: unknown): PaperQuestionFull[] {
+/**
+ * 走一遍 `rt.examBase.workExamParts[].questionDtos[]`。
+ *
+ * 两个接口的响应**外壳同形、字段互补**，所以走法是共用的、取舍不同：
+ *
+ * | 字段 | `doHomework`（开卷） | `lookHomework`（交卷后） |
+ * |---|---|---|
+ * | `eid` | 有（base64 串） | **null** |
+ * | `id`（数字题号） | **null** | 有（int） |
+ * | `name` / `questionOptions` / `questionType` | 有 | 有 |
+ *
+ * 这是平台的设计：**题号与 eid 一个在前一个在后，凑齐一份题要两个接口**。
+ * 所以别写「一个解析器吃两种响应」——那会把互补当成同形，拿 lookHomework
+ * 解出空表来（2026-10-17 真机核对，两个方向都验过）。
+ */
+function walkQuestions(rt: unknown): RawQuestion[] {
   const base = (rt as { examBase?: unknown } | null | undefined)?.examBase as
     | { workExamParts?: unknown }
     | null
@@ -46,14 +58,12 @@ export function parsePaper(rt: unknown): PaperQuestionFull[] {
   const parts = base?.workExamParts;
   if (!Array.isArray(parts)) return [];
 
-  const paper: PaperQuestionFull[] = [];
+  const out: RawQuestion[] = [];
   for (const part of parts as Array<{ questionDtos?: unknown } | null>) {
     const dtos = part?.questionDtos;
     if (!Array.isArray(dtos)) continue;
     for (const dto of dtos as Array<Record<string, unknown> | null>) {
       if (dto === null || typeof dto !== 'object') continue;
-      const eid = typeof dto.eid === 'string' ? dto.eid : '';
-      if (eid === '') continue; // 没有 eid 就无法作答——跳过，不造题
 
       const options: PaperOption[] = [];
       const rawOptions = dto.questionOptions;
@@ -69,15 +79,75 @@ export function parsePaper(rt: unknown): PaperQuestionFull[] {
       }
 
       const type = (dto.questionType as { id?: unknown } | null | undefined)?.id;
-      paper.push({
-        eid,
+      out.push({
+        eid: typeof dto.eid === 'string' ? dto.eid : '',
+        questionId: typeof dto.id === 'number' && Number.isFinite(dto.id) ? dto.id : null,
         text: typeof dto.name === 'string' ? dto.name : '',
-        options,
         questionType: typeof type === 'number' && Number.isFinite(type) ? type : 0,
+        options,
       });
     }
   }
-  return paper;
+  return out;
+}
+
+/**
+ * 卷面一道题（开卷）：`exam-answers.ts` 的形状 + 作答报文要的题型 id。
+ *
+ * 是 `PaperQuestion` 的**扩展**（多一个字段），所以能直接喂 `matchPaper`——
+ * 题型是答卷层的事，不往答案键模块里塞。
+ */
+export interface PaperQuestionFull extends PaperQuestion {
+  /** 题型 id（卷面 `questionType.id`）；取不到给 0——**0 不是任何真实题型**，出现即形态变了 */
+  questionType: number;
+  /**
+   * 开卷恒为 null——平台把数字题号锁在交卷之后（实测 50/50 全 null）。
+   * 字段留在类型上是为了让「这卷有没有题号」这件事显式可见，
+   * 而不是让调用方去猜为什么 `questionIdsOf` 返回空。
+   */
+  questionId: null;
+}
+
+/** 交卷后回顾的一道题（`lookHomework`）：题号有、`eid` 为 null。 */
+export interface LookedQuestion {
+  /** 数字题号（int，十位数亿量级）——神谕与弹题通道的入口参数 */
+  questionId: number;
+  text: string;
+  options: PaperOption[];
+}
+
+/**
+ * `student/doHomework` 的响应 → 卷面（作答用）。
+ * 没有 `eid` 的题跳过——作答认 eid，缺了就答不了。
+ */
+export function parsePaper(rt: unknown): PaperQuestionFull[] {
+  return walkQuestions(rt)
+    .filter((question) => question.eid !== '')
+    .map((question) => ({
+      eid: question.eid,
+      text: question.text,
+      options: question.options,
+      questionType: question.questionType,
+      questionId: null,
+    }));
+}
+
+/**
+ * `student/lookHomework` 的响应 → 已交卷的题（取题号与题面用）。
+ * 没有数字题号的题跳过——这个接口的价值就在题号。
+ */
+export function parseLookedPaper(rt: unknown): LookedQuestion[] {
+  const out: LookedQuestion[] = [];
+  for (const question of walkQuestions(rt)) {
+    if (question.questionId === null) continue;
+    out.push({ questionId: question.questionId, text: question.text, options: question.options });
+  }
+  return out;
+}
+
+/** 已交卷各题的数字题号（神谕与弹题通道的入口参数）。 */
+export function questionIdsOf(paper: readonly LookedQuestion[]): number[] {
+  return paper.map((question) => question.questionId);
 }
 
 export interface BuildAnswerBodyInput {

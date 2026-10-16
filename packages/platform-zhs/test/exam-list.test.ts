@@ -37,6 +37,13 @@ describe('normalizeHomeworkList', () => {
     expect(normalizeHomeworkList({ studentHomeworkList: [{ examName: '缺 id' }] })).toEqual([]);
   });
 
+  it('分值在响应里是字符串（"100"）而状态是数字——两种都要认', () => {
+    const [item] = normalizeHomeworkList({
+      studentHomeworkList: [{ id: 'a', state: 4, meetCourseType: 0, score: '10', totalScore: '100' }],
+    });
+    expect(item).toMatchObject({ state: 4, score: 10, totalScore: 100 });
+  });
+
   it('score 是 0 与 score 缺失是两件事：0 保留、缺失给 null', () => {
     const [zero, missing] = normalizeHomeworkList({
       studentHomeworkList: [
