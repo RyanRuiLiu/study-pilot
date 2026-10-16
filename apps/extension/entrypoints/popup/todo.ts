@@ -13,7 +13,7 @@
  * 界面只经 src/ui-bridge.ts 取数：getPending / getSettings。
  */
 
-import { getPending, getSettings, runNow } from '../../src/ui-bridge';
+import { getPending, getSession, getSettings, runNow } from '../../src/ui-bridge';
 import type { PendingEntry } from '../../src/ui-bridge';
 import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { todoEl } from './elements.ts';
@@ -184,6 +184,17 @@ function groupByCourse(entries: PendingEntry[]): Map<string, PendingEntry[]> {
 
 /** 渲染待办。 */
 export async function renderTodo(): Promise<void> {
+  /*
+   * **未登录先于「没勾课程」判**：没登录时什么都做不了，而「没勾课程」是下一步的事。
+   * 顺序反了会把人指向一个他到了也做不成事的地方——智慧树那份同一条次序
+   * （Ryan 报的正是这个：登录已失效时弹窗说的是「尚未选择参与任务的课程」）。
+   */
+  const session = await getSession();
+  if (!session.loggedIn) {
+    area.loginPrompt();
+    return;
+  }
+
   const settings = await getSettings();
   const courses = settings.mooc.courses.filter((course) => course.enabled);
   if (courses.length === 0) {
