@@ -118,8 +118,12 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
             upcoming: sessions.filter((session) => session.status === 1).length,
           };
         } catch (error) {
+          /*
+           * **不置 partial**：场次不参与「待完成」那两个数（它只是提醒），
+           * 读不到它不该把卡头的「可代为完成 N 项」一起打掉——那会拿一件小事
+           * 冒充整门课没读全。原因写进 meetSessionsNote，见面课那一行如实说。
+           */
           meetSessionsNote = `见面课场次读取失败：${error instanceof Error ? error.message : String(error)}`;
-          partial = true;
         }
 
         /*
