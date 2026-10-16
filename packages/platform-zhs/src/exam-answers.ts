@@ -195,6 +195,24 @@ export type AnswerPlan =
 /** 缺键时允许"首答探路 + 重做定分"的最低剩余作答机会数（平台语义：redoNum 给 3 次，分数覆盖）。 */
 export const MIN_ATTEMPTS_FOR_PROBE = 2;
 
+/** 平台给的重做总次数（源码 `3 - t.rt` 里的 3）。 */
+const TOTAL_REDOS = 3;
+
+/**
+ * 剩余重做次数 = `3 − redoNum().rt`。
+ *
+ * 算式照抄平台界面（`9.c58d6fa5a5050724a831.js:11814` 的 `var a = 3 - t.rt;`），
+ * 不自己发明——它的语义（`rt` 到底记的是已用还是别的）不必我们解释，
+ * 照用平台的算式就不会错。
+ *
+ * 2026-10-17 真机抽样核对：**未交卷的卷 `rt=0` ⇒ 剩余 3**；已交过一次（含一次重做）
+ * 的卷 `rt=1` ⇒ 剩余 2。（先前一份二手报告称未交卷 `rt=2`，与真机不符——
+ * 若照它写，门槛会把「从没交过」的卷全部挡住，而探路重做恰恰是为它们准备的。）
+ */
+export function remainingAttempts(rt: unknown): number {
+  return TOTAL_REDOS - (typeof rt === 'number' && Number.isFinite(rt) ? rt : 0);
+}
+
 /**
  * 作答计划。
  *
