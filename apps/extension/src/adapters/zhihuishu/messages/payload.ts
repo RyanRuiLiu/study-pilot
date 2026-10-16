@@ -19,7 +19,7 @@ import type { ZhihuishuCourse } from '@study-pilot/application';
  * 与 `PlanItem.kind` 同一套取值（计划里就是这么标的），所以待办与执行范围
  * 天然对得上。智慧树的成绩构成有四类，这里先落前两类可执行的两类。
  */
-export type ZhsPendingKind = 'courseware' | 'quiz';
+export type ZhsPendingKind = 'courseware' | 'quiz' | 'meetQuiz';
 
 /** 设置页与弹窗里的一条待办。 */
 export interface ZhsPendingEntry {

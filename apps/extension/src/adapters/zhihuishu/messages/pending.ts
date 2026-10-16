@@ -87,7 +87,7 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
         for (const item of quiz?.items ?? []) {
           entries.push({
             itemId: quizItemId(item),
-            kind: 'quiz',
+            kind: item.meetCourseType === 1 ? 'meetQuiz' : 'quiz',
             courseName: course.name,
             chapterName: item.chapterName ?? '',
             name: item.examName,

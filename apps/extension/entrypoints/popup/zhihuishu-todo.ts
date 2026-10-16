@@ -33,7 +33,7 @@ function durationText(sec: number): string {
  * 类别本身由每一行的名称说清（「第三章单元测试」/「因果图结构」），
  * 慕课也是这么做的（它的类别只进 aria-label，不占位置）。
  */
-const KIND_ORDER: Record<ZhsPendingKind, number> = { quiz: 0, courseware: 1 };
+const KIND_ORDER: Record<ZhsPendingKind, number> = { quiz: 0, meetQuiz: 1, courseware: 2 };
 
 function buildRow(entry: ZhsPendingEntry): HTMLElement {
   const item = document.createElement('div');
