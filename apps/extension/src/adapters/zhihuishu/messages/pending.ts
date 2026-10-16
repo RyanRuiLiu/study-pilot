@@ -56,6 +56,8 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
             courseName: course.name,
             chapterName: unit.chapterName,
             name: unit.name,
+            status: '未学习',
+            deadline: null, // 课程学习窗口尚未接入；界面上两格如实留空
             sec: unit.sec,
           });
         }
@@ -74,6 +76,9 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
             courseName: course.name,
             chapterName: item.chapterName ?? '',
             name: item.examName,
+            // 平台页签的原文就是「未提交」（FINDINGS §二十一）
+            status: '未提交',
+            deadline: item.deadline,
             sec: 0, // 单元测试没有时长；渲染侧据此不显示时长位
           });
         }

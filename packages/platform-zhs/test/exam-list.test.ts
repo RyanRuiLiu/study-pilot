@@ -22,6 +22,8 @@ describe('normalizeHomeworkList', () => {
       score: null,
       totalScore: null,
       chapterName: '绪论',
+      problemNum: null,
+      deadline: null,
     });
     expect(items[1]).toMatchObject({ meetCourseType: 1, state: 4, score: 9, totalScore: 10, chapterName: null });
   });
@@ -35,6 +37,21 @@ describe('normalizeHomeworkList', () => {
 
   it('没有 id 的条目跳过——lookHomework 认 id，缺了就用不了', () => {
     expect(normalizeHomeworkList({ studentHomeworkList: [{ examName: '缺 id' }] })).toEqual([]);
+  });
+
+  it('截止时间是本地时间串，解析成毫秒（外壳时间列只认毫秒）', () => {
+    const [item] = normalizeHomeworkList({
+      studentHomeworkList: [{ id: 'a', endDate: '2027-01-20 23:59:59', problemNum: 50 }],
+    });
+    expect(item!.problemNum).toBe(50);
+    expect(item!.deadline).toBe(new Date(2027, 0, 20, 23, 59, 59).getTime());
+  });
+
+  it('时间串形态不符给 null，不猜也不拿当前时间凑', () => {
+    for (const bad of ['', '2027/01/20', 1792152062540, null, undefined]) {
+      const [item] = normalizeHomeworkList({ studentHomeworkList: [{ id: 'a', endDate: bad }] });
+      expect(item!.deadline).toBeNull();
+    }
   });
 
   it('分值在响应里是字符串（"100"）而状态是数字——两种都要认', () => {
@@ -59,7 +76,18 @@ describe('normalizeHomeworkList', () => {
 describe('isActionable', () => {
   it('只有 state=1（未动过）可做；4 与 5 都只呈现', () => {
     const at = (state: number) =>
-      isActionable({ id: 'x', examId: 'y', examName: '', meetCourseType: 0, state, score: null, totalScore: null, chapterName: null });
+      isActionable({
+        id: 'x',
+        examId: 'y',
+        examName: '',
+        meetCourseType: 0,
+        state,
+        score: null,
+        totalScore: null,
+        chapterName: null,
+        problemNum: null,
+        deadline: null,
+      });
     expect(at(1)).toBe(true);
     expect(at(4)).toBe(false);
     expect(at(5)).toBe(false);

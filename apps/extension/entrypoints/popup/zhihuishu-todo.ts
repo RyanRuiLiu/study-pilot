@@ -13,7 +13,7 @@
 
 import { getSettings, getZhsPending, runNow } from '../../src/ui-bridge';
 import type { ZhsPendingEntry, ZhsPendingKind } from '../../src/ui-bridge';
-import { errorText } from '../../src/ui/format.ts';
+import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { zhsTodoEl } from './elements.ts';
 import { createTodoArea } from './todo-area.ts';
 import { setRunning, statusWriterFor } from './status.ts';
@@ -25,27 +25,26 @@ function durationText(sec: number): string {
 }
 
 /**
- * 类别组名（**措辞的唯一源**；平台包只给 `kind` 这个机器值）。
+ * 类别的次序：**测试在前、教程视频在后**（2026-10-17 Ryan 定）。
  *
- * 用平台自己的叫法，不自造：「教程视频」与「单元测试」都是成绩分析页与
- * 学习页上的原文（见设计文档 §1.2／FINDINGS §二十的官方名称表）。
+ * 只在**组内排序**用，不做分组——分组与慕课一致（只按课程一层，
+ * 见 `todo-area` 的 `buildGroup` 与慕课那份 `groupByCourse`）。
+ * 类别本身由每一行的名称说清（「第三章单元测试」/「因果图结构」），
+ * 慕课也是这么做的（它的类别只进 aria-label，不占位置）。
  */
-const KIND_LABEL: Record<ZhsPendingKind, string> = {
-  courseware: '教程视频',
-  quiz: '单元测试',
-};
-
-/**
- * 组内类别的固定次序：**测试在前，教程视频在后**（2026-10-17 Ryan 定）。
- * 与成绩构成里「平时测试成绩」排在「学习进度·教程」之后不同——这里的理由是可执行性：
- * 测试是要一题一题做的硬活，视频是量大的常规活，待办先露前者。
- */
-const KIND_ORDER: ZhsPendingKind[] = ['quiz', 'courseware'];
+const KIND_ORDER: Record<ZhsPendingKind, number> = { quiz: 0, courseware: 1 };
 
 function buildRow(entry: ZhsPendingEntry): HTMLElement {
   const item = document.createElement('div');
   item.className = 'todo-item';
-  item.title = `${entry.chapterName} · ${entry.name}`;
+  /*
+   * 悬停提示承担「四个位置放不下的细节」——与慕课的 `statusDetail` 同一角色。
+   * 章节名与视频时长原来各占一格，对齐之后那两格还给了时间列（剩余时间 / 具体日期），
+   * 它们的信息不丢，移到这里。
+   */
+  item.title = [entry.chapterName, entry.name, entry.sec > 0 ? durationText(entry.sec) : '']
+    .filter((part) => part !== '')
+    .join(' · ');
 
   // 行 1：单元名 + 「未学习」徽标
   const line = document.createElement('span');
@@ -58,14 +57,16 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
 
   const phase = document.createElement('span');
   phase.className = 'todo-phase';
-  phase.textContent = '未学习';
+  phase.textContent = entry.status;
   line.append(phase);
 
-  // 行 1 右列：时长。**只有教程视频有**——单元测试没有时长，
-  // 给 0 就让这个位置空着，不拿「不足 1 分钟」冒充（那是假信息）
+  // 行 1 右列：剩余时间。与慕课同一格同一角色，同样由 deadline 派生
   const when = document.createElement('span');
   when.className = 'todo-when';
-  when.textContent = entry.sec > 0 ? durationText(entry.sec) : '';
+  if (entry.deadline !== null) {
+    if (isUrgent(entry.deadline)) when.classList.add('is-urgent');
+    when.textContent = `${relativeDay(entry.deadline)} ${formatClock(entry.deadline)}`.trim();
+  }
 
   // 行 2：处置 +「执行」
   const sub = document.createElement('span');
@@ -93,10 +94,10 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
   });
   sub.append(button);
 
-  // 行 2 右列：章节名
+  // 行 2 右列：具体日期。与慕课同一格同一角色（都由 deadline 派生）
   const date = document.createElement('span');
   date.className = 'todo-date';
-  date.textContent = entry.chapterName;
+  date.textContent = entry.deadline !== null ? formatDate(entry.deadline) : '';
 
   item.append(line, when, sub, date);
   return item;
@@ -150,22 +151,18 @@ export async function renderZhsTodo(): Promise<void> {
    * 课程与类别的出现次序都按**首次出现**定（后台已按章节自然序给出，
    * 这里保持顺序，不重排）；类别在组内按 KIND_ORDER 固定次序。
    */
-  const byCourse = new Map<string, Map<ZhsPendingKind, ZhsPendingEntry[]>>();
+  const grouped = new Map<string, ZhsPendingEntry[]>();
   for (const entry of entries) {
-    const byKind = byCourse.get(entry.courseName) ?? new Map<ZhsPendingKind, ZhsPendingEntry[]>();
-    const bucket = byKind.get(entry.kind) ?? [];
-    bucket.push(entry);
-    byKind.set(entry.kind, bucket);
-    byCourse.set(entry.courseName, byKind);
+    const bucket = grouped.get(entry.courseName);
+    if (bucket) bucket.push(entry);
+    else grouped.set(entry.courseName, [entry]);
   }
 
   area.write([]);
-  for (const [courseName, byKind] of byCourse) {
-    for (const kind of KIND_ORDER) {
-      const list = byKind.get(kind);
-      if (list === undefined || list.length === 0) continue;
-      zhsTodoEl?.append(area.buildGroup(`${courseName} · ${KIND_LABEL[kind]}`, list, buildRow));
-    }
+  for (const [courseName, list] of grouped) {
+    // 组内只调次序（测试在前），不改变类别次序之外的相对位置——sort 是稳定的
+    list.sort((left, right) => KIND_ORDER[left.kind] - KIND_ORDER[right.kind]);
+    zhsTodoEl?.append(area.buildGroup(courseName, list, buildRow));
   }
   // 读不到的课如实列出——「读不到」与「没有要看的」长得不一样，不能混为一谈
   for (const unread of outcome.value.unreadCourses) {

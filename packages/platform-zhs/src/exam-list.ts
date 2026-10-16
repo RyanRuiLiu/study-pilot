@@ -56,6 +56,16 @@ export interface ZhsExamListItem {
   totalScore: number | null;
   /** 章节名（单元测试有；见面课测验为 null） */
   chapterName: string | null;
+  /** 题数（实测数字，如 50） */
+  problemNum: number | null;
+  /**
+   * 截止时刻（毫秒）。
+   *
+   * 平台给的是**本地时间字符串** `"2027-01-20 23:59:59"`（不是时间戳，2026-10-17 实测），
+   * 这里就地解析成毫秒——外壳的时间列只认毫秒（慕课那份 `deadline` 就是毫秒），
+   * 两边必须同一形态才谈得上对齐。解析不出给 null（**不拿当前时间凑**）。
+   */
+  deadline: number | null;
 }
 
 /**
@@ -83,6 +93,8 @@ export function normalizeHomeworkList(rt: unknown): ZhsExamListItem[] {
       score: numberLike(entry.score),
       totalScore: numberLike(entry.totalScore),
       chapterName: str(entry.cpOrderNumber) === '' ? null : str(entry.cpOrderNumber),
+      problemNum: numberLike(entry.problemNum),
+      deadline: parsePlatformTime(entry.endDate),
     });
   }
   return items;
@@ -120,6 +132,29 @@ function num(value: unknown): number {
  * （`"10"` / `"100"`，2026-10-17 全量核对 46 个条目字段集），而 `state` /
  * `meetCourseType` 是数字。同一个响应里类型不统一是平台事实，不是笔误。
  */
+/**
+ * 把平台的本地时间字符串解析成毫秒。
+ *
+ * 实测形态：`"2027-01-20 23:59:59"`（`endDate` / `startTime` 都是这个格式，2026-10-17）。
+ * 串里不带时区，按**本地时间**解析——平台自己的显示语义就是本地时间，换时区解释会差几小时。
+ * 形态不符或解析出 NaN 一律给 null：宁可在界面上留空，也不要一个错的时间。
+ */
+function parsePlatformTime(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const matched = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(value.trim());
+  if (matched === null) return null;
+  const [, year, month, day, hour, minute, second] = matched;
+  const parsed = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+  ).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function numberLike(value: unknown): number | null {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'string' && value.trim() !== '') {
