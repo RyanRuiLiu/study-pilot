@@ -467,14 +467,15 @@ function quizRow(entry: ZhsCourseTask): HTMLElement | null {
  * 的入口参数不同），执行侧没验过之前不摆按钮——按钮在那儿就等于许诺能做掉。
  * 场次与考勤（看直播/回放满 80% 得考勤分）是模块 4，接口形态还没定。
  */
-function meetRow(entry: ZhsCourseTask): HTMLElement | null {
-  if (entry.meet.total === 0) return null;
+function meetRow(entry: ZhsCourseTask): HTMLElement {
   const unread = entry.quizUnreadReason !== null;
   return buildRow(entry, {
     board: ZHS_BOARDS[2].id,
     value: unread
       ? '见面课测验未读取到'
-      : `测验 ${entry.meet.done}/${entry.meet.total}`,
+      : entry.meet.total === 0
+        ? '没有见面课测验'
+        : `测验 ${entry.meet.done}/${entry.meet.total}`,
     valueTitle: unread
       ? `作业清单读取失败：${entry.quizUnreadReason ?? ''}`
       : '已交 / 全部见面课测验，与单元测试同一份作业清单',

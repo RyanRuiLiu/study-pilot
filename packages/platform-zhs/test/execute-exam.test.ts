@@ -238,11 +238,10 @@ describe('业务码（rt.statu）不被吞掉', () => {
     expect(names).not.toContain('examSubmit');
   });
 
-  it('作答遇挂起的另一个信封码（code=-1）→ 同一条处置，并把「打开验证页」带上', async () => {
+  it('code=-1 是「未选修/无权限」，不是门：如实失败、不当验证', async () => {
     /*
-     * -1 是同一道门在保存通道上的回码（`.probe/zhs-gate-log.txt` 里 isSlide=true
-     * 期间每条保存都是 -1）。它此前没被映射，界面上只剩一句「智慧树接口返回
-     * code=-1」——用户看不出平台要的是「人来过一次验证」。这里钉住处置与去处。
+     * 源码判分（考试应用 getWorkLists）：`-1/-3 → "您未选修当前课程，无此查看权限~"`。
+     * 一度被当成易盾（Ryan 纠正），这条钉住真身——否则课程退课后界面会教人去拖滑块。
      */
     const client: ZhsClient = {
       call: async (name) => {
@@ -250,11 +249,9 @@ describe('业务码（rt.statu）不被吞掉', () => {
         throw new ZhsApiError(-1, '');
       },
     };
-    await expect(executeExam(client, input(), NEVER_STOPPED)).rejects.toMatchObject({
-      name: 'ZhsRoundHalt',
-      message: '需完成人机验证',
-      action: { platformId: 'zhihuishu', label: '打开验证页' },
-    });
+    const outcome = await executeExam(client, input(), NEVER_STOPPED);
+    expect(outcome.status).toBe('failed');
+    expect(outcome.message).toContain('未选修这门课');
   });
 
   it('交卷的 statu=-1（已提交）不是门：信封码才有门的含义', async () => {
