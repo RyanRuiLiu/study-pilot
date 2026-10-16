@@ -26,7 +26,7 @@ import { renderStatusLine } from './status-line.ts';
 import { toast } from './toast.ts';
 
 /** 未运行时的按钮标题；禁用时换成 dataset.emptyTitle 里的原因。 */
-const EXEC_TITLE = '执行：自动完成这门课余下的课件';
+const EXEC_TITLE = '执行：完成这门课余下的课件';
 
 /** 运行期间的按钮集合：跑的时候全部禁掉（后台也会拒并发，这里只是别让人白点）。 */
 const buttons: HTMLButtonElement[] = [];
@@ -109,7 +109,7 @@ async function renderFailure(): Promise<void> {
     status.live === 'running' ? null : (status.state.platforms['mooc']?.failure ?? null);
 
   statusEl.classList.toggle('is-error', failure !== null);
-  statusEl.textContent = failure !== null ? `上次执行出错：${failure.message}` : '';
+  statusEl.textContent = failure !== null ? `上次执行失败：${failure.message}` : '';
 
   actionEl.hidden = failure?.action == null;
   if (failure !== null && failure.action !== null) {
@@ -162,7 +162,7 @@ function watchRun(): void {
       if (running && cwStep !== null && course === cwStep.course) {
         button.dataset.mode = 'stop';
         button.textContent = '停止';
-        button.title = '停止执行：不再发出新的写入请求';
+        button.title = '停止：不再发出新的写入请求';
         if (!stopping) button.disabled = false;
         continue;
       }
@@ -230,14 +230,14 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
      * 旧记录，刷新课程列表即可清掉。不猜别的原因。
      */
     progress.textContent = '未读取到内容';
-    progress.title = '平台未返回这门课的结构；点击上方「读取课程列表」刷新后，已不在课程列表中的旧记录将被清除';
+    progress.title = '平台未返回这门课的结构。刷新后不在列表中的旧记录将被清除。';
   } else if (entry.total === 0) {
     // 结构读到了但是空的（实测：课程列表里它的课时数本身就是 0）
     progress.textContent = '未读取到内容';
-    progress.title = '平台返回的结构是空的（0 章节 0 单元）';
+    progress.title = '平台未返回课程结构（0 章节 0 单元）';
   } else {
     progress.textContent = `已学 ${entry.done}/${entry.total}`;
-    progress.title = `未完成且可自动执行的 ${entry.pending} 项`;
+    progress.title = `余 ${entry.pending} 项可代为完成`;
   }
 
   const button = document.createElement('button');
@@ -249,7 +249,7 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
     button.disabled = true;
     button.dataset.empty = 'yes';
     button.dataset.emptyTitle =
-      entry.total === 0 ? '未能读取到这门课的内容' : '这门课的课件已全部完成';
+      entry.total === 0 ? '未读取到这门课的内容' : '这门课的课件已全部完成';
     button.title = button.dataset.emptyTitle;
   }
   buttonsOfCourse.set(entry.courseName, button);
@@ -321,7 +321,7 @@ export async function renderCourseware(
     listEl.append(
       note(
         outcome.reason === 'NOT_LOGGED_IN'
-          ? '未登录——先在浏览器中登录慕课平台。'
+          ? '未登录，在浏览器登录慕课后执行。'
           : `读取失败：${outcome.message}`,
         outcome.reason !== 'NOT_LOGGED_IN',
       ),
@@ -330,7 +330,7 @@ export async function renderCourseware(
   }
 
   if (outcome.value.courses.length === 0) {
-    listEl.append(note('尚未选择参与任务的课程（见上方「账号与课程」）。'));
+    listEl.append(note('尚未选择参与任务的课程，见上方「账号与课程」。'));
     return;
   }
 
@@ -346,8 +346,8 @@ export async function renderCourseware(
     const needsAi = outcome.value.courses.reduce((sum, entry) => sum + entry.needsAi, 0);
     const blocked = cannot - needsAi;
     const parts: string[] = [];
-    if (needsAi > 0) parts.push(`${needsAi} 项讨论需要配置 AI 后才会做（见下方「AI 连接」）`);
-    if (blocked > 0) parts.push(`${blocked} 项平台数据不全，留在平台上手动完成`);
-    listEl.append(note(`另有 ${cannot} 项暂时做不了：${parts.join('；')}。`));
+    if (needsAi > 0) parts.push(`${needsAi} 项讨论需配置 AI 后方可完成（见下方「AI 连接」）`);
+    if (blocked > 0) parts.push(`${blocked} 项平台数据不全，需在平台手动完成`);
+    listEl.append(note(`另有 ${cannot} 项暂不能完成：${parts.join('；')}。`));
   }
 }

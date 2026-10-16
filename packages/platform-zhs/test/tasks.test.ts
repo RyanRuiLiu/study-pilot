@@ -302,7 +302,7 @@ describe('run', () => {
     const err = await runOne(h).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ZhsRoundHalt);
     // 文案：只陈述事实、短（去向与做法走 action，不写进句子）
-    expect(String((err as Error).message)).toBe('平台要求完成一次人机验证');
+    expect(String((err as Error).message)).toBe('需完成人机验证');
     // 动作：打开该课学习页（hex-secret 是 SETTINGS 里那门课的入口参数）
     expect((err as ZhsRoundHalt).action).toEqual({
       platformId: 'zhihuishu',
@@ -316,7 +316,7 @@ describe('run', () => {
     const h = harness({}, { saveFails: 1 });
     const err = await runOne(h).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ZhsRoundHalt);
-    expect(String((err as Error).message)).toBe('平台要求完成一次人机验证');
+    expect(String((err as Error).message)).toBe('需完成人机验证');
   });
 
   it('停止柄被按到 → skipped，且不发任何写', async () => {

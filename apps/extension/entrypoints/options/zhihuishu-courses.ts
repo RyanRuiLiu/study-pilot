@@ -83,12 +83,12 @@ export async function renderZhsCourses(): Promise<void> {
 
   listEl.replaceChildren();
   if (!session.loggedIn) {
-    listEl.append(note('未登录——先在浏览器中登录智慧树，登录后再读取课程列表。'));
+    listEl.append(note('未登录，在浏览器登录智慧树后读取课程列表。'));
     if (rows.length > 0) listEl.append(...rows);
     return;
   }
   if (rows.length === 0) {
-    listEl.append(note('尚未读取到课程。点击「读取课程列表」从平台获取，获取后勾选要参与的课程。'));
+    listEl.append(note('尚未读取到课程，点击「读取课程列表」获取并勾选要参与的课程。'));
     return;
   }
   listEl.append(...rows);
@@ -117,7 +117,7 @@ export function initZhsCourseActions(): void {
           toast(`已读取 ${result.courses.length} 门课程`);
           void renderZhsCourses();
         } else if (result.reason === 'NOT_LOGGED_IN') {
-          listEl?.replaceChildren(note('未登录——先在浏览器中登录智慧树，登录后再读取课程列表。'));
+          listEl?.replaceChildren(note('未登录，在浏览器登录智慧树后读取课程列表。'));
         } else {
           listEl?.replaceChildren(note(`读取失败：${result.message ?? result.reason}`, true));
         }

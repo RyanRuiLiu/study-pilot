@@ -33,7 +33,7 @@ export async function withSessionRecovery<T>(
       return {
         ok: false,
         kind: 'login',
-        message: '登录已失效，且自动恢复没有成功',
+        message: '登录已失效，自动恢复未成功',
       };
     }
 
@@ -63,7 +63,7 @@ function describe(error: unknown): string {
 }
 
 /** 确认救不回来时给用户的统一说法。四个调用点共用，不许各写一份。 */
-const LOGIN_RECOVERY_FAILED_MESSAGE = '登录已失效，且自动恢复没有成功，请重新登录慕课平台';
+const LOGIN_RECOVERY_FAILED_MESSAGE = '登录已失效，自动恢复未成功，需重新登录慕课';
 
 /** 恢复失败时前台消息的失败形状。 */
 export interface RecoveryFailure {

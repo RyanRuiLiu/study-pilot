@@ -162,7 +162,7 @@ function buildRow(entry: PendingEntry): HTMLElement {
  */
 const area = createTodoArea<PendingEntry>({
   element: () => todoEl,
-  loginText: '登录状态已失效，需重新登录慕课平台后方可读取待办。',
+  loginText: '登录已失效，需重新登录慕课。',
   loginHref: 'https://www.icourse163.org/',
 });
 
@@ -187,7 +187,7 @@ export async function renderTodo(): Promise<void> {
   const settings = await getSettings();
   const courses = settings.mooc.courses.filter((course) => course.enabled);
   if (courses.length === 0) {
-    area.write([area.note('todo-empty', '尚未选择参与任务的课程。在「更多」中读取课程列表并勾选。')]);
+    area.write([area.note('todo-empty', '尚未选择参与任务的课程，在「更多」中读取并勾选。')]);
     return;
   }
 

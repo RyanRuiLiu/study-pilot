@@ -28,6 +28,6 @@ export async function runCourseware(
     return { ...base, status: 'skipped', detail: '按停止键中断，未上报' };
   }
   return result.value === 'skipped'
-    ? { ...base, status: 'skipped', detail: '平台没给这个单元的数据，无法上报' }
+    ? { ...base, status: 'skipped', detail: '平台未提供该单元数据，无法上报' }
     : { ...base, status: 'done', detail: '已上报，平台记入学习进度' };
 }

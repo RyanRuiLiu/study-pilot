@@ -63,7 +63,7 @@ export interface ExecuteUnitInput {
  */
 function rejectionHaltMessage(error: ZhsApiError): string {
   return error.code === -10
-    ? '平台提示多端播放：本轮已停止，请先关闭其他正在学习的窗口再试'
+    ? '检测到多端播放，关闭其他窗口后重试'
     : gateHaltMessage('人机验证');
 }
 
@@ -92,7 +92,7 @@ function verifyPageUrl(recruitAndCourseId: string): string {
  * 去处只存在于站点学习页，全量源码检索无独立验证 URL）。
  */
 function gateHaltMessage(signal: string): string {
-  return `平台要求完成一次${signal}`;
+  return `需完成${signal}`;
 }
 
 /** 门的「下一步」：打开该课学习页（新标签页）完成验证。文案按 README 动作词习惯。 */
@@ -188,7 +188,7 @@ export async function executeUnit(
 
     const interim = await readUnit(client, input, unit);
     if (interim === null || interim.studyTotalTime <= base) {
-      return { status: 'failed', message: '分段上报后回读未计入（累计观看没有增长）' };
+      return { status: 'failed', message: '分段上报后回读未计入（累计观看未增长）' };
     }
     base = interim.studyTotalTime;
   }
@@ -200,7 +200,7 @@ export async function executeUnit(
   }
   return {
     status: 'failed',
-    message: '上报已发送，但回读未确认完成（watchState 未变为已完成）',
+    message: '已上报，回读未确认完成（watchState 未变化）',
   };
 }
 

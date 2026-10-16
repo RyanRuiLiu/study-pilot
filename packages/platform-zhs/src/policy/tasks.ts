@@ -102,7 +102,7 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
     async run(item: PlanItem, _heartbeat: () => Promise<void>, control: RunControl): Promise<RunOutcome> {
       const { course, unit } = item.payload as UnitPayload;
       if (course.secret.length === 0) {
-        return { status: 'failed', message: '课程缺少入口参数，请先读取课程列表' };
+        return { status: 'failed', message: '课程缺少入口参数，先读取课程列表' };
       }
       const session = await readSession(deps.readCookie);
       if (!session.loggedIn) return { status: 'failed', message: '未登录' };
