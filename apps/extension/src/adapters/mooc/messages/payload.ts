@@ -9,7 +9,7 @@
  */
 
 import type { QueryOutcome, JobRejection } from '../../../protocol.ts';
-import type { CoursewareProgress, MoocSession, PaperQuestion } from '@study-pilot/platform-mooc';
+import type { CoursewareProgress, MoocSession, PaperQuestion, QuizInfo } from '@study-pilot/platform-mooc';
 
 /**
  * 单元状态。平台的叫法，不自创。
@@ -122,6 +122,14 @@ export type MoocRequest =
   | { type: 'MOOC_COURSEWARE_SUMMARY' }
   /** 一份作业卷的题目（得分指导注入用） */
   | { type: 'MOOC_HOMEWORK_PAPER'; tid: number }
+  /**
+   * 做题助手的三条调用（面板在作答页上）。
+   *
+   * 填充索引只读、绝不新开卷；提交与一键执行共用平台包的 answerAndSubmitQuiz。
+   */
+  | { type: 'MOOC_QUIZ_FILL_INDEX'; tid: number; termId: number }
+  | { type: 'MOOC_QUIZ_INFO'; tid: number }
+  | { type: 'MOOC_QUIZ_SUBMIT'; tid: number; termId: number }
 ;
 
 /** 课程列表里的一条：界面只需要名字与 termId 用来显示与勾选。 */
@@ -159,4 +167,12 @@ export interface MoocResponseMap {
   MOOC_PENDING_SUMMARY: QueryOutcome<PendingSummary>;
   MOOC_COURSEWARE_SUMMARY: QueryOutcome<CoursewareSummary>;
   MOOC_HOMEWORK_PAPER: QueryOutcome<PaperQuestion[]>;
+  MOOC_QUIZ_FILL_INDEX: QueryOutcome<{
+    /** 选项 id → 是否正确（选择类 / 判断题，页面是 radio/checkbox） */
+    options: Record<string, boolean>;
+    /** 填空题答案，按题目在卷面中的显示顺序；取不到答案的题是 null */
+    blanks: Array<string | null>;
+  }>;
+  MOOC_QUIZ_INFO: QueryOutcome<QuizInfo>;
+  MOOC_QUIZ_SUBMIT: QueryOutcome<{ matched: number; total: number }>;
 }
