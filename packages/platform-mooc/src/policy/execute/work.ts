@@ -15,7 +15,7 @@ import {
   nextSubmission,
   submitEvaluation,
 } from '../../review.ts';
-import { buildAnswers, getQuizPaper, submitQuiz } from '../../quiz.ts';
+import { answerAndSubmitQuiz } from '../../quiz.ts';
 import type { MoocClient } from '../../client.ts';
 import type { WorkAutoAction } from '../plan/index.ts';
 import type { ExecResult } from './types.ts';
@@ -32,10 +32,10 @@ export async function runQuiz(
   const base = { tid: action.work.tid, name: action.work.name, kind: action.kind } as const;
 
   /*
-   * 取卷带 `aid = 0`，服务端据此为该用户**新建一份答题表单**——这一步已经落在
-   * 平台上了，撤不回来。2026-10-17 换接口后答案随卷面一起回来（见 quiz.ts），
-   * 不再有「先核对题库再开卷」的前置步骤：答案凑不齐时会留下一份未作答的
-   * 答卷（与用户自己点开单元的效果相同，可接受）。
+   * 作答并提交的唯一实现在 quiz.ts 的 answerAndSubmitQuiz：取卷（aid = 0，
+   * 服务端据此新建或复用答题表单——这一步落在平台上撤不回来）、主观题守卫、
+   * 组答案（卷面优先、题库补缺）、取不到答案一道都不交、提交。
+   * 做题助手的「提交答案」按钮走同一个函数——两处的判据不允许分叉。
    */
 
   // 停止键：开卷有副作用（服务端据此新建一份答题表单），停下就不再开
@@ -43,47 +43,21 @@ export async function runQuiz(
     return { ...base, status: 'skipped', detail: '按停止键中断，未开卷' };
   }
 
-  /*
-   * 「开始测验」这一步也走接口，不需要人工点。
-   * 页面上那个按钮做的事就是调取卷接口并传 aid = 0，
-   * 服务端据此为该用户新建一份答题表单。
-   * 已有进行中的答卷时返回的就是那一份，没有则新建。
-   */
-  const paper = await getQuizPaper(client, action.work.tid, 0);
-  if (!paper.ok) {
-    return { ...base, status: 'failed', detail: `取卷失败：${paper.error.message}` };
-  }
+  const outcome = await answerAndSubmitQuiz(client, action.work.tid, action.course.termId, {
+    // 停止键：提交前最后一个安全点
+    beforeSubmit: () => !control.stopped(),
+  });
 
-  // 含主观题的卷不自动交（同 unit-quiz 的道理：只交客观部分=残缺答卷）
-  const subjective = (paper.value.subjectiveQList ?? []).length;
-  if (subjective > 0) {
-    return { ...base, status: 'failed', detail: `这份测验含 ${subjective} 道主观题，需人工作答，不自动提交` };
+  switch (outcome.status) {
+    case 'submitted':
+      return { ...base, status: 'done', detail: `已提交 ${outcome.matched} 道客观题` };
+    case 'stopped':
+      return { ...base, status: 'skipped', detail: '按停止键中断，未提交' };
+    case 'no-objective':
+      return { ...base, status: 'skipped', detail: '这份答卷没有客观题' };
+    case 'failed':
+      return { ...base, status: 'failed', detail: outcome.message };
   }
-
-  const built = buildAnswers(paper.value);
-  if (built.total === 0) {
-    return { ...base, status: 'skipped', detail: '这份答卷没有客观题' };
-  }
-  if (built.unresolved.length > 0) {
-    // 取不到答案时不做部分提交：部分作答会拿到低于预期的分数
-    return {
-      ...base,
-      status: 'failed',
-      detail: `${built.unresolved.length} 道题取不到答案（卷面既无正确选项标记、也无标准答案），已跳过以免得到低分`,
-    };
-  }
-
-  // 停止键：提交前最后一个安全点
-  if (control.stopped()) {
-    return { ...base, status: 'skipped', detail: '按停止键中断，未提交' };
-  }
-
-  const submitted = await submitQuiz(client, paper.value);
-  if (!submitted.ok) {
-    return { ...base, status: 'failed', detail: `提交失败：${submitted.error.message}` };
-  }
-
-  return { ...base, status: 'done', detail: `已提交 ${built.total} 道客观题` };
 }
 
 /**

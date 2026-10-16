@@ -136,28 +136,35 @@ export function renderRichText(html: string): HTMLElement {
   return container;
 }
 
-/** 构造一道题的得分指导块。`source` 记录它属于哪一份作业。 */
-export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLElement {
+/**
+ * 构造一道题的得分指导块。`source` 记录它属于哪一份作业。
+ *
+ * 评分点全为空（这份作业没配评分依据）时返回 null，不注入空块——
+ * 没有可展示的内容就不往页面上放东西。
+ */
+export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLElement | null {
+  /*
+   * 样式与弹窗/设置页同一套设计语言（令牌见 src/ui/tokens.ts）：
+   * 浅主色衬底 + 12px 圆角（与卡面同档），不画描边、不画左侧色条——
+   * 「边界不靠边框」，块与页面靠衬底区分；主色只出现在可点击处，标题用正文色。
+   */
   const block = document.createElement('div');
   block.setAttribute(ANSWER_MARK_ATTRIBUTE, '1');
   block.setAttribute(ANSWER_SOURCE_ATTRIBUTE, source);
   block.style.cssText = [
     `margin-top:${TOKENS.space12}`,
-    `padding:${TOKENS.space12} ${TOKENS.space16}`,
+    `padding:${TOKENS.space16}`,
     `background:${TOKENS.accentWash}`,
-    // 块底是浅主色：--line 压在上面看不见，用浅底专用的分界色
-    `border:1px solid ${TOKENS.lineOnWash}`,
-    `border-left:${TOKENS.space4} solid ${TOKENS.accent}`,
-    `border-radius:${TOKENS.radiusMd}`,
+    `border-radius:${TOKENS.radiusLg}`,
     `font-size:${TOKENS.textMd}`,
     'line-height:1.7',
-    `color:${TOKENS.inkSoft}`,
+    `color:${TOKENS.ink}`,
   ].join(';');
 
   const judges = question.judgeDtos ?? [];
 
   const head = document.createElement('div');
-  head.style.cssText = `font-weight:600;color:${TOKENS.accent};margin-bottom:${TOKENS.space8}`;
+  head.style.cssText = `font-weight:600;color:${TOKENS.ink};margin-bottom:${TOKENS.space8}`;
   head.textContent = `${GUIDANCE_LABEL}：`;
   if (question.score != null) {
     const score = document.createElement('span');
@@ -190,7 +197,7 @@ export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLE
     const maxScore = judge.maxScore ?? (judges.length > 1 ? 0 : null);
     if (maxScore != null) {
       const label = document.createElement('div');
-      label.style.cssText = `color:${TOKENS.inkFaint};margin:0 0 ${TOKENS.space4}`;
+      label.style.cssText = `font-size:${TOKENS.textSm};color:${TOKENS.inkFaint};margin:0 0 ${TOKENS.space4}`;
       label.textContent = `满分 ${maxScore} 分`;
       point.append(label);
     }
@@ -199,13 +206,7 @@ export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLE
     block.append(point);
   });
 
-  // judgeDtos 为空说明这份作业没有配置评分依据，属于数据本身的情况
-  if (!hasContent) {
-    const empty = document.createElement('div');
-    empty.style.color = TOKENS.inkFaint;
-    empty.textContent = '这份作业未配置得分指导';
-    block.append(empty);
-  }
+  if (!hasContent) return null;
 
   return block;
 }

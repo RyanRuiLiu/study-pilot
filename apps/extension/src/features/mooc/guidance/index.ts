@@ -95,7 +95,9 @@ export async function injectGuidance(load: QuestionLoader, tid: number): Promise
     const anchor = anchorOf(item);
     if (!anchor) continue;
 
-    anchor.insertAdjacentElement('afterend', buildAnswerBlock(question, source));
+    // 没有可展示的内容（评分点为空）就不放块
+    const block = buildAnswerBlock(question, source);
+    if (block !== null) anchor.insertAdjacentElement('afterend', block);
   }
 }
 
