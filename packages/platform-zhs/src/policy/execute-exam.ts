@@ -29,6 +29,7 @@ import {
   answerKeyFromPopupExam,
   matchPaper,
   MIN_ATTEMPTS_FOR_PROBE,
+  planAnswering,
   remainingAttempts,
   type AnswerKey,
 } from '../exam-answers.ts';
@@ -293,28 +294,31 @@ export async function executeExam(
 /** 有键：一次开卷、一次交卷。 */
 async function runWithKey(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
   const paper = await openExamPaper(client, input.target);
-  const match = matchPaper(paper, input.key!);
-  if (match.missing.length > 0) {
-    /*
-     * 覆盖率**只能对着卷面算**（键比的是本题的选项 id），所以「覆盖不全就不开卷」
-     * 做不到——要先开卷才知道。留下的代价是**一份未作答的草稿**：不计分、不消耗
-     * 作答机会（平台的消耗点在 submit），下次执行再读同一份。可以接受，但别把它
-     * 说成「什么都没发生」。
-     */
-    const percent = Math.round((match.answers.length / Math.max(paper.length, 1)) * 100);
-    return { status: 'failed', message: `未作答：答案键覆盖 ${percent}%` };
+  /*
+   * 要不要作答由 `planAnswering` 判（模块 3 的唯一判断处，别在这里另写一遍）。
+   * 本路径只接受 `answer`：键来自这卷自己，覆盖不全是异常；`probe-then-redo`
+   * 那条路由 runWithoutKey 负责，它才掌握剩余次数。
+   *
+   * 覆盖率**只能对着卷面算**（键比的是本题的选项 id），所以「覆盖不全就不开卷」
+   * 做不到——要先开卷才知道。留下的代价是**一份未作答的草稿**：不计分、不消耗
+   * 作答机会（平台的消耗点在 submit），下次执行再读同一份。可以接受，但别把它
+   * 说成「什么都没发生」。
+   */
+  const plan = planAnswering({ paper, key: input.key, remainingAttempts: MIN_ATTEMPTS_FOR_PROBE });
+  if (plan.kind !== 'answer') {
+    return { status: 'failed', message: `未作答：答案键覆盖 ${Math.round(plan.coverage * 100)}%` };
   }
 
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
-  await saveAnswers(client, input.target, planToAnswers(paper, match.answers));
+  await saveAnswers(client, input.target, planToAnswers(paper, plan.answers));
 
   const gate = await passOracleGate(client, input);
   if (isOutcome(gate)) return gate;
 
   // 安全点：交卷是这一轮唯一的不可逆动作，落在这里的停止信号必须生效
   if (control.stopped()) return { status: 'skipped', message: '已停止：未交卷' };
-  await submit(client, input.target, match.answers.length);
-  return { status: 'done', message: `已交卷：${match.answers.length} 题，${gate.note}` };
+  await submit(client, input.target, plan.answers.length);
+  return { status: 'done', message: `已交卷：${plan.answers.length} 题，${gate.note}` };
 }
 
 /**
