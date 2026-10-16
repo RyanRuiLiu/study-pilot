@@ -797,7 +797,7 @@ async function srcFetch(opts) {
 }
 
 function srcGrep(opts) {
-  const keyword = opts._?.[1] ?? opts.keyword;
+  const keyword = opts._?.[2] ?? opts.keyword;
   if (!keyword) die('src grep 需要关键词：pnpm probe src grep <关键词>');
   const dir = path.join(SRC_DIR, 'readable');
   if (!existsSync(dir)) die('还没有镜像：先跑 pnpm probe src fetch');
