@@ -65,7 +65,9 @@
 - **并行工作时先确认分支**：这个仓库会同时有多条会话/分支作业（如 mooc 与智慧树各一路）。
   看到功能「没了」先跑 `git branch --show-current` 与 `git log --oneline -3`——多半是当前
   checkout 不在包含该功能的分支上，**不要据此重写或重做代码**；把两边并起来（改动文件
-  零交集时直接 merge），并完把 main 也 fast-forward 到并集。
+  零交集时直接 merge），并完把 main 也 fast-forward 到并集；**切分支或合并后先清一次
+  构建缓存**（删 apps/extension/.output 与 .wxt 再 build）——实测过期产物会把新代码漏编
+  （2026-10-17：做题助手整块没进 content script，表现为「面板时有时无」）。
 
 ## 平台接入标准（新平台照这条流程走）
 
