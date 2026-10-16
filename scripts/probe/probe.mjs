@@ -939,16 +939,20 @@ async function cmdShot(opts) {
  * 主题从墨绿换成群青时它没跟上，而脚本里那句「与 tokens.css 的 --accent 一致」
  * 的注释早已不成立（2026-10-17 照这条线索查出）。收进本文件，改主题后跑一次即可。
  *
- * 满幅，不是四周留白
- * ------------------
- * Chrome 应用商店的图片规范要求 128 的图里实际图形为 96x96、四周各留 16 像素
- * 透明留白（developer.chrome.com/docs/webstore/images#icons，2026-10-17 核对原文：
- * "The actual icon size should be 96x96 … an additional 16 pixels per side should
- * be transparent padding"）。那条管的是 128 这一张，用于安装弹窗与商店展示；
- * **工具栏尺寸（16/32/48）的文档里没有任何留白要求**，Chrome 也不会替工具栏图标
- * 补边框或投影。此前把商店那条套用到了全部尺寸上，代价是工具栏里这个图标比同排的
- * 其他扩展小一圈（Ryan 2026-10-17 指出，要求改为满幅）。商店那张若日后要单独交，
- * 把 ICON_CONTENT_RATIO 调回 0.75 另出一张即可。
+ * 每个尺寸各按管它的那条标准定留白
+ * ------------------------------
+ * 不是一刀切。Chrome 应用商店的图片规范要求 128 那张的图形为 96x96、四周各留
+ * 16 像素透明留白（developer.chrome.com/docs/webstore/images#icons，2026-10-17
+ * 核对原文："The actual icon size should be 96x96 … an additional 16 pixels per
+ * side should be transparent padding"）——**那条管的只是 128 这一张**，它用于
+ * 安装弹窗与商店列表。工具栏尺寸（16/32/48）的文档里没有任何留白要求，Chrome
+ * 也不替工具栏图标补边框或投影；给它们留白纯亏——实测 16px 上字母墨迹会因此
+ * 从 7px 掉到 5px。96 不在 Chrome 那张表里（WXT 约定的补充尺寸），没有标准管它，
+ * 与工具栏同样处理。
+ *
+ * 来历：最早五个尺寸都按商店那条留了白，结果是工具栏里这个图标比同排的其他扩展
+ * 小一圈（Ryan 2026-10-17 指出）。先改成五个尺寸全满幅，同日 Ryan 说「按照标准
+ * 执行」之后改成现在这样——每个尺寸按管它的那条标准，见 ICON_CONTENT_RATIOS。
  *
  * 色值与字体从 tokens.css 现读
  * ---------------------------
@@ -965,13 +969,19 @@ const ICON_DIR = path.join(ROOT, 'apps', 'extension', 'public', 'icon');
  * 约定的补充尺寸（其他 Chromium 浏览器与高分屏用）。
  */
 const ICON_SIZES = [16, 32, 48, 96, 128];
-/** 主画布。各尺寸都由它逐级折半缩出，五个尺寸保证是同一个形状。 */
+/** 主画布。各尺寸都由它逐级折半缩出，五个尺寸保证是同一个形状（主画布始终满幅）。 */
 const ICON_MASTER_SIZE = 1024;
-/** 图形占整幅的比例。1＝满幅（理由见本节开头）。 */
-const ICON_CONTENT_RATIO = 1;
+/**
+ * 每个尺寸**图形占画布的比例**，按管它的那条标准定（理由见本节开头）：
+ *
+ *   16 / 32 / 48  1      工具栏、右键菜单、扩展管理页。没有标准要求留白。
+ *   96            1      没有标准管它，与工具栏同处理。
+ *   128           0.75   商店图片规范：图形 96x96 + 四周各 16 像素透明留白。
+ *                        128 是安装弹窗与商店列表共用的那一张。
+ */
+const ICON_CONTENT_RATIOS = { 16: 1, 32: 1, 48: 1, 96: 1, 128: 0.75 };
 /** 圆角占图形的比例。0.22 是应用图标的通行比例（iOS 的连续圆角为 22.37%）。 */
 const ICON_RADIUS_RATIO = 0.22;
-/** 字母字号占图形的比例，沿用原图标（0.62 × 方块）。 */
 /**
  * 字母字号占图形的比例，沿用原图标（0.62 × 方块）。
  *
@@ -1037,7 +1047,7 @@ async function cmdIcon(opts) {
 /** 在页面里画主画布、缩出各尺寸，写进目录。 */
 async function drawIcons(page, dir, brand) {
   const drawn = await page.evaluate(
-    async ({ brand, letter, masterSize, sizes, contentRatio, radiusRatio, letterRatio }) => {
+    async ({ brand, letter, masterSize, sizes, ratios, radiusRatio, letterRatio }) => {
       const blank = (w, h) => {
         const canvas = document.createElement('canvas');
         canvas.width = w;
@@ -1053,10 +1063,14 @@ async function drawIcons(page, dir, brand) {
         return canvas;
       };
 
+      /*
+       * 主画布始终满幅：留白是**缩放时**按尺寸补的，不是在主画布上留。
+       * 这样同一个形状只画一遍，各尺寸的留白比例可以各不相同而不必各画一遍。
+       */
       const master = blank(masterSize, masterSize);
       const ctx = master.getContext('2d');
-      const content = masterSize * contentRatio;
-      const offset = (masterSize - content) / 2;
+      const content = masterSize;
+      const offset = 0;
       const center = masterSize / 2;
 
       ctx.fillStyle = brand.accent;
@@ -1100,15 +1114,30 @@ async function drawIcons(page, dir, brand) {
 
       const out = {};
       for (const size of sizes) {
+        const ratio = ratios[size] ?? 1;
+        const art = Math.round(size * ratio);
         // 逐级折半再落到目标尺寸：一次缩 64 倍会糊，折半的滤波是可证的
         let current = master;
         let dim = masterSize;
-        while (dim % 2 === 0 && dim / 2 >= size) {
+        while (dim % 2 === 0 && dim / 2 >= art) {
           dim /= 2;
           current = smoothDraw(current, dim);
         }
-        if (dim !== size) current = smoothDraw(current, size);
-        out[size] = current.toDataURL('image/png');
+        if (dim !== art) current = smoothDraw(current, art);
+
+        if (art === size) {
+          out[size] = current.toDataURL('image/png');
+          continue;
+        }
+        // 要留白：把图形贴到 size 见方的透明画布正中（透明是关键——深色工具栏上
+        // 才透出底色，而不是一块白方块；旧脚本的注释里记过这个坑）
+        const canvas = blank(size, size);
+        const ctx2 = canvas.getContext('2d');
+        ctx2.imageSmoothingEnabled = true;
+        ctx2.imageSmoothingQuality = 'high';
+        const pad = Math.round((size - art) / 2);
+        ctx2.drawImage(current, pad, pad, art, art);
+        out[size] = canvas.toDataURL('image/png');
       }
       return { out, resolved, fontSize };
     },
@@ -1117,14 +1146,14 @@ async function drawIcons(page, dir, brand) {
       letter: ICON_LETTER,
       masterSize: ICON_MASTER_SIZE,
       sizes: ICON_SIZES,
-      contentRatio: ICON_CONTENT_RATIO,
+      ratios: ICON_CONTENT_RATIOS,
       radiusRatio: ICON_RADIUS_RATIO,
       letterRatio: ICON_LETTER_RATIO,
     },
   );
 
   console.log(`主题色 ${brand.accent}／字母色 ${brand.onAccent}（现读 tokens.css）`);
-  console.log(`主画布 ${ICON_MASTER_SIZE}，图形占 ${ICON_CONTENT_RATIO * 100}%，字母 ${drawn.fontSize}px`);
+  console.log(`主画布 ${ICON_MASTER_SIZE}（满幅），字母 ${drawn.fontSize}px`);
   console.log(`字母实际字体：${drawn.resolved}`);
 
   mkdirSync(dir, { recursive: true });
@@ -1242,15 +1271,24 @@ function sameColor(rgb, hex, tolerance) {
 }
 
 /** 判据。每条都对着本节开头要的那件事，凑合过去的核对等于没有核对。 */
-function judgeIcon(size, m) {
+function judgeIcon(size, m, contentRatio) {
   const problems = [];
   if (m.width !== size || m.height !== size) {
     problems.push(`尺寸是 ${m.width}x${m.height}，应为 ${size}x${size}`);
   }
-  // 满幅：不透明像素必须顶到四条边，一条都不能留
+  /*
+   * 图形范围必须正好落在该尺寸**该有的**那一圈里：满幅尺寸顶到四条边，128 则
+   * 是四周各留 16 像素。这条同时管住「尺寸对不上」与「留白比例不对」。
+   */
+  const art = Math.round(size * contentRatio);
+  const pad = Math.round((size - art) / 2);
   const { left, top, right, bottom } = m.bounds;
-  if (left !== 0 || top !== 0 || right !== m.width - 1 || bottom !== m.height - 1) {
-    problems.push(`图形没满幅：不透明范围 x ${left}..${right} / y ${top}..${bottom}，应为 0..${m.width - 1}`);
+  const expected = `${pad}..${pad + art - 1}`;
+  if (left !== pad || top !== pad || right !== pad + art - 1 || bottom !== pad + art - 1) {
+    problems.push(
+      `图形范围 x ${left}..${right} / y ${top}..${bottom}，应为 ${expected}` +
+        `（图形占画布 ${(contentRatio * 100).toFixed(0)}%）`,
+    );
   }
   // 圆角：四个角必须透明，否则画出来是方块
   if (m.corners.some((corner) => corner[3] !== 0)) {
@@ -1301,14 +1339,15 @@ async function checkIcons(page, dir, brand) {
       { accent: brand.accent, letter: brand.onAccent },
       { accent: 12, letter: 24 },
     );
-    const { problems, accentRatio, offset } = judgeIcon(size, measured);
-    // 字母墨迹高度：判断工具栏上认不认得出，看的就是这个数（图形满幅只是前提）
+    const contentRatio = ICON_CONTENT_RATIOS[size] ?? 1;
+    const { problems, accentRatio, offset } = judgeIcon(size, measured, contentRatio);
+    // 字母墨迹高度：判断工具栏上认不认得出，看的就是这个数（图形范围只是前提）
     const letterBox = measured.colors.letter;
     const letterInk = letterBox.pixels > 0 ? letterBox.bottom - letterBox.top + 1 : 0;
     console.log(
       [
         `  ${problems.length === 0 ? '✓' : '✗'} ${String(size).padStart(3)}.png`,
-        `满幅 ${measured.bounds.left}..${measured.bounds.right}`,
+        `图形 ${measured.bounds.left}..${measured.bounds.right}（占 ${(contentRatio * 100).toFixed(0)}%）`,
         `主题色 ${(accentRatio * 100).toFixed(1)}%`,
         `字母墨迹 ${String(letterInk).padStart(3)}px`,
         `字母偏 ${offset.x.toFixed(1)}/${offset.y.toFixed(1)}px`,
