@@ -1,34 +1,34 @@
 /**
- * 单元测验。
+ * 单元测验（随堂测验与章节测验同一条路径）。
  *
  * 提交流程（页面源码 `COM_Cache_TestBaseCache` + 本仓库实测）：
  *
  * 1. 取卷 `getQuizPaper(tid, aid = 0)`。`aid` 传 0 时服务端会创建答题表单并返回真实 aid；
- *    真实提交要传 `getOpenQuizInfo` 顶层的 aid。
- * 2. 用题库答案构造 `answers`，形如 `[{ qid, type, optIds, time }]`。
- * 3. 提交 `submitQuiz(paper)`：请求体 `{paperDto, preview}`，**answers 原样保留**
+ *    真实提交要传 `getOpenQuizInfo` 顶层的 aid。取卷**带 `withStdAnswerAndAnalyse: true`**
+ *    ——在该模式下答案随卷面一起下发（见下）。
+ * 2. **答案来自卷面自身**（2026-10-17 换接口，Ryan 定；实测多门课逐字节核对过）：
+ *      · 选择类（单选/多选/判断）：`optionDtos[].answer === true` 即正确答案，
+ *        选项 id 与旧的题库口径一致（抽样 14/14 吻合）；
+ *      · 填空类：`stdAnswer` 为标准答案文本（如「时间」）。
+ *    不再有题库 RPC、全局选项索引与跨源匹配——旧链路（getQuestionListByTermId +
+ *    按 id 索引）已随本次换接口退役。卷面既没有正确标记也没有标准答案的题
+ *    **如实计为取不到答案**，不猜、不用题干文本匹配（Ryan：禁止不确定的匹配）。
+ * 3. `answers` 形状（真机提交回读取证，2026-10-17）：
+ *    选择类 `[{ qid, type, optIds: [选项 id…], time }]`；
+ *    填空类 `[{ qid, type, optIds: null, content: { content: '标准答案', attachments: null }, time }]`。
+ * 4. 提交 `submitQuiz(paper)`：请求体 `{paperDto, preview}`，**answers 原样保留**
  *    （页面只对 `content` 做一次 emoji 清理），`submitType` 为 1。
  *
  * `saveDraft(paper)` 是可选旁路，提交不依赖它：实测草稿写入在真实账号上不生效，
  * 而提交体携带的 answers 有效——实测一次提交
  * 13 道题全部计入成绩。早期文档「提交不携带答案、answers 为 null」与页面源码冲突，已作废。
- *
- * 答案匹配的难点：试卷题目的 id 与题库题目的 id 属于**不同空间**，
- * 不能直接对应。可行做法是先按题干文本匹配题目，再按选项文本匹配选项，
- * 得到选项在**试卷侧**的 id。
  */
 
 import { ok, type Result } from '@study-pilot/core';
 import type { TransportError } from '@study-pilot/transport';
 import type { MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
-import type {
-  BankQuestion,
-  PaperAnswer,
-  QuizAnswerForm,
-  QuizInfo,
-  QuizPaper,
-} from './types.ts';
+import type { PaperAnswer, QuizAnswerForm, QuizInfo, QuizPaper } from './types.ts';
 
 // ---------- 取数 ----------
 
@@ -74,19 +74,6 @@ export async function getOpenQuizInfo(
   );
 }
 
-/** 取整门课题库，含标准答案。 */
-export async function getQuizBank(
-  client: MoocClient,
-  termId: number,
-): Promise<Result<BankQuestion[], TransportError>> {
-  const payload = await client.rpc.call<BankQuestion[]>(
-    ENDPOINTS.quizBank.bean,
-    ENDPOINTS.quizBank.method,
-    { termId },
-  );
-  if (!payload.ok) return payload;
-  return ok(payload.value ?? []);
-}
 
 /**
  * 取测验试卷。
@@ -99,76 +86,67 @@ export async function getQuizPaper(
   tid: number,
   aid = 0,
 ): Promise<Result<QuizPaper, TransportError>> {
+  /*
+   * withStdAnswerAndAnalyse: true —— 答案随卷面下发（选项正确标记 + 填空 stdAnswer）。
+   * 固定 true 是取超集：实测存在只有 true 才给填空 stdAnswer 的卷（示例课程丁，2026-10-17）。
+   */
   return client.rpc.call<QuizPaper>(ENDPOINTS.quizPaper.bean, ENDPOINTS.quizPaper.method, {
     tid,
     aid,
-    withStdAnswerAndAnalyse: false,
+    withStdAnswerAndAnalyse: true,
   });
 }
 
 // ---------- 答案构造 ----------
-
-/** 选项 id 到该选项是否为正确答案。 */
-export type AnswerIndex = Map<string, boolean>;
-
-/**
- * 由题库建立「选项 id 到是否为正确答案」的索引。
- *
- * 选项 id 全局唯一（实测 1040 个选项无重复），因此不需要按题目分组，
- * 也不需要先把题库题目与试卷题目对应起来。
- */
-export function buildAnswerIndex(bank: BankQuestion[]): AnswerIndex {
-  const index = new Map<string, boolean>();
-  for (const question of bank) {
-    for (const option of question.optionDtos ?? []) {
-      index.set(String(option.id), option.answer === true);
-    }
-  }
-  return index;
-}
 
 export interface BuildAnswersResult {
   /** 成功构造答案的题目数 */
   matched: number;
   /** 试卷上的客观题总数 */
   total: number;
-  /** 未能在索引中找到答案的题目 id，出现即说明题库与试卷不匹配 */
+  /** 取不到答案（无正确标记、也无标准答案）的题目 id */
   unresolved: number[];
 }
 
 /**
- * 用选项 id 索引填充 `paper.answers`，返回匹配统计。
+ * 从卷面自身构造 `paper.answers`，返回匹配统计。
  *
- * 试卷选项 id 与题库选项 id 属于同一空间，因此直接按 id 查答案即可。
- * 不需要匹配题干，也就不受富文本标签、选项乱序、以及判断题没有选项文本的影响。
+ * 答案与题目在同一个对象上（取卷已带 withStdAnswerAndAnalyse，见 getQuizPaper）：
+ *   · 选择类：选项上的 `answer === true`；
+ *   · 填空类：题目的 `stdAnswer` 文本。
+ * 两者都没有的题计入 `unresolved`——调用方据此如实失败，不猜。
  *
  * 就地修改 `paper.answers`，因为提交（以及可选的草稿保存）读的是同一个对象。
  */
-export function buildAnswers(
-  paper: QuizPaper,
-  answerIndex: AnswerIndex,
-  now: number = Date.now(),
-): BuildAnswersResult {
+export function buildAnswers(paper: QuizPaper, now: number = Date.now()): BuildAnswersResult {
   const questions = paper.objectiveQList ?? [];
   const answers: PaperAnswer[] = [];
   const unresolved: number[] = [];
 
   for (const question of questions) {
     const optIds = (question.optionDtos ?? [])
-      .filter((option) => answerIndex.get(String(option.id)) === true)
+      .filter((option) => option.answer === true)
       .map((option) => option.id);
 
-    if (optIds.length === 0) {
-      unresolved.push(question.id);
+    if (optIds.length > 0) {
+      answers.push({ qid: question.id, type: question.type, optIds, time: now });
       continue;
     }
 
-    answers.push({
-      qid: question.id,
-      type: question.type,
-      optIds,
-      time: now,
-    });
+    // 填空类：标准答案文本在卷面题目上（形状取自真机提交的回读，见文件头）
+    const std = typeof question.stdAnswer === 'string' ? question.stdAnswer.trim() : '';
+    if (std !== '') {
+      answers.push({
+        qid: question.id,
+        type: question.type,
+        optIds: null,
+        content: { content: std, attachments: null },
+        time: now,
+      });
+      continue;
+    }
+
+    unresolved.push(question.id);
   }
 
   paper.answers = answers;

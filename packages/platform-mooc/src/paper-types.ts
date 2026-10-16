@@ -38,7 +38,10 @@ export interface QuizInfo {
   [key: string]: unknown;
 }
 
-/** 试卷选项。`answer` 在取卷阶段恒为 null，只在题库里有真值。 */
+/**
+ * 试卷选项。取卷带 `withStdAnswerAndAnalyse: true` 时 `answer` 就是正确性标记
+ * （2026-10-17 实测多门课；与旧题库口径抽样核对 14/14 吻合）。
+ */
 export interface PaperOption {
   id: number | string;
   content?: string;
@@ -57,16 +60,23 @@ export interface PaperQuestion {
   plainTextTitle?: string;
   optionDtos?: PaperOption[] | null;
   judgeDtos?: JudgeDto[] | null;
+  /**
+   * 填空类的标准答案文本（取卷带 withStdAnswerAndAnalyse 时下发；2026-10-17 实测）。
+   * 选择类为 null——它们的答案在选项的正确性标记上。
+   */
+  stdAnswer?: string | null;
   [key: string]: unknown;
 }
 
-/** 用户答案项，保存草稿时使用。 */
+/** 用户答案项（提交载荷与回读的形状，真机提交取证 2026-10-17）。 */
 export interface PaperAnswer {
   qid: number;
   type?: number;
-  /** 选中的选项 id（试卷侧的 id，不是题库侧的） */
-  optIds: Array<number | string>;
-  time?: number;
+  /** 选择类的选中选项 id；填空类为 null */
+  optIds: Array<number | string> | null;
+  /** 填空类的作答文本（形状取自真机提交回读：「时间」） */
+  content?: { content: string; attachments: null } | null;
+  time?: number | null;
 }
 
 /** 测验试卷（`getOpenQuizPaperDto`）。 */
@@ -82,22 +92,6 @@ export interface QuizPaper {
   submitType?: number | null;
   objectiveQList?: PaperQuestion[] | null;
   subjectiveQList?: PaperQuestion[] | null;
-  [key: string]: unknown;
-}
-
-// ---------- 题库 ----------
-
-/**
- * 题库题目（`getQuestionListByTermId`）。
- * 与试卷题目的区别：这里带 `stdAnswer` 与选项的正确答案标记。
- */
-export interface BankQuestion {
-  id: number;
-  type: number;
-  title?: string;
-  plainTextTitle?: string;
-  stdAnswer?: string | null;
-  optionDtos?: PaperOption[] | null;
   [key: string]: unknown;
 }
 

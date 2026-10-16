@@ -186,22 +186,22 @@ describe('文档：首末两报，进度与时长都不靠中间态', () => {
 });
 
 describe('随堂测验：像真人一样交一份答卷', () => {
+  /*
+   * 答案在卷面自身（2026-10-17 换接口）：选项带正确标记、填空带 stdAnswer，
+   * 不再有题库 RPC。形状与真机提交回读一致。
+   */
   const paper = {
     id: 5001,
     objectiveQList: [
-      { id: 11, type: 1, optionDtos: [{ id: 101 }, { id: 102 }] },
-      { id: 12, type: 1, optionDtos: [{ id: 103 }, { id: 104 }] },
+      { id: 11, type: 1, optionDtos: [{ id: 101, answer: true }, { id: 102, answer: false }] },
+      { id: 12, type: 4, optionDtos: [{ id: 103, answer: false }, { id: 104, answer: true }] },
+      { id: 13, type: 3, optionDtos: null, stdAnswer: '时间' },
     ],
   };
-  const bank = [
-    { id: 9001, optionDtos: [{ id: 101, answer: true }, { id: 102, answer: false }] },
-    { id: 9002, optionDtos: [{ id: 103, answer: false }, { id: 104, answer: true }] },
-  ];
 
-  it('题库能覆盖全部题目时提交答卷，并补完成上报', async () => {
+  it('卷面带答案时提交答卷（含填空题），并补完成上报', async () => {
     const { client, rpcCalls } = clientStub({
       getOpenQuizPaperDto: { code: 0, message: '', result: paper },
-      getQuestionListByTermId: { code: 0, message: '', result: bank },
     });
     await completeUnit(client, unitOf({ contentType: UNIT_TYPE.QUESTION }));
 
@@ -210,18 +210,30 @@ describe('随堂测验：像真人一样交一份答卷', () => {
     const paperDto = submitted[0]?.body.paperDto as Record<string, unknown>;
     expect(paperDto.answers).toEqual([
       { qid: 11, type: 1, optIds: [101], time: expect.any(Number) },
-      { qid: 12, type: 1, optIds: [104], time: expect.any(Number) },
+      { qid: 12, type: 4, optIds: [104], time: expect.any(Number) },
+      {
+        qid: 13,
+        type: 3,
+        optIds: null,
+        content: { content: '时间', attachments: null },
+        time: expect.any(Number),
+      },
     ]);
     expect(rpcCalls('saveMocContentLearn')).toHaveLength(1);
   });
 
-  it('题库缺答案时返回失败：不交残缺答卷，也不报完成', async () => {
+  it('卷面取不到答案时返回失败：不交残缺答卷，也不报完成', async () => {
     const { client, rpcCalls } = clientStub({
-      getOpenQuizPaperDto: { code: 0, message: '', result: paper },
-      getQuestionListByTermId: {
+      getOpenQuizPaperDto: {
         code: 0,
         message: '',
-        result: [{ id: 9001, optionDtos: [{ id: 101, answer: true }] }],
+        result: {
+          id: 5001,
+          objectiveQList: [
+            { id: 11, type: 1, optionDtos: [{ id: 101, answer: true }] },
+            { id: 12, type: 1, optionDtos: [{ id: 103 }, { id: 104 }] },
+          ],
+        },
       },
     });
     const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.QUESTION }));
@@ -290,13 +302,39 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
     expect(rpcCalls('saveMocContentLearn')).toHaveLength(1);
   });
 
-  it('拿不到帖子正文或正文只有编号时返回失败：不生成、不留言', async () => {
+  it('标题即题目（正文为空）也照常作答：两种形态都是平台真实下发的数据', async () => {
+    /*
+     * 实测形态（2026-10-17，示例课程丁第 4/5 章）：平台只给标题、正文为空，题面就写在
+     * 标题里。代码两种形态都处理——标题取自平台，不是编的。
+     */
+    const raw = 's0.title="讨论：在分析直流通路与交流通路时，我们有哪些需要注意的？";s0.content="<p> </p>";';
+    const { client, dwrCalls, rpcCalls } = clientStub({ getLessonUnitLearnVo: raw });
+    const seen: Array<{ task: string; input: string }> = [];
+
+    await completeUnit(
+      client,
+      unitOf({ contentType: UNIT_TYPE.DISCUSS, contentId: 6007, name: '4.2 讨论' }),
+      {
+        generateText: async (request) => {
+          seen.push(request);
+          return { ok: true, text: '示例回答甲。' };
+        },
+      },
+    );
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.input).toContain('在分析直流通路与交流通路时，我们有哪些需要注意的？');
+    expect(dwrCalls('addReply')).toHaveLength(1);
+    expect(rpcCalls('saveMocContentLearn')).toHaveLength(1);
+  });
+
+  it('标题与正文都取不到可用题目时返回失败：不生成、不留言', async () => {
     const raws = [
       // 平台没给标题/正文
       's0.name="讨论3.4";',
-      // 正文只有编号，给不出可回答的内容
+      // 正文与标题都只有编号，给不出可回答的内容
       's0.title="3.4 讨论题";s0.content="<p>3.4 讨论题</p>";',
-      // 正文为空
+      // 标题是编号、正文为空
       's0.title="3.4 讨论题";s0.content="<p> </p>";',
     ];
 

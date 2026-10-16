@@ -9,7 +9,6 @@
 import type { Result } from '@study-pilot/core';
 import type { TransportError } from '@study-pilot/transport';
 import type { RunControl } from '@study-pilot/application';
-import type { BankCache } from '../policy/execute/bank.ts';
 import type { MoocClient } from '../client.ts';
 import type { CourseUnit } from '../types.ts';
 
@@ -55,11 +54,6 @@ export interface CoursewareCapabilities {
 
 export interface CoursewareContext {
   generateText?: TextGenerator;
-  /**
-   * 题库缓存：随堂测验要用题库比对答案。由调用方给整轮共享的一份
-   * （同一门课的随堂测验与单元测验共用）；不给就各行为现读一次。
-   */
-  bank?: BankCache;
   /**
    * 讨论回复的预取（unit.contentId → 取题+生成的结论）。执行编排在开始前
    * 并发预取（生成不占平台配额、单元间无顺序依赖，而一条约 5 秒）；

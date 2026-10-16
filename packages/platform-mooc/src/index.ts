@@ -60,13 +60,10 @@ export {
 export {
   getQuizInfo,
   getOpenQuizInfo,
-  getQuizBank,
   getQuizPaper,
-  buildAnswerIndex,
   buildAnswers,
   saveDraft,
   submitQuiz,
-  type AnswerIndex,
   type OpenQuizInfo,
   type BuildAnswersResult,
 } from './quiz.ts';
@@ -82,7 +79,6 @@ export * from './policy/read/index.ts';
 export * from './policy/plan/index.ts';
 export * from './policy/execute/index.ts';
 export * from './policy/execute/work.ts';
-export * from './policy/execute/bank.ts';
 export * from './policy/session.ts';
 export * from './policy/recovery.ts';
 export * from './policy/net-rules.ts';

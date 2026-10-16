@@ -13,7 +13,6 @@ import type { MoocClient } from '../client.ts';
 import type { CoursewareContext } from '../courseware/index.ts';
 import type { ConfigPort, HostCapabilities, RunControl, RunSelection, Settings } from '@study-pilot/application';
 import { hasTextGenerator } from '@study-pilot/application';
-import { BankCache } from './execute/bank.ts';
 import { ensureSession, SessionExpiredError } from './session.ts';
 import { withSessionRecovery } from './recovery.ts';
 import type { PlanItem, PlanResult, PlatformTasks, RunOutcome } from '@study-pilot/application';
@@ -127,12 +126,6 @@ function toItems(plan: Plan): PlanItem[] {
 }
 
 export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
-  /*
-   * 题库缓存整轮一份：同一门课的题库在单元测验、随堂测验之间共用。
-   * 放在这里（而不是每次执行现建）才真正有「缓存」的意思——见 bank.ts。
-   */
-  const bank = new BankCache();
-
   return {
     id: 'mooc',
     name: '中国大学 MOOC',
@@ -217,10 +210,8 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
         session.userId,
         settings.mooc.reviewComment,
         heartbeat,
-        // 随堂测验（课件行为）也吃同一份题库缓存
-        { ...deps.coursewareContext(settings), bank },
+        deps.coursewareContext(settings),
         control,
-        bank,
       );
       if (result === undefined) return { status: 'skipped', message: '没有可执行的动作' };
 

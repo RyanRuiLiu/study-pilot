@@ -32,6 +32,22 @@ export interface RunScope {
 }
 
 /** 执行期间要写状态、控按钮、结束后让入口重读清单，因此由入口传进来。 */
+/**
+ * 失败项的「为什么」：取各条的 detail（执行层给的原话），去掉「上报失败：」
+ * 这层包装、去重，最多两条——只说「N 项未完成 / 失败：某某」而不给原因，
+ * 用户没有任何排查依据（2026-10-17 Ryan：示例课程丁 3 项没法完成，也不提示原因）。
+ * 两类失败（课件未完成与待办失败）共用这一份，措辞才统一。
+ */
+function failureReasons(items: Array<{ detail?: string }>): string[] {
+  return [
+    ...new Set(
+      items
+        .map((item) => String(item.detail ?? '').replace(/^上报失败：/, '').trim())
+        .filter((reason) => reason !== ''),
+    ),
+  ].slice(0, 2);
+}
+
 export interface RunHandles {
   setStatus: (text: string, tone: Tone) => void;
   setEnabled: (enabled: boolean) => void;
@@ -96,14 +112,18 @@ export async function runNow(handles: RunHandles, scope?: RunScope): Promise<voi
        * 说「未完成」就够，也不该染上错误色。要交的东西（测验/作业）才是
        * 失败，而且要说清是谁：只说「N 项失败」，用户还得自己回去找。
        */
-      const misses = failed.filter((item) => item.kind === 'courseware').length;
+      const misses = failed.filter((item) => item.kind === 'courseware');
       const realFailures = failed.filter((item) => item.kind !== 'courseware');
-      if (misses > 0) parts.push(`${misses} 项未完成`);
+      if (misses.length > 0) {
+        const reasons = failureReasons(misses);
+        parts.push(reasons.length > 0 ? `${misses.length} 项未完成：${reasons.join('；')}` : `${misses.length} 项未完成`);
+      }
       if (realFailures.length > 0) {
         const names = realFailures.slice(0, 2).map((item) => item.name).join('、');
-        parts.push(
-          realFailures.length > 2 ? `失败：${names} 等 ${realFailures.length} 项` : `失败：${names}`,
-        );
+        const label =
+          realFailures.length > 2 ? `失败：${names} 等 ${realFailures.length} 项` : `失败：${names}`;
+        const reasons = failureReasons(realFailures);
+        parts.push(reasons.length > 0 ? `${label}（${reasons.join('；')}）` : label);
       }
       if (result.manual > 0) parts.push(`${result.manual} 项需手动处理`);
       text = parts.join('，');
