@@ -1007,24 +1007,29 @@ function readBrandTokens() {
   };
 }
 
-async function cmdIcon(opts) {
-  const brand = readBrandTokens();
-  const dir = opts.dir ? path.resolve(ROOT, opts.dir) : ICON_DIR;
-
-  /*
-   * 自己起一只**无头**浏览器，不走 acquire()：acquire 那只带登录 profile、
-   * 且有窗口是给人看的（见 launch 的注释），画图标两样都不需要——为画一张
-   * canvas 弹出窗口，看起来像出事了。这里只要一块 canvas。
-   */
+/**
+ * 起一只**无头**浏览器，给按尺寸出图与量图的命令用（图标、商店素材）。
+ *
+ * 不走 acquire()：那只带登录 profile、且有窗口是给人看的（见 launch 的注释），
+ * 画图与量图两样都不需要——为一块 canvas 弹出窗口，看起来像出事了。
+ */
+async function withCanvasPage(run) {
   const browser = await chromium.launch({ headless: true });
   try {
-    const page = await browser.newPage();
-    if (!opts.check) await drawIcons(page, dir, brand);
-    await checkIcons(page, dir, brand);
-    if (opts.preview) await previewIcons(page, dir, brand);
+    return await run(await browser.newPage());
   } finally {
     await browser.close();
   }
+}
+
+async function cmdIcon(opts) {
+  const brand = readBrandTokens();
+  const dir = opts.dir ? path.resolve(ROOT, opts.dir) : ICON_DIR;
+  await withCanvasPage(async (page) => {
+    if (!opts.check) await drawIcons(page, dir, brand);
+    await checkIcons(page, dir, brand);
+    if (opts.preview) await previewIcons(page, dir, brand);
+  });
 }
 
 /** 在页面里画主画布、缩出各尺寸，写进目录。 */
@@ -1130,10 +1135,14 @@ async function drawIcons(page, dir, brand) {
 }
 
 /**
- * 在页面里量一张图标（浏览器侧执行，不得引用本文件的任何东西）。
- * 返回尺寸、不透明像素的范围、四角 alpha、主题色占比、字母墨迹的包围盒。
+ * 在页面里量一张 PNG（浏览器侧执行，不得引用本文件的任何东西）。
+ *
+ * colors 是「名字 → 十六进制色」，tolerances 是每个颜色的容差。返回尺寸、不透明与
+ * 纯透明像素数、不透明像素的范围、四角像素，以及每个颜色的像素数与包围盒。
+ * 图标与商店磁贴共用这一份量法：两边要验的东西不同，量法不必各写一遍。
+ * 一像素只归一色，所以颜色按「谁更特别谁在前」排（浅色之间容差要留得下区别）。
  */
-function measureIcon({ dataUrl, accent, onAccent }) {
+function measurePng({ dataUrl, colors, tolerances }) {
   const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   const near = (r, g, b, target, tolerance) =>
     Math.abs(r - target[0]) <= tolerance &&
@@ -1152,19 +1161,28 @@ function measureIcon({ dataUrl, accent, onAccent }) {
       const { width, height } = canvas;
       const { data } = ctx.getImageData(0, 0, width, height);
 
-      const accentRgb = rgb(accent);
-      const letterRgb = rgb(onAccent);
+      const targets = Object.entries(colors).map(([name, hex]) => ({
+        name,
+        rgb: rgb(hex),
+        tolerance: tolerances[name],
+      }));
+      const stats = {};
+      for (const target of targets) {
+        stats[target.name] = { pixels: 0, left: width, top: height, right: -1, bottom: -1 };
+      }
+
       let opaque = 0;
-      let accentPixels = 0;
-      let letterPixels = 0;
+      let transparent = 0;
       const bounds = { left: width, top: height, right: -1, bottom: -1 };
-      const ink = { left: width, top: height, right: -1, bottom: -1 };
 
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const i = (y * width + x) * 4;
           const alpha = data[i + 3];
-          if (alpha === 0) continue;
+          if (alpha === 0) {
+            transparent++;
+            continue;
+          }
           opaque++;
           bounds.left = Math.min(bounds.left, x);
           bounds.top = Math.min(bounds.top, y);
@@ -1174,39 +1192,46 @@ function measureIcon({ dataUrl, accent, onAccent }) {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
-          if (near(r, g, b, accentRgb, 12)) {
-            accentPixels++;
-          } else if (near(r, g, b, letterRgb, 24)) {
-            letterPixels++;
-            ink.left = Math.min(ink.left, x);
-            ink.top = Math.min(ink.top, y);
-            ink.right = Math.max(ink.right, x);
-            ink.bottom = Math.max(ink.bottom, y);
+          for (const target of targets) {
+            if (!near(r, g, b, target.rgb, target.tolerance)) continue;
+            const box = stats[target.name];
+            box.pixels++;
+            box.left = Math.min(box.left, x);
+            box.top = Math.min(box.top, y);
+            box.right = Math.max(box.right, x);
+            box.bottom = Math.max(box.bottom, y);
+            break;
           }
         }
       }
 
-      const alphaAt = (x, y) => data[(y * width + x) * 4 + 3];
+      const pixelAt = (x, y) => Array.from(data.slice((y * width + x) * 4, (y * width + x) * 4 + 4));
       resolve({
         width,
         height,
-        accentRatio: accentPixels / opaque,
-        letterPixels,
+        opaque,
+        transparent,
         bounds,
-        ink,
-        corners: [alphaAt(0, 0), alphaAt(width - 1, 0), alphaAt(0, height - 1), alphaAt(width - 1, height - 1)],
+        colors: stats,
+        corners: [pixelAt(0, 0), pixelAt(width - 1, 0), pixelAt(0, height - 1), pixelAt(width - 1, height - 1)],
       });
     };
     image.src = dataUrl;
   });
 }
 
-/** 字母墨迹的包围盒中心相对图形中心的偏移（像素）。 */
-function inkOffset(m) {
+/** 某个颜色的包围盒中心相对整幅中心的偏移（像素）。 */
+function boxOffset(box, m) {
   return {
-    x: (m.ink.left + m.ink.right + 1) / 2 - m.width / 2,
-    y: (m.ink.top + m.ink.bottom + 1) / 2 - m.height / 2,
+    x: (box.left + box.right + 1) / 2 - m.width / 2,
+    y: (box.top + box.bottom + 1) / 2 - m.height / 2,
   };
+}
+
+/** 一个 [r,g,b] 与一个十六进制色在容差内是否算同色（量回来的像素与 token 比对）。 */
+function sameColor(rgb, hex, tolerance) {
+  const target = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return rgb.every((channel, index) => Math.abs(channel - target[index]) <= tolerance);
 }
 
 /** 判据。每条都对着本节开头要的那件事，凑合过去的核对等于没有核对。 */
@@ -1221,24 +1246,30 @@ function judgeIcon(size, m) {
     problems.push(`图形没满幅：不透明范围 x ${left}..${right} / y ${top}..${bottom}，应为 0..${m.width - 1}`);
   }
   // 圆角：四个角必须透明，否则画出来是方块
-  if (m.corners.some((alpha) => alpha !== 0)) {
-    problems.push(`四角不透明（alpha ${m.corners.join('/')}），圆角没生效`);
+  if (m.corners.some((corner) => corner[3] !== 0)) {
+    problems.push(`四角不透明（alpha ${m.corners.map((c) => c[3]).join('/')}），圆角没生效`);
   }
   // 主体是主题色：底色占不透明像素的绝大多数
-  if (m.accentRatio < 0.5) {
-    problems.push(`主题色只占不透明像素的 ${(m.accentRatio * 100).toFixed(1)}%，不像底色`);
+  const accentRatio = m.colors.accent.pixels / m.opaque;
+  if (accentRatio < 0.5) {
+    problems.push(`主题色只占不透明像素的 ${(accentRatio * 100).toFixed(1)}%，不像底色`);
   }
-  // 字母画上了
-  if (m.letterPixels === 0) {
+  // 字母画上了，且墨迹居中
+  const letter = m.colors.letter;
+  const offset = boxOffset(letter, m);
+  if (letter.pixels === 0) {
     problems.push('找不到字母的像素');
-  } else {
-    const offset = inkOffset(m);
+  } else if (Math.abs(offset.x) > 1 || Math.abs(offset.y) > 1) {
     // 容差 1px：墨迹边缘在缩图时落到哪个像素由取整决定，这是栅格化的下限
-    if (Math.abs(offset.x) > 1 || Math.abs(offset.y) > 1) {
-      problems.push(`字母没居中：中心偏 ${offset.x.toFixed(1)} / ${offset.y.toFixed(1)} px`);
-    }
+    problems.push(`字母没居中：中心偏 ${offset.x.toFixed(1)} / ${offset.y.toFixed(1)} px`);
   }
-  return problems;
+  return { problems, accentRatio, offset };
+}
+
+/** 读一张图并量它。图标与商店磁贴都要走这一步。 */
+async function measureFile(page, file, colors, tolerances) {
+  const dataUrl = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
+  return page.evaluate(measurePng, { dataUrl, colors, tolerances });
 }
 
 /**
@@ -1257,19 +1288,18 @@ async function checkIcons(page, dir, brand) {
       failed++;
       continue;
     }
-    const dataUrl = `data:image/png;base64,${readFileSync(file).toString('base64')}`;
-    const measured = await page.evaluate(measureIcon, {
-      dataUrl,
-      accent: brand.accent,
-      onAccent: brand.onAccent,
-    });
-    const problems = judgeIcon(size, measured);
-    const offset = inkOffset(measured);
+    const measured = await measureFile(
+      page,
+      file,
+      { accent: brand.accent, letter: brand.onAccent },
+      { accent: 12, letter: 24 },
+    );
+    const { problems, accentRatio, offset } = judgeIcon(size, measured);
     console.log(
       [
         `  ${problems.length === 0 ? '✓' : '✗'} ${String(size).padStart(3)}.png`,
         `满幅 ${measured.bounds.left}..${measured.bounds.right}`,
-        `主题色 ${(measured.accentRatio * 100).toFixed(1)}%`,
+        `主题色 ${(accentRatio * 100).toFixed(1)}%`,
         `字母偏 ${offset.x.toFixed(1)}/${offset.y.toFixed(1)}px`,
       ].join('  '),
     );
@@ -1396,6 +1426,261 @@ async function previewIcons(page, dir, brand) {
   console.log(`\n对照图 → ${rel(file)}`);
 }
 
+// ---------------------------------------------------------------- 商店素材
+
+/*
+ * 促销磁贴（pnpm probe store）。
+ *
+ * 规范出处：developer.chrome.com/docs/webstore/images（2026-10-17 核对原文）。
+ * 尺寸是硬要求：小磁贴 440x280 **必填**（没有它的条目会被排在有它的后面），
+ * 大磁贴 1400x560 供精选位。同一页的取图建议：Avoid text、Fill the entire
+ * region、favor saturated colors、steer clear of large white or light-gray areas、
+ * 缩到一半仍要认得出、不要拿截图充数。
+ *
+ * 这一版：群青满幅打底，白色标记（图标反白——白方块加群青字母；正着放与底色同色
+ * 就看不见了）加品牌名与一句说明。**文字是 Ryan 2026-10-17 的选择**，与上面
+ * 「避免文字」那条建议相左；上一版也有文字，且底色是浅灰——大面积浅灰同在建议之外。
+ *
+ * 旧脚本（make-store-assets.mjs，77a2c46 删除）写死的是上一套配色：墨绿 #0f766e、
+ * 墨 #101828、纸 #f7f9fb、线 #ccd2d9——这些值现在的 tokens.css 里一个都没有，
+ * 所以那批图不只是旧，是整体换了主题。色值一律现读 tokens.css，理由同图标那节。
+ * 旧脚本还出一张 300x300 徽标，现行规范里没有这个尺寸，Ryan 2026-10-17 确认不要。
+ * 页面截图也不在这里：那几张要真实登录态，Ryan 2026-10-17 确认本次不做。
+ */
+
+/** 商店素材目录。dist/ 已在 .gitignore：素材手动上传商店后台，不进仓库。 */
+const STORE_DIR = path.join(ROOT, 'dist', 'store');
+/** 两张磁贴。文件名沿用旧脚本，免得上传时对不上。 */
+const STORE_TILES = [
+  { name: 'tile-small-440x280.png', width: 440, height: 280 },
+  { name: 'tile-large-1400x560.png', width: 1400, height: 560 },
+];
+/** 品牌名取自 _locales 的 extensionName。 */
+const STORE_TITLE = 'Study Pilot';
+/**
+ * 一句说明。商店描述全文是「学习平台辅助工具（中国大学 MOOC / 智慧树）：
+ * 整理课程待办与截止时间，可辅助完成客观题测验」——太长，磁贴放不下，
+ * 这里取它的前半句。不用旧版的「截止提醒」：本项目没有定时与通知
+ * （见 CONTRIBUTING 的「一轮执行」），「提醒」是那句里唯一会读成承诺的词。
+ */
+const STORE_SUBTITLE = '课程待办与截止时间';
+/** 标记高度、图文间距、标题字号、说明字号各自占磁贴高度的比例，沿用旧脚本调过的值。 */
+const STORE_RATIOS = { mark: 0.42, gap: 0.13, title: 0.15, subtitle: 0.56 };
+/** 标记的圆角比例，与图标同一套。 */
+const STORE_MARK_RADIUS = 0.22;
+
+/**
+ * 在页面里画一张磁贴（浏览器侧执行，不得引用本文件的任何东西）。
+ * 返回 PNG 与这次排版算出来的几个数——核对要拿它们跟磁盘上的像素比对。
+ */
+async function drawStore({ brand, letter, tiles, title, subtitle, ratios, markRadius }) {
+  const blank = (w, h) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    return canvas;
+  };
+
+  /*
+   * 字母按墨迹居中，与图标同一套做法：textBaseline: 'middle' 对齐的是字体
+   * 度量线，字母墨迹上下并不对称。
+   */
+  const drawLetter = (ctx, color, fontSize, centerX, centerY) => {
+    ctx.fillStyle = color;
+    ctx.font = `600 ${Math.round(fontSize)}px ${brand.font}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    const ink = ctx.measureText(letter);
+    ctx.fillText(
+      letter,
+      centerX - (ink.actualBoundingBoxRight - ink.actualBoundingBoxLeft) / 2,
+      centerY + (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2,
+    );
+  };
+
+  const drawTile = (width, height) => {
+    const canvas = blank(width, height);
+    const ctx = canvas.getContext('2d');
+
+    // 满幅群青底：规范要求铺满整个区域，且避开大面积浅色
+    ctx.fillStyle = brand.accent;
+    ctx.fillRect(0, 0, width, height);
+
+    const markSize = Math.round(height * ratios.mark);
+    const gap = Math.round(height * ratios.gap);
+
+    /*
+     * 标题字号按高度与宽度各推一次、取小的那个。只按高度算的话，小磁贴
+     * （高 280）推出的字号会让「Study Pilot」顶到边上——旧脚本踩过这条。
+     */
+    const titleByHeight = Math.round(height * ratios.title);
+    const titleByWidth = Math.round(((width - markSize - gap) * 0.92) / (title.length * 0.56));
+    const titleSize = Math.min(titleByHeight, titleByWidth);
+    const subtitleSize = Math.round(titleSize * ratios.subtitle);
+
+    const measure = (text, weight, size) => {
+      ctx.font = `${weight} ${size}px ${brand.font}`;
+      const metrics = ctx.measureText(text);
+      return {
+        width: metrics.width,
+        ascent: metrics.actualBoundingBoxAscent,
+        descent: metrics.actualBoundingBoxDescent,
+      };
+    };
+    const titleBox = measure(title, 600, titleSize);
+    const subtitleBox = measure(subtitle, 400, subtitleSize);
+    const lineGap = Math.round(subtitleSize * 0.5);
+
+    const textWidth = Math.max(titleBox.width, subtitleBox.width);
+    const groupWidth = markSize + gap + textWidth;
+    const startX = (width - groupWidth) / 2;
+    const centerY = height / 2;
+
+    // 标记：图标反白（白方块 + 群青字母）
+    ctx.fillStyle = brand.onAccent;
+    ctx.beginPath();
+    ctx.roundRect(startX, centerY - markSize / 2, markSize, markSize, markSize * markRadius);
+    ctx.fill();
+    drawLetter(ctx, brand.accent, markSize * 0.62, startX + markSize / 2, centerY);
+
+    /*
+     * 文字。两行按墨迹高度整体居中：标题有 y/p 这类带下伸部的字母，说明是汉字，
+     * 两者的度量线上下留白差得多，按行高排会看着偏。
+     */
+    const textHeight =
+      titleBox.ascent + titleBox.descent + lineGap + subtitleBox.ascent + subtitleBox.descent;
+    const titleBaseline = centerY - textHeight / 2 + titleBox.ascent;
+    const textX = startX + markSize + gap;
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = brand.onAccent;
+    ctx.font = `600 ${titleSize}px ${brand.font}`;
+    ctx.fillText(title, textX, titleBaseline);
+    ctx.font = `400 ${subtitleSize}px ${brand.font}`;
+    ctx.fillText(subtitle, textX, titleBaseline + titleBox.descent + lineGap + subtitleBox.ascent);
+
+    return {
+      png: canvas.toDataURL('image/png'),
+      titleSize,
+      subtitleSize,
+      markSize,
+      markRight: startX + markSize,
+      textRight: textX + textWidth,
+    };
+  };
+
+  const out = {};
+  for (const tile of tiles) out[tile.name] = drawTile(tile.width, tile.height);
+  return out;
+}
+
+async function cmdStore(opts) {
+  const brand = readBrandTokens();
+  await withCanvasPage(async (page) => {
+    /*
+     * 无论如何都先在内存里画一遍：核对要拿这次排版算出来的数字（标记右缘、
+     * 文字右端）与磁盘上的像素比对。画一遍是确定的、也不落盘，所以 --check
+     * 照画，只是不写文件——这样「只核不生成」与「生成后再核」用的是同一份排版。
+     */
+    const drawn = await page.evaluate(drawStore, {
+      brand,
+      letter: ICON_LETTER,
+      tiles: STORE_TILES,
+      title: STORE_TITLE,
+      subtitle: STORE_SUBTITLE,
+      ratios: STORE_RATIOS,
+      markRadius: STORE_MARK_RADIUS,
+    });
+
+    if (!opts.check) {
+      mkdirSync(STORE_DIR, { recursive: true });
+      for (const tile of STORE_TILES) {
+        const layout = drawn[tile.name];
+        const base64 = layout.png.replace(/^data:image\/png;base64,/, '');
+        if (!base64) die(`${tile.name} 没画出来`);
+        writeFileSync(path.join(STORE_DIR, tile.name), Buffer.from(base64, 'base64'));
+        console.log(
+          `  ${tile.name}  ${tile.width}x${tile.height}` +
+            `  标记 ${layout.markSize}  标题 ${layout.titleSize}px  说明 ${layout.subtitleSize}px`,
+        );
+      }
+      console.log(`已写入 ${rel(STORE_DIR)}（文案：${STORE_TITLE} / ${STORE_SUBTITLE}）`);
+    }
+
+    await checkTiles(page, brand, drawn);
+  });
+}
+
+/**
+ * 核对磁贴。
+ *
+ * 验规范里那几条硬要求，外加「文字真的画上去了」：
+ *   尺寸    与规范逐像素相符，错一个像素商店就不收
+ *   满幅    不能有透明像素（规范：Fill the entire region）
+ *   底色    四角都是主题色，且主题色占绝大多数（规范：favor saturated colors）
+ *   文字    白像素的最右端必须超出标记的右缘——只有文字能超出，所以这一条能把
+ *           「画了字」和「只画了标记」分开，而不是笼统地「有白像素」
+ *   不溢出  文字块右端不出画布（旧脚本踩过标题顶边，所以留了按宽度收字号的算法）
+ */
+async function checkTiles(page, brand, drawn) {
+  console.log(`\n核对 ${rel(STORE_DIR)}：`);
+  let failed = 0;
+  for (const tile of STORE_TILES) {
+    const file = path.join(STORE_DIR, tile.name);
+    if (!existsSync(file)) {
+      console.log(`  ✗ ${tile.name} 缺失`);
+      failed++;
+      continue;
+    }
+    const measured = await measureFile(
+      page,
+      file,
+      { accent: brand.accent, onAccent: brand.onAccent },
+      { accent: 12, onAccent: 12 },
+    );
+    const layout = drawn[tile.name];
+    const problems = [];
+
+    if (measured.width !== tile.width || measured.height !== tile.height) {
+      problems.push(`尺寸是 ${measured.width}x${measured.height}，应为 ${tile.width}x${tile.height}`);
+    }
+    if (measured.transparent !== 0) {
+      problems.push(`有 ${measured.transparent} 个透明像素，规范要求铺满整个区域`);
+    }
+    if (measured.corners.some(([r, g, b]) => !sameColor([r, g, b], brand.accent, 12))) {
+      problems.push(`四角不是主题色（${measured.corners.map((c) => c.slice(0, 3).join(',')).join(' / ')}）`);
+    }
+    const accentRatio = measured.colors.accent.pixels / measured.opaque;
+    if (accentRatio < 0.7) {
+      problems.push(`主题色只占 ${(accentRatio * 100).toFixed(1)}%，不像饱和打底`);
+    }
+    const white = measured.colors.onAccent;
+    if (white.pixels === 0) {
+      problems.push('找不到白色像素：标记与文字都没画上');
+    } else if (white.right <= layout.markRight) {
+      problems.push(`白像素最右只到 ${white.right}，没超出标记右缘 ${layout.markRight.toFixed(0)}：文字没画上`);
+    }
+    if (layout.textRight > tile.width) {
+      problems.push(`文字右端到 ${layout.textRight.toFixed(0)}，超出画布 ${tile.width}：会被截掉`);
+    }
+
+    console.log(
+      [
+        `  ${problems.length === 0 ? '✓' : '✗'} ${tile.name}`,
+        `主题色 ${(accentRatio * 100).toFixed(1)}%`,
+        `白像素 ${white.pixels}`,
+        `白最右 ${white.right}（标记右缘 ${layout.markRight.toFixed(0)}）`,
+        `文字右端 ${layout.textRight.toFixed(0)}`,
+      ].join('  '),
+    );
+    for (const problem of problems) console.log(`      ${problem}`);
+    if (problems.length > 0) failed++;
+  }
+  if (failed > 0) die(`\n${failed} 张磁贴没通过核对。`);
+  console.log('  全部通过。');
+}
+
 // ---------------------------------------------------------------- 入口
 
 const USAGE = `用法：pnpm probe <命令> [选项]
@@ -1420,6 +1705,9 @@ const USAGE = `用法：pnpm probe <命令> [选项]
                                          生成扩展图标 → apps/extension/public/icon/
                                          （色值与字体现读 tokens.css；--check 只核对不生成；
                                            --preview 另出对照图 → .probe/shots/icon-preview.png）
+  store [--check]                        生成商店促销磁贴 → dist/store/
+                                          （440x280 与 1400x560；色值与字体现读 tokens.css；
+                                           --check 只核对不生成）
   shot --url <URL> [--out <文件>]        截图
   kill                                   关闭探测浏览器
 `;
@@ -1467,6 +1755,9 @@ async function main() {
       break;
     case 'icon':
       await cmdIcon(opts);
+      break;
+    case 'store':
+      await cmdStore(opts);
       break;
     case 'state': {
       const sub = argv[1];
