@@ -6,10 +6,10 @@
  */
 
 import type { MessageHandler, QueryOutcome } from '../../../protocol.ts';
-import { readSession, selectedCourses, unitItemId } from '@study-pilot/platform-zhs';
+import { quizItemId, readSession, selectedCourses, unitItemId } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsPendingEntry, ZhsPendingSummary, ZhsResponseMap, ZhsUnreadCourse } from './payload.ts';
-import { collectUnits } from './reads.ts';
+import { collectQuizzes, collectUnits } from './reads.ts';
 
 export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
@@ -26,7 +26,15 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
     try {
       const settings = await deps.config.read();
       const enabled = selectedCourses(settings);
+
+      /*
+       * 两类待办各读各的（教程视频走结构读取，单元测试走考试族清单），
+       * 都读成之后按课程合并——所以待办里出现的就是**执行会动的那些**。
+       * 类别由 `kind` 标出，界面据它分组；组名不在这一层（措辞的唯一源在弹窗侧）。
+       */
       const collected = await collectUnits(deps.client, enabled);
+      const quizzes = await collectQuizzes(deps.client, enabled);
+      const quizByCourse = new Map(quizzes.map((entry) => [entry.course.courseId, entry]));
 
       const entries: ZhsPendingEntry[] = [];
       const unreadCourses: ZhsUnreadCourse[] = [];
@@ -44,10 +52,29 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
           if (unit.done) continue;
           entries.push({
             itemId: unitItemId(unit),
+            kind: 'courseware',
             courseName: course.name,
             chapterName: unit.chapterName,
             name: unit.name,
             sec: unit.sec,
+          });
+        }
+
+        // 单元测试单独报自己的读取失败：视频读得到、测验读不到是可能的，
+        // 那时只有这里知道，不能因为视频那一遍成功就把它盖过去
+        const quiz = quizByCourse.get(course.courseId);
+        if (quiz !== undefined && quiz.unreadReason !== null) {
+          unreadCourses.push({ courseName: course.name, reason: `单元测试读取失败：${quiz.unreadReason}` });
+          continue;
+        }
+        for (const item of quiz?.items ?? []) {
+          entries.push({
+            itemId: quizItemId(item),
+            kind: 'quiz',
+            courseName: course.name,
+            chapterName: item.chapterName ?? '',
+            name: item.examName,
+            sec: 0, // 单元测试没有时长；渲染侧据此不显示时长位
           });
         }
       }

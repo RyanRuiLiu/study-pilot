@@ -12,7 +12,7 @@
  */
 
 import { getSettings, getZhsPending, runNow } from '../../src/ui-bridge';
-import type { ZhsPendingEntry } from '../../src/ui-bridge';
+import type { ZhsPendingEntry, ZhsPendingKind } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
 import { zhsTodoEl } from './elements.ts';
 import { createTodoArea } from './todo-area.ts';
@@ -23,6 +23,20 @@ function durationText(sec: number): string {
   if (sec < 60) return '不足 1 分钟';
   return `约 ${Math.round(sec / 60)} 分钟`;
 }
+
+/**
+ * 类别组名（**措辞的唯一源**；平台包只给 `kind` 这个机器值）。
+ *
+ * 用平台自己的叫法，不自造：「教程视频」与「单元测试」都是成绩分析页与
+ * 学习页上的原文（见设计文档 §1.2／FINDINGS §二十的官方名称表）。
+ */
+const KIND_LABEL: Record<ZhsPendingKind, string> = {
+  courseware: '教程视频',
+  quiz: '单元测试',
+};
+
+/** 组内类别的固定次序：与成绩构成自上而下同序（教程进度在前，测试在后）。 */
+const KIND_ORDER: ZhsPendingKind[] = ['courseware', 'quiz'];
 
 function buildRow(entry: ZhsPendingEntry): HTMLElement {
   const item = document.createElement('div');
@@ -43,10 +57,11 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
   phase.textContent = '未学习';
   line.append(phase);
 
-  // 行 1 右列：时长
+  // 行 1 右列：时长。**只有教程视频有**——单元测试没有时长，
+  // 给 0 就让这个位置空着，不拿「不足 1 分钟」冒充（那是假信息）
   const when = document.createElement('span');
   when.className = 'todo-when';
-  when.textContent = durationText(entry.sec);
+  when.textContent = entry.sec > 0 ? durationText(entry.sec) : '';
 
   // 行 2：处置 +「执行」
   const sub = document.createElement('span');
@@ -124,17 +139,29 @@ export async function renderZhsTodo(): Promise<void> {
     return;
   }
 
-  // 按课程归拢（后台已按章节自然序给出，这里保持顺序）
-  const grouped = new Map<string, ZhsPendingEntry[]>();
+  /*
+   * 两级归拢：课程 → 类别。同类的事看的信息不一样（视频看时长、测试看章节），
+   * 混在一起排就没法给同一行定一套字段。
+   *
+   * 课程与类别的出现次序都按**首次出现**定（后台已按章节自然序给出，
+   * 这里保持顺序，不重排）；类别在组内按 KIND_ORDER 固定次序。
+   */
+  const byCourse = new Map<string, Map<ZhsPendingKind, ZhsPendingEntry[]>>();
   for (const entry of entries) {
-    const bucket = grouped.get(entry.courseName);
-    if (bucket) bucket.push(entry);
-    else grouped.set(entry.courseName, [entry]);
+    const byKind = byCourse.get(entry.courseName) ?? new Map<ZhsPendingKind, ZhsPendingEntry[]>();
+    const bucket = byKind.get(entry.kind) ?? [];
+    bucket.push(entry);
+    byKind.set(entry.kind, bucket);
+    byCourse.set(entry.courseName, byKind);
   }
 
   area.write([]);
-  for (const [courseName, list] of grouped) {
-    zhsTodoEl?.append(area.buildGroup(courseName, list, buildRow));
+  for (const [courseName, byKind] of byCourse) {
+    for (const kind of KIND_ORDER) {
+      const list = byKind.get(kind);
+      if (list === undefined || list.length === 0) continue;
+      zhsTodoEl?.append(area.buildGroup(`${courseName} · ${KIND_LABEL[kind]}`, list, buildRow));
+    }
   }
   // 读不到的课如实列出——「读不到」与「没有要看的」长得不一样，不能混为一谈
   for (const unread of outcome.value.unreadCourses) {

@@ -12,15 +12,29 @@
 import type { QueryOutcome, JobRejection } from '../../../protocol.ts';
 import type { ZhihuishuCourse } from '@study-pilot/application';
 
-/** 设置页与弹窗里的一条待办（一个未完成的视频单元）。 */
+/**
+ * 待办条目的类别。取值是**机器值**，界面上的组名（措辞的唯一源在弹窗侧）
+ * 按它映射——平台包只负责说「这是哪一类」，不负责怎么称呼它。
+ *
+ * 与 `PlanItem.kind` 同一套取值（计划里就是这么标的），所以待办与执行范围
+ * 天然对得上。智慧树的成绩构成有四类，这里先落前两类可执行的两类。
+ */
+export type ZhsPendingKind = 'courseware' | 'quiz';
+
+/** 设置页与弹窗里的一条待办。 */
 export interface ZhsPendingEntry {
   /** 计划项 id（执行侧的唯一凭据，取名规则在平台包里） */
   itemId: string;
+  /** 类别：教程视频 / 单元测试（组名在弹窗侧映射） */
+  kind: ZhsPendingKind;
   courseName: string;
   chapterName: string;
   /** 单元名 */
   name: string;
-  /** 视频时长（秒） */
+  /**
+   * 视频时长（秒）。**只有教程视频有**——单元测试没有时长，
+   * 给 0 并在渲染侧据此不显示该位置（不拿 0 冒充「0 分钟」）。
+   */
   sec: number;
 }
 

@@ -10,7 +10,18 @@
  */
 
 import type { ZhihuishuCourse } from '@study-pilot/application';
-import { getCourseUnits, unitItemId, type ZhsClient, type ZhsUnit } from '@study-pilot/platform-zhs';
+import {
+  chapterExams,
+  getCourseUnits,
+  getExamList,
+  isActionable,
+  quizItemId,
+  readCourseChapters,
+  unitItemId,
+  type ZhsClient,
+  type ZhsExamListItem,
+  type ZhsUnit,
+} from '@study-pilot/platform-zhs';
 
 export interface CourseUnits {
   course: ZhihuishuCourse;
@@ -49,3 +60,63 @@ export async function collectUnits(
 
 /** 按课程分组的单元条目（待办与课件共用的形状）。 */
 export { unitItemId };
+
+/** 一门课里还没做的单元测试（待办里与教程视频并列的那一类）。 */
+export interface CourseQuiz {
+  course: ZhihuishuCourse;
+  /** 读成时为条目表；读不成时为空数组 */
+  items: ZhsExamListItem[];
+  /** 这门课的测验没读成的原因（读成时为 null）——**失败必须被看见**，不静默少列 */
+  unreadReason: string | null;
+}
+
+/**
+ * 收集每门课的**未做单元测试**。
+ *
+ * 判据与执行侧同源（`isActionable`：未交页签里 `state=1`），所以列出来的
+ * 就是执行会动的那一批；章节结构用来确认这卷能被执行（拿不到数字卷号的
+ * 不做，与 `plan()` 同一条门槛）。
+ *
+ * 读不成不牵连其他课（与 `collectUnits` 同一条边界），但**读不成这件事本身
+ * 要如实带回去**——课程可能视频读得到、测验读不到，那时只有这里知道。
+ */
+export async function collectQuizzes(
+  client: ZhsClient,
+  courses: ZhihuishuCourse[],
+): Promise<CourseQuiz[]> {
+  const results: CourseQuiz[] = [];
+  for (const course of courses) {
+    if (course.secret.length === 0) {
+      results.push({ course, items: [], unreadReason: null });
+      continue;
+    }
+    try {
+      const chapters = await readCourseChapters(client, {
+        recruitAndCourseId: course.secret,
+        recruitId: course.recruitId,
+      });
+      const known = new Set(chapterExams(chapters).map((exam) => exam.listId));
+      const pending = await getExamList(client, {
+        recruitId: course.recruitId,
+        courseId: course.courseId,
+        submitted: false,
+      });
+      results.push({
+        course,
+        // 只列**单元测试**（meetCourseType=0）；见面课测验属另一类，本期不做
+        items: pending.filter((item) => item.meetCourseType === 0 && isActionable(item) && known.has(item.id)),
+        unreadReason: null,
+      });
+    } catch (error) {
+      results.push({
+        course,
+        items: [],
+        unreadReason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return results;
+}
+
+/** 单元测试条目的计划项 id（与执行侧同一份取名规则）。 */
+export { quizItemId };

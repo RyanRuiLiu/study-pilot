@@ -30,6 +30,7 @@ export type { Tone } from './browser/run-once.ts';
 export type { Settings } from './settings';
 export type {
   ZhsPendingEntry,
+  ZhsPendingKind,
   ZhsCoursewareProgress,
   ZhsCoursewareSummary,
 } from './messages.ts';
