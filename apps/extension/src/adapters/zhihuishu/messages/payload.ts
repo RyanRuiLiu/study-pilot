@@ -97,8 +97,6 @@ export interface ZhsPendingSummary {
 export interface ZhsCourseTask {
   courseId: number;
   courseName: string;
-  /** 平台成绩分析页（点课名打开；地址取自 FINDINGS §二十二 的入口记录） */
-  reportUrl: string;
   /** 学习进度·教程：已完成的视频单元 / 全部视频单元 */
   video: { done: number; total: number };
   /**

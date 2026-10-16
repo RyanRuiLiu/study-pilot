@@ -8,10 +8,11 @@
  * 板块的定义与顺序在 adapters/zhihuishu/boards.ts（弹窗用的是同一份）。
  *
  * 点击落点（Ryan 反复强调过，勿改）：
- *   课名         → 平台成绩分析页（组件口径的唯一事实源，见 reportUrl）
  *   视频那一行   → 学习页（studyUrl）
  *   测试/期末那行 → **作业考试列表页**（examListUrl），**不是开考那一卷**：
  *                  dohomework 路由一打开就在服务端建答卷（设计文档 §5）
+ * 行内只有两个落点：整行 ＋「执行」——课名是纯文本（与慕课课件行同一形状）。
+ * 成绩分析页只在「账号与课程」那一块由课名进入。
  *
  * 「执行」是**按板块**的授权（教程视频 → kind=courseware；单元测试 → kind=quiz），
  * 一条待办一条授权，范围由点击的那一行说清。期末考试**不自动**（只读展示 + 可点），
@@ -184,10 +185,11 @@ function watchRun(): void {
 }
 
 /**
- * 一行：课名（链成绩分析页）+ 运行小字 + 数据 + 动作；**整行点去这块的页面**。
+ * 一行：课名 + 运行小字 + 数据 + 动作；**整行点去这一块在平台上的页面**。
  *
- * 三个点击落点各归各的：垫底的长链接是这一块在平台上的页面（`.todo-open`，
- * 与弹窗同一手法），课名与「执行」浮在它之上——课名去成绩分析页，按钮去执行。
+ * 行里只有两个落点：垫底的长链接（`.todo-open`，与弹窗同一手法）与「执行」。
+ * 课名是**纯文本**——与慕课课件行同一形状（courseware.ts 的 `.cw-name`）：
+ * 一行里挂第二个去处，点击语义就得分岔，两页也就长成了两套。
  */
 function buildRow(
   entry: ZhsCourseTask,
@@ -207,13 +209,9 @@ function buildRow(
   const group = document.createElement('span');
   group.className = 'cw-group';
 
-  const name = document.createElement('a');
-  name.className = 'ct-name';
-  name.href = entry.reportUrl;
-  name.target = '_blank';
-  name.rel = 'noreferrer';
+  const name = document.createElement('span');
+  name.className = 'cw-name';
   name.textContent = entry.courseName;
-  name.title = '打开这门课的成绩分析页';
   group.append(name);
 
   const current = document.createElement('span');

@@ -157,11 +157,13 @@ describe('zhsCourseTasksCommand', () => {
     expect(course!.pending).toBe(1);
   });
 
-  it('每门课都给出成绩分析页的地址（读不到结构也给，那门课仍打得开）', async () => {
+  it('每门课都给出两行各自的落点（读不到结构也给，那门课的页面仍打得开）', async () => {
     const outcome = await run(fakeDeps());
     const [course] = (outcome as { value: ZhsCourseTaskSummary }).value.courses;
-    expect(course!.reportUrl).toContain('stuLearnReportNew');
-    expect(course!.reportUrl).toContain('recruitId=900004');
+    // 视频行 → 学习页；测试/期末行 → 作业考试列表页（加密 recruitId ＋ fromUrl，见 pages.ts）
+    expect(course!.studyUrl).toContain('/study/index?recruitAndCourseId=');
+    expect(course!.examListUrl).toContain('#/webExamList?recruitId=');
+    expect(course!.examListUrl).toContain('&fromUrl=');
   });
 
   it('清单恰好满一页 → 当没读成：不拿截断的清单算进度，汇总数也给 null', async () => {

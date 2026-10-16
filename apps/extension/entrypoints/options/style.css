@@ -172,6 +172,16 @@ body {
   margin: 0;
 }
 
+/*
+ * `hidden` 得自己兜住：这一行与按钮的 display 都是作者样式（flex / inline-flex），
+ * 压过浏览器默认的 `[hidden]{display:none}`——没有这两条，没有失败时那一行还在，
+ * 只剩一个孤零零的「打开验证页」。共享层早有同款（`.panel-head > .btn[hidden]`）。
+ */
+.task-status[hidden],
+.task-status > .btn[hidden] {
+  display: none;
+}
+
 a { color: var(--accent); }
 
 a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

@@ -24,7 +24,7 @@ import { readSession, selectedCourses } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsCourseTask, ZhsCourseTaskSummary, ZhsResponseMap } from './payload.ts';
 import { collectUnits, countNotFullUnitTests, countUnitTests, readCourseExams, readFinalExam } from './reads.ts';
-import { examListUrl, reportPageUrl, studyPageUrl } from '../pages.ts';
+import { examListUrl, studyPageUrl } from '../pages.ts';
 
 /**
  * 整门课都没读成时那份：数字一律 0 且 unread 为真。
@@ -37,7 +37,6 @@ async function unreadCourse(course: ZhihuishuCourse): Promise<ZhsCourseTask> {
   return {
     courseId: course.courseId,
     courseName: course.name,
-    reportUrl: reportPageUrl(course.recruitId, course.courseId),
     video: { done: 0, total: 0 },
     quiz: { done: 0, total: 0 },
     quizNotFull: 0,
@@ -134,7 +133,6 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
         courses.push({
           courseId: course.courseId,
           courseName: course.name,
-          reportUrl: reportPageUrl(course.recruitId, course.courseId),
           video: { done: videoDone, total: entry.units.length },
           quiz,
           quizNotFull,
