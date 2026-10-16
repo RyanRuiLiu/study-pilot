@@ -32,7 +32,14 @@ import {
   remainingAttempts,
   type AnswerKey,
 } from '../exam-answers.ts';
-import { buildAnswerBody, parseLookedPaper, parsePaper, questionIdsOf, type AnswerPayload } from '../exam-paper.ts';
+import {
+  buildAnswerBody,
+  parseLookedPaper,
+  parsePaper,
+  questionIdsOf,
+  type AnswerPayload,
+  type LookedQuestion,
+} from '../exam-paper.ts';
 import { askOracle, judge } from '../oracle.ts';
 import { ZhsRoundHalt } from './execute.ts';
 
