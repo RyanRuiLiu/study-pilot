@@ -58,11 +58,14 @@ export async function renderZhsStatusLine(
 
   const parts = ['已登录', `${enabled} 门课程参与`];
   const tasks = await (tasksRead ?? getZhsCourseTasks());
-  if (tasks.status === 'ok') {
+  if (tasks.status === 'ok' && tasks.value.pendingTotal !== null) {
     const pending = tasks.value.pendingTotal;
     /*
      * 措辞取常用句里的「可代为完成」（CONTRIBUTING「界面语言与文案」）：
      * 这一个数把视频与测试两类合在一起说，用「待学」会把测试排除在外。
+     *
+     * 读不全时（pendingTotal 为 null）**这一格不报数**——那个数那时只是下界，
+     * 报出去就是一个看起来确定的谎。哪一门哪一半没读到，课程任务卡里逐门说清。
      */
     parts.push(pending === 0 ? '暂无待完成' : `可代为完成 ${pending} 项`);
   }

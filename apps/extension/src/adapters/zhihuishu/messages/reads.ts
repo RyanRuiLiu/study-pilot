@@ -14,8 +14,8 @@ import {
   chapterExams,
   getCourseUnits,
   getExamList,
-  isActionable,
   MEET_COURSE_TYPE,
+  needsWork,
   quizItemId,
   readCourseChapters,
   unitItemId,
@@ -107,15 +107,23 @@ export async function collectQuizzes(
     }
     try {
       const known = new Set(chapterExams(chapters).map((exam) => exam.listId));
-      const pending = await getExamList(client, {
+      const page = await getExamList(client, {
         recruitId: course.recruitId,
         courseId: course.courseId,
         submitted: false,
       });
+      // 取不全与读不成同等对待：半份清单列出来的待办是**假的待办**（少列的那些不会自己说话）
+      if (!page.complete) throw new Error('作业清单超过一页，未取全');
       results.push({
         course,
-        // 只列**单元测试**（meetCourseType=0）；见面课测验属另一类，本期不做
-        items: pending.filter((item) => item.meetCourseType === 0 && isActionable(item) && known.has(item.id)),
+        /*
+         * 只列**单元测试**（meetCourseType=0）；见面课测验属另一类，本期不做。
+         * 判据用 `needsWork`（与 `plan()` 同一个）：未动过的与「重做已申请」的都收，
+         * 后者按 Ryan 口径直接接管。
+         */
+        items: page.items.filter(
+          (item) => item.meetCourseType === 0 && needsWork(item) && known.has(item.id),
+        ),
         unreadReason: null,
       });
     } catch (error) {
@@ -162,11 +170,17 @@ export async function readCourseExams(
   course: ZhihuishuCourse,
 ): Promise<CourseExamTabs> {
   const base = { recruitId: course.recruitId, courseId: course.courseId };
-  const [pending, submitted] = [
-    await getExamList(client, { ...base, submitted: false }),
-    await getExamList(client, { ...base, submitted: true }),
-  ];
-  return { pending, submitted };
+  const pending = await getExamList(client, { ...base, submitted: false });
+  const submitted = await getExamList(client, { ...base, submitted: true });
+  /*
+   * 取不全就**当这次没读成**：截断的清单会让分母偏小，进度看起来比实际好，
+   * 而且这种错不会自己冒出来。抛出去由调用方按「读不成」处理（给原因、关掉数字位），
+   * 不许悄悄拿半份数据算一个像模像样的数。
+   */
+  if (!pending.complete || !submitted.complete) {
+    throw new Error('作业清单超过一页，未取全');
+  }
+  return { pending: pending.items, submitted: submitted.items };
 }
 
 /**

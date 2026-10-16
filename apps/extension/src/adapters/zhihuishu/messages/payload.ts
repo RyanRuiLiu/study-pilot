@@ -122,8 +122,14 @@ export interface ZhsCourseTask {
 /** 课程任务概要：每门课一份组件清单 + 汇总计数。 */
 export interface ZhsCourseTaskSummary {
   courses: ZhsCourseTask[];
-  /** 待完成总数（状态行用） */
-  pendingTotal: number;
+  /**
+   * 待完成总数（状态行用）。
+   *
+   * **有课没读全时是 null**（结构没读到，或测试那两页签没读到）——那时这个数只是
+   * 一个下界，报出去就成了「读失败被折成一个确定的数」，正是本仓禁的那种静默降级。
+   * 读不全的课在各自的卡里说清自己哪一半没读到，头部则不报这个数。
+   */
+  pendingTotal: number | null;
 }
 
 /** 登录态（界面只需要知道能不能读）。 */

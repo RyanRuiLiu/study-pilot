@@ -54,6 +54,20 @@ export function isActionable(item: ZhsExamListItem): boolean {
   return item.state === HOMEWORK_STATE.untouched;
 }
 
+/**
+ * 这一条该不该**进待办与计划**——即「我们接手做」的那些（未交页签里）。
+ *
+ * 与 `isActionable` 分开：那个问的是「平台标它没动过吗」，这个问的是「我们做不做」。
+ * 两者只差 `state=5`：已交过、重做已申请、新答卷没交——它不是没动过的卷，
+ * 但 Ryan 定了口径（2026-10-17）：**按没做过一样对待，直接接管**，
+ * 于是它进计划（走 `redoOpen` 那条路，不再申请重做）。
+ *
+ * 待办与计划**共用这一个判据**：两处各写一遍，界面就会多列或少列。
+ */
+export function needsWork(item: ZhsExamListItem): boolean {
+  return item.state === HOMEWORK_STATE.untouched || item.state === HOMEWORK_STATE.redone;
+}
+
 export interface ZhsExamListItem {
   /** 清单条目 id——lookHomework 的 `studentExamId` 用料 */
   id: string;
@@ -112,21 +126,45 @@ export function normalizeHomeworkList(rt: unknown): ZhsExamListItem[] {
   return items;
 }
 
+/**
+ * 一次请求的页大小。
+ *
+ * 「一页取全」是**实测结论**（最大的一门课 20 条，一门课二十章），不是保证：
+ * 响应里没有可信的总数（`rt` 只有 `result / next / studentHomeworkList`，
+ * 而 `next` 的语义没实测过——17 条和 3 条都回 `-1`，分不出「到底了」还是「恒为 -1」）。
+ * 所以取回来自查：**不足一页才算全**（见 `ExamListPage.complete`）。
+ */
+export const EXAM_LIST_PAGE_SIZE = 100;
+
+/** 一个页签的一次读取结果。 */
+export interface ExamListPage {
+  items: ZhsExamListItem[];
+  /**
+   * 这一页是不是全部。
+   *
+   * 恰好满页时**不敢说全**：平台可能还有下一页，而总数不可信。宁可让人看见
+   * 「没读全」，也不要把截断的清单当完整的用——那会让进度分母偏小、
+   * 让计划漏掉应该做的卷，两种错误都不会自己冒出来。
+   */
+  complete: boolean;
+}
+
 /** 读一个页签（未提交 / 已提交）。一次请求取全（`pageSize: 100`）。 */
 export async function getExamList(
   client: ZhsClient,
   input: { recruitId: number; courseId: number; submitted: boolean },
-): Promise<ZhsExamListItem[]> {
+): Promise<ExamListPage> {
   const body = (await client.call('examHomeworkList', {
     recruitId: input.recruitId,
     courseId: input.courseId,
     flag: input.submitted ? 2 : 1,
-    pageSize: 100,
+    pageSize: EXAM_LIST_PAGE_SIZE,
     // 页号是 **0 基**：实测 pageNum=1 回空表，pageNum=0 才出条目
     // （真机脚本 eval-replay.js 用的就是 0）。别按 1 基的直觉改回来。
     pageNum: 0,
   })) as { rt?: unknown };
-  return normalizeHomeworkList(body.rt);
+  const items = normalizeHomeworkList(body.rt);
+  return { items, complete: items.length < EXAM_LIST_PAGE_SIZE };
 }
 
 function str(value: unknown): string {

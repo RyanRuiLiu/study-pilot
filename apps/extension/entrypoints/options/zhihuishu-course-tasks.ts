@@ -223,7 +223,16 @@ function buildCard(entry: ZhsCourseTask): HTMLElement {
   button.type = 'button';
   button.textContent = '执行';
   button.title = EXEC_TITLE;
-  if (entry.pending === 0 && entry.unread !== true) {
+  /*
+   * 禁用判据必须建立在**读全了**的前提上。
+   *
+   * `pending === 0` 是个显示计数器：读不全时它只是下界（测试那两页签没读到，
+   * 或者清单超过一页），拿它说「已无待完成项」就是**用一个可能错的数替执行侧
+   * 做了决定**——按钮灰着，而执行本来还有活可干，人只会以为没事做。
+   * 读不全时不禁用：执行侧现读现算，让它自己判。
+   */
+  const known = entry.unread !== true && entry.quizUnreadReason === null;
+  if (known && entry.pending === 0) {
     button.disabled = true;
     button.dataset.empty = 'yes';
     button.dataset.emptyTitle = '这门课已无待完成项';

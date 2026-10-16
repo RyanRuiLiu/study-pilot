@@ -62,11 +62,19 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
       const enabled = selectedCourses(settings);
       const collected = await collectUnits(deps.client, enabled);
 
+      /*
+       * `complete` = 这门课的每一半都读到了。只要有课没读全，汇总数就**不报**
+       * （给 null）——那时它只是一个下界，报出去等于把「有东西没读到」折成
+       * 一个看起来确定的数。哪一门、哪一半没读到，由各自的卡说清。
+       */
       let pendingTotal = 0;
+      /** 有课没读全：汇总数这时只是下界，不报出去（见 respond 处） */
+      let partial = false;
       const courses: ZhsCourseTask[] = [];
       for (const entry of collected) {
         const { course } = entry;
         if (entry.unreadReason !== null) {
+          partial = true;
           courses.push(unreadCourse(course));
           continue;
         }
@@ -79,6 +87,7 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
           quiz = countUnitTests(await readCourseExams(deps.client, course));
         } catch (error) {
           quizUnreadReason = error instanceof Error ? error.message : String(error);
+          partial = true;
         }
 
         /*
@@ -100,7 +109,7 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
           pending,
         });
       }
-      respond({ status: 'ok', value: { courses, pendingTotal } });
+      respond({ status: 'ok', value: { courses, pendingTotal: partial ? null : pendingTotal } });
     } catch (error) {
       respond({ status: 'error', message: error instanceof Error ? error.message : String(error) });
     }

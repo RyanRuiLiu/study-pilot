@@ -55,11 +55,14 @@ export {
 } from './structure.ts';
 
 export {
+  EXAM_LIST_PAGE_SIZE,
   getExamList,
   HOMEWORK_STATE,
   isActionable,
   MEET_COURSE_TYPE,
+  needsWork,
   normalizeHomeworkList,
+  type ExamListPage,
   type ZhsExamListItem,
 } from './exam-list.ts';
 
