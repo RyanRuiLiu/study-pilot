@@ -38,6 +38,7 @@ export type {
   ZhsRequest,
   ZhsResponseMap,
   ZhsPendingEntry,
+  ZhsPendingKind,
   ZhsCoursewareProgress,
   ZhsCoursewareSummary,
 } from './adapters/zhihuishu/messages/payload.ts';
