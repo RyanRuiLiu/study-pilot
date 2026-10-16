@@ -15,7 +15,7 @@
  * 停止在下一个安全点生效：不再发新的写请求，正在飞的落地即止。
  */
 
-import { getCourseware, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
+import { getCourseware, getTaskState, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
 import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
@@ -92,6 +92,32 @@ let stoppedHere = false;
 let lastFinished = 0;
 /** 订阅里见过「正在跑」：用来识别「刚刚跑完」这一瞬（开通时的空闲快照不算） */
 let sawRun = false;
+/**
+ * 课件卡头的「上次执行出错」行：失败留痕按平台独立（见 application 的
+ * TaskState.platforms），这里只呈现慕课自己那条；平台给了「下一步」动作时
+ * 卡头右侧给一个跳转钮（新标签页，与「读取课程列表」同一个按钮位）。
+ * 跑动中不呈现——那一路的状态是课件行里的运行明细。与智慧树那份同构
+ * （zhihuishu-courseware.ts 的 renderZhsFailure）。
+ */
+async function renderFailure(): Promise<void> {
+  const statusEl = document.getElementById('courseware-status');
+  const actionEl = document.getElementById('courseware-action');
+  if (statusEl === null || !(actionEl instanceof HTMLAnchorElement)) return;
+
+  const status = await getTaskState('mooc');
+  const failure =
+    status.live === 'running' ? null : (status.state.platforms['mooc']?.failure ?? null);
+
+  statusEl.classList.toggle('is-error', failure !== null);
+  statusEl.textContent = failure !== null ? `上次执行出错：${failure.message}` : '';
+
+  actionEl.hidden = failure?.action == null;
+  if (failure !== null && failure.action !== null) {
+    actionEl.textContent = failure.action.label;
+    actionEl.href = failure.action.url;
+  }
+}
+
 function watchRun(): void {
   if (watching) return;
   watching = true;
@@ -106,6 +132,9 @@ function watchRun(): void {
     // 收尾了就撤下停止态——下面的还原循环才走得对
     if (!running) stopping = false;
     if (running) {
+      // 刚起跑：卡头的失败行让位（renderFailure 读到 running 会自行清空；
+      // 收尾后由 refreshCourseViews 重画回来）
+      if (!sawRun) void renderFailure();
       sawRun = true;
       lastFinished = mooc.finished;
     }
@@ -272,6 +301,7 @@ export async function renderCourseware(
   if (listEl === null) return;
 
   watchRun();
+  void renderFailure();
 
   buttons.length = 0;
   currents.clear();

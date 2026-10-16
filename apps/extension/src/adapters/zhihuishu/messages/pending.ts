@@ -8,7 +8,7 @@
 import type { MessageHandler, QueryOutcome } from '../../../protocol.ts';
 import { readSession, selectedCourses, unitItemId } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
-import type { ZhsPendingEntry, ZhsPendingSummary, ZhsResponseMap } from './payload.ts';
+import type { ZhsPendingEntry, ZhsPendingSummary, ZhsResponseMap, ZhsUnreadCourse } from './payload.ts';
 import { collectUnits } from './reads.ts';
 
 export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
@@ -29,7 +29,17 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
       const collected = await collectUnits(deps.client, enabled);
 
       const entries: ZhsPendingEntry[] = [];
-      for (const { course, units } of collected) {
+      const unreadCourses: ZhsUnreadCourse[] = [];
+      for (const { course, units, unreadReason } of collected) {
+        /*
+         * 读不到的课必须被看见：它们的单元进不了 entries，若这里不记一笔，
+         * 界面就会得出「这门课没有要看的」这个错误结论（课件卡对同一份读取
+         * 结果报「未读取到内容」，待办这边曾经静默吞掉）。
+         */
+        if (unreadReason !== null) {
+          unreadCourses.push({ courseName: course.name, reason: unreadReason });
+          continue;
+        }
         for (const unit of units) {
           if (unit.done) continue;
           entries.push({
@@ -41,7 +51,10 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
           });
         }
       }
-      respond({ status: 'ok', value: { fetchedAt: Date.now(), total: entries.length, entries } });
+      respond({
+        status: 'ok',
+        value: { fetchedAt: Date.now(), total: entries.length, entries, unreadCourses },
+      });
     } catch (error) {
       respond({ status: 'error', message: error instanceof Error ? error.message : String(error) });
     }

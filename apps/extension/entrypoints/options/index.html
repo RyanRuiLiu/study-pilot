@@ -90,7 +90,12 @@
           跑起来时进度与「停止」都在它自己那行，结果用底部浮层提示（见 courseware.ts）。
         -->
         <section class="panel">
-          <h2 class="panel-title">课件</h2>
+          <div class="panel-head">
+            <h2 class="panel-title">课件</h2>
+            <!-- 上次执行出错行（按平台独立，见 courseware.ts 的 renderFailure） -->
+            <p class="head-status" id="courseware-status"></p>
+            <a class="btn ghost" id="courseware-action" hidden target="_blank" rel="noreferrer"></a>
+          </div>
           <!-- 等待平台读取：块状骨架（一块），落定时整体换内容 -->
           <div id="courseware-list">
             <span class="skeleton skeleton-block" aria-hidden="true"></span>
