@@ -24,6 +24,15 @@ export interface ZhsSession {
   loggedIn: boolean;
   /** 设备号（报告的 token 用料）。未登录为空串 */
   uuid: string;
+  /**
+   * 站点用户 id（`CASLOGC.userId`）——**神谕的入参**。
+   *
+   * 读不到时为 `null`，且**不影响 loggedIn**：视频线只要 uuid 就能跑，
+   * 把它变成登录的必要条件会让本来能用的会话失效。但下游（答卷路径）
+   * 必须显式处理 null——**不许拿 0 顶替**（0 会被服务端当成一个真实用户 id
+   * 静默查空，比报错更难查）。
+   */
+  userId: number | null;
 }
 
 /** CASLOGC 的读取锚点：cookie 落在 .zhihuishu.com，任何子域等价。 */
@@ -38,7 +47,7 @@ const SESSION_ORIGIN = 'https://www.zhihuishu.com';
  */
 export async function readSession(readCookie: CookieReader): Promise<ZhsSession> {
   const raw = await readCookie(SESSION_ORIGIN, 'CASLOGC');
-  if (raw === '') return { loggedIn: false, uuid: '' };
+  if (raw === '') return { loggedIn: false, uuid: '', userId: null };
   let text = raw;
   try {
     text = decodeURIComponent(raw);
@@ -46,12 +55,16 @@ export async function readSession(readCookie: CookieReader): Promise<ZhsSession>
     // 不是合法百分号编码：按原样尝试解析
   }
   try {
-    const parsed = JSON.parse(text) as { uuid?: unknown };
+    const parsed = JSON.parse(text) as { uuid?: unknown; userId?: unknown };
     if (typeof parsed.uuid === 'string' && parsed.uuid.length > 0) {
-      return { loggedIn: true, uuid: parsed.uuid };
+      return {
+        loggedIn: true,
+        uuid: parsed.uuid,
+        userId: typeof parsed.userId === 'number' && Number.isFinite(parsed.userId) ? parsed.userId : null,
+      };
     }
   } catch {
     // 解码后仍不是 JSON：按未登录处理
   }
-  return { loggedIn: false, uuid: '' };
+  return { loggedIn: false, uuid: '', userId: null };
 }
