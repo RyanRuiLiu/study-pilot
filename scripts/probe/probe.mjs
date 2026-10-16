@@ -1302,11 +1302,15 @@ async function checkIcons(page, dir, brand) {
       { accent: 12, letter: 24 },
     );
     const { problems, accentRatio, offset } = judgeIcon(size, measured);
+    // 字母墨迹高度：判断工具栏上认不认得出，看的就是这个数（图形满幅只是前提）
+    const letterBox = measured.colors.letter;
+    const letterInk = letterBox.pixels > 0 ? letterBox.bottom - letterBox.top + 1 : 0;
     console.log(
       [
         `  ${problems.length === 0 ? '✓' : '✗'} ${String(size).padStart(3)}.png`,
         `满幅 ${measured.bounds.left}..${measured.bounds.right}`,
         `主题色 ${(accentRatio * 100).toFixed(1)}%`,
+        `字母墨迹 ${String(letterInk).padStart(3)}px`,
         `字母偏 ${offset.x.toFixed(1)}/${offset.y.toFixed(1)}px`,
       ].join('  '),
     );
