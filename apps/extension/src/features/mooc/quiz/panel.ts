@@ -1,9 +1,12 @@
 /*
  * 做题助手面板：构造 DOM、按阶段切换提示、管理忙碌与信息行。
  *
- * 样式写成内联，取值一律来自 src/ui/tokens.ts（与得分指导、「查看答案」块同一套
- * 令牌，test/tokens-parity.test.ts 逐条核对）。这块注入在别人页面里，扩展自己的
- * 样式表在那里不可用——内联是隔离手段，不是将就；但色值不许手抄。
+ * 样式与弹窗/设置页同一套设计语言（令牌见 src/ui/tokens.ts，parity 测试核对）：
+ *   白面浮在页面内容之上 + 12px 圆角 + 一层投影；
+ *   控件是胶囊（radius-full），标准按钮 26px 高、12px 字；
+ *   主按钮 = 主色底白字（悬浮深一档、按下再深一档），次按钮 = 填充面不是描边；
+ *   禁用整体压暗、光标收回；键盘焦点有 2px 主色环。
+ * 注入在别人页面里只能用内联样式（那是隔离手段），但色值/间距一律取令牌，不手抄。
  *
  * 只负责「怎么显示」，「点击后做什么」由入口以参数注入（否则与 actions 互相引用成环）。
  */
@@ -14,6 +17,11 @@ import { STAGE_DESCRIPTIONS, type QuizStage } from '../quiz-stage.ts';
 import { loadQuizInfo } from './data.ts';
 
 export const PANEL_ID = 'study-pilot-quiz-panel';
+
+/** 标准按钮的高度与内边距（与弹窗的 .btn 同档：26px 高、左右 12px、12px 字）。 */
+const BUTTON_HEIGHT = '26px';
+const BUTTON_PAD_X = TOKENS.space12;
+const BUTTON_FONT = TOKENS.textSm;
 
 /*
  * 总分。词与平台显示的一致（平台语言包里就叫「总分：」）。
@@ -52,7 +60,61 @@ interface PanelHandle {
   setStatus: (text: string) => void;
 }
 
-/** 面板容器：固定右下偏上，白底、圆角、投影，与页面内容分层。 */
+/** 一个胶囊按钮的骨架；配色见 panelButton。 */
+function buttonShell(): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.style.cssText = [
+    'display:inline-flex',
+    'align-items:center',
+    'justify-content:center',
+    'border:none',
+    `border-radius:${TOKENS.radiusFull}`,
+    `height:${BUTTON_HEIGHT}`,
+    `padding:0 ${BUTTON_PAD_X}`,
+    `font-size:${BUTTON_FONT}`,
+    'font-family:inherit',
+    'cursor:pointer',
+  ].join(';');
+  return button;
+}
+
+/** 配色 + 悬浮/按下两档（与弹窗的 .btn / .btn.ghost 同规则）。 */
+function paintButton(button: HTMLButtonElement, primary: boolean): void {
+  const idle = () => {
+    button.style.background = primary ? TOKENS.accent : TOKENS.control;
+    button.style.color = primary ? TOKENS.onAccent : TOKENS.inkSoft;
+  };
+  const hover = () => {
+    button.style.background = primary ? TOKENS.accentDeep : TOKENS.controlDeep;
+  };
+  const press = () => {
+    button.style.background = primary ? TOKENS.accentPress : TOKENS.controlPress;
+  };
+
+  idle();
+  button.addEventListener('mouseenter', hover);
+  button.addEventListener('mouseleave', idle);
+  button.addEventListener('mousedown', press);
+  button.addEventListener('mouseup', hover);
+  button.addEventListener('focus', () => {
+    button.style.outline = `2px solid ${TOKENS.accent}`;
+    button.style.outlineOffset = '2px';
+  });
+  button.addEventListener('blur', () => {
+    button.style.outline = 'none';
+  });
+}
+
+function panelButton(label: string, kind: 'fill' | 'submit', onClick: () => void): HTMLButtonElement {
+  const button = buttonShell();
+  button.textContent = label;
+  paintButton(button, kind === 'submit');
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+/** 面板容器：固定右上，白面 + 12px 圆角 + 投影；标题条可拖动，可收起。 */
 function createPanelShell(id: string, title: string): PanelHandle {
   document.getElementById(id)?.remove();
 
@@ -65,20 +127,20 @@ function createPanelShell(id: string, title: string): PanelHandle {
     'width:260px',
     'z-index:2147483000',
     `background:${TOKENS.paper2}`,
-    `border:1px solid ${TOKENS.line}`,
     `border-radius:${TOKENS.radiusLg}`,
     `box-shadow:${TOKENS.shadowPanel}`,
     `font-size:${TOKENS.textMd}`,
     `color:${TOKENS.ink}`,
     'font-family:inherit',
+    'overflow:hidden',
   ].join(';');
 
   const head = document.createElement('div');
   head.style.cssText = [
     'display:flex',
     'align-items:center',
-    'justify-content:space-between',
-    `padding:${TOKENS.space8} ${TOKENS.space12}`,
+    'gap:8px',
+    `padding:${TOKENS.space12} ${TOKENS.space16}`,
     `border-bottom:1px solid ${TOKENS.line}`,
     'cursor:move',
     'user-select:none',
@@ -86,27 +148,20 @@ function createPanelShell(id: string, title: string): PanelHandle {
 
   const titleNode = document.createElement('span');
   titleNode.textContent = title;
-  titleNode.style.cssText = `font-weight:600;font-size:${TOKENS.textLg};`;
+  titleNode.style.cssText = 'font-weight:600;';
 
-  const collapse = document.createElement('button');
-  collapse.type = 'button';
+  const collapse = buttonShell();
   collapse.textContent = '收起';
-  collapse.style.cssText = [
-    'border:0',
-    'background:none',
-    `color:${TOKENS.inkFaint}`,
-    `font-size:${TOKENS.textMd}`,
-    'cursor:pointer',
-    'padding:0',
-  ].join(';');
+  paintButton(collapse, false);
+  collapse.style.marginLeft = 'auto';
 
   head.append(titleNode, collapse);
 
   const body = document.createElement('div');
-  body.style.cssText = `padding:${TOKENS.space12};display:grid;gap:${TOKENS.space8};`;
+  body.style.cssText = `padding:${TOKENS.space16};display:grid;gap:${TOKENS.space8};`;
 
   const status = document.createElement('div');
-  status.style.cssText = `color:${TOKENS.inkSoft};line-height:1.6;`;
+  status.style.cssText = `font-size:${TOKENS.textSm};color:${TOKENS.inkSoft};line-height:1.7;`;
   // 没有事要报时整条不占位：空着的提示条会让人以为还在等结果
   status.hidden = true;
 
@@ -151,36 +206,12 @@ function createPanelShell(id: string, title: string): PanelHandle {
   };
 }
 
-/** 一个面板按钮。主按钮（提交）是强调色，次按钮（填充）是控件底色。 */
-function panelButton(
-  label: string,
-  kind: 'fill' | 'submit',
-  onClick: () => void,
-): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = label;
-  const primary = kind === 'submit';
-  button.style.cssText = [
-    'flex:1',
-    'border-radius:' + TOKENS.radiusMd,
-    'cursor:pointer',
-    'padding:6px 0',
-    `font-size:${TOKENS.textMd}`,
-    primary ? 'border:1px solid ' + TOKENS.accent : 'border:1px solid ' + TOKENS.line,
-    primary ? `background:${TOKENS.accent}` : 'background:#f2f2f3',
-    primary ? `color:${TOKENS.onAccent}` : `color:${TOKENS.ink}`,
-  ].join(';');
-  button.addEventListener('click', onClick);
-  return button;
-}
-
 export function createActivePanel(options: QuizHelperOptions, actions: PanelActions): ActivePanel {
   const handle = createPanelShell(PANEL_ID, '做题助手');
 
   const infoSlot = document.createElement('div');
   const hint = document.createElement('div');
-  hint.style.cssText = `color:${TOKENS.inkSoft};line-height:1.6;`;
+  hint.style.cssText = `font-size:${TOKENS.textSm};color:${TOKENS.inkFaint};line-height:1.7;`;
 
   const panel: ActivePanel = {
     handle,
@@ -200,7 +231,9 @@ export function createActivePanel(options: QuizHelperOptions, actions: PanelActi
 
   // 两个动作并排等宽：填充与提交是同一层的两个选择，不该上下读成两步
   const buttonRow = document.createElement('div');
-  buttonRow.style.cssText = 'display:flex;gap:8px;';
+  buttonRow.style.cssText = `display:flex;gap:${TOKENS.space8};`;
+  panel.fillButton.style.flex = '1';
+  panel.submitButton.style.flex = '1';
   buttonRow.append(panel.fillButton, panel.submitButton);
   handle.body.append(buttonRow);
 
@@ -212,7 +245,7 @@ export function setBusy(panel: ActivePanel, next: boolean): void {
   const interactive = panel.stage === 'answering';
   for (const button of [panel.fillButton, panel.submitButton]) {
     button.disabled = next || !interactive;
-    button.style.opacity = button.disabled ? '0.5' : '1';
+    button.style.opacity = button.disabled ? '0.4' : '1';
     button.style.cursor = button.disabled ? 'default' : 'pointer';
   }
 }
@@ -233,7 +266,7 @@ function buildInfoRow(info: OpenQuizInfo): HTMLElement | null {
   if (typeof total !== 'number' || total <= 0) return null;
 
   const row = document.createElement('div');
-  row.style.cssText = `color:${TOKENS.inkSoft};`;
+  row.style.cssText = `font-size:${TOKENS.textSm};color:${TOKENS.inkSoft};`;
   const label = document.createElement('span');
   label.textContent = LABEL_TOTAL_SCORE;
   const value = document.createElement('span');

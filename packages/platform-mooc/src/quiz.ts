@@ -76,7 +76,6 @@ export async function getOpenQuizInfo(
   );
 }
 
-
 /**
  * 取测验试卷。
  *
@@ -269,12 +268,18 @@ export async function buildAnswersWithBank(
   return ok(buildAnswers(paper, { answerIndex: buildAnswerIndex(bank.value), now }));
 }
 
+/** 响应顶层的 aid（当前活跃答卷）。0 或缺失表示没有。 */
+function aidOf(value: unknown): number | null {
+  const aid = (value as { aid?: unknown } | null | undefined)?.aid;
+  return typeof aid === 'number' && aid > 0 ? aid : null;
+}
+
 // ---------- 做题助手：填充用的选项索引 ----------
 
 /**
  * 填充助手用的索引：选项 id → 是否为正确答案。
  *
- * 两个来源按同样的优先级合并（与「查看答案」一致）：
+ * 两个来源按优先级合并（卷面是自己的权威，题库补未提交时的缺口）：
  *   · 先铺**题库**（跨次作答可用，单元测验在提交前只有它有答案）；
  *   · 再用**页面当前这份卷**自己的标记覆盖（本次作答的权威；随堂测验的卷面带答案）。
  *
@@ -405,120 +410,6 @@ export async function answerAndSubmitQuiz(
 //
 // 两个接口的请求体都是 { paperDto, preview }，**preview 不可省略**；
 // 且提交时 answers 保留原样，并不清空。
-
-/**
- * 页面上一道题的答案行：题面来自**页面正在显示的那份卷**，
- * 答案来自**最近一份已提交的卷**里的同一道题。
- *
- * 为什么要分开放（2026-10-17 真机取证，全部来自同一次诊断）：
- *   · 作答页（`#/learn/quiz`）显示的是**当前这次作答**的卷——页面自己就是
- *     `getOpenQuizInfo` → 顶层 aid → 取该卷渲染的（抓包逐字一致）；
- *   · `targetAnswerform.aid` 是最近一次**已提交**的记录，与当前卷不是同一份
- *     （见上文 OpenQuizInfo 的注释）；
- *   · 平台对**未提交**的卷不给答案：实测进行中的卷（submitStatus=1）即便带
- *     `withStdAnswerAndAnalyse: true`、即便用 aid=0 现开一份，选项标记也全是
- *     null；已提交的卷（submitStatus=2）才带标记；
- *   · 测验可能**随机抽题**：实测同一次测验的两次作答题目不同（position
- *     3,4,8,10,11 对 1,2,3,6,10），题目 `id` 跨次稳定。因此按 `id` 对齐；
- *   · 上面两条都取不到时（这道题不在已提交的那份里），用**题库**按选项 id 补
- *     （见 getQuizBank）。三者都取不到的题如实没有答案，不拿别的题的答案顶。
- */
-export interface AnswerRow {
-  /** 页面这道题（用于题干核对与题面信息） */
-  question: PaperQuestion;
-  /** 这道题的答案；已提交的卷里没有这道题时为 null（不注入） */
-  answer: PaperQuestion | null;
-}
-
-/** 页面在看哪一份卷。作答页看当前这份，查看页看已提交的那份。 */
-export type AnswersView = 'answering' | 'review';
-
-/** 响应里 `targetAnswerform.aid`（最近一次已提交的记录）与顶层 `aid`（当前活跃答卷）。 */
-function aidOf(value: unknown): number | null {
-  const aid = (value as { aid?: unknown } | null | undefined)?.aid;
-  return typeof aid === 'number' && aid > 0 ? aid : null;
-}
-
-/**
- * 取「查看答案」需要的数据（测验与考试客观题共用一条链路）。
- *
- * 全程只读，且**绝不新开卷**：开卷在考试上等价于点「开始考试」。
- *   · `review`（查看页，页面显示已提交的卷）：已提交的那份既当题面也当答案；
- *   · `answering`（作答页，页面显示当前作答的卷）：当前卷当题面——平台不给它
- *     答案——答案按题目 `id` 取自最近一份已提交的卷，取不到的题如实为 null。
- *
- * 从未作答时没有任何可看的答卷，如实返回失败（不新开一份）。
- */
-export async function loadViewAnswers(
-  client: MoocClient,
-  tid: number,
-  view: AnswersView,
-): Promise<Result<AnswerRow[], TransportError>> {
-  const info = await getQuizInfo(client, tid);
-  if (!info.ok) return info;
-
-  const submittedAid = aidOf(info.value.targetAnswerform);
-  const currentAid = aidOf(info.value);
-
-  // 答案的唯一来源：最近一份已提交的卷
-  let answered: PaperQuestion[] = [];
-  if (submittedAid !== null) {
-    const paper = await getQuizPaper(client, tid, submittedAid);
-    if (!paper.ok) return paper;
-    // 服务端 code=0 却回空的情况（实测少见）；如实失败，不拿空卷继续
-    const value = paper.value as QuizPaper | null;
-    if (value === null || typeof value !== 'object') {
-      return err(apiError(-1, '取卷返回空，无法给出答案'));
-    }
-    answered = value.objectiveQList ?? [];
-  }
-
-  const termId = typeof info.value.termId === 'number' ? info.value.termId : null;
-
-  /** 有题缺答案时用题库补一次；题库读取失败如实失败（下一次评估会重取）。 */
-  async function fillFromBank(rows: AnswerRow[]): Promise<Result<AnswerRow[], TransportError>> {
-    const missing = rows.filter((row) => row.answer === null || !hasAnswer(row.answer));
-    if (missing.length === 0 || termId === null) return ok(rows);
-
-    const bank = await getQuizBank(client, termId);
-    if (!bank.ok) return bank;
-    const index = buildAnswerIndex(bank.value);
-
-    return ok(
-      rows.map((row) => {
-        if (row.answer !== null && hasAnswer(row.answer)) return row;
-        const filled = fillAnswersFromBank([row.answer ?? row.question], index)[0];
-        // 题库也查不到：仍是没有答案（answer 为 null），如实呈现
-        return { question: row.question, answer: filled !== undefined && hasAnswer(filled) ? filled : null };
-      }),
-    );
-  }
-
-  if (view === 'review') {
-    if (submittedAid === null) {
-      return err(apiError(-1, '还没有作答过，没有可查看的答卷'));
-    }
-    return fillFromBank(answered.map((question) => ({ question, answer: question })));
-  }
-
-  // 作答页：页面显示的是当前这份卷（平台自己的取法：顶层 aid）
-  if (currentAid === null) {
-    return err(apiError(-1, '没有正在作答的卷，页面上没有可标注的题目'));
-  }
-  const shownPaper = await getQuizPaper(client, tid, currentAid);
-  if (!shownPaper.ok) return shownPaper;
-  const shown = shownPaper.value as QuizPaper | null;
-  if (shown === null || typeof shown !== 'object') {
-    return err(apiError(-1, '取卷返回空，无法给出答案'));
-  }
-
-  const byId = new Map(answered.map((question) => [question.id, question]));
-  const rows = (shown.objectiveQList ?? []).map((question) => ({
-    question,
-    answer: byId.get(question.id) ?? null,
-  }));
-  return fillFromBank(rows);
-}
 
 /**
  * 保存草稿。请求携带 `answers`，答案由此落到服务端答题表单。
