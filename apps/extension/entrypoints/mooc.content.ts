@@ -1,5 +1,5 @@
 /*
- * MOOC 作业页内容脚本：注入得分指导。
+ * MOOC 学习页内容脚本：作业页注入得分指导，答卷查看页（测验成绩/考试）注入「查看答案」。
  *
  * 只做装配：解析路由、按条件调用注入模块，并监听页面变化。
  * 注入逻辑在 src/features/mooc/guidance/，取数经消息转给后台。
@@ -15,13 +15,16 @@
  * 观察范围必须包含属性变化：页面在阶段之间切换靠的是增删 `f-dn` 类名，
  * 子节点并没有变化，只观察 childList 会漏掉这次切换。
  *
- * 只处理作业页（#/learn/hw）。主观题考试页暂不注入：它的取卷会在服务端
- * 创建答卷（等价于点「开始考试」），那是有副作用的动作，风险想清楚再说。
+ * 路由分派见 apply()：作业页（#/learn/hw）得分指导；答卷查看类页面
+ * （#/learn/quizscore、#/learn/examObject(Score) 与主观考试页）「查看答案」——
+ * 数据都取自**既有答卷**（只读）。「开始考试」的副作用点（考试同意页）不碰：
+ * 未开始的考试根本进不了这些路由。
  */
 
 import { parseWorkLocation } from '@study-pilot/platform-mooc';
+import { injectAnswers, removeAnswers } from '../src/features/mooc/guidance/answers.ts';
 import { injectGuidance, removeGuidance } from '../src/features/mooc/guidance/index.ts';
-import { loadQuestions } from '../src/features/mooc/guidance/loader.ts';
+import { loadAnswers, loadQuestions } from '../src/features/mooc/guidance/loader.ts';
 
 /** DOM 变化后延迟评估的时间，用于合并连续变动。 */
 const DEBOUNCE_MS = 400;
@@ -41,10 +44,33 @@ export default defineContentScript({
       const location = parseWorkLocation(window.location.href);
 
       if (location.view === 'homework' && location.contentId !== null) {
+        // 作业页：得分指导（评分点）。答案块清掉，两类页面各归各的。
+        removeAnswers();
         void injectGuidance(loadQuestions, location.contentId).catch(() => undefined);
-      } else {
-        removeGuidance();
+        return;
       }
+      removeGuidance();
+
+      /*
+       * 答卷查看类页面（测验成绩 / 考试的客观查看）：注入「查看答案」。
+       * 数据是既有答卷（只读）。主观题考试页（exam-subjective）走的是作业管线
+       * 同款的评分点数据——已开始/已提交之后取那是纯读；未开始的考试页不存在
+       * 这个路由（进入前先在同意页点了「开始考试」），因此不会误开考试。
+       */
+      if (location.view === 'exam-subjective' && location.contentId !== null) {
+        void injectGuidance(loadQuestions, location.contentId).catch(() => undefined);
+        void injectAnswers(loadAnswers, location.contentId).catch(() => undefined);
+        return;
+      }
+      if (
+        (location.view === 'quiz-score' || location.view === 'quiz' ||
+          location.view === 'exam-objective' || location.view === 'exam-score') &&
+        location.contentId !== null
+      ) {
+        void injectAnswers(loadAnswers, location.contentId).catch(() => undefined);
+        return;
+      }
+      removeAnswers();
     }
 
     let timer: number | null = null;

@@ -13,6 +13,7 @@ import type { MoocMessageDeps } from './deps.ts';
 import { coursewareSummaryCommand } from './courseware-summary.ts';
 import { coursesCommand } from './courses.ts';
 import { homeworkPaperCommand } from './homework-paper.ts';
+import { paperAnswersCommand } from './paper-answers.ts';
 import { pendingCommand } from './pending.ts';
 import { refreshCoursesCommand } from './refresh-courses.ts';
 import { sessionCommand } from './session.ts';
@@ -25,5 +26,6 @@ export function moocHandlers(deps: MoocMessageDeps): MessageHandlers {
     MOOC_PENDING_SUMMARY: pendingCommand(deps),
     MOOC_COURSEWARE_SUMMARY: coursewareSummaryCommand(deps),
     MOOC_HOMEWORK_PAPER: homeworkPaperCommand(deps),
+    MOOC_PAPER_ANSWERS: paperAnswersCommand(deps),
   };
 }
