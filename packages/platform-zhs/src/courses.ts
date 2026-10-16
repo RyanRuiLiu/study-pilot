@@ -11,7 +11,7 @@
  * 刷新一下就把用户没同意过的课拖进任务范围，是错的。
  */
 
-import type { ZhihuishuCourse } from '@study-pilot/application';
+import type { ConfigPort, RunSelection, Settings, ZhihuishuCourse } from '@study-pilot/application';
 import type { ZhsClient } from './client.ts';
 
 /** 平台给出的课程事实（读取那一刻的样子）。 */
@@ -73,8 +73,10 @@ export async function readCourseIsApply(
  * 用户只拥有一个字段：enabled。
  */
 export function mergeCourses(
-  fresh: ZhsCourseBrief[],
+  /** 配置里现有的那份（勾选状态从这里沿用）——参数序与慕课的 mergeCourses 一致 */
   existing: ZhihuishuCourse[],
+  /** 平台此刻返回的那份（字段以它为准） */
+  fresh: ZhsCourseBrief[],
 ): ZhihuishuCourse[] {
   const enabledByCourse = new Map(existing.map((course) => [course.courseId, course.enabled]));
   return fresh.map((brief) => ({
@@ -87,4 +89,56 @@ export function mergeCourses(
     // 见过的课程沿用勾选；新课程默认不勾
     enabled: enabledByCourse.get(brief.courseId) ?? false,
   }));
+}
+
+/**
+ * 从平台拉一次课程列表并写回配置（与慕课的 `refreshCourses` 同一件事）。
+ *
+ * 两个载体（扩展的消息处理器、命令行的 courses 命令）共用这一份实现；
+ * 失败原因分两类返回，调用方原样翻成自己的说法（界面是 reason 码，命令行是一句话）：
+ *   fetch-failed —— 读平台失败（网络、会话过期等，message 带平台给的措辞）；
+ *   no-courses   —— 读通了但平台没返回课程（此时**不写配置**：空列表会把
+ *                   用户已勾的课清掉，且那不是「课程列表变了」而是「这次没读到」）。
+ *
+ * 合并规则在 {@link mergeCourses}：新读的平台事实覆盖旧值，勾选沿用用户做过的。
+ * 和慕课的教训一致：合并基准是读回来的**当前**配置（先 read 再 update），
+ * 不整份回写——中间的几秒里用户可能刚在别处改过勾选。
+ */
+export async function refreshCourses(
+  client: ZhsClient,
+  config: ConfigPort,
+): Promise<
+  | { ok: true; courses: ZhihuishuCourse[] }
+  | { ok: false; reason: 'fetch-failed' | 'no-courses'; message: string }
+> {
+  let fresh: ZhsCourseBrief[];
+  try {
+    fresh = await getShareCourses(client);
+  } catch (error) {
+    return {
+      ok: false,
+      reason: 'fetch-failed',
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+  if (fresh.length === 0) {
+    return { ok: false, reason: 'no-courses', message: '平台没有返回任何课程' };
+  }
+
+  const settings = await config.read();
+  const courses = mergeCourses(settings.zhihuishu.courses, fresh);
+  await config.update({ zhihuishu: { courses } });
+  return { ok: true, courses };
+}
+
+/**
+ * 参与且勾选的课程；`scope.group` 按课程名收窄（与界面上的「只做这门课」同一语义）。
+ *
+ * 计划层用它决定读哪些课，外壳的读取（课件概览、待办）也用它——同一谓词只有这一份，
+ * 不再各自 `courses.filter(c => c.enabled)`。
+ */
+export function selectedCourses(settings: Settings, scope?: RunSelection): ZhihuishuCourse[] {
+  const enabled = settings.zhihuishu.courses.filter((course) => course.enabled);
+  if (scope?.group === undefined) return enabled;
+  return enabled.filter((course) => course.name === scope.group);
 }

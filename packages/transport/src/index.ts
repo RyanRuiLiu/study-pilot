@@ -59,3 +59,5 @@ export {
   type DwrClientOptions,
   type DwrResponse,
 } from './dwr.ts';
+
+export { BROWSER_USER_AGENT } from './user-agent.ts';

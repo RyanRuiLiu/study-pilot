@@ -4,7 +4,7 @@
  * 分两类，名字沿用 Cockburn 的说法（他称 driving / driven，也叫 primary / secondary）：
  *
  *   驱动端口（载体 → 应用）  载体调用的用例入口。
- *                            现在只有一个：`StudyApp`，见 app.ts。
+ *                            现在只有「跑一轮」这一个，见 round.ts 的 `Runner`。
  *                            扩展的消息路由、命令行的参数解析、服务端的 HTTP 路由
  *                            都只是它的适配器，因此应用层里没有一行消息代码。
  *

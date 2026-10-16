@@ -1,9 +1,9 @@
-/* 课程列表：响应解析与「只沿用勾选」的合并规则。 */
+/* 课程列表：响应解析、「只沿用勾选」的合并规则、刷新回写。 */
 
 import { describe, expect, it } from 'vitest';
-import { getShareCourses, mergeCourses, readCourseIsApply } from '../src/courses.ts';
+import { getShareCourses, mergeCourses, readCourseIsApply, refreshCourses } from '../src/courses.ts';
 import type { ZhsClient } from '../src/client.ts';
-import type { ZhihuishuCourse } from '@study-pilot/application';
+import type { ConfigPort, Settings, ZhihuishuCourse } from '@study-pilot/application';
 
 function clientReturning(body: unknown): ZhsClient {
   return { call: async () => body };
@@ -71,17 +71,105 @@ describe('mergeCourses', () => {
   ];
 
   it('已勾课程沿用勾选，平台事实以新读的为准', () => {
-    const merged = mergeCourses(fresh, existing);
+    const merged = mergeCourses(existing, fresh);
     expect(merged[0]).toMatchObject({ courseId: 1, enabled: true, progressText: '10%', secret: 'a' });
   });
 
   it('新出现的课程默认不勾（不把用户没同意过的课拖进范围）', () => {
-    const merged = mergeCourses(fresh, existing);
+    const merged = mergeCourses(existing, fresh);
     expect(merged[1]).toMatchObject({ courseId: 2, enabled: false });
   });
 
   it('用户取消过的勾选同样被沿用（不会因为刷新又勾回来）', () => {
-    const merged = mergeCourses(fresh, [{ ...existing[0], enabled: false }]);
+    const merged = mergeCourses([{ ...existing[0], enabled: false }], fresh);
     expect(merged[0].enabled).toBe(false);
+  });
+});
+
+describe('refreshCourses', () => {
+  const SETTINGS: Settings = {
+    version: 8,
+    ai: { enabled: false, model: '', apiKey: '' },
+    mooc: { courses: [], reviewComment: 'x', keepOverdueDays: 3 },
+    zhihuishu: {
+      courses: [
+        {
+          courseId: 9000000002,
+          recruitId: 900004,
+          secret: 'old',
+          name: '示例课程己',
+          schoolName: '示例大学',
+          progressText: '79%',
+          enabled: true,
+        },
+      ],
+    },
+    ui: { activeTab: 'mooc' },
+  };
+
+  /** 记录 update 收到的补丁；read 一律回 SETTINGS。 */
+  function trackingConfig(): { config: ConfigPort; updates: unknown[] } {
+    const updates: unknown[] = [];
+    return {
+      updates,
+      config: {
+        read: async () => SETTINGS,
+        update: async (patch) => {
+          updates.push(patch);
+          return SETTINGS;
+        },
+      },
+    };
+  }
+
+  const openDtos = [
+    {
+      courseId: 9000000002,
+      recruitId: 900004,
+      courseName: '示例课程己',
+      schoolName: '示例大学',
+      progress: '81.2%',
+      secret: 'new',
+    },
+    {
+      courseId: 9000000004,
+      recruitId: 900001,
+      courseName: '示例课程辛',
+      schoolName: '示例大学',
+      progress: '0%',
+      secret: 'x',
+    },
+  ];
+
+  it('读通即写回合并结果：平台事实取新的、勾选沿用旧的', async () => {
+    const { config, updates } = trackingConfig();
+    const result = await refreshCourses(clientReturning({ code: 200, result: { courseOpenDtos: openDtos } }), config);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.courses).toMatchObject([
+      { courseId: 9000000002, progressText: '81.2%', secret: 'new', enabled: true },
+      { courseId: 9000000004, enabled: false },
+    ]);
+    // 只动 zhihuishu.courses 一段，不整份回写
+    expect(updates).toEqual([{ zhihuishu: { courses: result.courses } }]);
+  });
+
+  it('平台没返回课程：如实报 no-courses，且一个字节都不写配置', async () => {
+    const { config, updates } = trackingConfig();
+    const result = await refreshCourses(clientReturning({ code: 200, result: { courseOpenDtos: [] } }), config);
+    expect(result).toEqual({ ok: false, reason: 'no-courses', message: '平台没有返回任何课程' });
+    expect(updates).toEqual([]);
+  });
+
+  it('读平台失败：报 fetch-failed 并带上平台/网络的原始措辞，不写配置', async () => {
+    const { config, updates } = trackingConfig();
+    const failing: ZhsClient = {
+      call: async () => {
+        throw new Error('智慧树接口 HTTP 500');
+      },
+    };
+    const result = await refreshCourses(failing, config);
+    expect(result).toEqual({ ok: false, reason: 'fetch-failed', message: '智慧树接口 HTTP 500' });
+    expect(updates).toEqual([]);
   });
 });
