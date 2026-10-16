@@ -138,6 +138,8 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
 **返回**：`{"rt":{"<数字题号>":{"score":"2","done":"true"}, …},"status":"200"}`
 
 **判分是草稿实况，不是上次交卷的存档**——两次真机对照：存错解 → `score:0`；存正解 → `score:2`（zhs-window → zhs-verify）。
+**在重做卷的草稿上同样成立**（2026-10-17 端到端实证：沙箱课第三章 未交→探路→收割建键→重做→套键作答→神谕确认满分→交卷，
+清单回读 `state=4 score=100/100`，`redoNum.rt` 0→1）。至此本节无推断项，全部为实测。
 
 **三个入参的合法来源**（全部只读、全部现成）：
 
