@@ -228,8 +228,9 @@ git commit -m "feat(zhs): 会话补 userId（神谕入参，取自 CASLOGC）"
 - Modify: `packages/platform-zhs/src/structure.ts`
 - Test: `packages/platform-zhs/test/structure.test.ts`
 
-**Interfaces:**
-- Produces: `getCourseExams(client, course): Promise<ZhsChapterExam[]>`，其中
+**Interfaces（实现时定稿：拆成「读一次」+「纯函数取」两半，免得一门课读两遍 videolist）:**
+- Produces: `readCourseChapters(client, course): Promise<ZhsChapterNode[]>`（一次 videolist）、
+  `chapterExams(chapters): ZhsChapterExam[]`（纯函数）、`getCourseUnits(client, course, chapters?)`（可复用已读的章节表），其中
 
 ```ts
 export interface ZhsChapterExam {
