@@ -29,6 +29,7 @@ import {
   loadAnswersSubmitted,
   loadQuestions,
 } from '../src/features/mooc/guidance/loader.ts';
+import { removeQuizHelper, showQuizHelper } from '../src/features/mooc/quiz/index.ts';
 
 /** DOM 变化后延迟评估的时间，用于合并连续变动。 */
 const DEBOUNCE_MS = 400;
@@ -46,6 +47,18 @@ export default defineContentScript({
 
     function apply(): void {
       const location = parseWorkLocation(window.location.href);
+
+      /*
+       * 做题助手：单元测验与客观题考试共用（0.3.1 起就是同一种东西——
+       * 取卷都走 getOpenQuizPaperDto、页面结构一致）。它只在用户点击时才动作：
+       * 填充是页面点击（看得见），提交走接口（与一键执行同一份实现）。
+       */
+      const isObjective = location.view === 'quiz' || location.view === 'exam-objective';
+      if (isObjective && location.contentId !== null) {
+        showQuizHelper({ termId: location.termId, quizId: location.contentId });
+      } else {
+        removeQuizHelper();
+      }
 
       if (location.view === 'homework' && location.contentId !== null) {
         // 作业页：得分指导（评分点）。答案块清掉，两类页面各归各的。
