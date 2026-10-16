@@ -31,6 +31,19 @@ export async function renderZhsStatusLine(
   const el = document.getElementById('zhs-session-text');
   if (el === null) return;
 
+  /**
+   * 落定：写文字并**撤掉骨架**——所有出口都走这里。
+   *
+   * 原先三条早退路径只写文字、不撤 `is-loading`，而骨架是**点击「读取课程列表」
+   * 那一刻**就立起来的（`markZhsStatusLineLoading`），于是那三条路走完，
+   * 骨架就永远留在卡头。其中「未登录」最常撞上：**越是不该有骨架的时候，
+   * 越留着骨架**。统一出口是唯一不会再漏的形状（弹窗待办区的 `write` 同理）。
+   */
+  const settle = (text: string): void => {
+    el.classList.remove('is-loading');
+    el.textContent = text;
+  };
+
   let loggedIn = false;
   let enabled = 0;
   try {
@@ -38,18 +51,18 @@ export async function renderZhsStatusLine(
     loggedIn = session.loggedIn;
     enabled = settings.zhihuishu.courses.filter((course) => course.enabled).length;
   } catch {
-    el.textContent = '';
+    settle('');
     return;
   }
 
-  // 未登录：卡头空白，指引在内容区
+  // 未登录：卡头空白，指引（含「前往登录」按钮）在内容区
   if (!loggedIn) {
-    el.textContent = '';
+    settle('');
     return;
   }
 
   if (enabled === 0) {
-    el.textContent = '已登录 · 未选择课程';
+    settle('已登录 · 未选择课程');
     return;
   }
 
@@ -70,6 +83,5 @@ export async function renderZhsStatusLine(
     parts.push(pending === 0 ? '暂无待完成' : `可代为完成 ${pending} 项`);
   }
 
-  el.classList.remove('is-loading');
-  el.textContent = parts.join(' · ');
+  settle(parts.join(' · '));
 }

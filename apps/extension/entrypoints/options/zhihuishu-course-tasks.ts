@@ -23,13 +23,16 @@ import { getTaskState, getZhsCourseTasks, runNow, stopRun, subscribeRunState } f
 import type { ZhsCourseTask, ZhsCourseTaskSummary, QueryOutcome } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
-import { note } from './note.ts';
+import { loginNote, note } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
 import { renderZhsStatusLine } from './zhihuishu-status-line.ts';
 import { toast } from './toast.ts';
 
 /** 未运行时的按钮标题；禁用时换成 dataset.emptyTitle 里的原因。 */
 const EXEC_TITLE = '执行：完成这门课余下的待办';
+
+/** 登录去处：与弹窗的「前往登录」和平台的失败动作位同一个地址。 */
+const ZHS_LOGIN_URL = 'https://www.zhihuishu.com/';
 
 /** 运行期间的按钮集合：跑的时候全部禁掉（后台也会拒并发，这里只是别让人白点）。 */
 const buttons: HTMLButtonElement[] = [];
@@ -351,14 +354,12 @@ export async function renderZhsCourseTasks(
   listEl.replaceChildren();
 
   if (outcome.status === 'error') {
-    listEl.append(
-      note(
-        outcome.reason === 'NOT_LOGGED_IN'
-          ? '未登录，在浏览器登录智慧树后执行。'
-          : `读取失败：${outcome.message}`,
-        outcome.reason !== 'NOT_LOGGED_IN',
-      ),
-    );
+    if (outcome.reason === 'NOT_LOGGED_IN') {
+      // 未登录不是「出错」，是少做了一步：给按钮把人送去登录，而不是只留一句话
+      listEl.append(...loginNote('未登录，在浏览器登录智慧树后执行。', ZHS_LOGIN_URL));
+      return;
+    }
+    listEl.append(note(`读取失败：${outcome.message}`, true));
     return;
   }
 

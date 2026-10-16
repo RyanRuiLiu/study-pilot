@@ -16,10 +16,13 @@ import { getZhsCourses, getZhsSession, refreshZhsCourses, updateSettings, getSet
 import type { ZhihuishuCourse } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
 import { refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
-import { note } from './note.ts';
+import { loginNote, note } from './note.ts';
 import { markZhsStatusLineLoading } from './zhihuishu-status-line.ts';
 import { skeletonBlock } from './skeleton.ts';
 import { toast } from './toast.ts';
+
+/** 登录去处：与弹窗的「前往登录」和平台的失败动作位同一个地址。 */
+const ZHS_LOGIN_URL = 'https://www.zhihuishu.com/';
 
 function buildRow(course: ZhihuishuCourse): HTMLElement {
   const row = document.createElement('label');
@@ -83,7 +86,7 @@ export async function renderZhsCourses(): Promise<void> {
 
   listEl.replaceChildren();
   if (!session.loggedIn) {
-    listEl.append(note('未登录，在浏览器登录智慧树后读取课程列表。'));
+    listEl.append(...loginNote('未登录，在浏览器登录智慧树后读取课程列表。', ZHS_LOGIN_URL));
     if (rows.length > 0) listEl.append(...rows);
     return;
   }
@@ -117,7 +120,7 @@ export function initZhsCourseActions(): void {
           toast(`已读取 ${result.courses.length} 门课程`);
           void renderZhsCourses();
         } else if (result.reason === 'NOT_LOGGED_IN') {
-          listEl?.replaceChildren(note('未登录，在浏览器登录智慧树后读取课程列表。'));
+          listEl?.replaceChildren(...loginNote('未登录，在浏览器登录智慧树后读取课程列表。', ZHS_LOGIN_URL));
         } else {
           listEl?.replaceChildren(note(`读取失败：${result.message ?? result.reason}`, true));
         }
