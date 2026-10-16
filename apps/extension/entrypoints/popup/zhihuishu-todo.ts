@@ -136,4 +136,8 @@ export async function renderZhsTodo(): Promise<void> {
   for (const [courseName, list] of grouped) {
     zhsTodoEl?.append(area.buildGroup(courseName, list, buildRow));
   }
+  // 读不到的课如实列出——「读不到」与「没有要看的」长得不一样，不能混为一谈
+  for (const unread of outcome.value.unreadCourses) {
+    zhsTodoEl?.append(area.note('todo-error', `${unread.courseName}：读取失败（${unread.reason}），未列入待办。`));
+  }
 }

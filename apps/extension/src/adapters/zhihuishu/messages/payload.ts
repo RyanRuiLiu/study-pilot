@@ -24,6 +24,12 @@ export interface ZhsPendingEntry {
   sec: number;
 }
 
+/** 一门课没读成的事实（待办里如实呈现，不静默消失——见 pending.ts）。 */
+export interface ZhsUnreadCourse {
+  courseName: string;
+  reason: string;
+}
+
 /** 待办汇总。 */
 export interface ZhsPendingSummary {
   /** 读取时刻（毫秒） */
@@ -31,6 +37,8 @@ export interface ZhsPendingSummary {
   /** 未完成单元总数（与 entries.length 相同，单独给出避免界面重算） */
   total: number;
   entries: ZhsPendingEntry[];
+  /** 没读成的课：它们的单元不在 entries 里，但「读不到」这件事必须被看见 */
+  unreadCourses: ZhsUnreadCourse[];
 }
 
 /** 一门课的课件进度（与课件区显示的是同一份判据）。 */

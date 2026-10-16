@@ -23,7 +23,7 @@ export interface CourseSummary {
   /**
    * 条目上的产品类型（平台枚举 COURSE_PRODUCT_TYPE：1 课程、2 考研、
    * 3 专栏、308 教材）。注意与请求参数的 courseType（1|2，MOOC/SPOC 分页维度）
-   * 同名不同义——这一点是读平台源码确认的（.reverse 的 COURSE_PRODUCT_TYPE）。
+   * 同名不同义——这一点是读平台源码（站点 bundle 里的 COURSE_PRODUCT_TYPE）确认的。
    */
   courseType: number | null;
   /**

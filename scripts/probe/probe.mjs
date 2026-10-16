@@ -19,6 +19,10 @@
  *      它不在时就自己起一个、干完即走。capture 要记录 HAR，只能独占启动。
  *   4. 默认只读。call 只放行只读方法，写方法要 --allow-write 显式放行。
  *
+ * 标准（Ryan 定，2026-10-17）：**调试一律走本工具**——找接口用 capture（真实页面的 HAR 是
+ * 唯一事实源），调已知接口用 call（慕课 .rpc）/ zhs（智慧树，走包内签名与端点表）。
+ * 不要为一次问题另写脚本：一次性脚本用完即删，要留下来的能力收进本文件或包内端点表。
+ *
  * 用法：pnpm probe <命令>   （完整清单：pnpm probe --help）
  */
 import { createHash, randomUUID } from 'node:crypto';
@@ -26,6 +30,13 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+// 智慧树调试走包内签名客户端与端点表（相对路径导入：根 node_modules 没有 workspace 包；
+// Node 24 原生剥类型，直接吃 .ts）。这也是「调试有标准」的一半：协议实现只有包内一份。
+import {
+  createZhsClient,
+  ZHS_ENDPOINTS,
+  BROWSER_USER_AGENT as ZHS_USER_AGENT,
+} from '../../packages/platform-zhs/src/index.ts';
 
 const ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const PROFILE = path.join(ROOT, '.probe', 'profile');
@@ -45,6 +56,15 @@ const OWNER_COOKIE = 'study-pilot-probe-owner';
 const OWNER_URL = `http://127.0.0.1:${CDP_PORT}/`;
 /** 判定登录态的三个会话 cookie（NTESSTUDYSI 未登录时也有，另两个才是关键）。 */
 const AUTH_COOKIES = ['STUDY_SESS', 'STUDY_INFO', 'NTESSTUDYSI'];
+/** 智慧树的会话 cookie（与 platform-zhs/session.ts 同一判据：在、非空即已登录）。 */
+const ZHS_AUTH_COOKIE = 'CASLOGC';
+/**
+ * 智慧树写端点登记表：调用它们默认被拦截，--allow-write 才放行。
+ *
+ * 名单是显式的（端点表只有 8 个，逐个点名比按名字前缀猜可靠——`queryCourse` 是读、
+ * `saveStudyInterval` 是写，前缀根本分不出来）。新增写端点时在这里登记。
+ */
+const ZHS_WRITE_ENDPOINTS = new Set(['saveStudyInterval']);
 /** 签名盐值与协议版本——出处是 packages/transport/src/sign.ts（按线上源码还原；
  * 本文件只用于慕课的 .rpc 调试；智慧树的签名在 packages/platform-zhs/src/sign.ts，是另一套协议）。 */
 const SIGN_SALT = 'fu2s2kxcswgn5hqanx7asmlogyr5wu29';
@@ -67,7 +87,7 @@ function parseArgs(argv) {
     const token = argv[i];
     if (token.startsWith('--')) {
       const key = token.slice(2);
-      if (key === 'no-ext' || key === 'allow-write' || key === 'help') out[key] = true;
+      if (key === 'no-ext' || key === 'allow-write' || key === 'help' || key === 'list') out[key] = true;
       else if (key === 'eval') (out.eval ??= []).push(argv[++i]);
       else out[key] = argv[++i];
     } else {
@@ -229,6 +249,13 @@ async function isLoggedIn(context) {
   );
 }
 
+/** 智慧树登录判定：CASLOGC 在 zhihuishu 域上即已登录（与 platform-zhs/session.ts 同判据）。 */
+function zhsLoggedIn(cookies) {
+  return cookies.some(
+    (c) => c.name === ZHS_AUTH_COOKIE && /(^|\.)zhihuishu\.com$/.test(String(c.domain)),
+  );
+}
+
 /** 找一个在 icourse163 源上的页面（页面上下文调接口用）；没有就开一个。 */
 async function icoursePage(context) {
   const page = context.pages().find((p) => p.url().startsWith(ORIGIN));
@@ -257,7 +284,10 @@ async function stateExport(context) {
 }
 
 async function stateCheck(context) {
-  console.log((await isLoggedIn(context)) ? '浏览器：已登录' : '浏览器：未登录（缺会话 cookie）');
+  const liveCookies = await context.cookies();
+  const moocLive = await isLoggedIn(context);
+  const zhsLive = zhsLoggedIn(liveCookies);
+  console.log(`浏览器：慕课 ${moocLive ? '已登录' : '未登录'} ｜ 智慧树 ${zhsLive ? '已登录' : '未登录'}`);
   let saved = null;
   try {
     saved = JSON.parse(readFileSync(SESSION, 'utf8'));
@@ -269,7 +299,7 @@ async function stateCheck(context) {
     return;
   }
   const savedOrg = saved.cookies.filter((c) => /(^|\.)icourse163\.org$/.test(String(c.domain)));
-  const live = (await context.cookies()).filter((c) => /(^|\.)icourse163\.org$/.test(String(c.domain)));
+  const live = liveCookies.filter((c) => /(^|\.)icourse163\.org$/.test(String(c.domain)));
   const mismatched = AUTH_COOKIES.filter((name) => {
     const liveValues = live.filter((c) => c.name === name).map((c) => c.value);
     const savedValues = savedOrg.filter((c) => c.name === name).map((c) => c.value);
@@ -282,10 +312,17 @@ async function stateCheck(context) {
       return '(未知时间)';
     }
   })();
-  if (mismatched.length === 0) {
-    console.log(`导出文件：与浏览器一致（导出于 ${stamp}）`);
+  // 智慧树同一件事：导出文件里的 CASLOGC 与浏览器现值是否一致
+  const zhsSaved = saved.cookies.filter((c) => c.name === ZHS_AUTH_COOKIE && /(^|\.)zhihuishu\.com$/.test(String(c.domain)));
+  const zhsLiveValue = liveCookies.find((c) => c.name === ZHS_AUTH_COOKIE && /(^|\.)zhihuishu\.com$/.test(String(c.domain)));
+  const zhsMismatch =
+    zhsSaved.length > 0 && zhsLiveValue !== undefined && !zhsSaved.some((c) => c.value === zhsLiveValue.value);
+
+  if (mismatched.length === 0 && !zhsMismatch) {
+    console.log(`导出文件：两家都与浏览器一致（导出于 ${stamp}）`);
   } else {
-    console.log(`导出文件：与浏览器不一致（${mismatched.join('、')}）——读接口回 null 的常见原因`);
+    const names = [...mismatched, ...(zhsMismatch ? [ZHS_AUTH_COOKIE] : [])];
+    console.log(`导出文件：与浏览器不一致（${names.join('、')}）——读接口回 null 的常见原因`);
     console.log('修复：pnpm probe state export');
   }
 }
@@ -493,6 +530,111 @@ async function rpcCall(opts) {
   }
 }
 
+// ---------------------------------------------------------------- 智慧树
+
+/** 智慧树端点表一览：名字 / 方法 / 宿主 / 是否签名 / 读或写。 */
+function zhsList() {
+  console.log('智慧树端点表（packages/platform-zhs/src/endpoints.ts——签名接口的路径都写在那里）：\n');
+  for (const [name, ep] of Object.entries(ZHS_ENDPOINTS)) {
+    if (name === 'keyFetch') continue; // 取钥由客户端内部调用，不给人手调
+    const signed = ep.module === undefined ? '免签' : `module ${ep.module}`;
+    const kind = ZHS_WRITE_ENDPOINTS.has(name) ? '写（要 --allow-write）' : '读';
+    console.log(`  ${name.padEnd(18)} ${ep.method.padEnd(4)} ${String(ep.host).padEnd(6)} ${signed.padEnd(10)} ${kind}`);
+  }
+}
+
+/**
+ * 调一个智慧树端点（Node 直发，走包内 createZhsClient：取钥、签名、节流都在包里）。
+ *
+ * 与慕课 call 的差别是实测事实：智慧树接受直连的签名请求（不需要页面来源，
+ * 见 platform-zhs/policy/net-rules.ts），因此不用页面上下文——附着浏览器只为取
+ * **活的** cookie（导出文件可能过期，正是 state check 要审的那件事）。cookie 只
+ * 从浏览器内存读，不落盘；响应照 call 的惯例存 .probe/api/。
+ */
+async function zhsCall(opts) {
+  const name = opts.endpoint;
+  if (!name) die('zhs 需要 --endpoint <名字>（先 --list 看清单）');
+  const ep = ZHS_ENDPOINTS[name];
+  if (!ep) die(`端点表里没有「${name}」——新接口要先加进 packages/platform-zhs/src/endpoints.ts（--list 看现有清单）`);
+  if (ZHS_WRITE_ENDPOINTS.has(name) && !opts['allow-write']) {
+    die(
+      `已拦截：${name} 是写端点（会改账号上的学习记录）。
+` +
+        '  确需写入时加 --allow-write，并确认该操作不可逆的后果可以接受。',
+    );
+  }
+  const params = opts.params?.startsWith('@')
+    ? JSON.parse(readFileSync(path.resolve(ROOT, opts.params.slice(1)), 'utf8'))
+    : JSON.parse(opts.params ?? '{}');
+
+  const handle = await acquire({ ext: false });
+  try {
+    const cookies = (await handle.context.cookies()).filter((c) =>
+      /(^|\.)zhihuishu\.com$/.test(String(c.domain)),
+    );
+    if (cookies.length === 0) die('浏览器里没有 zhihuishu 的 cookie——先在探测浏览器里登录智慧树');
+    // 同名取域最宽的一份（与 CLI host.ts 同一口径；浏览器发送顺序的近似）
+    const byName = new Map();
+    for (const c of cookies) {
+      const prev = byName.get(c.name);
+      if (!prev || String(c.domain).length < String(prev.domain).length) byName.set(c.name, c);
+    }
+    const cookieHeader = [...byName.values()].map((c) => `${c.name}=${c.value}`).join('; ');
+
+    const client = createZhsClient({
+      fetch: async (url, init = {}) => {
+        const headers = new Headers(init.headers);
+        headers.set('cookie', cookieHeader);
+        headers.set('user-agent', ZHS_USER_AGENT);
+        return await fetch(url, { ...init, headers });
+      },
+    });
+
+    const started = Date.now();
+    let body;
+    let rejected = null;
+    try {
+      body = await client.call(name, params);
+    } catch (error) {
+      rejected = error; // 拒绝也是调试事实（-12 门、-1 解码错…）：照常打印并归档
+      body = null;
+    }
+    const elapsed = Date.now() - started;
+
+    mkdirSync(API_DIR, { recursive: true });
+    const file = path.join(API_DIR, `zhs-${name}.${Date.now()}.json`);
+    writeFileSync(
+      file,
+      JSON.stringify(
+        {
+          requestedAt: new Date().toISOString(),
+          endpoint: name,
+          path: ep.path,
+          params,
+          rejected: rejected === null ? null : { code: rejected.code ?? null, message: rejected.message },
+          response: body,
+        },
+        null,
+        2,
+      ),
+    );
+
+    if (rejected !== null) {
+      console.log(`被拒：${name}（${ep.method} ${ep.path}，${elapsed} ms）`);
+      console.log(`code=${rejected.code ?? '-'}  message=${rejected.message}`);
+      console.log(`已保存 → ${rel(file)}`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`OK：${name}（${ep.method} ${ep.path}，${elapsed} ms）`);
+    console.log(`code=${body?.code ?? '-'}  message=${body?.message ?? ''}`);
+    console.log(`响应大小：${JSON.stringify(body ?? null).length} 字符`);
+    console.log(`已保存 → ${rel(file)}`);
+  } finally {
+    await release(handle);
+  }
+}
+
 // ---------------------------------------------------------------- 扩展
 
 async function findExtensionId(context) {
@@ -611,6 +753,9 @@ const USAGE = `用法：pnpm probe <命令> [选项]
                                          从采集的 HAR 里取出匹配请求的响应体
   call --bean <Bean> --method <方法>     在页面上下文发 .rpc 请求（默认只放行只读方法）
       [--body <JSON|@文件>] [--allow-write]
+  zhs --list                             智慧树端点表（名字 / 方法 / 宿主 / 是否签名 / 读或写）
+  zhs --endpoint <名字>                  调智慧树接口（Node 直发，走包内签名；附着浏览器取活 cookie）
+      [--params '<JSON>|@文件'] [--allow-write]
   ext id | ext reload                    打印扩展 id / 重载扩展（要求探测浏览器在运行）
   shot --url <URL> [--out <文件>]        截图
   kill                                   关闭探测浏览器
@@ -643,6 +788,10 @@ async function main() {
       break;
     case 'call':
       await rpcCall(opts);
+      break;
+    case 'zhs':
+      if (opts.list) zhsList();
+      else await zhsCall(opts);
       break;
     case 'ext':
       await extCommand(opts);

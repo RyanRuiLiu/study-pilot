@@ -75,21 +75,28 @@ export async function renderCourses(): Promise<void> {
   const listEl = document.getElementById('course-list');
   if (listEl === null) return;
 
-  let reads: [Awaited<ReturnType<typeof getSession>>, Awaited<ReturnType<typeof getCourses>>, Settings];
+  /*
+   * 读取与处理都在这一个 try 里：后台未接住的异常会以「兜底拒绝」的形状回来
+   * （见 router.ts），那形状不是课程数组——处理放到 try 外的话，.map 会炸在
+   * catch 之外，页面就永久停在骨架且不给任何错误。
+   */
+  let rows: HTMLElement[];
+  let session: Awaited<ReturnType<typeof getSession>>;
+  let settings: Settings;
   try {
-    reads = await Promise.all([getSession(), getCourses(), getSettings()]);
+    const [readSession, courses, readSettings] = await Promise.all([getSession(), getCourses(), getSettings()]);
+    session = readSession;
+    settings = readSettings;
+    // 列表以配置为准（哪门课参与、带定位字段），平台读到的新列表在「读取」时并进来
+    const byTerm = new Map(settings.mooc.courses.map((course) => [course.termId, course]));
+    rows = courses
+      .map((brief) => byTerm.get(brief.termId))
+      .filter((course): course is SelectedCourse => course !== undefined)
+      .map(buildRow);
   } catch (error) {
     listEl.replaceChildren(note(errorText(error), true));
     return;
   }
-  const [session, courses, settings] = reads;
-
-  // 列表以配置为准（哪门课参与、带定位字段），平台读到的新列表在「读取」时并进来
-  const byTerm = new Map(settings.mooc.courses.map((course) => [course.termId, course]));
-  const rows = courses
-    .map((brief) => byTerm.get(brief.termId))
-    .filter((course): course is SelectedCourse => course !== undefined)
-    .map(buildRow);
 
   /*
    * 状态信息分两处：卡头右侧只放加载完成后的状态（见 status-line.ts），
