@@ -60,12 +60,21 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
   phase.textContent = entry.status;
   line.append(phase);
 
-  // 行 1 右列：剩余时间。与慕课同一格同一角色，同样由 deadline 派生
+  /*
+   * 行 1 右列 = 「这件事的时间量」，与慕课同一格同一角色。
+   *
+   * 有截止的（单元测试）说还剩多久；没有截止的说这件事本身要多久（视频时长）。
+   * 两者都是这一格该回答的问题，不是两种字段硬塞——平台给不出截止时，
+   * 硬留空等于让整格作废，而「这条要看 11 分钟」是真有用的信息。
+   * 两样都没有就留空：宁可空着，也不编一个数出来。
+   */
   const when = document.createElement('span');
   when.className = 'todo-when';
   if (entry.deadline !== null) {
     if (isUrgent(entry.deadline)) when.classList.add('is-urgent');
     when.textContent = `${relativeDay(entry.deadline)} ${formatClock(entry.deadline)}`.trim();
+  } else if (entry.sec > 0) {
+    when.textContent = durationText(entry.sec);
   }
 
   // 行 2：处置 +「执行」

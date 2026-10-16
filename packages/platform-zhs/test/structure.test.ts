@@ -153,7 +153,32 @@ describe('chapterExams', () => {
     expect(chapterExams([{ id: 1, name: '第二章' }])).toEqual([]);
   });
 
-  it('examUrl 形态不符（找不到 dohomework 段）跳过，不去猜', () => {
+  it('已交章节的 checkHomework 路由同样解析（段位与 dohomework 一致，末尾少一个 N）', () => {
+    const done = [
+      {
+        ...withExams[0],
+        studentExamDto: {
+          ...withExams[0]!.studentExamDto,
+          state: 4,
+          examUrl:
+            '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/checkHomework/900004/DEMOc003/DEMOd004/9000000002/9001',
+        },
+      },
+    ];
+    expect(chapterExams(done)).toEqual([
+      {
+        chapterName: '第一章',
+        listId: 'DEMOc003',
+        examKey: 'DEMOd004',
+        examId: 90000006,
+        stuExamId: 9000000037,
+        schoolId: 9001,
+        lessonId: 9000000011,
+      },
+    ]);
+  });
+
+  it('examUrl 形态不符（两个路由词都找不到）跳过，不去猜', () => {
     const broken = [{ ...withExams[0], studentExamDto: { ...withExams[0]!.studentExamDto, examUrl: 'https://example.com/x' } }];
     expect(chapterExams(broken)).toEqual([]);
   });

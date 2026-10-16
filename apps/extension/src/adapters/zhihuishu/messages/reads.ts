@@ -19,6 +19,7 @@ import {
   readCourseChapters,
   unitItemId,
   type ZhsClient,
+  type ZhsChapterNode,
   type ZhsExamListItem,
   type ZhsUnit,
 } from '@study-pilot/platform-zhs';
@@ -27,6 +28,12 @@ export interface CourseUnits {
   course: ZhihuishuCourse;
   /** 读成时为单元表；unread 为 true 时是空数组 */
   units: ZhsUnit[];
+  /**
+   * 这次读到的章节原始表。**交给下游复用**——测验那一类要从同一份表里取
+   * 数字卷号（`chapterExams`），再读一遍等于每门课多付一次读费，
+   * 而本仓的口径是「每门课一次结构读取」。读不成时为空数组。
+   */
+  chapters: ZhsChapterNode[];
   /** 这门课没读成的原因（界面如实显示；读成时为 null） */
   unreadReason: string | null;
 }
@@ -38,19 +45,25 @@ export async function collectUnits(
   const results: CourseUnits[] = [];
   for (const course of courses) {
     if (course.secret.length === 0) {
-      results.push({ course, units: [], unreadReason: '缺少课程入口参数，先读取课程列表' });
+      results.push({ course, units: [], chapters: [], unreadReason: '缺少课程入口参数，先读取课程列表' });
       continue;
     }
     try {
-      const units = await getCourseUnits(client, {
+      const chapters = await readCourseChapters(client, {
         recruitAndCourseId: course.secret,
         recruitId: course.recruitId,
       });
-      results.push({ course, units, unreadReason: null });
+      const units = await getCourseUnits(
+        client,
+        { recruitAndCourseId: course.secret, recruitId: course.recruitId },
+        chapters,
+      );
+      results.push({ course, units, chapters, unreadReason: null });
     } catch (error) {
       results.push({
         course,
         units: [],
+        chapters: [],
         unreadReason: error instanceof Error ? error.message : String(error),
       });
     }
@@ -82,19 +95,16 @@ export interface CourseQuiz {
  */
 export async function collectQuizzes(
   client: ZhsClient,
-  courses: ZhihuishuCourse[],
+  collected: readonly CourseUnits[],
 ): Promise<CourseQuiz[]> {
   const results: CourseQuiz[] = [];
-  for (const course of courses) {
-    if (course.secret.length === 0) {
+  for (const { course, chapters, unreadReason } of collected) {
+    // 视频那一遍就没读成的课，这里也没什么可做的（原因已由那一遍报出）
+    if (unreadReason !== null) {
       results.push({ course, items: [], unreadReason: null });
       continue;
     }
     try {
-      const chapters = await readCourseChapters(client, {
-        recruitAndCourseId: course.secret,
-        recruitId: course.recruitId,
-      });
       const known = new Set(chapterExams(chapters).map((exam) => exam.listId));
       const pending = await getExamList(client, {
         recruitId: course.recruitId,
