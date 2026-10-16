@@ -14,7 +14,6 @@
 
 import { getTaskState, getZhsCourseware, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
 import type { ZhsCoursewareProgress, ZhsCoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
-import { COURSEWARE_KINDS } from '../../src/ui/scopes.ts';
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { note } from './note.ts';
@@ -23,7 +22,7 @@ import { renderZhsStatusLine } from './zhihuishu-status-line.ts';
 import { toast } from './toast.ts';
 
 /** 未运行时的按钮标题；禁用时换成 dataset.emptyTitle 里的原因。 */
-const EXEC_TITLE = '执行：完成这门课余下的视频单元';
+const EXEC_TITLE = '执行：完成这门课余下的待办';
 
 /** 运行期间的按钮集合：跑的时候全部禁掉（后台也会拒并发，这里只是别让人白点）。 */
 const buttons: HTMLButtonElement[] = [];
@@ -253,8 +252,12 @@ function buildRow(entry: ZhsCoursewareProgress): HTMLElement {
         setEnabled,
         refresh: refreshZhsCourseViews,
       },
-      // 与慕课课件卡同一范围：只发课件类，别把这门课的别类事项一并做掉
-      { platformId: 'zhihuishu', kinds: COURSEWARE_KINDS, group: entry.courseName },
+      /*
+       * **不带 kinds**：智慧树不套用慕课的「待办/课件」二分（设计文档 §3 模块 5 定案），
+       * 它的范围就是「这门课」。带上 categories 会把单元测试（kind=quiz）挡在外面——
+       * 待办里列着它、点执行却不做它，正是这个仓反复要消灭的那种错位。
+       */
+      { platformId: 'zhihuishu', group: entry.courseName },
     );
   });
 
