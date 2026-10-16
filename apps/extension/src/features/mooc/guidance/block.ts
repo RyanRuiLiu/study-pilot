@@ -136,8 +136,13 @@ export function renderRichText(html: string): HTMLElement {
   return container;
 }
 
-/** 构造一道题的得分指导块。`source` 记录它属于哪一份作业。 */
-export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLElement {
+/**
+ * 构造一道题的得分指导块。`source` 记录它属于哪一份作业。
+ *
+ * 评分点全为空（这份作业没配评分依据）时返回 null，不注入空块——
+ * 与「查看答案」一条规则：没有可展示的内容就不往页面上放东西。
+ */
+export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLElement | null {
   const block = document.createElement('div');
   block.setAttribute(ANSWER_MARK_ATTRIBUTE, '1');
   block.setAttribute(ANSWER_SOURCE_ATTRIBUTE, source);
@@ -199,13 +204,7 @@ export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLE
     block.append(point);
   });
 
-  // judgeDtos 为空说明这份作业没有配置评分依据，属于数据本身的情况
-  if (!hasContent) {
-    const empty = document.createElement('div');
-    empty.style.color = TOKENS.inkFaint;
-    empty.textContent = '这份作业未配置得分指导';
-    block.append(empty);
-  }
+  if (!hasContent) return null;
 
   return block;
 }

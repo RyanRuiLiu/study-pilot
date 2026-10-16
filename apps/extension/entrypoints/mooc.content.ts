@@ -24,7 +24,11 @@
 import { parseWorkLocation } from '@study-pilot/platform-mooc';
 import { injectAnswers, removeAnswers } from '../src/features/mooc/guidance/answers.ts';
 import { injectGuidance, removeGuidance } from '../src/features/mooc/guidance/index.ts';
-import { loadAnswers, loadQuestions } from '../src/features/mooc/guidance/loader.ts';
+import {
+  loadAnswersCurrent,
+  loadAnswersSubmitted,
+  loadQuestions,
+} from '../src/features/mooc/guidance/loader.ts';
 
 /** DOM 变化后延迟评估的时间，用于合并连续变动。 */
 const DEBOUNCE_MS = 400;
@@ -52,22 +56,30 @@ export default defineContentScript({
       removeGuidance();
 
       /*
-       * 答卷查看类页面（测验成绩 / 考试的客观查看）：注入「查看答案」。
-       * 数据是既有答卷（只读）。主观题考试页（exam-subjective）走的是作业管线
-       * 同款的评分点数据——已开始/已提交之后取那是纯读；未开始的考试页不存在
-       * 这个路由（进入前先在同意页点了「开始考试」），因此不会误开考试。
+       * 答卷类页面注入「查看答案」，取哪一份卷由页面决定（与平台自己的取法一致）：
+       *   作答页（quiz / exam-objective）显示的是**当前这次作答**的卷——答案按题目
+       *     id 取自最近一份已提交的卷（平台对未提交的卷不给答案，抽不到的题如实没有）；
+       *   查看页（quiz-score / exam-score / exam-subjective）显示的是**已提交**的那份。
+       * 全程只读（后台 loadViewAnswers），绝不新开一份——那在考试上等价于点「开始考试」；
+       * 未开始的考试也进不了这些路由（进入前先在同意页点了「开始考试」）。
        */
       if (location.view === 'exam-subjective' && location.contentId !== null) {
         void injectGuidance(loadQuestions, location.contentId).catch(() => undefined);
-        void injectAnswers(loadAnswers, location.contentId).catch(() => undefined);
+        void injectAnswers(loadAnswersSubmitted, location.contentId).catch(() => undefined);
         return;
       }
       if (
-        (location.view === 'quiz-score' || location.view === 'quiz' ||
-          location.view === 'exam-objective' || location.view === 'exam-score') &&
+        (location.view === 'quiz' || location.view === 'exam-objective') &&
         location.contentId !== null
       ) {
-        void injectAnswers(loadAnswers, location.contentId).catch(() => undefined);
+        void injectAnswers(loadAnswersCurrent, location.contentId).catch(() => undefined);
+        return;
+      }
+      if (
+        (location.view === 'quiz-score' || location.view === 'exam-score') &&
+        location.contentId !== null
+      ) {
+        void injectAnswers(loadAnswersSubmitted, location.contentId).catch(() => undefined);
         return;
       }
       removeAnswers();
