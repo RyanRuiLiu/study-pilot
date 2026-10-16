@@ -42,6 +42,19 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
    * 章节名与视频时长原来各占一格，对齐之后那两格还给了时间列（剩余时间 / 具体日期），
    * 它们的信息不丢，移到这里。
    */
+  /*
+   * 整行可点开去平台——与慕课同一手法：透明长链接垫底（`.todo-open` 铺满整行），
+   * 而不是把 <a> 套住所有内容（第二行里有真正的 <button>，按钮套在链接里点击语义会打架）。
+   * 落点由载荷给出；测验给的是列表页，点开不会建答卷（见 payload 的 href 说明）。
+   */
+  const open = document.createElement('a');
+  open.className = 'todo-open';
+  open.href = entry.href;
+  open.target = '_blank';
+  open.rel = 'noreferrer';
+  open.setAttribute('aria-label', `打开${entry.name}页面`);
+  item.append(open);
+
   item.title = [entry.chapterName, entry.name, entry.sec > 0 ? durationText(entry.sec) : '']
     .filter((part) => part !== '')
     .join(' · ');

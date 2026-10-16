@@ -11,6 +11,20 @@ import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsPendingEntry, ZhsPendingSummary, ZhsResponseMap, ZhsUnreadCourse } from './payload.ts';
 import { collectQuizzes, collectUnits } from './reads.ts';
 
+/*
+ * 落点 URL 拼装（两个地址都是摸底记下来的真实页面，不自造）：
+ *   学习页    wisdom-mooc 的 study/index?recruitAndCourseId=——执行侧的门也用这个地址
+ *   作业考试  考试入口的列表页，**不是某一卷**：dohomework 地址一打开就建答卷，
+ *             绝不能做整行点击的落点（设计文档 §5）
+ */
+function studyPageUrl(recruitAndCourseId: string): string {
+  return `https://wisdom-mooc.zhihuishu.com/study/index?recruitAndCourseId=${encodeURIComponent(recruitAndCourseId)}`;
+}
+
+function examListUrl(recruitId: number): string {
+  return `https://exam.zhihuishu.com/onlineExam/studentExam/stuExam?recruitId=${recruitId}`;
+}
+
 export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
     const respond = (outcome: QueryOutcome<ZhsPendingSummary>): void => {
@@ -58,6 +72,7 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
             chapterName: unit.chapterName,
             name: unit.name,
             status: '未学习',
+            href: studyPageUrl(course.secret),
             deadline: null, // 课程学习窗口尚未接入；界面上两格如实留空
             sec: unit.sec,
           });
@@ -78,6 +93,7 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
             name: item.examName,
             // 平台页签的原文就是「未提交」（FINDINGS §二十一）
             status: '未提交',
+            href: examListUrl(course.recruitId),
             deadline: item.deadline,
             sec: 0, // 单元测试没有时长；渲染侧据此不显示时长位
           });
