@@ -1,4 +1,0 @@
-EDU(
-  'cbbad5f5b1574c62421f93958063312a',
-  '<div class="ux-clock {class}">\n    <div class="ux-clock-title">{#if title}{title}：{/if}{#if allhour!=\'00\'}{allhour}小时{/if}{#if allminute!=\'00\'}{allminute}分钟{/if}{#if allsecond!=\'00\'}{allsecond}秒{/if}</div>\n    <div class="ux-clock-time">{#if hour!=\'00\'}{hour}<span class="ux-clock-dot">:</span>{/if}{minute}<span class="ux-clock-dot">:</span>{second}</div>\n</div>\n',
-);

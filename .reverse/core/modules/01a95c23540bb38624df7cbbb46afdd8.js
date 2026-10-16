@@ -1,4 +1,0 @@
-EDU(
-  '01a95c23540bb38624df7cbbb46afdd8',
-  '<label class="u-check2 {class}" z-chk={checked} z-dis={disabled} r-class={ {\'z-part\': checked === null, \'u-check2-block\': block} } r-hide={!visible} title={name} on-click={this.check()}><div class="check2_box"><i class="u-icon u-icon-check-slim"></i></div> {name}</label>\n',
-);

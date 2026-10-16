@@ -1,4 +1,0 @@
-EDU(
-  'effc437a91d4e409780893e603d37ebc',
-  '.#<uispace>{position:absolute;z-index:1000;border:1px solid #aaa;background:#fff;}\n.#<uispace> .zbar{line-height:30px;background:#8098E7;border-bottom:1px solid #aaa;}\n.#<uispace> .zcnt{padding:10px 5px;}\n.#<uispace> .zttl{margin-right:20px;text-align:left;}\n.#<uispace> .zcls{position:absolute;top:5px;right:0;width:20px;height:20px;line-height:20px;cursor:pointer;}\n',
-);

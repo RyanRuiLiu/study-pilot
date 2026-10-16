@@ -3,7 +3,7 @@
  *
  * 结构事实（2026-10-16，三门已选课逐门核对）：
  *   - 章节 videoChapterDtos[]：视频课时 videoLessons[]（含子节 videoSmallLessons[]）
- *     与章节测验 studentExamDto（测验在二期，本模块只看视频单元）；
+ *     与章节测验 studentExamDto（测验不在本模块范围内——只读视频单元）；
  *   - 子节的位次映射：父课时提供 lessonId 与 chapterId，子节自己提供 id——
  *     上报数组里 smallLessonId 取子节 id、lessonId 取父课时 id（无子节的课时为 0）。
  *

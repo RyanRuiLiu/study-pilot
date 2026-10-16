@@ -1,4 +1,0 @@
-EDU(
-  'e91a6e493c8e5b96512e57e037f54b1b',
-  '<div class="ux-rating-star"\n     r-class={{"rating-edit": edit}}\n    {#if editMode === 1} on-mousemove={this.debounceRating($event)} {/if}\n    {#if editMode === 2} on-click={this.debounceRating($event)} {/if}>\n    <div class="star-lose-point" r-class={{"rating-edit": edit}}>\n        {#list 1..(totalScore/starScore) as item}\n        <i class="star icon-rating-unfavorite" style="font-size: {size}px" data-index={item_index}></i>\n        {/list}\n    </div>\n    <div class="star-point" r-class={{"rating-edit": edit}}>\n        {#list 1..(totalScore/starScore) as item}\n        {#if _widthList[item_index] !== 0}\n        <i class="star icon-rating-favorite" style="font-size: {size}px;width: {_widthList[item_index]}px"\n           data-index={item_index}>\n        </i>\n        {/if}\n        {/list}\n    </div>\n</div>\n',
-);

@@ -16,11 +16,10 @@ import type {
   RunControl,
   RunOutcome,
   RunSelection,
-  Settings,
 } from '@study-pilot/application';
 import type { ZhihuishuCourse } from '@study-pilot/application';
 import type { ZhsClient } from '../client.ts';
-import { readCourseIsApply } from '../courses.ts';
+import { readCourseIsApply, selectedCourses } from '../courses.ts';
 import { readSession, type CookieReader } from '../session.ts';
 import { getCourseUnits, type ZhsUnit } from '../structure.ts';
 import { executeUnit, type ExecuteUnitInput } from './execute.ts';
@@ -129,9 +128,3 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
   };
 }
 
-/** 参与且勾选的课程；scope.group 按课程名收窄（与界面上的「只做这门课」同一语义）。 */
-function selectedCourses(settings: Settings, scope?: RunSelection): ZhihuishuCourse[] {
-  const enabled = settings.zhihuishu.courses.filter((course) => course.enabled);
-  if (scope?.group === undefined) return enabled;
-  return enabled.filter((course) => course.name === scope.group);
-}

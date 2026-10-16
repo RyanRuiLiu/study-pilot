@@ -1,4 +1,0 @@
-EDU(
-  '9106814aa2d29968ca051d4d90125a86',
-  '.#<uispace>{width:210px;border:1px solid #aaa;font-size:14px;text-align:center;}\n.#<uispace> .zact{line-height:30px;overflow:hidden;zoom:1;}\n.#<uispace> .zact .zfl{float:left;}\n.#<uispace> .zact .zfr{float:right;}\n.#<uispace> .zact .zbtn{padding:0 5px;cursor:pointer;}\n.#<uispace> .zact .ztxt{margin-left:10px;}\n.#<uispace> .zday{table-layout:fixed;border-collapse:collapse;width:100%;}\n.#<uispace> .zday th{font-weight:normal;}\n.#<uispace> .zday a{display:block;height:22px;line-height:22px;color:#333;text-decoration:none;}\n.#<uispace> .zday a:hover{background:#eee;}\n.#<uispace> .zday a.js-extended{color:#aaa;}\n.#<uispace> .zday a.js-selected,\n.#<uispace> .zday a.js-selected:hover{background:#DAE4E7;}\n.#<uispace> .zday a.js-disabled,\n.#<uispace> .zday a.js-disabled:hover{background:#fff;color:#eee;cursor:default;}',
-);

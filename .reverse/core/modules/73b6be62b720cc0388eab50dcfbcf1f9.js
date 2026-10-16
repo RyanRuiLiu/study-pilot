@@ -1,4 +1,0 @@
-EDU('73b6be62b720cc0388eab50dcfbcf1f9', {
-  KEY_LIB_SRC_PAGER_WEB_PREVIOUSPAGE: 'prev',
-  KEY_LIB_SRC_PAGER_WEB_NEXTPAGE: 'next',
-});

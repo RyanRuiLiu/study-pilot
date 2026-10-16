@@ -1,4 +1,0 @@
-EDU(
-  '43ca3a6e5c0d4e451a1e94128b6aff00',
-  '.um-recommend-bottom {\n  width: 100%;\n  -webkit-box-sizing: border-box;\n          box-sizing: border-box;\n  padding: 32px 32px 0 32px;\n  background: #fff;\n  border: 1px solid #f5f5f5;\n  border-radius: 8px; }\n  .um-recommend-bottom .um-recommend_hd {\n    font-size: 18px; }\n    .um-recommend-bottom .um-recommend_hd .um-recommend_hd_toggle {\n      position: absolute;\n      right: 0;\n      top: 0;\n      color: #00CC7E; }\n    .um-recommend-bottom .um-recommend_hd .um-recommend_hd_icon {\n      padding-right: 8px;\n      vertical-align: text-top; }\n\n.z-unfold.um-recommend-bottom {\n  padding: 13px 40px; }\n  .z-unfold.um-recommend-bottom .um-recommend_hd .um-recommend_hd_tlt {\n    font-weight: 600;\n    margin-bottom: 0; }\n\n.um-recommend-bottom .um-recommend-list {\n  margin-left: -50px; }\n  .um-recommend-bottom .um-recommend-list .um-recommend-list_item {\n    margin-left: 50px; }\n',
-);

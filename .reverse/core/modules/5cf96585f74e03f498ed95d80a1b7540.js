@@ -1,4 +1,0 @@
-EDU(
-  '5cf96585f74e03f498ed95d80a1b7540',
-  '<div class="um-live-live-pc-notice">\n    <div class="um-live-live-pc-notice_content" \n        r-class={{\'um-live-live-pc-notice_content_teacher\': isTeacher, \'um-live-live-pc-notice_content_student\': !isTeacher}}\n        on-click={this.view(isTeacher? (content ? \'check\' : \'edit\') :\'display\')}>\n        {lang.KEY_LIB_NOTICE_TITLE}: {content ? content.trim() : lang.KEY_LIB_NOTICE_NO_NOTICE}\n        {#if isNew}\n        <div class="um-live-live-pc-notice_content_new"></div>\n        {/if}\n        <i class="icon-edu-live-notice-horn th-fc0"></i>      \n        <i class="ux-icon-caret-right"></i>\n    </div>\n    {#if isTeacher}\n    <div class="um-live-live-pc-notice_edit th-fc0" on-click={this.view(\'edit\')}>\n        {lang.KEY_TEXT_EDIT}\n    </div>\n    {/if}\n</div>',
-);

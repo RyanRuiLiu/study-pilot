@@ -67,7 +67,7 @@ export interface ZhsClientOptions {
  *   首页族（onlineservice）：`code: 200`（响应同时带 result 字段）。
  * 其余值（负数、4xx、5xx）都是拒绝，由 {@link ZhsApiError} 原样携带。
  */
-export function isSuccessCode(code: number): boolean {
+function isSuccessCode(code: number): boolean {
   return code === 0 || code === 200;
 }
 

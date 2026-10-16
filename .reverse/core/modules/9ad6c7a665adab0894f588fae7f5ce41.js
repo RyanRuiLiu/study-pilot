@@ -1,4 +1,0 @@
-EDU(
-  '9ad6c7a665adab0894f588fae7f5ce41',
-  '.voice-changer{width:28px;height:28px;position:relative;}.voice-changer_pie{height:100%;width:100%;clip:rect(0, 28px, 28px, 14px);left:0;position:absolute;top:0;}.voice-changer_pie.gthalf{clip:rect(auto, auto, auto, auto);}.voice-changer_pie.gthalf .voice-changer_right{transform:rotate(180deg);}.voice-changer_half{border:10px solid #2196F3;border-radius:50%;clip:rect(0, 14px, 28px, 0);left:0;position:absolute;top:0;right:0;bottom:0;border-color:#2196F3;}.voice-changer_left{transition:transform 0.2s;}.voice-changer_shadow{height:28px;width:28px;border:2px solid #bdc3c7;border-radius:50%;box-sizing:border-box;}.voice-changer_content{border:rgba(0, 0, 0, 0) 2px solid;box-sizing:border-box;position:absolute;left:0;right:0;top:0;bottom:0;z-index:2;}.voice-changer_content_img{width:24px;height:24px;display:block;border-radius:100%;}',
-);

@@ -1,4 +1,0 @@
-EDU(
-  '5a003e60652684849b69fdc1d3a5c126',
-  '.title{position:relative;}.component-course-editor_textarea{width:100%;height:240px;margin-bottom:5px;padding:10px 15px;box-sizing:border-box;line-height:24px;font-size:14px;color:#333;border:1px solid #E6E6E6;}.component-course-editor_textarea::placeholder,.component-course-editor_textarea::-webkit-input-placeholder,.component-course-editor_textarea::-webkit-placeholder{color:#999999;}.component-course-editor_textarea::-moz-placeholder,.component-course-editor_textarea::-ms-placeholder{color:#999999;}.component-course-editor_prompt{float:right;margin-top:2px;margin-bottom:10px;text-align:right;line-height:16px;font-size:12px;color:#999;}.component-course-editor_prompt.warning-text{color:#FF0202;}.validation-wrapper{position:absolute;height:20px;line-height:20px;top:0;right:0;margin-right:-6px;}',
-);

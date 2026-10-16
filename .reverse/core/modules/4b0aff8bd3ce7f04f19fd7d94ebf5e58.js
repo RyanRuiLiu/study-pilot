@@ -1,4 +1,0 @@
-EDU(
-  '4b0aff8bd3ce7f04f19fd7d94ebf5e58',
-  '.ux-check{cursor:pointer;display:inline-block}.ux-check .check_box{display:inline-block;position:relative;overflow:hidden;text-align:center;vertical-align:middle;margin-bottom:2px;height:14px;width:14px;line-height:14px;border-radius:2px;box-sizing:border-box}.ux-check .check_box .ux-icon-check{font-size:14px;display:inline-block;-webkit-transform:scale(0.7);transform:scale(0.7)}.ux-check_unchecked{border:1px solid #ccc}.ux-check.z-chk .check_box{background:#49AF4F;border:1px solid #49AF4F}.ux-check.z-chk .check_box .ux-icon{display:inline-block;font-size:14px;color:white}.ux-check.z-part .check_box .ux-icon:before{content:"\\f0c8"}.ux-check.z-dis{cursor:not-allowed}.ux-check.z-dis .check_box{background:#ccc;border:1px solid #ccc}.ux-check-block{display:block}\n/*# sourceMappingURL=component.css.map */\n',
-);

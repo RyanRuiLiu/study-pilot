@@ -1,4 +1,0 @@
-EDU('bb6cb3d39b20af708853612237c8b351', {
-  KEY_LIB_MODAL_CONFIRM: 'Confirm',
-  KEY_LIB_MODAL_CANCEL: 'Cancel',
-});

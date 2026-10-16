@@ -1,4 +1,0 @@
-EDU(
-  '4512b6e249f1613d72019acc45ae57a4',
-  '<div class="ux-login-set-login-set-panel">\n\n    <div class="login-set-panel" >\n\n        <div class="login-set-panel-login" r-class={{"panel-hide" : type!=panelType.LOGIN.text}}>\n            <ux-login-set-urs-tab-login on-changeStatus={this.onChangeStatus($event)} ></ux-login-set-urs-tab-login>\n        </div>\n        <div class="login-set-panel-register" r-class={{"panel-hide" : type!=panelType.REGISTER.text}}>\n            <ux-login-set-regist-wrap on-changeStatus={this.onChangeStatus($event)} ></ux-login-set-regist-wrap>\n        </div>\n\n        {#if type === panelType.SCAN_CODE.text}\n            <div class="login-set-panel-scan-code">\n                <ux-login-set-scan-code on-changeStatus={this.onChangeStatus($event)} tel=""></ux-login-set-scan-code>\n            </div>\n        {/if}\n    </div>\n</div>\n',
-);

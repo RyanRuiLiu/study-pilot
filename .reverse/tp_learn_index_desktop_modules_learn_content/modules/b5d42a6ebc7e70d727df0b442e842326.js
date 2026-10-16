@@ -1,4 +1,0 @@
-EDU(
-  'b5d42a6ebc7e70d727df0b442e842326',
-  '@charset "UTF-8";.um-user-answer-sheet-answer-list .seq{position:absolute;top:27px;left:0;line-height:1;}.um-user-answer-sheet-answer-list .um-user-answer-sheet-question-generator{padding:14px 0 14px 30px;border-bottom-style:solid;border-bottom-width:1px;}.um-user-answer-sheet-answer-list .um-user-answer-sheet-question-generator.fillin{padding:19px 0 0 30px;}.um-user-answer-sheet-answer-list .um-user-answer-sheet-question-generator.fillin .seq{top:19px;}@media (min-width: 1680px){.um-user-answer-sheet-answer-list .seq{top:36px;font-size:20px;}.um-user-answer-sheet-answer-list .um-user-answer-sheet-question-generator{padding:20px 0 20px 40px;}.um-user-answer-sheet-answer-list .um-user-answer-sheet-question-generator.fillin{padding:30px 0 0 40px;}.um-user-answer-sheet-answer-list .um-user-answer-sheet-question-generator.fillin .seq{top:29px;}}',
-);

@@ -3,8 +3,8 @@
  * 2026-10-17 起节奏改快——数据口径不变，过程不做真实时长等待）。
  *
  * 数据口径（report.ts）：按 1× 真人观看生成——时长、序列、位置全部自洽。
- * 提交节奏：像 mooc 一样尽快完成——不做真实时长等待，也不自设限流；
- * 服务端给出什么信号就如实处理。
+ * 提交节奏：不等待真实时长（长视频按段上报）；出站仍走客户端的通用节流
+ * （请求间最小间隔，见 client.ts）——服务端给出什么信号就如实处理。
  *
  * 实测备忘（2026-10-17 真机）：快速连发下单个单元被服务端完整接受——32 个单元
  * 约 1 秒/个全部 submitSuccess + watchState=1（服务端不核对「声称秒数 vs 壁钟」）；
@@ -16,7 +16,8 @@
  * 本轮已完成的单元都已保存，重新执行会从剩下的单元继续。
  *
  *   ① 打开课时（prelearningNote）：isSlide / isFace 为真 = 平台要求先完成一次
- *      验证（滑块/点选）；保存撞 -12/-10 同理 → 两种都抛 ZhsRoundHalt（整轮中止）。
+ *      验证（滑块/点选）；保存撞 -12（易盾人机验证）/ -10（多端播放警告）同样
+ *      整轮中止——两种都是「这个账号现在不该继续自动化」的信号。
  *   ② 提交观看报告（口径见 report.ts）：短视频一份报完；长视频按 SEGMENT_SEC
  *      分段，段间以服务端累计秒为下一段基准（实测边界见 SEGMENT_SEC 注释）。
  *   ③ 回读 queryStuyInfo 确认 watchState=1——不拿 200 当成功。
@@ -53,7 +54,20 @@ export interface ExecuteUnitInput {
   isApply: number | string;
 }
 
-/** 平台侧「需要先过验证」的信号（旗标或 -12/-10 拒绝；文案里作为验证种类的名字）。 */
+/**
+ * 被拒的验证类信号 → 给人看的文案。
+ *
+ * -12 = 网易易盾人机验证（实测：页面加载易盾 SDK 与滑块题图）；
+ * -10 = 多端播放警告（摸底记录）。两者都按整轮中止处理——继续跑只会加重风控；
+ * 下一步都是到学习页：-12 拖滑块，-10 按平台提示处理（先关掉其他正在学习的窗口）。
+ */
+function rejectionHaltMessage(error: ZhsApiError): string {
+  return error.code === -10
+    ? '平台提示多端播放：本轮已停止，请先关闭其他正在学习的窗口再试'
+    : gateHaltMessage('人机验证');
+}
+
+/** 平台侧「需要先过验证」的信号（旗标；文案里作为验证种类的名字）。 */
 function gateSignalOf(openData: { isSlide?: unknown; isFace?: unknown } | null | undefined): string | null {
   if (openData?.isSlide === true) return '人机验证';
   if (openData?.isFace === true) return '人脸验证';
@@ -122,8 +136,7 @@ export async function executeUnit(
     opened = (await client.call('prelearningNote', note)) as typeof opened;
   } catch (error) {
     if (isGateRejection(error)) {
-      // -12/-10 都属于滑块/点选这一族验证，统一按「人机验证」呈现
-      throw new ZhsRoundHalt(gateHaltMessage('人机验证'), action);
+      throw new ZhsRoundHalt(rejectionHaltMessage(error), action);
     }
     return { status: 'failed', message: error instanceof Error ? error.message : String(error) };
   }
@@ -164,7 +177,7 @@ export async function executeUnit(
       await client.call('saveStudyInterval', { ...report });
     } catch (error) {
       if (isGateRejection(error)) {
-        throw new ZhsRoundHalt(gateHaltMessage('人机验证'), action);
+        throw new ZhsRoundHalt(rejectionHaltMessage(error), action);
       }
       return { status: 'failed', message: error instanceof Error ? error.message : String(error) };
     }

@@ -36,7 +36,7 @@ export interface StudyReportInput {
   baseSec: number;
   /** prelearningNote 取回的学习记录 id */
   recordId: string | number;
-  /** getLoginUserInfo 取回的设备号（token = uuid + "zhs"） */
+  /** 设备号（CASLOGC cookie 取回，见 session.ts；token = uuid + "zhs"） */
   deviceUuid: string;
   /**
    * 本次报告覆盖的时长（秒）。缺省 = 视频全长（单份完整报告）。
