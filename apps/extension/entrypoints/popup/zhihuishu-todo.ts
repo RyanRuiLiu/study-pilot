@@ -15,6 +15,7 @@ import { getSettings, getZhsPending, runNow } from '../../src/ui-bridge';
 import type { ZhsPendingEntry } from '../../src/ui-bridge';
 import { errorText } from '../../src/ui/format.ts';
 import { zhsTodoEl } from './elements.ts';
+import { createTodoArea } from './todo-area.ts';
 import { setRunning, statusWriterFor } from './status.ts';
 
 /** 时长文案：分钟为主，不足一分钟明确说，不四舍五入成「0 分钟」。 */
@@ -83,65 +84,22 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
 }
 
 /** 一句提示文案的段落元素。 */
-function note(className: string, text: string): HTMLElement {
-  const element = document.createElement('p');
-  element.className = className;
-  element.textContent = text;
-  return element;
-}
-
-function writeTodo(children: Node[]): void {
-  zhsTodoEl?.classList.remove('is-loading');
-  zhsTodoEl?.replaceChildren(...children);
-}
-
-function setTodoError(message: string): void {
-  writeTodo([note('todo-error', `读取失败：${message}`)]);
-}
-
-function showLoginPrompt(): void {
-  const box = document.createElement('div');
-  box.className = 'todo-login';
-
-  const text = note('todo-login-text', '登录状态已失效，需重新登录智慧树平台后方可读取待办。');
-
-  const link = document.createElement('a');
-  link.className = 'btn';
-  link.href = 'https://www.zhihuishu.com/';
-  link.target = '_blank';
-  link.rel = 'noreferrer';
-  link.textContent = '前往登录';
-
-  box.append(text, link);
-  writeTodo([box]);
-}
-
-function buildGroup(title: string, entries: ZhsPendingEntry[]): HTMLElement {
-  const group = document.createElement('section');
-  group.className = 'todo-group';
-
-  const head = document.createElement('p');
-  head.className = 'todo-course';
-
-  const name = document.createElement('span');
-  name.textContent = title;
-
-  const count = document.createElement('span');
-  count.className = 'todo-count';
-  count.textContent = `${entries.length} 项`;
-
-  head.append(name, count);
-  group.append(head);
-  for (const entry of entries) group.append(buildRow(entry));
-  return group;
-}
+/**
+ * 待办区的公共件（空/失败/需登录/分组）在 todo-area.ts；这里给三样差别：
+ * 容器、登录去处、以及一行怎么渲染（buildRow 在本文件）。
+ */
+const area = createTodoArea<ZhsPendingEntry>({
+  element: () => zhsTodoEl,
+  loginText: '登录状态已失效，需重新登录智慧树平台后方可读取待办。',
+  loginHref: 'https://www.zhihuishu.com/',
+});
 
 /** 渲染智慧树待办。 */
 export async function renderZhsTodo(): Promise<void> {
   const settings = await getSettings();
   const courses = settings.zhihuishu.courses.filter((course) => course.enabled);
   if (courses.length === 0) {
-    writeTodo([note('todo-empty', '尚未选择参与任务的课程。在「更多」的智慧树页读取课程列表并勾选。')]);
+    area.write([area.note('todo-empty', '尚未选择参与任务的课程。在「更多」的智慧树页读取课程列表并勾选。')]);
     return;
   }
 
@@ -149,20 +107,20 @@ export async function renderZhsTodo(): Promise<void> {
   try {
     outcome = await getZhsPending();
   } catch (error) {
-    setTodoError(errorText(error));
+    area.error(errorText(error));
     return;
   }
 
   if (outcome.status === 'error') {
     // 未登录与读取失败分开说（与慕课同一规则）
-    if (outcome.reason === 'NOT_LOGGED_IN') showLoginPrompt();
-    else setTodoError(outcome.message);
+    if (outcome.reason === 'NOT_LOGGED_IN') area.loginPrompt();
+    else area.error(outcome.message);
     return;
   }
 
   const entries = outcome.value.entries;
   if (entries.length === 0) {
-    writeTodo([note('todo-empty', '暂无待办。')]);
+    area.write([area.note('todo-empty', '暂无待办。')]);
     return;
   }
 
@@ -174,8 +132,8 @@ export async function renderZhsTodo(): Promise<void> {
     else grouped.set(entry.courseName, [entry]);
   }
 
-  writeTodo([]);
+  area.write([]);
   for (const [courseName, list] of grouped) {
-    zhsTodoEl?.append(buildGroup(courseName, list));
+    zhsTodoEl?.append(area.buildGroup(courseName, list, buildRow));
   }
 }

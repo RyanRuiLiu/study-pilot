@@ -12,11 +12,10 @@ import type { MessageHandlers } from '../../../protocol.ts';
 import type { MoocMessageDeps } from './deps.ts';
 import { coursewareSummaryCommand } from './courseware-summary.ts';
 import { coursesCommand } from './courses.ts';
-import { homeworkPaperCommand } from './unit-questions.ts';
+import { homeworkPaperCommand } from './homework-paper.ts';
 import { pendingCommand } from './pending.ts';
 import { refreshCoursesCommand } from './refresh-courses.ts';
 import { sessionCommand } from './session.ts';
-import { unitDetailsCommand } from './unit-details.ts';
 
 export function moocHandlers(deps: MoocMessageDeps): MessageHandlers {
   return {
@@ -24,10 +23,7 @@ export function moocHandlers(deps: MoocMessageDeps): MessageHandlers {
     MOOC_COURSES: coursesCommand(),
     MOOC_REFRESH_COURSES: refreshCoursesCommand(deps),
     MOOC_PENDING_SUMMARY: pendingCommand(deps),
-    MOOC_UNIT_DETAILS: unitDetailsCommand(deps),
     MOOC_COURSEWARE_SUMMARY: coursewareSummaryCommand(deps),
     MOOC_HOMEWORK_PAPER: homeworkPaperCommand(deps),
-    // 不是本平台的命令：交回外壳，由它决定怎么回（undefined 表示没人处理）
-    '*': async (_request, sendResponse) => sendResponse(undefined),
   };
 }

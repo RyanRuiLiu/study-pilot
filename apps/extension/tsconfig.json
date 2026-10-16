@@ -3,11 +3,23 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "paths": {
+      "@study-pilot/ai": [
+        "../../packages/ai/src/index.ts"
+      ],
+      "@study-pilot/application": [
+        "../../packages/application/src/index.ts"
+      ],
       "@study-pilot/core": [
         "../../packages/core/src/index.ts"
       ],
       "@study-pilot/platform-mooc": [
         "../../packages/platform-mooc/src/index.ts"
+      ],
+      "@study-pilot/platform-zhs": [
+        "../../packages/platform-zhs/src/index.ts"
+      ],
+      "@study-pilot/transport": [
+        "../../packages/transport/src/index.ts"
       ]
     },
     "noUnusedLocals": true,

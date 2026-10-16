@@ -29,14 +29,11 @@ import { errorText } from '../../src/ui/format.ts';
 import { isPlatformRunning, platformProgressText, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { runBtn, setText, stateActionEl, stateEl, stateLine, stopBtn, todoEl, zhsTodoEl } from './elements.ts';
 
-/** 清「全部列表」时用这一组；按平台置灰走 todoListOf（跑哪家灰哪家）。 */
-const todoLists = [todoEl, zhsTodoEl];
+/** 平台 → 它的待办容器（运行态的置灰只落在运行的那家）。一张表，别处别再列一遍。 */
+const todoLists: Record<string, HTMLElement | null> = { mooc: todoEl, zhihuishu: zhsTodoEl };
 
-/** 平台 → 它的待办容器（运行态的置灰只落在运行的那家）。 */
 function todoListOf(platformId: string): HTMLElement | null {
-  if (platformId === 'mooc') return todoEl;
-  if (platformId === 'zhihuishu') return zhsTodoEl;
-  return null;
+  return todoLists[platformId] ?? null;
 }
 
 let onIdle: (() => void) | null = null;
@@ -243,7 +240,7 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
       if (stoppingHere === statusPlatform) stoppingHere = null;
       stateLine?.classList.remove('is-running');
       // 清全部（自愈）：按平台置灰是收窄的，这里的清必须是宽的，免得留灰
-      if (!localRun) for (const list of todoLists) list?.classList.remove('is-running');
+      if (!localRun) for (const list of Object.values(todoLists)) list?.classList.remove('is-running');
       if (options.settleText ?? true) {
         if (status.live === 'interrupted') {
           setText(stateEl, '上次执行未正常结束，可重新执行「全部执行」');

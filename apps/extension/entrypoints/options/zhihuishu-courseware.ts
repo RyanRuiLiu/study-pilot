@@ -14,6 +14,7 @@
 
 import { getTaskState, getZhsCourseware, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
 import type { ZhsCoursewareProgress, ZhsCoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
+import { COURSEWARE_KINDS } from '../../src/ui/scopes.ts';
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { note } from './note.ts';
@@ -252,7 +253,8 @@ function buildRow(entry: ZhsCoursewareProgress): HTMLElement {
         setEnabled,
         refresh: refreshZhsCourseViews,
       },
-      { platformId: 'zhihuishu', group: entry.courseName },
+      // 与慕课课件卡同一范围：只发课件类，别把这门课的别类事项一并做掉
+      { platformId: 'zhihuishu', kinds: COURSEWARE_KINDS, group: entry.courseName },
     );
   });
 

@@ -10,13 +10,14 @@
  *   成功但无事可办   显示「暂无待办」——这是确切结论，不是读取不出
  *   成功且有事项     逐条列出，按课程归拢，过期项垫在所属课程最后
  *
- * 界面只经 src/ui-bridge.ts 取数：getPending / getSettings / WORK_STATUS。
+ * 界面只经 src/ui-bridge.ts 取数：getPending / getSettings。
  */
 
 import { getPending, getSettings, runNow } from '../../src/ui-bridge';
 import type { PendingEntry } from '../../src/ui-bridge';
 import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { todoEl } from './elements.ts';
+import { createTodoArea } from './todo-area.ts';
 import { setRunning, statusWriterFor } from './status.ts';
 
 /** 每类待办对应什么，以及点进去打开哪个页面（href 由平台拼好，这里不拼 URL）。 */
@@ -155,54 +156,15 @@ function buildRow(entry: PendingEntry): HTMLElement {
   return item;
 }
 
-/** 一句提示文案的段落元素。 */
-function note(className: string, text: string): HTMLElement {
-  const element = document.createElement('p');
-  element.className = className;
-  element.textContent = text;
-  return element;
-}
-
 /**
- * 覆盖待办区的内容。
- *
- * 统一走这里，是为了不遗漏加载态：待办区在数据到达前先显示一句
- * 「正在获取最新数据」。若某个分支直接 replaceChildren，那句提示
- * 会一直留在页面上，与真正的内容并存。
+ * 待办区的公共件（空/失败/需登录/分组）在 todo-area.ts；这里给三样差别：
+ * 容器、登录去处、以及一行怎么渲染（buildRow 在本文件）。
  */
-function writeTodo(children: Node[]): void {
-  todoEl?.classList.remove('is-loading');
-  todoEl?.replaceChildren(...children);
-}
-
-/** 待办区呈现失败状态。 */
-function setTodoError(message: string): void {
-  writeTodo([note('todo-error', `读取失败：${message}`)]);
-}
-
-/**
- * 待办区呈现「需要登录」。
- *
- * 与失败状态在样式与措辞上都分开：失败是一句解释，这里是给一个去处。
- * 会话 cookie 是会话级的，关浏览器几天再打开就会过期，
- * 用户遇到的多半是这种情况——他并没有做错什么，只是需要重新登录一次。
- */
-function showLoginPrompt(): void {
-  const box = document.createElement('div');
-  box.className = 'todo-login';
-
-  const text = note('todo-login-text', '登录状态已失效，需重新登录慕课平台后方可读取待办。');
-
-  const link = document.createElement('a');
-  link.className = 'btn';
-  link.href = 'https://www.icourse163.org/';
-  link.target = '_blank';
-  link.rel = 'noreferrer';
-  link.textContent = '前往登录';
-
-  box.append(text, link);
-  writeTodo([box]);
-}
+const area = createTodoArea<PendingEntry>({
+  element: () => todoEl,
+  loginText: '登录状态已失效，需重新登录慕课平台后方可读取待办。',
+  loginHref: 'https://www.icourse163.org/',
+});
 
 /**
  * 按课程归拢。组内未完的在前、过期的垫后（两段各自保持后台给出的
@@ -220,32 +182,12 @@ function groupByCourse(entries: PendingEntry[]): Map<string, PendingEntry[]> {
   return grouped;
 }
 
-function buildGroup(title: string, entries: PendingEntry[]): HTMLElement {
-  const group = document.createElement('section');
-  group.className = 'todo-group';
-
-  const head = document.createElement('p');
-  head.className = 'todo-course';
-
-  const name = document.createElement('span');
-  name.textContent = title;
-
-  const count = document.createElement('span');
-  count.className = 'todo-count';
-  count.textContent = `${entries.length} 项`;
-
-  head.append(name, count);
-  group.append(head);
-  for (const entry of entries) group.append(buildRow(entry));
-  return group;
-}
-
 /** 渲染待办。 */
 export async function renderTodo(): Promise<void> {
   const settings = await getSettings();
   const courses = settings.mooc.courses.filter((course) => course.enabled);
   if (courses.length === 0) {
-    writeTodo([note('todo-empty', '尚未选择参与任务的课程。在「更多」中读取课程列表并勾选。')]);
+    area.write([area.note('todo-empty', '尚未选择参与任务的课程。在「更多」中读取课程列表并勾选。')]);
     return;
   }
 
@@ -258,7 +200,7 @@ export async function renderTodo(): Promise<void> {
      */
     outcome = await getPending();
   } catch (error) {
-    setTodoError(errorText(error));
+    area.error(errorText(error));
     return;
   }
 
@@ -267,8 +209,8 @@ export async function renderTodo(): Promise<void> {
      * 未登录与读取失败要分开说。未登录不是出错，是少做了一步：
      * 待办读不到是因为平台不知道该给谁读。
      */
-    if (outcome.reason === 'NOT_LOGGED_IN') showLoginPrompt();
-    else setTodoError(outcome.message);
+    if (outcome.reason === 'NOT_LOGGED_IN') area.loginPrompt();
+    else area.error(outcome.message);
     return;
   }
 
@@ -279,12 +221,12 @@ export async function renderTodo(): Promise<void> {
    */
   const entries = outcome.value.entries;
   if (entries.length === 0) {
-    writeTodo([note('todo-empty', '暂无待办。')]);
+    area.write([area.note('todo-empty', '暂无待办。')]);
     return;
   }
 
-  writeTodo([]);
+  area.write([]);
   for (const [courseName, list] of groupByCourse(entries)) {
-    todoEl?.append(buildGroup(courseName, list));
+    todoEl?.append(area.buildGroup(courseName, list, buildRow));
   }
 }

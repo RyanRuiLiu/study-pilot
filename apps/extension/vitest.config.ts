@@ -4,8 +4,7 @@
  * `WxtVitest` 插件做四件事：注入浏览器扩展 API 的内存实现（fakeBrowser）、
  * 解析 WXT 生成的路径别名、读取 .wxt 的类型、按 vitest 的方式装配。
  * 之前这里没有任何配置：测试环境里 `browser` 全局不存在，于是凡是碰存储、
- * 定时器与通知的模块都得手写替身，`src/background/runtime/alarms.ts` 与
- * `wiring.ts` 干脆没有测试——不是它们不重要，是没法测。
+ * 定时器与通知的模块都得手写替身——不是它们不重要，是没法测。
  *
  * 覆盖率的门槛写在这里而不是靠人记得看：见 coverage.thresholds。
  */
@@ -38,8 +37,8 @@ export default defineConfig({
        * 都学会忽略它。它的用途是**棘轮**：只许往上抬。加了测试就顺手把对应
        * 数字提上去，删了测试就会红。
        *
-       * 现在的短板集中在页面装配层（`ui/form.ts`、`settings/page-write.ts`、
-       * 各设置分区 0%）：那些是要在真浏览器里点才看得见对错的东西。
+       * 现在的短板集中在页面装配层（`entrypoints/` 下的各页面脚本）：
+       * 那些是要在真浏览器里点才看得见对错的东西。
        */
       thresholds: { lines: 47, functions: 42, statements: 47, branches: 48 },
     },

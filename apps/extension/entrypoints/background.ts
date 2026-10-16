@@ -26,7 +26,7 @@ export default defineBackground(() => {
    *
    * 第二个平台（智慧树）就是这么加进来的：调它的工厂，把它并进
    * handlers 与 platforms 清单。消息类型带 ZHS_ 前缀，与慕课的命令互不相撞；
-   * `*` 兜底由慕课表提供（合并时它排在前，先落位）。
+   * 没人认领的 type 由路由自己回「处理不了」（兜底不挂在任何平台的表上）。
    */
   const mooc = createMoocPlatform({
     host: browserCapabilities,

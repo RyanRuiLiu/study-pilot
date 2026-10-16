@@ -126,14 +126,6 @@
   border-radius: var(--radius-xs) var(--radius-xs) 0 0;
 }
 
-/* 占位（未接入的平台）：空态形态的一句话——不是骨架、不是错误 */
-.tab-empty {
-  margin: 0;
-  padding: var(--space-20) var(--space-16);
-  font-size: var(--text-sm);
-  color: var(--ink-faint);
-}
-
 /* ---------- 说明文本 ---------- */
 
 /* 附注/状态一句话：跟在上文之后留 12px；空内容不占位 */

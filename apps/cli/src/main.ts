@@ -1,43 +1,56 @@
 /*
  * 命令行载体。
  *
- * 它的作用是证明「扩展只是一个载体」：核心用例与厂商装配都从包里取，
+ * 它的作用是证明「扩展只是一个载体」：核心用例与两个平台的装配都从包里取，
  * 扩展侧一行代码都不用——`@study-pilot/application` 给端口与用例，
- * `@study-pilot/platform-mooc` 给慕课的运行件（createMoocRuntime）。
+ * `@study-pilot/platform-mooc` / `@study-pilot/platform-zhs` 各给自家的运行件。
  * 本目录只提供载体自己的四件事：配置文件、cookie 文件、状态文件、进度输出。
  *
+ * 两个平台的待遇与扩展侧一致（对照 extension 的 background.ts 装配）：
+ * 同一份会话文件里各取各的 cookie（host.ts）、各出各的请求头（fetch.ts），
+ * `run` 的 platforms() 两家都给——命令默认两家都读，`--platform` 收窄。
+ *
  * 命令：
- *   courses [--select <termId>]   去平台读课程列表；--select 把它勾上并写进配置（只读平台）
- *   pending                       读一遍并算出「要做什么」（可自动 / 需人工），只读
- *   run [--yes] [--kind ...] [--course ...]   预演这一轮会做什么；**加 --yes 才真的执行**（会写平台）
+ *   courses [--platform <id>] [--select <id>]   去平台读课程列表；--select 勾上那门课（写进配置）
+ *   pending [--platform <id>]                   读一遍并算出「要做什么」（可自动 / 需人工），只读
+ *   run [--platform <id>] [--yes]               预演这一轮会做什么；**加 --yes 才真的执行**（会写平台）
  *
  * 为什么 run 默认是预演：写平台会改账号上的学习记录，且不可撤销。所以默认只把「要做什么」
  * 摆出来，真正动手必须显式给 --yes——这就是本载体的授权规则（扩展那边等价的是用户点按钮）。
  *
  * 用法：
- *   node apps/cli/src/main.ts pending --cookies .probe/mooc-session.json --config .probe/cli-config.json
- *   node apps/cli/src/main.ts run --yes --cookies .probe/mooc-session.json --config .probe/cli-config.json
+ *   node apps/cli/src/main.ts pending --cookies .probe/browser-session.json --config .probe/cli-config.json
+ *   node apps/cli/src/main.ts run --yes --platform zhihuishu --cookies .probe/browser-session.json --config .probe/cli-config.json
  */
 
-import { createRunner, type RoundResult } from '@study-pilot/application';
-import { createMoocRuntime } from '@study-pilot/platform-mooc';
+import { createRunner, type PlatformTasks, type RoundResult } from '@study-pilot/application';
+import {
+  BROWSER_USER_AGENT as MOOC_USER_AGENT,
+  createMoocRuntime,
+} from '@study-pilot/platform-mooc';
+import {
+  BROWSER_USER_AGENT as ZHS_USER_AGENT,
+  createZhsRuntime,
+} from '@study-pilot/platform-zhs';
 import { createFileConfigStore } from './config-store.ts';
 import { createHeaderFetch } from './fetch.ts';
-import { createCookieFileHost, readSessionFile } from './host.ts';
+import { createCookieFileHost, readSessions } from './host.ts';
 import { createStdoutProgress } from './progress.ts';
 import { createFileTaskStore } from './task-store.ts';
 
 const USAGE = `study-pilot（命令行载体）
 
-  courses [--select <termId>]   去平台读课程列表；--select 把它勾上并写进配置（只读平台）
-  pending                       读一遍并算出要做什么（能做 / 需人工），只读
-  run [--yes]                   预演这一轮；加 --yes 才真的执行（会写平台）
+  courses [--platform <id>] [--select <id>]   去平台读课程列表；--select 勾上那门课（写进配置）
+  pending [--platform <id>]                   读一遍并算出要做什么（能做 / 需人工），只读
+  run [--platform <id>] [--yes]               预演这一轮；加 --yes 才真的执行（会写平台）
 
 可选参数：
-  --cookies <file>   浏览器导出的会话文件（默认 .probe/mooc-session.json）
+  --cookies <file>   浏览器导出的会话文件（默认 .probe/browser-session.json）
   --config  <file>   配置文件（默认 .probe/cli-config.json）
   --state   <file>   运行状态文件（默认 .probe/cli-state.json）
-  --kind    <类,...> run 的范围：只做这些类别（courseware / quiz / review / self / homework / exam）
+  --platform <id>    只做这个平台：mooc / zhihuishu（默认两家都读）
+  --kind    <类,...> run 的范围：只做这些类别（取值由平台定义：mooc 是
+                     courseware / quiz / review / self / homework / exam，zhihuishu 是 courseware）
   --course  <课程名> run 的范围：只做这一门课
   --yes              run 的授权旗标：没有它只预演，不写平台
 `;
@@ -47,6 +60,7 @@ interface Args {
   cookies: string;
   config: string;
   state: string;
+  platform: string | undefined;
   select: number | undefined;
   kinds: string[] | undefined;
   course: string | undefined;
@@ -56,9 +70,10 @@ interface Args {
 function parseArgs(argv: string[]): Args {
   const args: Args = {
     command: argv[0] ?? '',
-    cookies: '.probe/mooc-session.json',
+    cookies: '.probe/browser-session.json',
     config: '.probe/cli-config.json',
     state: '.probe/cli-state.json',
+    platform: undefined,
     select: undefined,
     kinds: undefined,
     course: undefined,
@@ -84,6 +99,9 @@ function parseArgs(argv: string[]): Args {
     } else if (flag === '--state' && value !== undefined) {
       args.state = value;
       i += 1;
+    } else if (flag === '--platform' && value !== undefined) {
+      args.platform = value;
+      i += 1;
     } else if (flag === '--select' && value !== undefined) {
       args.select = Number(value);
       i += 1;
@@ -92,6 +110,22 @@ function parseArgs(argv: string[]): Args {
     }
   }
   return args;
+}
+
+/** 一家平台在本载体里露出的最小面：跑一轮的能力 + 会话文件里有没有它的 cookie。 */
+interface CarrierPlatform {
+  id: string;
+  name: string;
+  tasks: () => PlatformTasks;
+  /** 会话文件里有没有这门平台的 cookie（没有就没登录，courses 直接说明白） */
+  hasCookies: boolean;
+}
+
+/** 按 --platform 收窄；给了不认识的值回 null（调用方给一句人话）。 */
+function pickPlatforms(platforms: CarrierPlatform[], id: string | undefined): CarrierPlatform[] | null {
+  if (id === undefined) return platforms;
+  const hit = platforms.filter((platform) => platform.id === id);
+  return hit.length > 0 ? hit : null;
 }
 
 /** 一轮的结局 → 输出与退出码。命令行的「一句话」在这里，判断不在这里（用例说了算）。 */
@@ -104,7 +138,7 @@ function reportRound(result: RoundResult, configPath: string): number {
       console.error('未登录：会话 cookie 已失效，请重新导出（pnpm probe state export）');
       return 2;
     case 'no-course':
-      console.error(`没有勾选课程：先跑 courses --select <termId>（配置：${configPath}）`);
+      console.error(`没有勾选课程：先跑 courses --select <id>（配置：${configPath}）`);
       return 3;
     case 'nothing-to-do':
       console.log('没有可执行的事项');
@@ -135,102 +169,211 @@ async function main(): Promise<number> {
   }
 
   const config = createFileConfigStore(args.config);
-  const session = readSessionFile(args.cookies);
-  const runtime = createMoocRuntime({
-    host: createCookieFileHost(session),
+  const sessions = readSessions(args.cookies);
+  const mooc = createMoocRuntime({
+    host: createCookieFileHost(sessions.mooc),
     config,
-    fetch: createHeaderFetch(session),
+    // 慕课必须把 Origin/Referer 指向平台域名（实测事实，见 fetch.ts 文件头）
+    fetch: createHeaderFetch(sessions.mooc, { userAgent: MOOC_USER_AGENT, rewriteOrigin: true }),
     recordFailure: async (message) => {
       console.error(`[失败] ${message}`);
     },
     // 不注入文本生成器：讨论单元于是进人工（计划层按 hasTextGenerator 判断），执行层不假装成功
   });
+  const zhihuishu = createZhsRuntime({
+    config,
+    // 智慧树不改写 Origin（实测直连即 200，见 platform-zhs 的 net-rules.ts）
+    fetch: createHeaderFetch(sessions.zhihuishu, { userAgent: ZHS_USER_AGENT, rewriteOrigin: false }),
+    readCookie: createCookieFileHost(sessions.zhihuishu).readCookie,
+  });
+
+  const platforms: CarrierPlatform[] = [
+    {
+      id: 'mooc',
+      name: '中国大学 MOOC',
+      tasks: mooc.tasks,
+      hasCookies: Object.keys(sessions.mooc.cookies).length > 0,
+    },
+    {
+      id: 'zhihuishu',
+      name: '智慧树',
+      tasks: zhihuishu.tasks,
+      hasCookies: Object.keys(sessions.zhihuishu.cookies).length > 0,
+    },
+  ];
+
+  const targets = pickPlatforms(platforms, args.platform);
+  if (targets === null) {
+    console.error(`--platform 只认：${platforms.map((platform) => platform.id).join(' / ')}`);
+    return 64;
+  }
 
   switch (args.command) {
     case 'courses': {
-      const result = await runtime.refreshCourses();
-      if (!result.ok) {
-        console.error(`读取课程列表失败：${result.message}`);
+      const multi = targets.length > 1;
+      /** 刷新成功过的平台 → `--select` 的定位用（不给 --select 就是空跑一遍） */
+      const refreshed = new Map<string, number[]>();
+
+      for (const target of targets) {
+        if (multi) console.log(`${target.name}：`);
+        if (!target.hasCookies) {
+          console.log('  未登录（会话文件里没有该平台的 cookie，先跑 pnpm probe state export）');
+          continue;
+        }
+        if (target.id === 'mooc') {
+          const result = await mooc.refreshCourses();
+          if (!result.ok) {
+            console.log(`  ${result.message}`);
+            continue;
+          }
+          // 勾选状态在配置里（刷新只写平台事实、沿用勾选），标记以配置为准
+          const settings = await config.read();
+          const enabled = new Set(settings.mooc.courses.filter((c) => c.enabled).map((c) => c.termId));
+          refreshed.set('mooc', result.courses.map((course) => course.termId));
+          for (const course of result.courses) {
+            console.log(`  ${course.termId}\t${course.name}${enabled.has(course.termId) ? ' ← 已勾选' : ''}`);
+          }
+        } else {
+          const result = await zhihuishu.refreshCourses();
+          if (!result.ok) {
+            console.log(`  ${result.message}`);
+            continue;
+          }
+          // 智慧树的刷新直接返回合并后的课程（含 enabled），标记取它即可
+          refreshed.set('zhihuishu', result.courses.map((course) => course.courseId));
+          for (const course of result.courses) {
+            console.log(`  ${course.courseId}\t${course.name}${course.enabled ? ' ← 已勾选' : ''}`);
+          }
+        }
+      }
+
+      if (args.select === undefined) return 0;
+
+      const select = args.select;
+      const hits = [...refreshed.entries()].filter(([, ids]) => ids.includes(select));
+      if (hits.length === 0) {
+        console.error(`\n这次读回来的课程里没有 id=${select}（先不加 --select 看一遍列表）`);
         return 1;
       }
-      if (result.courses.length === 0) {
-        console.log('平台没有返回任何课程');
-        return 0;
+      if (hits.length > 1) {
+        console.error(`\nid=${select} 在两家平台的列表里都有——请加 --platform 指明是哪家`);
+        return 1;
       }
-      for (const course of result.courses) {
-        const marker = course.termId === args.select ? ' ← 已勾选' : '';
-        console.log(`${course.termId}\t${course.name}${marker}`);
-      }
-      if (args.select !== undefined) {
-        /*
-         * 勾选状态只改这一项：列表形状来自配置本身（刷新时已写回），因此这里不重造字段，
-         * 只翻转 enabled——字段少一个都不会有编译错误，所以不手写结构体。
-         */
-        const current = await config.read();
+
+      /*
+       * 勾选的落点各平台各说各的：
+       *   慕课   —— 单选模型（课程卡片上一次只有一门参与），勾上这门即取消其余；
+       *   智慧树 —— 多选模型（每门课一个开关），--select 是**切换**（再跑一次即反向），
+       *             这是命令行里唯一能同时表达「勾上」与「取消」的动作。
+       * 写回都只动自己那一段配置，不整份回写。
+       */
+      const current = await config.read();
+      if (hits[0][0] === 'mooc') {
         const courses = current.mooc.courses.map((course) => ({
           ...course,
-          enabled: course.termId === args.select,
+          enabled: course.termId === select,
         }));
         if (!courses.some((course) => course.enabled)) {
-          console.error(`平台返回的课程里没有 termId=${args.select as number}`);
+          console.error(`\n配置里没有 termId=${select}`);
           return 1;
         }
         await config.update({ mooc: { courses } });
-        console.log(`\n已把 termId=${args.select as number} 写进 ${args.config}`);
+        console.log(`\n已把 termId=${select} 写进 ${args.config}`);
+      } else {
+        const course = current.zhihuishu.courses.find((entry) => entry.courseId === select);
+        if (course === undefined) {
+          console.error(`\n配置里没有 courseId=${select}`);
+          return 1;
+        }
+        const courses = current.zhihuishu.courses.map((entry) =>
+          entry.courseId === select ? { ...entry, enabled: !entry.enabled } : entry,
+        );
+        await config.update({ zhihuishu: { courses } });
+        console.log(`\n已${course.enabled ? '取消勾选' : '勾选'} courseId=${select}（再跑一次 --select 可反向切换）`);
       }
       return 0;
     }
 
     case 'pending': {
-      const plan = await runtime.tasks().plan(Date.now());
-      if (plan.needsLogin === true) {
-        console.error('未登录：会话 cookie 已失效，请重新导出（pnpm probe state export）');
-        return 2;
+      const lines: string[] = [];
+      let auto = 0;
+      let manual = 0;
+      let planned = 0;
+      let allNeedsLogin = true;
+      let allNoCourse = true;
+
+      for (const target of targets) {
+        const plan = await target.tasks().plan(Date.now());
+        if (plan.needsLogin === true) {
+          console.error(`未登录：${target.name}（会话 cookie 已失效，请重新导出：pnpm probe state export）`);
+          continue;
+        }
+        allNeedsLogin = false;
+        if (plan.blocked === 'no-course') {
+          console.error(`没有勾选课程：${target.name}（先跑 courses --select <id>）`);
+          continue;
+        }
+        allNoCourse = false;
+        planned += 1;
+        for (const item of plan.items) {
+          if (item.mode === 'auto') auto += 1;
+          else manual += 1;
+          // 平台名放前缀：两家的项混在一张表里，同名课程也分得清谁家的
+          lines.push(`  [${item.mode === 'auto' ? '能做' : '需人工'}] ${target.name} · ${item.group} · ${item.title}`);
+        }
       }
-      if (plan.blocked === 'no-course') {
-        console.error(`没有勾选课程：先跑 courses --select <termId>（配置：${args.config}）`);
-        return 3;
-      }
-      const auto = plan.items.filter((item) => item.mode === 'auto');
-      const manual = plan.items.filter((item) => item.mode !== 'auto');
-      console.log(`能做 ${auto.length} 项，需人工 ${manual.length} 项`);
-      for (const item of auto) console.log(`  [能做] ${item.group} · ${item.title}`);
-      for (const item of manual) console.log(`  [需人工] ${item.group} · ${item.title}`);
-      if (auto.length === 0 && manual.length === 0) {
-        console.log('（读回来的数据里没有未完成的项）');
-      }
+
+      // 所有点名的平台都卡在同一件事上才用退出码表达（部分可用按 0 走，缺的那家已在 stderr 说明）
+      if (allNeedsLogin) return 2;
+      if (allNoCourse) return 3;
+
+      console.log(`能做 ${auto} 项，需人工 ${manual} 项`);
+      for (const line of lines) console.log(line);
+      if (lines.length === 0 && planned > 0) console.log('（读回来的数据里没有未完成的项）');
       return 0;
     }
 
     case 'run': {
-      // 范围（--kind / --course）。给了就在预演与执行两侧同样生效——预演要如实
-      // 反映加 --yes 后会做什么，否则那个「摆出来给你看」的意义就没了
+      /*
+       * 范围（--platform / --kind / --course）。给了就在预演与执行两侧同样生效——
+       * 预演要如实反映加 --yes 后会做什么，否则那个「摆出来给你看」的意义就没了。
+       */
       const selection =
-        args.kinds !== undefined || args.course !== undefined
-          ? { kinds: args.kinds, group: args.course }
+        args.platform !== undefined || args.kinds !== undefined || args.course !== undefined
+          ? {
+              ...(args.platform !== undefined ? { platformId: args.platform } : {}),
+              ...(args.kinds !== undefined ? { kinds: args.kinds } : {}),
+              ...(args.course !== undefined ? { group: args.course } : {}),
+            }
           : undefined;
 
       if (!args.yes) {
         /* 预演：读一遍，把「要做什么」摆出来，一个字都不写平台 */
-        const plan = await runtime.tasks().plan(Date.now());
-        if (plan.needsLogin === true) {
-          console.error('未登录：会话 cookie 已失效，请重新导出（pnpm probe state export）');
-          return 2;
+        let auto = 0;
+        let manual = 0;
+        for (const target of targets) {
+          const plan = await target.tasks().plan(Date.now(), selection);
+          if (plan.needsLogin === true) {
+            console.error(`未登录：${target.name}（会话 cookie 已失效，请重新导出：pnpm probe state export）`);
+            continue;
+          }
+          if (plan.blocked === 'no-course') {
+            console.error(`没有勾选课程：${target.name}（先跑 courses --select <id>）`);
+            continue;
+          }
+          const inScope = (item: { kind: string; group: string }): boolean =>
+            (args.kinds === undefined || args.kinds.includes(item.kind)) &&
+            (args.course === undefined || item.group === args.course);
+          const targetAuto = plan.items.filter((item) => item.mode === 'auto' && inScope(item));
+          const targetManual = plan.items.filter((item) => item.mode !== 'auto' && inScope(item));
+          auto += targetAuto.length;
+          manual += targetManual.length;
+          for (const item of targetAuto) console.log(`  [将做] ${target.name} · ${item.group} · ${item.title}`);
+          for (const item of targetManual) console.log(`  [需人工] ${target.name} · ${item.group} · ${item.title}`);
         }
-        if (plan.blocked === 'no-course') {
-          console.error(`没有勾选课程：先跑 courses --select <termId>（配置：${args.config}）`);
-          return 3;
-        }
-        const inScope = (item: { kind: string; group: string }): boolean =>
-          (args.kinds === undefined || args.kinds.includes(item.kind)) &&
-          (args.course === undefined || item.group === args.course);
-        const auto = plan.items.filter((item) => item.mode === 'auto' && inScope(item));
-        const manual = plan.items.filter((item) => item.mode !== 'auto' && inScope(item));
-        console.log(`预演（没有写平台）：这一轮会做 ${auto.length} 项，另有 ${manual.length} 项需你处理`);
-        for (const item of auto) console.log(`  [将做] ${item.group} · ${item.title}`);
-        for (const item of manual) console.log(`  [需人工] ${item.group} · ${item.title}`);
+        console.log(`预演（没有写平台）：这一轮会做 ${auto} 项，另有 ${manual} 项需你处理`);
         console.log(
-          auto.length === 0
+          auto === 0
             ? '没有要做的事，因此加不加 --yes 都不会写平台。'
             : '确认无误后加 --yes 真的执行（会改账号上的学习记录，不可撤销）。',
         );
@@ -239,10 +382,11 @@ async function main(): Promise<number> {
 
       /*
        * 真的执行：状态落文件、进度打到标准输出。
-       * 用例自己判「能不能开始」（状态文件里的中断标记 / 本进程认领），这里不重复判。
+       * 用例自己判「能不能开始」（状态文件里的中断标记 / 本进程认领），这里不重复判；
+       * 两家平台都交给用例（与扩展侧同一个 platforms() 形状），范围由 selection 收窄。
        */
       const runner = createRunner({
-        platforms: () => [runtime.tasks()],
+        platforms: () => [mooc.tasks(), zhihuishu.tasks()],
         tasks: createFileTaskStore(args.state),
         progress: createStdoutProgress(),
       });

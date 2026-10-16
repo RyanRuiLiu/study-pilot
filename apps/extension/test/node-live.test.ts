@@ -25,7 +25,7 @@ import { describe, expect, it } from 'vitest';
 import { BROWSER_USER_AGENT, COURSE_TYPE, createMoocClient, getCourses } from '@study-pilot/platform-mooc';
 import { md5hex } from '@study-pilot/core';
 
-const SESSION_FILE = resolve(process.cwd(), '../../.probe/mooc-session.json');
+const SESSION_FILE = resolve(process.cwd(), '../../.probe/browser-session.json');
 
 interface SessionFile {
   origin: string;
