@@ -154,6 +154,15 @@ export interface ZhsChapterExam {
   stuExamId: number;
   /** 学校 id（开卷/回顾/作答报文都要） */
   schoolId: number;
+  /**
+   * 该章第一个课时的 id——**探路建键时喂弹题通道要它**。
+   *
+   * 弹题通道（`popupAnswer/lessonPopupExam`）按课时挂载，而它接受的是**任意课程题**的
+   * questionIds（实测：把某卷真题的 questionId 喂进去照样回正解，FINDINGS §二十三），
+   * 所以这里只需要一个**该课真实存在的课时 id**，不必是被问的那道题所在课时。
+   * 取该章第一个：确定、可复现、与这门课同源。
+   */
+  lessonId: number;
 }
 
 /**
@@ -173,6 +182,10 @@ export function chapterExams(chapters: readonly ZhsChapterNode[]): ZhsChapterExa
     const route = parseHomeworkRoute(str(dto.examUrl));
     if (stuExamId === 0 || examId === 0 || route === null) continue;
 
+    const firstLesson = arr(chapter.videoLessons)[0];
+    const lessonId = num(firstLesson?.id);
+    if (lessonId === 0) continue; // 没有课时就没有可用的弹题通道入口——跳过，不猜
+
     exams.push({
       chapterName: str(chapter.name),
       listId: route.listId,
@@ -180,6 +193,7 @@ export function chapterExams(chapters: readonly ZhsChapterNode[]): ZhsChapterExa
       examId,
       stuExamId,
       schoolId: route.schoolId,
+      lessonId,
     });
   }
   return exams;

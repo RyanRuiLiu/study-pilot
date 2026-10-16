@@ -125,6 +125,7 @@ describe('chapterExams', () => {
     {
       id: 1000052029,
       name: '第一章',
+      videoLessons: [{ id: 1000057846, name: '导论', videoId: 66907961, videoSec: 501 }],
       studentExamDto: {
         id: 3214675458,
         state: 1,
@@ -136,7 +137,15 @@ describe('chapterExams', () => {
 
   it('四个 id 都取到：路线段给 8 字符串，DTO 给数字那对', () => {
     expect(chapterExams(withExams)).toEqual([
-      { chapterName: '第一章', listId: 'elQdaA6j', examKey: 'e8NaaJzy', examId: 67291230, stuExamId: 3214675458, schoolId: 6729 },
+      {
+        chapterName: '第一章',
+        listId: 'elQdaA6j',
+        examKey: 'e8NaaJzy',
+        examId: 67291230,
+        stuExamId: 3214675458,
+        schoolId: 6729,
+        lessonId: 1000057846,
+      },
     ]);
   });
 

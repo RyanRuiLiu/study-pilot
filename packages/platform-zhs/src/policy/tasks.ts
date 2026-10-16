@@ -20,9 +20,11 @@ import type {
 import type { ZhihuishuCourse } from '@study-pilot/application';
 import type { ZhsClient } from '../client.ts';
 import { readCourseIsApply, selectedCourses } from '../courses.ts';
+import { getExamList, HOMEWORK_STATE, isActionable, type ZhsExamListItem } from '../exam-list.ts';
 import { readSession, type CookieReader } from '../session.ts';
-import { getCourseUnits, type ZhsUnit } from '../structure.ts';
+import { chapterExams, getCourseUnits, readCourseChapters, type ZhsChapterExam, type ZhsUnit } from '../structure.ts';
 import { executeUnit, type ExecuteUnitInput } from './execute.ts';
+import { executeExam, type ExamRunInput, type ExamTarget } from './execute-exam.ts';
 
 /** 平台跑一轮需要的外界能力。由装配层创建后注入（与慕课同一形状）。 */
 export interface ZhsRunDeps {
@@ -41,6 +43,22 @@ export function unitItemId(unit: ZhsUnit): string {
 interface UnitPayload {
   course: ZhihuishuCourse;
   unit: ZhsUnit;
+}
+
+/** 单元测试项的 id（展示与「只做这一条」回传都用它，必须同一份）。 */
+export function quizItemId(item: ZhsExamListItem): string {
+  return `zhs-quiz-${item.id}`;
+}
+
+/** 单元测试项的载荷：清单条目 + 章节结构（数字 id 与弹题通道入口都在后者里）。 */
+interface QuizPayload {
+  course: ZhihuishuCourse;
+  item: ZhsExamListItem;
+  chapter: ZhsChapterExam;
+  /** 该卷总分（清单给的；判满分的基准。拿不到就是 null，神谕判据会据此失效） */
+  totalScore: number | null;
+  /** 已交过一次（走「收割 → 重做 → 定分」，不重打第一枪） */
+  alreadySubmitted: boolean;
 }
 
 export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
@@ -80,10 +98,16 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
 
       const items: PlanItem[] = [];
       for (const course of selected) {
-        const units = await getCourseUnits(deps.client, {
+        // 每门课一次结构读取：同一份章节表喂视频单元与章节测验条目（见 structure.ts）
+        const chapters = await readCourseChapters(deps.client, {
           recruitAndCourseId: course.secret,
           recruitId: course.recruitId,
         });
+        const units = await getCourseUnits(
+          deps.client,
+          { recruitAndCourseId: course.secret, recruitId: course.recruitId },
+          chapters,
+        );
         for (const unit of units) {
           if (unit.done) continue;
           items.push({
@@ -95,11 +119,56 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
             payload: { course, unit } satisfies UnitPayload,
           });
         }
+
+        /*
+         * 单元测试：清单的未交页签里、**只有 state=1（没动过）** 的才进计划。
+         * 其余状态（4 已交、5 重做过）语义未查清，一律如实呈现、不动手——
+         * 「不动手」比「猜着做」便宜得多。
+         *
+         * 章节结构按 chapterName 对上（清单的 cpOrderNumber 就是章节名，实测）。
+         */
+        const chapterByListId = new Map(chapterExams(chapters).map((exam) => [exam.listId, exam]));
+        const pending = await getExamList(deps.client, {
+          recruitId: course.recruitId,
+          courseId: course.courseId,
+          submitted: false,
+        });
+        const history = await getExamList(deps.client, {
+          recruitId: course.recruitId,
+          courseId: course.courseId,
+          submitted: true,
+        });
+
+        const pushQuiz = (item: ZhsExamListItem, totalScore: number | null, alreadySubmitted: boolean): void => {
+          const chapter = chapterByListId.get(item.id);
+          if (chapter === undefined) return; // 对不上章节就不做（拿不到数字卷号，神谕也用不了）
+          items.push({
+            id: quizItemId(item),
+            group: course.name,
+            title: item.examName,
+            mode: 'auto',
+            kind: 'quiz',
+            payload: { course, item, chapter, totalScore, alreadySubmitted } satisfies QuizPayload,
+          });
+        };
+
+        // ① 没动过的（未交页签 + state=1）
+        for (const item of pending) {
+          if (item.meetCourseType !== 0 || !isActionable(item)) continue;
+          pushQuiz(item, item.totalScore, false);
+        }
+        // ② 已交但没满分的（Ryan 口径：直接走第二次——收割建键是只读的，不用重打第一枪）
+        for (const item of history) {
+          if (item.meetCourseType !== 0 || item.state !== HOMEWORK_STATE.submitted) continue;
+          if (item.score === null || item.totalScore === null || item.score >= item.totalScore) continue;
+          pushQuiz(item, item.totalScore, true);
+        }
       }
       return { items };
     },
 
     async run(item: PlanItem, _heartbeat: () => Promise<void>, control: RunControl): Promise<RunOutcome> {
+      if (item.kind === 'quiz') return runQuiz(item, control);
       const { course, unit } = item.payload as UnitPayload;
       if (course.secret.length === 0) {
         return { status: 'failed', message: '课程缺少入口参数，先读取课程列表' };
@@ -126,5 +195,42 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
       return executeUnit(deps.client, input, control);
     },
   };
+
+  /**
+   * 单元测试那一枪。
+   *
+   * 第一期**答案键只有一个来源：该卷历史已交**（`lookHomework` → 弹题通道），
+   * 所以这里每次现收割、用完即弃（不落盘，见设计文档 §7-5）。这也意味着
+   * **从没交过的卷没有键**——那正是探路重做存在的理由。
+   *
+   * 收割是只读的；真正的写（开卷/作答/交卷/重做）全在 executeExam 里，
+   * 由它自己的闸门看着。
+   */
+  async function runQuiz(item: PlanItem, control: RunControl): Promise<RunOutcome> {
+    const { course, item: entry, chapter, totalScore, alreadySubmitted } = item.payload as QuizPayload;
+    const session = await readSession(deps.readCookie);
+    if (!session.loggedIn) return { status: 'failed', message: '未登录' };
+
+    const target: ExamTarget = {
+      recruitId: course.recruitId,
+      courseId: course.courseId,
+      schoolId: chapter.schoolId,
+      listId: entry.id,
+      examKey: entry.examId,
+      examIdNum: chapter.examId,
+      stuExamIdNum: chapter.stuExamId,
+    };
+
+    const input: ExamRunInput = {
+      target,
+      userId: session.userId,
+      key: null, // 第一期不做键的落盘：每次现收割、用完即弃（见 execute-exam.ts 的 harvestKey）
+      questionIds: [],
+      totalScore,
+      popupLessonId: chapter.lessonId,
+      alreadySubmitted,
+    };
+    return executeExam(deps.client, input, control);
+  }
 }
 
