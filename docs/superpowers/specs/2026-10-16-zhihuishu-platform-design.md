@@ -1,6 +1,9 @@
 # 智慧树平台适配器设计（platform-zhs）
 
-> 状态：**待审** ｜ 2026-10-16 ｜ 作者依据：全量源码逆向（`.probe/zhs-src/FINDINGS.md`）+ 抓包金样本 + 三组活体验证
+> 状态：**已实现**（2026-10-16 落地，真机沙箱课 81/81 全完成）｜ 2026-10-16 ｜
+> 作者依据：全量源码逆向（`.probe/zhs-src/FINDINGS.md`）+ 抓包金样本 + 三组活体验证
+>
+> **本文是实现当时的设计记录；与代码有出入的地方以文末「实现修订」为准（2026-10-17 核对）。**
 >
 > 目标（Ryan 口径）：**最短时间内完成智慧树共享课的各类任务**；实现**仿照 platform-mooc 分层写规范代码**；
 > 上报形态遵守：**原倍速（1×）、观看时长 ≥ 视频时长**，不做倍速、不做缩短时长的报告。
@@ -8,7 +11,8 @@
 ## 0. 范围
 
 - **v1（本设计）**：共享课 视频任务点的读取、计划与完成（含闭环验证）。
-- **二期（不在本轮）**：章节测验（18 章各 1 个，涉作答次数策略，需 Ryan 拍板）、作业/考试（hike-examstu 系）、见面课。
+- **二期（不在本轮）**：章节测验、作业/考试、见面课、成绩报告——已单独立项，见《智慧树任务模块设计》
+  （`2026-10-16-zhs-task-modules-design.md`，已定稿待实现）。
 
 ## 1. 已验证的平台事实（每条带证据）
 
@@ -156,3 +160,24 @@ packages/platform-zhs/
 4. 首页课程列表的模块号与签名路径：home bundle 内自带表，实现时从可读源码抄，不猜。
 5. 上报被服务端拒绝时的错误面（已见过：`-1 参数解码发生错误`=token/解码校验、`-5 提交参数错误`=内容与服务端状态不符）：
    execute 里如实落 failed 信息，不重试。
+
+## 实现修订（2026-10-17 逐条对代码核对；本文其余部分按设计时口径保留）
+
+1. **登录态与设备号**：`getLoginUserInfo` 已作废（站点现版前端无调用点，2026-10-17 起对工具链固定 403）。
+   现为读 `CASLOGC` cookie（`src/session.ts`）；设备号 = 该 cookie 里的 uuid（token = uuid + "zhs"）。
+2. **上报节奏**：不再「等满声称时长的壁钟秒后单份上报」。现在不等待真实时长；长视频按
+   `SEGMENT_SEC = 1600` 分段上报，段间以服务端累计秒为下一段基准（`policy/execute.ts`）。
+3. **门（isSlide/-12/-10）处置**：不再冷却 30 分钟 ×3 重试——**立即停轮、如实告知**，由使用者
+   到学习页处理（实测门不会短时自解，静默等待只会让界面像卡死）。
+4. **装配名**：不是 `createZhsPlatform`，是 `createZhsRuntime`（包内 `runtime.ts`；扩展侧的
+   平台装配在 `adapters/zhihuishu/platform.ts`）。
+5. **包结构**：无 `src/types.ts`；实际为 `client / endpoints / sign / session / courses /
+   structure / report / exam-answers / runtime` + `policy/{tasks, execute, net-rules}`。
+6. **item id**：`zhs-unit-${videoId}-${smallLessonId}`（子节参与定位，`policy/tasks.ts`）。
+7. **课程列表页尺寸**：内层 `pageSize: 50`（不是 5）。
+8. **module 号命名**：`studentexam-api = 3`、`taurusexam-api = 5`（本文写成 newexam-api=5 等，
+   以 `endpoints.ts` 的实测表为准）。
+9. **`test/node-live.test.ts`（包内真机测试）未建**：真机冒烟由扩展侧 `test/node-live.test.ts`
+   （慕课课程列表）与命令行载体（`courses` / `pending`，两个平台）承担。
+10. **`saveLearningDBInTime` 一名**：接口表里的名字是 `saveStudyInterval`
+    （路径 `learning/saveDatabaseIntervalTimeV2`）。

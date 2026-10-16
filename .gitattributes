@@ -9,7 +9,3 @@
 *.ico binary
 *.woff binary
 *.woff2 binary
-
-# 抓包样本体量大，折叠显示。
-docs/data/*.json -diff
-docs/samples/*.html -diff
