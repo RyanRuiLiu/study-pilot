@@ -13,14 +13,20 @@ import { describe, expect, it } from 'vitest';
 import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '../src/client.ts';
 import { loadViewAnswers } from '../src/quiz.ts';
-import type { QuizPaper } from '../src/types.ts';
+import type { PaperQuestion, QuizPaper } from '../src/types.ts';
 
 const TID = 1247900569;
 const TOKEN = 'test-token';
 const CURRENT_AID = 3538814063;
 const SUBMITTED_AID = 3426750568;
+const TERM_ID = 1476746497;
 
-/** 一份卷面：题目 id 与 position 由调用方给出（position 是题库序号，不是页面题号）。 */
+/**
+ * 一份卷面。
+ *
+ *  给空串表示这份卷**没带答案**（未提交的卷就是这样，平台不给）——
+ * 此时两个选项都不带标记，与真机一致。
+ */
 function paper(aid: number, questions: Array<{ id: number; correct: string }>): QuizPaper {
   return {
     tid: TID,
@@ -30,7 +36,7 @@ function paper(aid: number, questions: Array<{ id: number; correct: string }>): 
       type: 1,
       optionDtos: [
         { id: q.id * 10, content: '错误项', answer: null },
-        { id: q.id * 10 + 1, content: q.correct, answer: true },
+        { id: q.id * 10 + 1, content: q.correct, answer: q.correct === '' ? null : true },
       ],
     })),
   };
@@ -41,10 +47,12 @@ interface StubOptions {
   info: Record<string, unknown>;
   /** 按 aid 分发的取卷结果。 */
   papers?: Map<number, QuizPaper>;
+  /** 题库（getQuestionListByTermId）的返回；缺省为空题库。 */
+  bank?: PaperQuestion[];
 }
 
 /** 记录每次请求；getQuizInfo 与 getOpenQuizPaperDto 分开应答，取卷按 aid 分发。 */
-function clientStub({ info, papers = new Map() }: StubOptions) {
+function clientStub({ info, papers = new Map(), bank = [] }: StubOptions) {
   const calls: Array<{ bean: string; body: Record<string, unknown> }> = [];
   const client = createMoocClient({
     fetch: (async (url: string, init?: RequestInit) => {
@@ -53,9 +61,11 @@ function clientStub({ info, papers = new Map() }: StubOptions) {
       const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
       calls.push({ bean, body });
 
-      const result = bean.includes('getQuizInfo')
-        ? info
-        : (papers.get(Number(body.aid)) ?? null);
+      const result = bean.includes('getQuestionListByTermId')
+        ? bank
+        : bean.includes('getQuizInfo')
+          ? info
+          : (papers.get(Number(body.aid)) ?? null);
       return new Response(JSON.stringify({ code: 0, message: '', result }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -87,7 +97,7 @@ describe('作答页（页面显示当前这份卷）', () => {
       ])],
     ]);
     const { client, paperCalls } = clientStub({
-      info: { tid: TID, aid: CURRENT_AID, targetAnswerform: { aid: SUBMITTED_AID } },
+      info: { tid: TID, termId: TERM_ID, aid: CURRENT_AID, targetAnswerform: { aid: SUBMITTED_AID } },
       papers,
     });
 
@@ -109,7 +119,7 @@ describe('作答页（页面显示当前这份卷）', () => {
 
   it('没有正在作答的卷时如实失败', async () => {
     const { client } = clientStub({
-      info: { tid: TID, aid: 0, targetAnswerform: { aid: SUBMITTED_AID } },
+      info: { tid: TID, termId: TERM_ID, aid: 0, targetAnswerform: { aid: SUBMITTED_AID } },
     });
 
     const result = await loadViewAnswers(client, TID, 'answering');
@@ -123,7 +133,7 @@ describe('查看页（页面显示已提交的那份）', () => {
       [SUBMITTED_AID, paper(SUBMITTED_AID, [{ id: 100, correct: '甲题答案' }])],
     ]);
     const { client, paperCalls } = clientStub({
-      info: { tid: TID, aid: 0, targetAnswerform: { aid: SUBMITTED_AID } },
+      info: { tid: TID, termId: TERM_ID, aid: 0, targetAnswerform: { aid: SUBMITTED_AID } },
       papers,
     });
 
@@ -137,12 +147,58 @@ describe('查看页（页面显示已提交的那份）', () => {
 
   it('从未作答时如实失败，且不发取卷请求', async () => {
     const { client, paperCalls } = clientStub({
-      info: { tid: TID, aid: 0, targetAnswerform: null },
+      info: { tid: TID, termId: TERM_ID, aid: 0, targetAnswerform: null },
     });
 
     const result = await loadViewAnswers(client, TID, 'review');
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.message).toContain('还没有作答过');
     expect(paperCalls()).toHaveLength(0);
+  });
+});
+
+describe('题库补缺（作答页上不在已提交那份里的题）', () => {
+  it('按选项 id 从题库补上答案', async () => {
+    const papers = new Map<number, QuizPaper>([
+      [CURRENT_AID, paper(CURRENT_AID, [{ id: 101, correct: '' }])],
+      [SUBMITTED_AID, paper(SUBMITTED_AID, [{ id: 100, correct: '上次那份的答案' }])],
+    ]);
+    const bank: PaperQuestion[] = [
+      {
+        id: 9001,
+        type: 1,
+        optionDtos: [
+          { id: 1010, answer: false },
+          { id: 1011, answer: true },
+        ],
+      },
+    ];
+    const { client } = clientStub({
+      info: { tid: TID, termId: TERM_ID, aid: CURRENT_AID, targetAnswerform: { aid: SUBMITTED_AID } },
+      papers,
+      bank,
+    });
+
+    const result = await loadViewAnswers(client, TID, 'answering');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // 这道题不在已提交的那份里，答案由题库按选项 id（1010/1011）补上
+    expect(result.value[0]!.answer?.optionDtos?.map((o) => o.answer)).toEqual([false, true]);
+  });
+
+  it('题库也查不到时不编答案（answer 为 null）', async () => {
+    const papers = new Map<number, QuizPaper>([
+      [CURRENT_AID, paper(CURRENT_AID, [{ id: 101, correct: '' }])],
+    ]);
+    const { client } = clientStub({
+      info: { tid: TID, termId: TERM_ID, aid: CURRENT_AID, targetAnswerform: null },
+      papers,
+      bank: [{ id: 9001, type: 1, optionDtos: [{ id: 999, answer: true }] }],
+    });
+
+    const result = await loadViewAnswers(client, TID, 'answering');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value[0]!.answer).toBeNull();
   });
 });

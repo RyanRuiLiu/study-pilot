@@ -62,6 +62,11 @@ export {
   getOpenQuizInfo,
   getQuizPaper,
   buildAnswers,
+  buildAnswersWithBank,
+  getQuizBank,
+  buildAnswerIndex,
+  hasAnswer,
+  fillAnswersFromBank,
   loadViewAnswers,
   saveDraft,
   submitQuiz,
@@ -69,6 +74,8 @@ export {
   type AnswerRow,
   type AnswersView,
   type BuildAnswersResult,
+  type BuildAnswersOptions,
+  type AnswerIndex,
 } from './quiz.ts';
 
 /*

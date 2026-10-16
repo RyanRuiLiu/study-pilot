@@ -241,7 +241,7 @@ describe('随堂测验：像真人一样交一份答卷', () => {
     expect(rpcCalls('saveMocContentLearn')).toHaveLength(0);
   });
 
-  it('卷面取不到答案时返回失败：不交残缺答卷，也不报完成', async () => {
+  it('卷面取不到答案、题库也没有时返回失败：不交残缺答卷，也不报完成', async () => {
     const { client, rpcCalls } = clientStub({
       getOpenQuizPaperDto: {
         code: 0,
@@ -254,12 +254,47 @@ describe('随堂测验：像真人一样交一份答卷', () => {
           ],
         },
       },
+      getQuestionListByTermId: { code: 0, message: '', result: [] },
     });
     const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.QUESTION }));
 
     expect(result.ok).toBe(false);
     expect(rpcCalls('submitAnswers')).toHaveLength(0);
     expect(rpcCalls('saveMocContentLearn')).toHaveLength(0);
+  });
+
+  it('卷面没带答案（未提交的单元测验）时用题库按选项 id 补，然后照常交', async () => {
+    const { client, rpcCalls } = clientStub({
+      getOpenQuizPaperDto: {
+        code: 0,
+        message: '',
+        result: {
+          id: 5003,
+          objectiveQList: [
+            { id: 11, type: 1, optionDtos: [{ id: 101 }, { id: 102 }] },
+            { id: 12, type: 4, optionDtos: [{ id: 103 }, { id: 104 }] },
+          ],
+        },
+      },
+      // 题库按 termId 取：选项 id 与卷面同空间
+      getQuestionListByTermId: {
+        code: 0,
+        message: '',
+        result: [
+          { id: 9001, type: 1, optionDtos: [{ id: 101, answer: true }, { id: 102, answer: false }] },
+          { id: 9002, type: 4, optionDtos: [{ id: 103, answer: false }, { id: 104, answer: true }] },
+        ],
+      },
+    });
+    await completeUnit(client, unitOf({ contentType: UNIT_TYPE.QUESTION }));
+
+    const submitted = rpcCalls('submitAnswers');
+    expect(submitted).toHaveLength(1);
+    const paperDto = submitted[0]?.body.paperDto as Record<string, unknown>;
+    expect(paperDto.answers).toEqual([
+      { qid: 11, type: 1, optIds: [101], time: expect.any(Number) },
+      { qid: 12, type: 4, optIds: [104], time: expect.any(Number) },
+    ]);
   });
 });
 

@@ -79,8 +79,13 @@ function fail(message: string): { ok: false; error: TransportError } {
   return { ok: false, error: { kind: 'http', message } };
 }
 
-/** 平台接口的替身不碰凭证，客户端只需要一个占位。 */
-const client = {} as MoocClient;
+/**
+ * 平台接口的替身不碰凭证。只有题库（getQuizBank）会经 client.rpc 真发请求——
+ * 它是 buildAnswersWithBank 内部直接调用的模块函数，替身模块换不掉，只能从这里给。
+ * 默认空题库：「卷面没答案、题库也没有 → 不交」是下面几条失败用例的前提。
+ */
+let bank: unknown[] = [];
+const client = { rpc: { call: async () => ok(bank) } } as unknown as MoocClient;
 
 function snapshotWork(overrides: Partial<SnapshotWork> = {}): SnapshotWork {
   return {
@@ -193,6 +198,7 @@ function nextOf(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  bank = [];
 });
 
 // ---------- 测验 ----------
@@ -245,6 +251,22 @@ describe('runQuiz：自动完成一份单元测验', () => {
     );
     // 关键：部分作答会拿到低于预期的分数，宁可一份都不交
     expect(submitQuiz).not.toHaveBeenCalled();
+  });
+
+  it('卷面没答案（未提交的单元测验）：题库按选项 id 补上后照常提交', async () => {
+    vi.mocked(submitQuiz).mockResolvedValue(ok(undefined));
+    const paper = quizPaper({
+      objectiveQList: [...objectiveQuestion(11, [[101, null], [102, null]])],
+    });
+    vi.mocked(getQuizPaper).mockResolvedValue(ok(paper));
+    bank = [{ id: 9001, type: 1, optionDtos: [{ id: 101, answer: false }, { id: 102, answer: true }] }];
+
+    const result = await runQuiz(client, workAction('quiz'));
+
+    expect(result.status).toBe('done');
+    expect(vi.mocked(submitQuiz).mock.calls[0]?.[1]?.answers).toEqual([
+      { qid: 11, type: 1, optIds: [102], time: expect.any(Number) },
+    ]);
   });
 
   it('含主观题：failed，不自动交（只交客观部分=残缺答卷）', async () => {

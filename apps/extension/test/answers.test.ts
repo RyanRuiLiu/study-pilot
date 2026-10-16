@@ -129,6 +129,26 @@ describe('答案进块', () => {
     expect(injectedTexts()[0]).toContain('特许经营');
   });
 
+  it('正确选项是图片（没有文字）时给出选项字母，与平台自己的展示一致', async () => {
+    const question: PaperQuestion = {
+      id: 7,
+      type: 1,
+      position: 0,
+      optionDtos: [
+        { id: 70, content: '<p>甲</p>', answer: false },
+        { id: 71, content: '<p><img src="https://x/a.png"></p>', answer: true },
+      ],
+      stdAnswer: null,
+      analyse: null,
+    };
+    const load: AnswerLoader = async () => [{ question, answer: question }];
+    await injectAnswers(load, 100);
+
+    expect(blockCount()).toBe(1);
+    // 标签与值是两个段落，拼起来就是「参考答案B」
+    expect(injectedTexts()[0]).toBe('参考答案B');
+  });
+
   it('解析里的脚本不落进页面（白名单净化）', async () => {
     const load: AnswerLoader = async () => [answered(1, '甲', '<p>正文</p><script>window.x=1</script>')];
     await injectAnswers(load, 100);

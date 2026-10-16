@@ -15,7 +15,7 @@ import {
   nextSubmission,
   submitEvaluation,
 } from '../../review.ts';
-import { buildAnswers, getQuizPaper, submitQuiz } from '../../quiz.ts';
+import { buildAnswersWithBank, getQuizPaper, submitQuiz } from '../../quiz.ts';
 import type { MoocClient } from '../../client.ts';
 import type { WorkAutoAction } from '../plan/index.ts';
 import type { ExecResult } from './types.ts';
@@ -60,7 +60,12 @@ export async function runQuiz(
     return { ...base, status: 'failed', detail: `这份测验含 ${subjective} 道主观题，需人工作答，不自动提交` };
   }
 
-  const built = buildAnswers(paper.value);
+  // 卷面自带答案直接用；没带（未提交的单元测验）按 termId 用题库补
+  const builtResult = await buildAnswersWithBank(client, action.course.termId, paper.value);
+  if (!builtResult.ok) {
+    return { ...base, status: 'failed', detail: `取答案失败：${builtResult.error.message}` };
+  }
+  const built = builtResult.value;
   if (built.total === 0) {
     return { ...base, status: 'skipped', detail: '这份答卷没有客观题' };
   }

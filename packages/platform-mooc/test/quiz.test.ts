@@ -7,8 +7,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { buildAnswers } from '../src/quiz.ts';
-import type { QuizPaper } from '../src/types.ts';
+import { buildAnswerIndex, buildAnswers, fillAnswersFromBank, hasAnswer } from '../src/quiz.ts';
+import type { PaperQuestion, QuizPaper } from '../src/types.ts';
 
 const TID = 900000001;
 
@@ -60,7 +60,7 @@ describe('buildAnswers（答案来自卷面自身）', () => {
 
   it('选择类：optIds 就是卷面上被标记为正确的选项', () => {
     const target = paper();
-    buildAnswers(target, 1700000000000);
+    buildAnswers(target, { now: 1700000000000 });
     const byQid = new Map(target.answers!.map((answer) => [answer.qid, answer]));
 
     expect(byQid.get(700000001)!.optIds).toEqual([18755666866459]);
@@ -114,5 +114,61 @@ describe('buildAnswers（答案来自卷面自身）', () => {
 
     expect(result.unresolved).toEqual([700000006]);
     expect(target.answers).toEqual([]);
+  });
+});
+
+/*
+ * 题库：未提交的卷的答案来源（2026-10-17 实测——平台对随堂测验随卷下发答案，
+ * 对单元测验在提交前一份都不给；题库与作答状态无关，按**选项 id** 对齐）。
+ */
+describe('题库补答案（fillAnswersFromBank）', () => {
+  it('按选项 id 给卷面上没带答案的题补正确标记；卷面已有的题不动', () => {
+    const index = buildAnswerIndex([
+      { id: 9001, type: 1, optionDtos: [{ id: 101, answer: true }, { id: 102, answer: false }] },
+    ]);
+    const questions: PaperQuestion[] = [
+      // 卷面自己的标记是权威：题库里就算有不同口径也不覆盖
+      { id: 11, type: 1, optionDtos: [{ id: 101, answer: false }, { id: 102, answer: true }] },
+      { id: 12, type: 1, optionDtos: [{ id: 101 }, { id: 102 }] },
+    ];
+
+    const filled = fillAnswersFromBank(questions, index);
+
+    expect(hasAnswer(filled[0]!)).toBe(true);
+    expect(filled[0]!.optionDtos?.map((o) => o.answer)).toEqual([false, true]);
+    expect(filled[1]!.optionDtos?.map((o) => o.answer)).toEqual([true, false]);
+  });
+
+  it('题库里没有的题原样返回（仍是没有答案），不猜', () => {
+    const index = buildAnswerIndex([
+      { id: 9001, type: 1, optionDtos: [{ id: 999, answer: true }] },
+    ]);
+    const questions: PaperQuestion[] = [
+      { id: 13, type: 1, optionDtos: [{ id: 201 }, { id: 202 }] },
+    ];
+
+    const filled = fillAnswersFromBank(questions, index);
+
+    expect(hasAnswer(filled[0]!)).toBe(false);
+    expect(filled[0]).toBe(questions[0]);
+  });
+
+  it('buildAnswers 带 answerIndex 时把补到的答案写进提交载荷', () => {
+    const target: QuizPaper = {
+      tid: TID,
+      objectiveQList: [
+        { id: 21, type: 1, optionDtos: [{ id: 301 }, { id: 302 }] },
+        { id: 22, type: 3, optionDtos: null, stdAnswer: null },
+      ],
+    };
+    const index = buildAnswerIndex([
+      { id: 9001, type: 1, optionDtos: [{ id: 301, answer: false }, { id: 302, answer: true }] },
+    ]);
+
+    const result = buildAnswers(target, { answerIndex: index });
+
+    expect(result.matched).toBe(1);
+    expect(result.unresolved).toEqual([22]);
+    expect(target.answers).toEqual([{ qid: 21, type: 1, optIds: [302], time: expect.any(Number) }]);
   });
 });
