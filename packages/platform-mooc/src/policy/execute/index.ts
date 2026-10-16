@@ -15,7 +15,7 @@
  * 中途关掉浏览器时，已完成的不会重做。
  *
  * 分工：工作项见 `work.ts`，课件单元见 `courseware.ts`，
- * 题库缓存见 `bank.ts`，结果形状见 `types.ts`。
+ * 结果形状见 `types.ts`。
  */
 
 import { NEVER_STOPPED, type RunControl } from '@study-pilot/application';
@@ -24,7 +24,6 @@ import type { CoursewareContext, DiscussPrep } from '../../courseware/index.ts';
 import { prepareDiscussReply } from '../../courseware/discuss.ts';
 import { UNIT_TYPE } from '../../types.ts';
 import type { AutoAction, CoursewareAutoAction } from '../plan/index.ts';
-import { BankCache } from './bank.ts';
 import { runCourseware } from './courseware.ts';
 import type { ExecResult } from './types.ts';
 import { runQuiz, runReview, runSelf } from './work.ts';
@@ -95,8 +94,6 @@ export async function executeActions(
   courseware: CoursewareContext = {},
   /** 停止柄：长动作在每个安全点问它一句（见 application 的 RunControl） */
   control: RunControl = NEVER_STOPPED,
-  /** 题库缓存：整轮共享一份才有意义；默认现建（单测等短生命周期调用） */
-  bank: BankCache = new BankCache(),
 ): Promise<ExecResult[]> {
   const results: ExecResult[] = [];
 
@@ -124,7 +121,7 @@ export async function executeActions(
       if (action.kind === 'courseware') {
         result = await runCourseware(client, action, courseware, control);
       } else if (action.kind === 'quiz') {
-        result = await runQuiz(client, action, bank, control);
+        result = await runQuiz(client, action, control);
       } else if (action.kind === 'self') {
         result = await runSelf(client, action, evaluatorId, comment, control);
       } else {

@@ -22,7 +22,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ok } from '@study-pilot/core';
 import type { TransportError } from '@study-pilot/transport';
 import type {
-  BankQuestion,
   EvaluationProgress,
   HomeworkInfo,
   HomeworkPaper,
@@ -38,7 +37,7 @@ import type { WorkAutoAction } from '../src/policy/plan/types.ts';
    替身按被测代码 import 的模块分：测验在 ../src/quiz.ts，作业与互评在 ../src/review.ts。 */
 vi.mock('../src/quiz.ts', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
-  return { ...actual, getQuizPaper: vi.fn(), getQuizBank: vi.fn(), submitQuiz: vi.fn() };
+  return { ...actual, getQuizPaper: vi.fn(), submitQuiz: vi.fn() };
 });
 
 vi.mock('../src/review.ts', async (importOriginal) => {
@@ -60,8 +59,7 @@ import {
   nextSubmission,
   submitEvaluation,
 } from '../src/review.ts';
-import { getQuizBank, getQuizPaper, submitQuiz } from '../src/quiz.ts';
-import { BankCache } from '../src/policy/execute/bank.ts';
+import { getQuizPaper, submitQuiz } from '../src/quiz.ts';
 import { runQuiz, runReview, runSelf } from '../src/policy/execute/work.ts';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -127,21 +125,16 @@ function workAction(
 
 // ---------- 测验的夹具 ----------
 
-/** 试卷上的一道客观题。选项 id 与题库同一空间。 */
+/** 试卷上的一道客观题：选项带正确标记（答案就在卷面上，2026-10-17 换接口）。 */
 function objectiveQuestion(
   id: number,
-  optionIds: number[],
+  options: Array<[number, boolean]>,
 ): NonNullable<QuizPaper['objectiveQList']> {
-  return [{ id, type: 1, optionDtos: optionIds.map((optionId) => ({ id: optionId })) }];
+  return [{ id, type: 1, optionDtos: options.map(([optionId, answer]) => ({ id: optionId, answer })) }];
 }
 
 function quizPaper(overrides: Partial<QuizPaper> = {}): QuizPaper {
   return { tid: TID, aid: 55, objectiveQList: [], ...overrides };
-}
-
-/** 题库题目：只有 `answer === true` 的选项会被算作正确答案。 */
-function bankQuestion(id: number, options: Array<[number, boolean]>): BankQuestion {
-  return { id, type: 1, optionDtos: options.map(([optionId, answer]) => ({ id: optionId, answer })) };
 }
 
 // ---------- 作业（自评 / 互评）的夹具 ----------
@@ -206,31 +199,13 @@ beforeEach(() => {
 
 describe('runQuiz：自动完成一份单元测验', () => {
   /*
-   * 顺序本身是一条约束：取卷带 `aid = 0`，服务端会为此**新建一份答题表单**，
-   * 这一步撤不回来。所以任何带副作用的调用都排在题库核对之后——
-   * 「读不到答案所以放弃」不该先把用户的卷子开出来。
+   * 取卷（aid = 0）会覆盖该课已过期的旧答卷，这是平台自己的行为
+   * （页面点「开始测验」就是它）；答案随卷面一起回来，见 quiz.ts。
    */
-  it('题库读不到时不开卷：服务端新建的答卷收不回来', async () => {
-    vi.mocked(getQuizBank).mockResolvedValue(fail('题库接口 500'));
-
-    const result = await runQuiz(client, workAction('quiz'), new BankCache());
-
-    expect(result).toEqual({
-      tid: TID,
-      name: '第一单元测验',
-      kind: 'quiz',
-      status: 'failed',
-      detail: '题库读取失败，无法核对答案',
-    });
-    expect(getQuizPaper).not.toHaveBeenCalled();
-    expect(submitQuiz).not.toHaveBeenCalled();
-  });
-
   it('取卷失败：如实报失败，不提交', async () => {
-    vi.mocked(getQuizBank).mockResolvedValue(ok([bankQuestion(1, [[101, true]])]));
     vi.mocked(getQuizPaper).mockResolvedValue(fail('HTTP 403'));
 
-    const result = await runQuiz(client, workAction('quiz'), new BankCache());
+    const result = await runQuiz(client, workAction('quiz'));
 
     expect(result).toEqual({
       tid: TID,
@@ -243,36 +218,39 @@ describe('runQuiz：自动完成一份单元测验', () => {
   });
 
   it('取卷用 aid = 0：这一步同时就是页面上的「开始测验」', async () => {
-    vi.mocked(getQuizBank).mockResolvedValue(ok([bankQuestion(1, [[101, true]])]));
     vi.mocked(getQuizPaper).mockResolvedValue(fail('停在这里'));
 
-    await runQuiz(client, workAction('quiz'), new BankCache());
+    await runQuiz(client, workAction('quiz'));
 
     expect(getQuizPaper).toHaveBeenCalledWith(client, TID, 0);
   });
 
-  it('题库覆盖不全：一道都不提交，并说明跳过的原因', async () => {
+  it('有一道题取不到答案：一道都不提交，并说明原因', async () => {
     vi.mocked(getQuizPaper).mockResolvedValue(
-      ok(quizPaper({ objectiveQList: [...objectiveQuestion(11, [101]), ...objectiveQuestion(12, [103])] })),
-    );
-    // 题库只有第 11 题（101 正确），第 12 题的选项不在其中
-    vi.mocked(getQuizBank).mockResolvedValue(
-      ok([bankQuestion(1, [[101, true]])]),
+      ok(
+        quizPaper({
+          objectiveQList: [
+            ...objectiveQuestion(11, [[101, true]]),
+            ...objectiveQuestion(12, [[103, false], [104, false]]),
+          ],
+        }),
+      ),
     );
 
-    const result = await runQuiz(client, workAction('quiz'), new BankCache());
+    const result = await runQuiz(client, workAction('quiz'));
 
     expect(result.status).toBe('failed');
-    expect(result.detail).toBe('1 道题未在题库中找到答案，已跳过以免得到低分');
+    expect(result.detail).toBe(
+      '1 道题取不到答案（卷面既无正确选项标记、也无标准答案），已跳过以免得到低分',
+    );
     // 关键：部分作答会拿到低于预期的分数，宁可一份都不交
     expect(submitQuiz).not.toHaveBeenCalled();
   });
 
   it('答卷没有客观题：skipped，不提交', async () => {
     vi.mocked(getQuizPaper).mockResolvedValue(ok(quizPaper({ objectiveQList: [] })));
-    vi.mocked(getQuizBank).mockResolvedValue(ok([]));
 
-    const result = await runQuiz(client, workAction('quiz'), new BankCache());
+    const result = await runQuiz(client, workAction('quiz'));
 
     expect(result).toEqual({
       tid: TID,
@@ -284,18 +262,18 @@ describe('runQuiz：自动完成一份单元测验', () => {
     expect(submitQuiz).not.toHaveBeenCalled();
   });
 
-  it('正常路径：答案按题库填好再提交，数字与实际提交一致', async () => {
-    vi.mocked(getQuizBank).mockResolvedValue(
-      ok([bankQuestion(1, [[101, true], [102, false]]), bankQuestion(2, [[103, true]])]),
-    );
+  it('正常路径：答案按卷面标记填好再提交，数字与实际提交一致', async () => {
     vi.mocked(submitQuiz).mockResolvedValue(ok(undefined));
 
     const paper = quizPaper({
-      objectiveQList: [...objectiveQuestion(11, [101, 102]), ...objectiveQuestion(12, [103])],
+      objectiveQList: [
+        ...objectiveQuestion(11, [[101, true], [102, false]]),
+        ...objectiveQuestion(12, [[103, true]]),
+      ],
     });
     vi.mocked(getQuizPaper).mockResolvedValue(ok(paper));
 
-    const result = await runQuiz(client, workAction('quiz'), new BankCache());
+    const result = await runQuiz(client, workAction('quiz'));
 
     expect(result).toEqual({
       tid: TID,
@@ -316,26 +294,14 @@ describe('runQuiz：自动完成一份单元测验', () => {
 
   it('提交失败：如实报失败，不谎报完成', async () => {
     vi.mocked(getQuizPaper).mockResolvedValue(
-      ok(quizPaper({ objectiveQList: objectiveQuestion(11, [101]) })),
+      ok(quizPaper({ objectiveQList: objectiveQuestion(11, [[101, true]]) })),
     );
-    vi.mocked(getQuizBank).mockResolvedValue(ok([bankQuestion(1, [[101, true]])]));
     vi.mocked(submitQuiz).mockResolvedValue(fail('服务端 500'));
 
-    const result = await runQuiz(client, workAction('quiz'), new BankCache());
+    const result = await runQuiz(client, workAction('quiz'));
 
     expect(result.status).toBe('failed');
     expect(result.detail).toBe('提交失败：服务端 500');
-  });
-
-  it('同一门课的题库在一轮里只读一次', async () => {
-    vi.mocked(getQuizPaper).mockResolvedValue(ok(quizPaper({ objectiveQList: [] })));
-    vi.mocked(getQuizBank).mockResolvedValue(ok([bankQuestion(1, [[101, true]])]));
-    const bank = new BankCache();
-
-    await runQuiz(client, workAction('quiz'), bank);
-    await runQuiz(client, workAction('quiz'), bank);
-
-    expect(getQuizBank).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -18,7 +18,6 @@ import {
 import { buildAnswers, getQuizPaper, submitQuiz } from '../../quiz.ts';
 import type { MoocClient } from '../../client.ts';
 import type { WorkAutoAction } from '../plan/index.ts';
-import type { BankCache } from './bank.ts';
 import type { ExecResult } from './types.ts';
 
 /** 单次执行中互评的循环上限。正常不会触及，仅用于防止接口异常导致死循环。 */
@@ -28,24 +27,16 @@ const REVIEW_LOOP_LIMIT = 40;
 export async function runQuiz(
   client: MoocClient,
   action: WorkAutoAction,
-  bank: BankCache,
   control: RunControl = NEVER_STOPPED,
 ): Promise<ExecResult> {
   const base = { tid: action.work.tid, name: action.work.name, kind: action.kind } as const;
 
   /*
-   * 先读题库，再开卷。
-   *
    * 取卷带 `aid = 0`，服务端据此为该用户**新建一份答题表单**——这一步已经落在
-   * 平台上了，撤不回来。把它放在题库核对之前，就会出现「开卷后发现答案凑不齐、
-   * 于是放弃」：那份卷还留着，用户自己去做时看到的是已经开好的卷子。
-   * 读取题库没有副作用，所以它先走。计划阶段对 `startOneSubmissionEvaluate`
-   * 用的是同一条判据（见 plan/work.ts 里的说明）。
+   * 平台上了，撤不回来。2026-10-17 换接口后答案随卷面一起回来（见 quiz.ts），
+   * 不再有「先核对题库再开卷」的前置步骤：答案凑不齐时会留下一份未作答的
+   * 答卷（与用户自己点开单元的效果相同，可接受）。
    */
-  const index = await bank.get(client, action.course.termId);
-  if (!index) {
-    return { ...base, status: 'failed', detail: '题库读取失败，无法核对答案' };
-  }
 
   // 停止键：开卷有副作用（服务端据此新建一份答题表单），停下就不再开
   if (control.stopped()) {
@@ -63,16 +54,16 @@ export async function runQuiz(
     return { ...base, status: 'failed', detail: `取卷失败：${paper.error.message}` };
   }
 
-  const built = buildAnswers(paper.value, index);
+  const built = buildAnswers(paper.value);
   if (built.total === 0) {
     return { ...base, status: 'skipped', detail: '这份答卷没有客观题' };
   }
   if (built.unresolved.length > 0) {
-    // 题库覆盖不全时不做部分提交：部分作答会拿到低于预期的分数
+    // 取不到答案时不做部分提交：部分作答会拿到低于预期的分数
     return {
       ...base,
       status: 'failed',
-      detail: `${built.unresolved.length} 道题未在题库中找到答案，已跳过以免得到低分`,
+      detail: `${built.unresolved.length} 道题取不到答案（卷面既无正确选项标记、也无标准答案），已跳过以免得到低分`,
     };
   }
 

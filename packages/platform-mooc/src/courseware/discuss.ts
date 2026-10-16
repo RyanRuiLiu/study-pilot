@@ -14,8 +14,12 @@
  * 留给用户手动处理，不写一条假装学过的留言。
  *
  * **题目来源**：不是单元名。单元名往往只是「讨论3.4」这种编号，把它喂给模型，
- * 模型只能围着编号编（实测发生过）。真正的题目在讨论帖的正文里，见 `resource.ts`。
- * 拿不到正文、或正文只有编号时**直接失败**，不生成。
+ * 模型只能围着编号编（实测发生过）。题面在讨论帖的两个字段里，见 `resource.ts`——
+ * 两种实测形态，代码都处理（都是平台真实下发的数据，不是兜底）：
+ *   · 正文在 `content`（标题只是「讨论 2.1」这类编号）——多数帖；
+ *   · **正文为空、题面写在 `title` 里**（如「讨论：在分析直流通路与交流通路时…？」）
+ *     ——2026-10-17 模电第 4/5 章实测。
+ * 两处都取不到可用题目时**直接失败**，不生成。
  */
 
 import { err, ok, type Result } from '@study-pilot/core';
@@ -61,24 +65,39 @@ const BARE_LABEL = /^[\s\d、.．:：;；,，章节课时讨论题思考练习�
 export const DISCUSS_REPLY_MAX_CHARS = 500;
 
 /**
- * 从讨论帖取出题目正文。取不到返回 `null`（调用方据此失败）。
+ * 把讨论帖拼成给 AI 的题面。两处都没有可用内容时返回 `null`（调用方据此失败）。
+ *
+ * 标题与正文都交给 AI——不挑字段、不推断谁是题目（见文件头）。每处各过
+ * 「够长、不是只有编号」的同一道关卡：编号标题（如「3.4 讨论题」）不占位置、
+ * 不进题面；两处都过不了关卡才算没有题面。
  */
-function discussionQuestion(post: UnitPost): string | null {
+function discussionTopic(post: UnitPost): string | null {
+  const parts: string[] = [];
+  const title = plain(post.title);
   const content = plain(post.content);
-  if (content.length < 6) return null;
-  if (BARE_LABEL.test(content)) return null;
-  return content;
+  if (title.length >= 6 && !BARE_LABEL.test(title)) parts.push(`标题：${title}`);
+  if (content.length >= 6 && !BARE_LABEL.test(content)) parts.push(`正文：${content}`);
+  if (parts.length === 0) return null;
+  return parts.join('\n');
 }
 
-/** 生成的内容发出去之前过一遍：这段校验是模型与平台之间的最后一道闸。 */
-function sanitize(generated: string): string | null {
+/**
+ * 生成的内容发出去之前过一遍：这段校验是模型与平台之间的最后一道闸。
+ *
+ * 不合规返回**具体原因**（哪一道闸没过），调用方原样交给用户——
+ * 「不合规（为空、超长或含链接）」这种三合一说法没法排查（实测撞到过）。
+ */
+function sanitize(generated: string): { ok: true; text: string } | { ok: false; reason: string } {
   const text = generated
     .replace(/```[\s\S]*?```/g, ' ') // 代码块：讨论区不适合放代码
-    .replace(/https?:\/\/\S+/g, ' ') // 链接：可能是模型编的
+    .replace(/https?:\/\/\S+/g, ' ') // 链接：可能是模型编的——去掉，句子本身保留
     .replace(/\s+/g, ' ')
     .trim();
-  if (text.length < 2 || text.length > DISCUSS_REPLY_MAX_CHARS) return null;
-  return text;
+  if (text.length < 2) return { ok: false, reason: 'AI 生成的讨论回复为空' };
+  if (text.length > DISCUSS_REPLY_MAX_CHARS) {
+    return { ok: false, reason: `AI 生成的讨论回复超过 ${DISCUSS_REPLY_MAX_CHARS} 字` };
+  }
+  return { ok: true, text };
 }
 
 /**
@@ -159,9 +178,9 @@ export async function prepareDiscussReply(
   if (!resource.value.post) {
     return { ok: false, reason: '平台没有返回讨论帖内容，无法确定讨论题' };
   }
-  const question = discussionQuestion(resource.value.post);
-  if (!question) {
-    return { ok: false, reason: '讨论帖正文为空或只有编号，无法生成贴题的留言' };
+  const topic = discussionTopic(resource.value.post);
+  if (!topic) {
+    return { ok: false, reason: '讨论帖的标题与正文都没有可用的题面' };
   }
 
   // 停止键：停下来就不再花一次生成
@@ -175,7 +194,8 @@ export async function prepareDiscussReply(
    */
   const generated = await context.generateText({
     task: 'discuss-reply',
-    input: `讨论题：${question}`,
+    input: `讨论帖内容：
+${topic}`,
   });
   if (!generated.ok) {
     return { ok: false, reason: `AI 生成讨论回复失败：${generated.reason}` };
@@ -204,10 +224,11 @@ export const discussBehavior: UnitBehavior = {
       return err(apiError(-1, prep.reason));
     }
 
-    const text = sanitize(prep.text);
-    if (!text) {
-      return err(apiError(-1, `AI 生成的讨论回复不合规（为空、超过 ${DISCUSS_REPLY_MAX_CHARS} 字或含链接）`));
+    const clean = sanitize(prep.text);
+    if (!clean.ok) {
+      return err(apiError(-1, clean.reason));
     }
+    const text = clean.text;
 
     // 停止键：AI 生成期间按的停止，在这一步生效——不再写帖子
     if (control.stopped()) return ok('stopped');
