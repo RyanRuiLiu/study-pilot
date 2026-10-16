@@ -387,6 +387,22 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
      覆盖率判据兜住（键覆盖不了卷面就停下）。
    - 布尔拼不出这一态：`submitted` 与 `redoOpen` 都要收割建键，差别只在「要不要申请重做」，
      而那一件事会吃掉一次机会——这正是不能藏在布尔里的东西。
+8. **期末数据的宿主尚未调通（2026-10-17，未决）**。已从考试应用源码逐字查明三件事，
+   **代码未落地**（那半成品已从工作区撤掉，别照 FINDINGS §二十一 那条老记录直接写端点）：
+   - **两个宿主、两份同名接口**。FINDINGS §二十一 记的 `getStudentFinalExam` 挂在
+     `studentexam-api` 上，**实测回 `code=-1`（已废弃）**；网页真正调的是
+     `getStudentFinalExamN`，基址 `serectExamT = //taurusexam-api.zhihuishu.com`
+     ＋ `taurusExam` ＋ `gateway/t/v1`（源码 readable/stuExamWeb…js）。
+   - **入参三个**：`{courseId, recruitId, flag}`——少 `flag` 会被拒。
+   - **只在 `examType === 1`（在线）那条分支里调**。机房走 `getStudentRoomExamN`、
+     线下走 `StudentOfflineExam`。所以「这门课有没有期末」**得先问形态**，
+     在读不到的课上「没有期末」与「期末不在这个接口」长得一样。
+   - 卡在哪：按源码逐字拼出的 taurus 路径**实测 HTTP 404**。查明它需要一次成功的
+     `pnpm probe capture`（真实页面的 HAR 是唯一事实源），而 capture 要独占启动
+     探测浏览器。**核实渠道打通后先补这一条。**
+   - 顺带一条工具事实（今天踩到）：`capture` / `state` 这类要读写 profile 与会话文件的
+     命令，**只能在探测浏览器所在的那个检出里跑**——从别的检出跑会用空 profile，
+     表现为「页面被 302 去登录页」。
 
 ## 8. 证据索引
 
