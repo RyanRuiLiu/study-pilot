@@ -67,6 +67,14 @@ export {
 } from './exam-list.ts';
 
 export {
+  EXAM_FORM,
+  normalizeFinalExam,
+  getExamForm,
+  getFinalExam,
+  type ZhsFinalExam,
+} from './final-exam.ts';
+
+export {
   buildAnswerBody,
   parseLookedPaper,
   parsePaper,

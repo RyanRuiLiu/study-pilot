@@ -26,6 +26,8 @@ export const ZHS_HOSTS = {
   study: 'https://studyservice-api.zhihuishu.com',
   online: 'https://onlineservice-api.zhihuishu.com',
   exam: 'https://studentexam-api.zhihuishu.com',
+  /** 期末考试的宿主（源码 serectExamT；HAR 实测 200） */
+  taurus: 'https://taurusexam-api.zhihuishu.com',
   /** 移动端业务域：神谕（草稿判分）在这里，整族免签明文表单 */
   app: 'https://appstudent.zhihuishu.com',
   key: 'https://appcomm-user.zhihuishu.com',
@@ -188,6 +190,52 @@ const ENDPOINT_TABLE = {
   examSubmit: {
     host: 'exam',
     path: '/studentExam/gateway/t/v1/answer/submit',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /*
+   * 期末考试族（宿主 taurusexam-api、模块号 5）。
+   *
+   * 两个事实来源一致：源码 stuExamWeb 的拼法（serectExamT + 斜杠 + taurusExam
+   * + 斜杠 + serectPath + /student/getStudentFinalExam，三个常量分别为
+   * //taurusexam-api.zhihuishu.com、taurusExam、gateway/t/v1）与真机 HAR
+   * （.probe/zhs-exam-psy 的 trace.har：同日 5 个 taurus 请求全 200）。
+   * 之前 404 的教训：这条族同样吃**加密入参**（secretStr 表单字段），
+   * 拿明文参数去调必被拒。
+   *
+   * 调用条件（源码）：先 exam/getExamType 拿到 1（在线）才调 getStudentFinalExam；
+   * 机房走 getStudentRoomExam、线下走 getStudentOfflineExam。入参三个：
+   * {courseId, recruitId, flag}——少 flag 会被拒。
+   */
+  /** 考试形态：1=在线 2=机房 3=线下（在线那条分支才会取期末） */
+  examType: {
+    host: 'taurus',
+    path: '/taurusExam/gateway/t/v1/exam/getExamType',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /** 期末考试条目：{courseId, recruitId, flag} → rt[]（examName/examId/state/时间窗） */
+  finalExam: {
+    host: 'taurus',
+    path: '/taurusExam/gateway/t/v1/student/getStudentFinalExam',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /** 服务器时间（考试族用它校时；taurus 侧同名） */
+  examCurrentTime: {
+    host: 'taurus',
+    path: '/taurusExam/gateway/t/v1/student/currentTime',
+    method: 'POST',
+    module: ZHS_MODULE.exam,
+    stampInside: true,
+  },
+  /** 自定义进度规则（期末同屏要读的一条） */
+  examProgressRule: {
+    host: 'taurus',
+    path: '/taurusExam/gateway/t/v1/student/getStuProgressRule',
     method: 'POST',
     module: ZHS_MODULE.exam,
     stampInside: true,

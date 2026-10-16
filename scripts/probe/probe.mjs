@@ -50,8 +50,15 @@ const EXT_DIR = path.join(ROOT, 'apps', 'extension', '.output', 'chrome-mv3');
 const SRC_DIR = path.join(ROOT, '.probe', 'mooc-src');
 
 const ORIGIN = 'https://www.icourse163.org';
-/** 探测浏览器的固定调试端口。端口本身不可信，attach 前核实对端身份（见 attach()）。 */
-const CDP_PORT = 9222;
+/**
+ * 探测浏览器的调试端口。端口本身不可信，attach 前核实对端身份（见 attach()）。
+ *
+ * 默认 9222；同一台机器上并行跑多个会话/工作区时用  分开——
+ * 每个工作区一个端口、各自一份 profile 与登录快照。实测（2026-10-17）：两路会话
+ * 都开探针时后开的抢不到端口，看到的会是对方 profile 里的浏览器（登录态对不上）。
+ * 归属校验照旧：attach 前必须对得上本工作区的归属标记，不同 profile 的实例不会被误用。
+ */
+const CDP_PORT = Number(process.env.PROBE_PORT ?? 9222);
 /**
  * 归属标记：launch() 每次启动写一枚随机值，同时落 profile 目录与本 cookie，
  * attach() 两边对上才认对端。cookie 只挂在 127.0.0.1（就是调试端口自己），不碰站点。
