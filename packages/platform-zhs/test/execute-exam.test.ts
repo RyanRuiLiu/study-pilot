@@ -246,11 +246,14 @@ describe('业务码（rt.statu）不被吞掉', () => {
         throw new ZhsApiError(-1, '滑块验证未通过不能答题');
       },
     };
-    await expect(executeExam(client, input(), NEVER_STOPPED)).rejects.toMatchObject({
+    const halt = await executeExam(client, input(), NEVER_STOPPED).catch((error: unknown) => error);
+    expect(halt).toMatchObject({
       name: 'ZhsRoundHalt',
-      message: '滑块验证未通过不能答题',
-      action: { platformId: 'zhihuishu', label: '打开验证页' },
+      message: '滑块验证未通过不能答题', // 平台原话，不替它改
+      action: { platformId: 'zhihuishu', label: '打开作业考试页' },
     });
+    // 去处是这一课的作业考试页（那一卷在那儿，点进去就是答题页）
+    expect((halt as { action: { url: string } }).action.url).toContain('#/webExamList?recruitId=');
   });
 
   it('别处（非作答通道）的 -1 不当门：如实失败，带上平台自己的原话', async () => {

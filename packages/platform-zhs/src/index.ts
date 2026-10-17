@@ -86,6 +86,7 @@ export {
 } from './exam-paper.ts';
 
 export { getMeetSessions, normalizeMeetSessions, type ZhsMeetSession } from './meet.ts';
+export { examListUrl, meetPageUrl, reportPageUrl, studyPageUrl } from './pages.ts';
 export { askOracle, judge, type OracleVerdict } from './oracle.ts';
 
 export { buildStudyReport, type StudyReport, type StudyReportInput } from './report.ts';

@@ -45,6 +45,7 @@ import {
 } from '../exam-paper.ts';
 import { askOracle, judge } from '../oracle.ts';
 import { gateAction, gateHaltMessage, ZhsRoundHalt } from './execute.ts';
+import { examListUrl, studyPageUrl } from '../pages.ts';
 
 /** 一张卷的入口参数（清单 + 章节测验条目合成）。 */
 export interface ExamTarget {
@@ -224,10 +225,19 @@ async function saveAnswers(
        * 别的通道的同名码不在这里判（见 ANSWER_GATE_CODES 的说明）。
        */
       if (error instanceof ZhsApiError && ANSWER_GATE_CODES.has(error.code)) {
+        /*
+         * 消息用**平台自己的话**（它给的 msg 就是「滑块验证未通过不能答题」这类），
+         * 去处是**作业考试页**：那一卷在那儿，点进去就是答题页面，验证也在那一页里
+         * 做完（Ryan 定）。不替平台改措辞，也不换它指的地方。
+         */
         const said = error.message.trim();
         throw new ZhsRoundHalt(
           said === '' ? gateHaltMessage('人机验证') : said,
-          gateAction(recruitAndCourseId),
+          {
+            platformId: 'zhihuishu',
+            label: '打开作业考试页',
+            url: await examListUrl(target.recruitId, studyPageUrl(recruitAndCourseId)),
+          },
         );
       }
       throw error;
