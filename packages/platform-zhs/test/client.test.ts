@@ -213,3 +213,18 @@ describe('错误映射', () => {
     expect(attempts).toBe(2);
   });
 });
+
+describe('平台自己的说明字段（msg）', () => {
+  it('说明在 msg 里：原样带出，不让界面只剩一个 code', async () => {
+    // 用免签端点（签名端点要先取钥，替身得额外伺候，与这条要测的事无关）
+    const client = createZhsClient({
+      fetch: async () =>
+        new Response(JSON.stringify({ status: -1, msg: '当前考试暂不可作答' }), { status: 200 }),
+      recoverKey: async () => new Uint8Array(16).fill(7),
+    });
+    await expect(client.call('meetSessions', { recruitId: 1 })).rejects.toMatchObject({
+      code: -1,
+      message: '当前考试暂不可作答',
+    });
+  });
+});

@@ -204,10 +204,23 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
       const response = await throttle.run(() => options.fetch(requestUrl, init));
       if (response.status !== 200) throw new ZhsHttpError(response.status);
 
-      const parsed = (await response.json()) as { code?: unknown; status?: unknown; message?: unknown };
+      const parsed = (await response.json()) as {
+        code?: unknown;
+        status?: unknown;
+        message?: unknown;
+        /** 平台自己的说明字段（考试族用它；源码逐字：`$message.error(o.msg)`） */
+        msg?: unknown;
+      };
       const rejected = rejectionCode(parsed);
       if (rejected !== null) {
-        throw new ZhsApiError(rejected, typeof parsed.message === 'string' ? parsed.message : '');
+        // 平台给了说明就原样带出——丢掉它，界面上只剩一个冷冰冰的 code
+        const detail =
+          typeof parsed.msg === 'string' && parsed.msg !== ''
+            ? parsed.msg
+            : typeof parsed.message === 'string'
+              ? parsed.message
+              : '';
+        throw new ZhsApiError(rejected, detail);
       }
       return parsed;
     },

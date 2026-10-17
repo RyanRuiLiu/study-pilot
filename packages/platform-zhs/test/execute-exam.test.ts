@@ -238,20 +238,21 @@ describe('业务码（rt.statu）不被吞掉', () => {
     expect(names).not.toContain('examSubmit');
   });
 
-  it('code=-1 是「未选修/无权限」，不是门：如实失败、不当验证', async () => {
+  it('code=-1 不当门、也不替平台解释：如实失败，带上平台自己的原话', async () => {
     /*
-     * 源码判分（考试应用 getWorkLists）：`-1/-3 → "您未选修当前课程，无此查看权限~"`。
-     * 一度被当成易盾（Ryan 纠正），这条钉住真身——否则课程退课后界面会教人去拖滑块。
+     * -1 的含义按接口各说各话（保存通道 `-1 == o.status` 两分支走退避/弹原话；
+     * 列表那条 `code=-1/-3` 才是「未选修」）。曾经套过一条全局「未选修」映射，
+     * 结果把一门有权限的课说成退课（Ryan 2026-10-17 报）。这里钉住：只说平台说的。
      */
     const client: ZhsClient = {
       call: async (name) => {
         if (name === 'examDoHomework') return { rt: PAPER };
-        throw new ZhsApiError(-1, '');
+        throw new ZhsApiError(-1, '当前考试暂不可作答');
       },
     };
     const outcome = await executeExam(client, input(), NEVER_STOPPED);
     expect(outcome.status).toBe('failed');
-    expect(outcome.message).toContain('未选修这门课');
+    expect(outcome.message).toContain('当前考试暂不可作答');
   });
 
   it('交卷的 statu=-1（已提交）不是门：信封码才有门的含义', async () => {

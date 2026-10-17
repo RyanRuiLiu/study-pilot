@@ -176,17 +176,15 @@ class ZhsStatuError extends Error {
 /** 作答被平台挂起（要人机验证 / 被禁用）：继续跑只会加重风控。 */
 const SAVE_STATU_GATE = new Set([-10, -20]);
 /**
- * 账号被挂起时作答接口回的错误码：`-12`（源码：`-12 → yuDuninstance`，整轮停止）。
+ * 作答被挂起时的错误码：`-12`（源码逐字 `-12 == o.code → yuDuninstance`，整轮停止）。
  *
- * **`-1` 不是门**（Ryan 2026-10-17 纠正，源码核对）：考试应用自己的判分是
- * `if (e.code && (-1 == e.code || -3 == e.code)) → "您未选修当前课程，无此查看权限~"`
- * （`.probe/zhs-exam-src/raw/9.c58d6fa5a5050724a831.js` 的 getWorkLists）。它是
- * **选课/权限**那一类事实——课退了、下架了、或这门课本就不在这份学期里。
- * 处置：如实说这门课读不到，让人去课程列表里处理，不冒充「要验证」。
+ * **`-1` 不在这里判**：它的含义按接口各说各话——考试族保存通道的源码分支是
+ * `-1 == o.status && 2 == o.msg` 走退避、`-1 == o.status && 2 != o.msg` 弹平台原话；
+ * 而列表那条（getWorkLists）的 `code=-1/-3` 才是「未选修/无查看权限」。同一个数字
+ * 在两个字段、两个接口上不是一个意思，套一条全局映射就会把有权限的课说成「未选修」
+ * （2026-10-17 Ryan 报的那次就是这么来的）。留着平台原话，别替它解释。
  */
 const ZHS_GATE_CODES = new Set([-12]);
-/** 未选修 / 无查看权限（源码 `-1` 与 `-3` 同一句话）。 */
-const ZHS_NO_PERMISSION_CODES = new Set([-1, -3]);
 
 function statuOf(body: unknown): number | null {
   const rt = (body as { rt?: unknown } | null | undefined)?.rt as { statu?: unknown } | null | undefined;
@@ -332,10 +330,6 @@ export async function executeExam(
     // 与视频线同一条处置：整轮停止、如实告知，不在这里做任何验证规避。
     if (error instanceof ZhsApiError && ZHS_GATE_CODES.has(error.code)) {
       throw new ZhsRoundHalt(gateHaltMessage('人机验证'), gateAction(input.recruitAndCourseId));
-    }
-    if (error instanceof ZhsApiError && ZHS_NO_PERMISSION_CODES.has(error.code)) {
-      // 平台原话：「您未选修当前课程，无此查看权限」——多半是课程已退课/下架
-      return failed(new Error('未选修这门课：平台无查看权限（课程可能已退课或下架）'));
     }
     if (isSessionFailure(error)) throw sessionHalt();
     return failed(error);
