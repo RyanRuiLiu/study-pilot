@@ -238,7 +238,22 @@ describe('业务码（rt.statu）不被吞掉', () => {
     expect(names).not.toContain('examSubmit');
   });
 
-  it('code=-1 不当门、也不替平台解释：如实失败，带上平台自己的原话', async () => {
+  it('作答通道的 -1 = 门（平台原话就是滑块没过）：停轮 + 带去处', async () => {
+    // Ryan 2026-10-17 真机：`msg` = 「滑块验证未通过不能答题」
+    const client: ZhsClient = {
+      call: async (name) => {
+        if (name === 'examDoHomework') return { rt: PAPER };
+        throw new ZhsApiError(-1, '滑块验证未通过不能答题');
+      },
+    };
+    await expect(executeExam(client, input(), NEVER_STOPPED)).rejects.toMatchObject({
+      name: 'ZhsRoundHalt',
+      message: '滑块验证未通过不能答题',
+      action: { platformId: 'zhihuishu', label: '打开验证页' },
+    });
+  });
+
+  it('别处（非作答通道）的 -1 不当门：如实失败，带上平台自己的原话', async () => {
     /*
      * -1 的含义按接口各说各话（保存通道 `-1 == o.status` 两分支走退避/弹原话；
      * 列表那条 `code=-1/-3` 才是「未选修」）。曾经套过一条全局「未选修」映射，
@@ -247,7 +262,8 @@ describe('业务码（rt.statu）不被吞掉', () => {
     const client: ZhsClient = {
       call: async (name) => {
         if (name === 'examDoHomework') return { rt: PAPER };
-        throw new ZhsApiError(-1, '当前考试暂不可作答');
+        if (name === 'examSaveAnswer') return { rt: { statu: '1' } }; // 作答这条通了
+        throw new ZhsApiError(-1, '当前考试暂不可作答'); // 门外的调用：照原话失败
       },
     };
     const outcome = await executeExam(client, input(), NEVER_STOPPED);

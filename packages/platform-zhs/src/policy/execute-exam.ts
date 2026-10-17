@@ -176,15 +176,19 @@ class ZhsStatuError extends Error {
 /** 作答被平台挂起（要人机验证 / 被禁用）：继续跑只会加重风控。 */
 const SAVE_STATU_GATE = new Set([-10, -20]);
 /**
- * 作答被挂起时的错误码：`-12`（源码逐字 `-12 == o.code → yuDuninstance`，整轮停止）。
+ * 作答被挂起时的错误码（**只在作答通道上判**）：`-12` 源码逐字
+ * `-12 == o.code → yuDuninstance`；`-10` 源码 `-10 == o.rt.statu → captchaForAnswer`；
+ * `-1` 是这道门在同一通道上的另一种回法——Ryan 2026-10-17 真机报的那次，
+ * 平台自己的话就是「滑块验证未通过不能答题」（保存通道源码里 `-1 == o.status` 的
+ * 两个分支：`2 == o.msg` 走退避、否则弹平台原话，两分支都停在作答上）。
  *
- * **`-1` 不在这里判**：它的含义按接口各说各话——考试族保存通道的源码分支是
- * `-1 == o.status && 2 == o.msg` 走退避、`-1 == o.status && 2 != o.msg` 弹平台原话；
- * 而列表那条（getWorkLists）的 `code=-1/-3` 才是「未选修/无查看权限」。同一个数字
- * 在两个字段、两个接口上不是一个意思，套一条全局映射就会把有权限的课说成「未选修」
- * （2026-10-17 Ryan 报的那次就是这么来的）。留着平台原话，别替它解释。
+ * **不放到全流程去判**：列表那条（getWorkLists）的 `code=-1/-3` 是「未选修/无查看权限」，
+ * 同一个数字在两个字段、两个接口上不是一个意思——套一条全局映射，就会把有权限的课
+ * 说成「退课」（那次错误就是这么来的）。
  */
 const ZHS_GATE_CODES = new Set([-12]);
+/** 作答通道上「门」的回码（含 -1：平台自己说滑块没过）。 */
+const ANSWER_GATE_CODES = new Set([-1, -10, -12]);
 
 function statuOf(body: unknown): number | null {
   const rt = (body as { rt?: unknown } | null | undefined)?.rt as { statu?: unknown } | null | undefined;
@@ -210,7 +214,24 @@ async function saveAnswers(
       schoolId: target.schoolId,
       courseId: target.courseId,
     });
-    const body = await client.call('examSaveAnswer', { stuExamAnswer, recruitId: target.recruitId });
+    let body: unknown;
+    try {
+      body = await client.call('examSaveAnswer', { stuExamAnswer, recruitId: target.recruitId });
+    } catch (error) {
+      /*
+       * 作答通道的门：**用平台自己的话**说停在哪里（它给的 msg 就是「滑块验证未通过
+       * 不能答题」这类），并附上去处——它就是让人去把那一次验证做掉。
+       * 别的通道的同名码不在这里判（见 ANSWER_GATE_CODES 的说明）。
+       */
+      if (error instanceof ZhsApiError && ANSWER_GATE_CODES.has(error.code)) {
+        const said = error.message.trim();
+        throw new ZhsRoundHalt(
+          said === '' ? gateHaltMessage('人机验证') : said,
+          gateAction(recruitAndCourseId),
+        );
+      }
+      throw error;
+    }
     const statu = statuOf(body);
     if (statu === SAVE_STATU_OK) continue;
     if (statu !== null && SAVE_STATU_GATE.has(statu)) {
