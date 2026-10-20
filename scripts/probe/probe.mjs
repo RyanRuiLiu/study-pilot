@@ -56,12 +56,14 @@ const ORIGIN = 'https://www.icourse163.org';
 /**
  * 探测浏览器的调试端口。端口本身不可信，attach 前核实对端身份（见 attach()）。
  *
- * 默认 9222；同一台机器上并行跑多个会话/工作区时用环境变量 PROBE_PORT 分开——
+ * 默认 9222；同一台机器上并行跑多个会话/工作区时用环境变量 STUDY_PILOT_PROBE_PORT
+ * 分开——项目里的环境变量统一带 STUDY_PILOT_ 前缀（另有 STUDY_PILOT_PROFILE 与
+ * STUDY_PILOT_LIVE），不带前缀的名字容易和别处撞。
  * 每个工作区一个端口、各自一份 profile 与登录快照。实测（2026-10-17）：两路会话
  * 都开探针时后开的抢不到端口，看到的会是对方 profile 里的浏览器（登录态对不上）。
  * 归属校验照旧：attach 前必须对得上本工作区的归属标记，不同 profile 的实例不会被误用。
  */
-const CDP_PORT = Number(process.env.PROBE_PORT ?? 9222);
+const CDP_PORT = Number(process.env.STUDY_PILOT_PROBE_PORT ?? 9222);
 /**
  * 归属标记：launch() 每次启动写一枚随机值，同时落 profile 目录与本 cookie，
  * attach() 两边对上才认对端。cookie 只挂在 127.0.0.1（就是调试端口自己），不碰站点。
@@ -1561,8 +1563,14 @@ async function previewIcons(page, dir, brand) {
  * 页面截图也不在这里：那几张要真实登录态，Ryan 2026-10-17 确认本次不做。
  */
 
-/** 商店素材目录。dist/ 已在 .gitignore：素材手动上传商店后台，不进仓库。 */
-const STORE_DIR = path.join(ROOT, 'dist', 'store');
+/**
+ * 商店素材目录：跟着扩展自己的构建产物走（`.output/`，每次 build 重生）。
+ *
+ * 从前落在仓库根的 `dist/store/`——那是第三种产物落点（扩展在 apps/extension/.output、
+ * 命令行在 apps/cli/dist），多一个顶层目录只让人猜哪个是真的。素材手动上传商店后台，
+ * 不进仓库，也不需要进：文案与色值都能从 tokens.css 重生。
+ */
+const STORE_DIR = path.join(ROOT, 'apps', 'extension', '.output', 'store');
 /** 两张磁贴。文件名沿用旧脚本，免得上传时对不上。 */
 const STORE_TILES = [
   { name: 'tile-small-440x280.png', width: 440, height: 280 },
@@ -1851,7 +1859,7 @@ const USAGE = `用法：pnpm probe <命令> [选项]
                                          生成扩展图标 → apps/extension/public/icon/
                                          （色值与字体现读 tokens.css；--check 只核对不生成；
                                            --preview 另出对照图 → .probe/shots/icon-preview.png）
-  store [--check]                        生成商店促销磁贴 → dist/store/
+  store [--check]                        生成商店促销磁贴 → apps/extension/.output/store/
                                           （440x280 与 1400x560；色值与字体现读 tokens.css；
                                            --check 只核对不生成）
   shot --url <URL> [--out <文件>]        截图（--out 同上，只认 .probe/ 内的相对路径；缺省 .probe/shot-<时间戳>.png）

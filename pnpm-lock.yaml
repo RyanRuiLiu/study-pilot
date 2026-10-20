@@ -187,9 +187,6 @@ importers:
       '@study-pilot/platform-zhs':
         specifier: workspace:*
         version: link:../../packages/platform-zhs
-      '@study-pilot/transport':
-        specifier: workspace:*
-        version: link:../../packages/transport
     devDependencies:
       '@types/node':
         specifier: ^22.10.0

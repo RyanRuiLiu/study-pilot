@@ -63,9 +63,12 @@
   `STUDY_PILOT_LIVE=1` 显式开启（服务端会话过期是常态，让它挂在默认门禁上只会教人忽略红灯）。
   其余冒烟同理：假的 `browser` 代理与假端口跑完策略层，真账号只在显式命令里出现。
 - 新行为配测试；测试只测自己那层的责任，不重复别层已验的东西（分层测试）。
-- 产物位置：扩展构建在 `apps/extension/.output/`（`chrome-mv3/` 可直接装载，
-  `zip` 出 `study-pilot-extension-<版本>-chrome.zip`，名字钉在 `wxt.config.ts`）；
-  命令行单文件在 `apps/cli/dist/main.mjs`；商店磁贴在 `dist/store/`。都在 `.gitignore` 内。
+- 产物位置只有一条规矩：**每个载体的构建输出在它自己的 `.output/` 下**，仓库里不留第二种
+  产物目录（历史上根目录还有个 `dist/`，与 `apps/cli/dist`、`apps/extension/.output` 三种并存）。
+  扩展在 `apps/extension/.output/`（`chrome-mv3/` 可直接装载，`zip` 出
+  `study-pilot-extension-<版本>-chrome.zip`，名字钉在 `wxt.config.ts`）；命令行单文件在
+  `apps/cli/.output/main.mjs`；商店磁贴在 `apps/extension/.output/store/`。都在 `.gitignore` 内。
+  已上传商店的历史包归档在 `apps/extension/releases/`（也忽略，只用于回看当时交了什么）。
 - 命令行的退出码是对外契约（0 正常 / 1 有失败 / 2 未登录 / 3 没勾选 / 4 上一轮未完 / 64 参数不对），
   改它要同时改 README 那张表。
 - 提交信息中文：标题一行说清做了什么，正文分条写为什么与实测证据（真机验证要写出

@@ -26,8 +26,9 @@ __pycache__/
 # 临时 profile（调试时用，不入库）
 .tmp-profile/
 
-# 构建产物（apps/cli 的 esbuild 输出等）
-dist/
+# 已上传过商店的扩展包归档（apps/extension/releases/）。
+# 二进制、只用于回看当时交了什么，不是项目内容；重新构建走 pnpm build / zip。
+apps/extension/releases/
 
 # 临时文件
 .msg.txt

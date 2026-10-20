@@ -482,7 +482,7 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
    - 顺带一条工具事实（今天踩到）：`capture` / `state` 这类要读写 profile 与会话文件的
      命令，**只能在探测浏览器所在的那个检出里跑**——从别的检出跑会用空 profile，
      表现为「页面被 302 去登录页」。两个会话并行时探针会抢 9222：**各自用
-     `PROBE_PORT` 分开**（默认 9222）。
+     `STUDY_PILOT_PROBE_PORT` 分开**（默认 9222）。
 
 ## 8. 证据索引
 

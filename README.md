@@ -68,7 +68,13 @@ PRIVACY.md 会同步改写。已经能自动做的客观题测验里，智慧树
         4  上一轮还没结束（状态文件的防重入）  64  命令或参数本身不对
 
 直接跑 TS 即可：Node 22+ 会剥掉类型，而包内的相对导入都带 .ts 扩展名，因此不经打包也能加载。
-要单文件分发时再打包：pnpm --filter @study-pilot/cli build → apps/cli/dist/main.mjs（esbuild）。
+要单文件分发时再打包：pnpm --filter @study-pilot/cli build → apps/cli/.output/main.mjs（esbuild）。
+
+    产物落点的唯一规矩：每个载体的构建输出都在它自己的 .output/ 下——
+        扩展   apps/extension/.output/chrome-mv3/（可直接装载）
+              apps/extension/.output/study-pilot-extension-<版本>-chrome.zip（单文件）
+        命令行 apps/cli/.output/main.mjs
+    已上传过商店的历史包归档在 apps/extension/releases/（git 忽略，只用于回看当时交了什么）。
 
 ## 真机调试（探测浏览器）
 
@@ -103,8 +109,8 @@ PRIVACY.md 会同步改写。已经能自动做的客观题测验里，智慧树
     pnpm probe icon [--check] [--preview]  # 生成扩展图标 → apps/extension/public/icon/
         # 色值与字体现读 tokens.css；产物是**入库文件**，改完要看过 diff 再提交
         # --check 只核对不生成（界面 tokens.css 变了用它确认图标是否过期）
-    pnpm probe store [--check]              # 生成商店促销磁贴 → dist/store/（440x280 与 1400x560）
-        # 落 dist/（git 忽略）：那是对外商店素材，不入库；--check 只核对不生成
+    pnpm probe store [--check]              # 生成商店促销磁贴 → apps/extension/.output/store/（440x280 与 1400x560）
+        # 落 .output/（git 忽略）：那是对外商店素材，随构建重生，不入库；--check 只核对不生成
     pnpm probe kill                         # 关闭探测浏览器
 
 两个平台共用同一个探测浏览器与登录态（state check 两家都报）。
