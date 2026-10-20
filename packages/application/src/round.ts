@@ -35,6 +35,14 @@ import {
   touchRun,
 } from './state.ts';
 
+/**
+ * 「这家没登录」的那一句。留痕与失败项共用一份：两处各写一遍，措辞会漂移。
+ *
+ * 句子里不写平台名：留痕是按平台存的、界面那一格本来就写着是哪一家。
+ * 写进去会渲染成「上次执行失败：慕课：登录已失效…」——两个冒号。
+ */
+const SESSION_EXPIRED = '登录已失效，需重新登录';
+
 /** 失败的一项，原样交给载体去说。 */
 export interface RunFailure {
   name: string;
@@ -86,8 +94,7 @@ export interface Runner {
   stop(platformId: string): boolean;
 }
 
-/** 这一项在不在范围内。范围为空表示全都要。 */
-function inSelection(
+/** 这一项在不在范围内。范围为空表示全都要。 */function inSelection(
   item: { id: string; kind: string; group: string },
   selection: RunSelection | undefined,
 ): boolean {
@@ -312,12 +319,7 @@ export function createRunner(deps: RoundDeps): Runner {
         if (loginBlocked.length > 0) {
           for (const platform of loginBlocked) {
             await settle((state) =>
-              recordPlatformFailure(
-                state,
-                platform.id,
-                `${platform.name}：登录已失效，需重新登录`,
-                Date.now(),
-              ),
+              recordPlatformFailure(state, platform.id, SESSION_EXPIRED, Date.now()),
             );
           }
           if (
@@ -329,7 +331,7 @@ export function createRunner(deps: RoundDeps): Runner {
             return { status: 'not-logged-in' };
           }
           for (const platform of loginBlocked) {
-            failed.push({ name: platform.name, kind: 'session', detail: '登录已失效，需重新登录' });
+            failed.push({ name: platform.name, kind: 'session', detail: SESSION_EXPIRED });
           }
         }
 

@@ -575,8 +575,12 @@ describe('两家平台在一轮里', () => {
       failed: [sessionFailure('mooc')],
     });
     expect(alive.calls).toEqual(['isReady', 'plan', 'run:z1']);
-    // 被堵的那家留下自己的留痕：界面才说得出是哪家要去登录
-    expect(tasks.current().platforms['mooc']?.failure?.message).toContain('登录已失效');
+    /*
+     * 被堵的那家留下自己的留痕：界面才说得出是哪家要去登录。
+     * 句子按常用句写成一句、不带平台名前缀——带上会渲染成两个冒号
+     * （「上次执行失败：平台 mooc：登录已失效…」）。
+     */
+    expect(tasks.current().platforms['mooc']?.failure?.message).toBe('登录已失效，需重新登录');
   });
 
   it('计划里说会话失效的那家，不拦另一家', async () => {
