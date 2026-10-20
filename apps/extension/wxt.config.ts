@@ -105,4 +105,13 @@ export default defineConfig({
     chromiumProfile,
     keepProfileChanges: true,
   },
+  /*
+   * 单文件分发的产物名钉死在这里。
+   *
+   * 不写的话 WXT 拿 package.json 的 `name` 去派生——`@study-pilot/extension` 洗掉
+   * 符号后是 `study-pilotextension`，与仓库里既有的 `study-pilot-extension-<版本>-chrome.zip`
+   * 差一个连字符：同一个东西两种名字，挑包上传时只能靠眼看。产物名是对外契约，
+   * 不该由包名的清洗规则顺带决定。
+   */
+  zip: { name: 'study-pilot-extension' },
 });
