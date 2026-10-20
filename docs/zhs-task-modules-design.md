@@ -353,7 +353,7 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
 
 - 职责：场次列表归一（时间 / 主讲 / 直播/回放 / 签到状态 / 测验入口与截止）；
   产出「见面课测验」的答卷入口参数（喂给模块 2）；签到**只提醒不自动**。
-- 落点：`packages/platform-zhs/src/meeting.ts`。
+- 落点：`packages/platform-zhs/src/meeting.ts`。——**实际落在 `meet.ts`**（见本节末的落地状态）。
 
 ### 模块 5：外壳接线
 
@@ -368,7 +368,7 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
 ### 模块 6：成绩报告（只读）
 
 - 职责：报告族接口 → 官方分数 / 权重 / 逐章（视频观看程度 + 测试进度）/ 逐场见面课三列得分。
-- 落点：`packages/platform-zhs/src/score-report.ts`。
+- 落点：`packages/platform-zhs/src/score-report.ts`。——**实际落在 `report.ts`**（成绩与作业报告共用一份，见落地状态）。
 - 意义：展示与平台成绩分析页**同源同数**，不自己算百分比。
 
 ### 落地状态（2026-10-20 逐条对着文件系统核对）

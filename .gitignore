@@ -2,7 +2,6 @@ node_modules/
 .output/
 .wxt/
 .dev-profile/
-.cdp-profile/
 *.log
 .DS_Store
 .env
@@ -16,26 +15,13 @@ __pycache__/
 # 这些是调试过程的材料，不是项目内容，而且可能带着账号与课程数据。
 .probe/
 
-# 逆向镜像（镜像站点 JS 的可读化副本）。按 .reverse/INDEX.md 自己的声明不入库：
-# 它是重新生成即可的调研材料，不是项目内容；生成器已删除，磁盘上的副本保留作考证。
-.reverse/
-
 # Playwright MCP 的暂存目录（偶尔手动看一眼时产生；正式工具以 pnpm probe 为准）
 .playwright-mcp/
-
-# 临时 profile（调试时用，不入库）
-.tmp-profile/
 
 # 已上传过商店的扩展包归档（apps/extension/releases/）。
 # 二进制、只用于回看当时交了什么，不是项目内容；重新构建走 pnpm build / zip。
 apps/extension/releases/
 
-# 临时文件
-.msg.txt
-
 # 测试覆盖率产物（vitest --coverage 生成），不是项目内容。
 coverage/
-
-# 设计头脑风暴的视觉伴侣产物（本地看图用，不入库）
-.superpowers/
 
