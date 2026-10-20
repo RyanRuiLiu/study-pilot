@@ -120,6 +120,27 @@ describe('plan', () => {
     expect(item.id).toBe(unitItemId({ videoId: 222, smallLessonId: 0 } as never));
     expect(item).toMatchObject({ group: '示例课程甲', title: '没看的课', mode: 'auto', kind: 'courseware' });
   });
+
+  it('计划只产两类：课件与测验条目（期末与见面课场次永不进计划）', async () => {
+    /*
+     * PRIVACY 的那句「期末与正式考试不会被自动提交」靠这条钉住。
+     * 期末那一族四个端点全是只读、policy/ 里零引用，所以计划只要碰它们，
+     * 这个假 client 就会报「没有登记」；kinds 这一条把结果侧也钉住：
+     * 计划项的类型集合不会悄悄长出第三类。
+     */
+    const tasks = createZhsTasks({
+      config,
+      client: fakeClient({
+        videoList: () => CHAPTERS,
+        studyInfo: () => STUDY_INFO(0),
+      }),
+      readCookie: readCookieLoggedIn,
+    });
+    const plan = await tasks.plan(0);
+    expect(plan.items.length).toBeGreaterThan(0); // 空表会让下面那句白过
+    const kinds = new Set(plan.items.map((entry) => entry.kind));
+    for (const kind of kinds) expect(['courseware', 'quiz']).toContain(kind);
+  });
 });
 
 describe('run', () => {

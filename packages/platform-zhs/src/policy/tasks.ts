@@ -127,7 +127,10 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
          * 「没动过」与「重做已申请」的都进计划，只是进法不同（见 `ExamEnter`）。
          * 其余状态（4 已交且已满分）由已交那一条覆盖。
          *
-         * 章节结构按 chapterName 对上（清单的 cpOrderNumber 就是章节名，实测）。
+         * 对上章节靠的是**路由段**：清单条目的 `id` ＝ 该章 `studentExamDto.examUrl`
+         * 里 dohomework/checkHomework 之后的第一个 token（`chapterExams` 叫它 `listId`）。
+         * 对不上就不排（那条数字卷号与神谕入参都拿不到）。`cpOrderNumber` 只是章节名，
+         * 用来给人看的，不参与匹配。
          */
         const chapterByListId = new Map(chapterExams(chapters).map((exam) => [exam.listId, exam]));
         const pendingPage = await getExamList(deps.client, {
