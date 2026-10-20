@@ -28,6 +28,14 @@ import {
 
 const TOKEN = 'deadbeefdeadbeefdeadbeefdeadbeef';
 
+/**
+ * 取一条 DWR 调用的原始报文。没发出去时给空串——断言会立刻看出来，
+ * 而不是在解构 undefined 时抛一个与断言无关的错。
+ */
+function rawBody(call: { body?: unknown } | undefined): string {
+  return String((call?.body as { __raw?: string } | undefined)?.__raw ?? '');
+}
+
 function unitOf(overrides: Partial<CourseUnit> = {}): CourseUnit {
   return {
     unitId: 1001,
@@ -364,7 +372,7 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
 
     const replies = dwrCalls('addReply');
     expect(replies).toHaveLength(1);
-    const body = String((replies[0]?.body as { __raw?: string }).__raw ?? '');
+    const body = rawBody(replies[0]);
     expect(body).toContain('c0-scriptName=MocForumBean');
     expect(body).toContain('c0-methodName=addReply');
     // 顶层对象内联、字段用引用：与抓到的真实报文一致
@@ -472,7 +480,7 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
 
     expect(result.ok).toBe(true);
     const body = decodeURIComponent(
-      String((dwrCalls('addReply')[0]?.body as { __raw?: string }).__raw ?? ''),
+      rawBody(dwrCalls('addReply')[0]),
     );
     expect(body).toContain('看这里');
     expect(body).not.toContain('example.com');
@@ -593,7 +601,7 @@ describe('讨论预取：生成先并发做完，发帖仍逐条串行', () => {
     expect(result.ok).toBe(true);
     expect(generated).toBe(0);
     const body = decodeURIComponent(
-      String((dwrCalls('addReply')[0]?.body as { __raw?: string }).__raw ?? ''),
+      rawBody(dwrCalls('addReply')[0]),
     );
     expect(body).toContain('预取好的：示例概念甲只看静态');
   });

@@ -99,7 +99,12 @@ function stripInvisible(node: Node): void {
   for (const child of Array.from(node.childNodes)) {
     if (child.nodeType === TEXT_NODE) {
       const text = child.textContent ?? '';
-      const cleaned = text.replace(/[​‌‍‎‏‪-‮]/g, '');
+      /*
+       * 剥掉零宽字符与双向控制符（U+200B..U+200F、U+202A..U+202E）：
+       * 平台的富文本里会夹带它们，抄进取值文本会让比对与显示都出错。
+       * 一律写成转义——源代码里放不可见字符，下一个人看不出这里有什么。
+       */
+      const cleaned = text.replace(/[\u200B-\u200F\u202A-\u202E]/g, '');
       if (cleaned !== text) child.textContent = cleaned;
     } else if (child.nodeType === ELEMENT_NODE) {
       stripInvisible(child);

@@ -66,7 +66,7 @@ describe('collectQuestions', () => {
   });
 
   it('两种控件都没有的题目（如主观题）不收集', () => {
-    mount('<div class=\"u-questionItem\"><div class=\"j-richTxt\">试述…</div></div>');
+    mount('<div class="u-questionItem"><div class="j-richTxt">试述…</div></div>');
     expect(collectQuestions()).toHaveLength(0);
   });
 

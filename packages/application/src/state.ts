@@ -41,7 +41,8 @@ export function normalizeTaskState(stored: unknown): TaskState {
   const raw = (stored ?? {}) as { platforms?: Record<string, Partial<PlatformRunState>> };
   const platforms: Record<string, PlatformRunState> = {};
   for (const [id, entry] of Object.entries(raw.platforms ?? {})) {
-    platforms[id] = { ...EMPTY_PLATFORM, ...(entry ?? {}) };
+    // 存储里的值可能是 null 或非对象（旧版本、手改过），展开非对象不会加进任何键
+    platforms[id] = { ...EMPTY_PLATFORM, ...entry };
   }
   return { platforms };
 }

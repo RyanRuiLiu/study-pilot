@@ -1,0 +1,48 @@
+# 每次推送到 main（以及 PR）都跑同一条验证链。
+# 不带任何账号密钥：测试全部离线，真机用例由 STUDY_PILOT_LIVE 显式开启、CI 里不跑。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+
+      - run: pnpm build
+      - run: pnpm --filter @study-pilot/extension zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension
+          path: apps/extension/.output/study-pilot-extension-*.zip
+          if-no-files-found: error
+
+      - run: pnpm --filter @study-pilot/cli build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli
+          path: apps/cli/.output/main.mjs
+          if-no-files-found: error
