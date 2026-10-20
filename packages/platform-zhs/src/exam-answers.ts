@@ -141,11 +141,14 @@ export function answerKeyFromPopupExam(questions: readonly PopupExamQuestion[]):
 /**
  * 把键套到已开卷的卷面上。
  *
- * 命中规则，两级，都要求正解落在**这道题自己的选项**里（选项 id 是按行分配的，不会跨题撞车）：
- *  1. 选项 id 口径：题目选项里直接命中正解 id 集合——同一份题的多次开卷走这条（重做实证：换序不换 id）；
- *  2. 题干口径：题干归一后逐字相等，再用**正解选项文本**在本题选项里定位（换副本、选项 id 重发时走这条）；
- *     若题干命中而正解 id 也正好落在本卷选项里，也走这条。
- * 两条都不中的题进 missing，由策略层按剩余作答机会决定怎么办，绝不硬造答案。
+ * 命中按**这道题自己的键条目**来（键可能是多份副本收割出来的并集，
+ * 整卷通用的 id 集合会把甲题的正解安到乙题头上）：
+ *  1. 题干口径优先：归一后逐字相等找到条目，再用**该条目的正解 id**在本卷选项里定位，
+ *     要求全中（多选只中一半算没把握，不交半份答案）；
+ *  2. 同一条目里 id 对不上（换副本重发了 id），退到**正解选项文本**，同样要求全中；
+ *  3. 题干找不到条目时（换副本连题干也变了）才用整卷 id 并集兜底命中——
+ *     它只保证「这个 id 在某处是正解」，范围比前两条宽，所以排在最后。
+ * 都不中进 missing，由策略层按剩余作答机会决定怎么办，绝不硬造答案。
  */
 export function matchPaper(paper: readonly PaperQuestion[], key: AnswerKey): KeyMatch {
   const correctIds = new Set(key.correctOptionIds);
@@ -155,19 +158,19 @@ export function matchPaper(paper: readonly PaperQuestion[], key: AnswerKey): Key
   const missing: PaperQuestion[] = [];
 
   for (const question of paper) {
+    // 作答一律按**本卷**的选项序：键条目里的序是收割那一卷的，照搬过去会换序
     const optionIds = question.options.map((option) => option.id);
-
-    const hitByIds = optionIds.filter((id) => correctIds.has(id));
-    if (hitByIds.length > 0) {
-      answers.push({ eid: question.eid, optionIds: hitByIds });
-      continue;
-    }
 
     const entry = byText.get(normalizeQuestionText(question.text));
     if (entry) {
+      /*
+       * 有条目就以条目为准，**不再往下看并集**：这道题的正解就是这一条，
+       * 条目满足不了（本卷选项缺它那条 id、多选只中一半）就是不确定的，
+       * 拿别的题的 id 凑上去答是错的开始。让它进 missing，由机会数决定下一步。
+       */
       const byIds = entry.correct.filter((id) => optionIds.includes(id));
       if (entry.correct.length > 0 && byIds.length === entry.correct.length) {
-        answers.push({ eid: question.eid, optionIds: byIds });
+        answers.push({ eid: question.eid, optionIds: optionIds.filter((id) => byIds.includes(id)) });
         continue;
       }
       const wantedTexts = new Set(entry.correctTexts);
@@ -178,6 +181,14 @@ export function matchPaper(paper: readonly PaperQuestion[], key: AnswerKey): Key
         answers.push({ eid: question.eid, optionIds: byTexts });
         continue;
       }
+      missing.push(question);
+      continue;
+    }
+
+    const hitByIds = optionIds.filter((id) => correctIds.has(id));
+    if (hitByIds.length > 0) {
+      answers.push({ eid: question.eid, optionIds: hitByIds });
+      continue;
     }
 
     missing.push(question);

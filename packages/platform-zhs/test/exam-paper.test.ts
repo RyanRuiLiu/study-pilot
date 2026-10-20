@@ -56,16 +56,41 @@ describe('parsePaper', () => {
     expect(parsePaper(PAPER).every((question) => question.questionId === null)).toBe(true);
   });
 
-  it('没有 eid 的题跳过（作答认 eid，缺了就答不了）', () => {
+  it('一道题都认不出来就抛错（空卷面绝不能变成一次交卷）', () => {
+    /*
+     * 下游是 planAnswering：0 题的卷面覆盖率算 1、计划判 `answer`，
+     * 再往下就是 submit 一张白卷——交卷即刻计分，收不回来。
+     * 所以形态读不出来必须在这里响。
+     */
     const broken = { examBase: { workExamParts: [{ questionDtos: [{ name: '缺 eid' }] }] } };
-    expect(parsePaper(broken)).toEqual([]);
+    expect(() => parsePaper(broken)).toThrow(/读不出任何一道题/);
+    expect(() => parsePaper(null)).toThrow(/读不出任何一道题/);
+    expect(() => parsePaper({})).toThrow(/读不出任何一道题/);
+    expect(() => parsePaper({ examBase: { workExamParts: null } })).toThrow(/读不出任何一道题/);
+    expect(() => parsePaper({ examBase: { workExamParts: [{ questionDtos: 'x' }] } })).toThrow(
+      /读不出任何一道题/,
+    );
   });
 
-  it('形状不对的层级逐层退化到空表，不抛错', () => {
-    expect(parsePaper(null)).toEqual([]);
-    expect(parsePaper({})).toEqual([]);
-    expect(parsePaper({ examBase: { workExamParts: null } })).toEqual([]);
-    expect(parsePaper({ examBase: { workExamParts: [{ questionDtos: 'x' }] } })).toEqual([]);
+  it('单题形态不符只跳那道题，其余照常答（不是整卷作废）', () => {
+    const mixed = {
+      examBase: {
+        workExamParts: [
+          {
+            questionDtos: [
+              { name: '缺 eid 的那道' },
+              {
+                eid: 'aG9sZGluZy9zbGFzaA==',
+                name: '示例单选：甲是（ ）的活动',
+                questionType: { id: 1 },
+                questionOptions: [{ id: 900000011, content: '正例' }],
+              },
+            ],
+          },
+        ],
+      },
+    };
+    expect(parsePaper(mixed).map((question) => question.eid)).toEqual(['aG9sZGluZy9zbGFzaA==']);
   });
 });
 

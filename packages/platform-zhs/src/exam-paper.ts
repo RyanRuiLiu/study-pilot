@@ -118,10 +118,15 @@ export interface LookedQuestion {
 
 /**
  * `student/doHomework` 的响应 → 卷面（作答用）。
- * 没有 `eid` 的题跳过——作答认 eid，缺了就答不了。
+ *
+ * 一道题都认不出来就抛错，**不交空表**：这条链的下游是「开卷 → 作答 → 交卷」，
+ * 空卷面会让覆盖率算成 1（0 题的卷「全都答完了」）、计划判成 `answer`，
+ * 最后真的把一张白卷交上去计分——那是不可逆的。平台换形态、或者我们把响应
+ * 结构读错了，都必须在这里响出来，而不是变成一次安静的成功。
+ * 没有 `eid` 的单题仍然跳过（作答认 eid，缺了那道题答不了）。
  */
 export function parsePaper(rt: unknown): PaperQuestionFull[] {
-  return walkQuestions(rt)
+  const paper = walkQuestions(rt)
     .filter((question) => question.eid !== '')
     .map((question) => ({
       eid: question.eid,
@@ -130,6 +135,10 @@ export function parsePaper(rt: unknown): PaperQuestionFull[] {
       questionType: question.questionType,
       questionId: null,
     }));
+  if (paper.length === 0) {
+    throw new Error('智慧树答卷读不出任何一道题（卷面为空，或平台换了形态）');
+  }
+  return paper;
 }
 
 /**

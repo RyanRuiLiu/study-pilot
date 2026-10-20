@@ -148,6 +148,29 @@ describe('matchPaper', () => {
     expect(match.answers).toHaveLength(0);
     expect(match.missing).toHaveLength(PAPER.length);
   });
+
+  it('键是多份副本的并集时，甲题的正解不会安到乙题头上', () => {
+    /*
+     * 这道题钉的是判据的边界：卷面这道题的题干命中条目「示例判断题一」，
+     * 但它的选项里只有**另一道题**（示例多选题二）的正解 id。
+     * 整卷并集优先的旧写法会在这里答 900000004——一个属于别的题的选项。
+     * 有条目就以条目为准，条目满足不了就进 missing。
+     */
+    const key = answerKeyFromPopupExam(POPUP);
+    const collided: PaperQuestion[] = [
+      {
+        eid: 'eid-collide',
+        text: '示例判断题一：甲必然属于乙。（ ）',
+        options: [
+          { id: '900000004', text: '甲特征' }, // 属于另一道题的正解
+          { id: '900000099', text: '不知道' },
+        ],
+      },
+    ];
+    const match = matchPaper(collided, key);
+    expect(match.answers).toHaveLength(0);
+    expect(match.missing.map((question) => question.eid)).toEqual(['eid-collide']);
+  });
 });
 
 describe('planAnswering', () => {
