@@ -6,17 +6,17 @@ import { buildAnswerBody, parseLookedPaper, parsePaper, questionIdsOf } from '..
 /** 卷面响应样本（形态取自 .probe/zhs-sbx-submit 的真实开卷响应）。 */
 const PAPER = {
   examBase: {
-    id: 'DEMOb002',
+    id: 'FfGh0002',
     workExamParts: [
       {
         questionDtos: [
           {
-            eid: 'ZGVtby10b2tlbi0wMDAwMg==',
-            name: '示例填空题乙（ ）的人类活动',
+            eid: 'aG9sZGluZy9zbGFzaA==',
+            name: '示例单选：甲是（ ）的活动',
             questionType: { id: 1 },
             questionOptions: [
-              { id: 900000006, content: '示例选项戊' },
-              { id: 900000007, content: '示例选项丁' },
+              { id: 900000011, content: '正例' },
+              { id: 900000012, content: '反例' },
             ],
           },
         ],
@@ -24,10 +24,10 @@ const PAPER = {
       {
         questionDtos: [
           {
-            eid: 'ZGVtby10b2tlbi0wMDAwMQ==',
+            eid: 'c2xhc2gvaG9sZGluZw==',
             name: '多选题样本',
             questionType: { id: 2 },
-            questionOptions: [{ id: 900000008, content: 'A' }],
+            questionOptions: [{ id: 900000013, content: 'A' }],
           },
         ],
       },
@@ -40,13 +40,13 @@ describe('parsePaper', () => {
     const paper = parsePaper(PAPER);
     expect(paper).toHaveLength(2);
     expect(paper[0]).toEqual({
-      eid: 'ZGVtby10b2tlbi0wMDAwMg==',
-      text: '示例填空题乙（ ）的人类活动',
+      eid: 'aG9sZGluZy9zbGFzaA==',
+      text: '示例单选：甲是（ ）的活动',
       questionType: 1,
       questionId: null, // 开卷不给题号（平台锁在交卷之后）
       options: [
-        { id: '900000006', text: '示例选项戊' },
-        { id: '900000007', text: '示例选项丁' },
+        { id: '900000011', text: '正例' },
+        { id: '900000012', text: '反例' },
       ],
     });
     expect(paper[1]!.questionType).toBe(2);
@@ -77,13 +77,13 @@ describe('parseLookedPaper（lookHomework：字段与开卷互补）', () => {
         {
           questionDtos: [
             {
-              id: 9000000015,
+              id: 1000000001,
               eid: null,
-              name: '示例填空题丙（ ）创意思维活动和方法。',
+              name: '示例单选二：乙属于（ ）的思维活动。',
               questionType: { id: 1, name: '单选题' },
               questionOptions: [
-                { id: 900000006, content: '有效' },
-                { id: 900000007, content: '无效' },
+                { id: 900000011, content: '成立' },
+                { id: 900000012, content: '不成立' },
               ],
             },
           ],
@@ -96,15 +96,15 @@ describe('parseLookedPaper（lookHomework：字段与开卷互补）', () => {
     const looked = parseLookedPaper(LOOKED);
     expect(looked).toEqual([
       {
-        questionId: 9000000015,
-        text: '示例填空题丙（ ）创意思维活动和方法。',
+        questionId: 1000000001,
+        text: '示例单选二：乙属于（ ）的思维活动。',
         options: [
-          { id: '900000006', text: '有效' },
-          { id: '900000007', text: '无效' },
+          { id: '900000011', text: '成立' },
+          { id: '900000012', text: '不成立' },
         ],
       },
     ]);
-    expect(questionIdsOf(looked)).toEqual([9000000015]);
+    expect(questionIdsOf(looked)).toEqual([1000000001]);
   });
 
   it('开卷响应喂进来会解出空表——两个接口互补，不是同形', () => {
@@ -119,26 +119,26 @@ describe('parseLookedPaper（lookHomework：字段与开卷互补）', () => {
 
 describe('buildAnswerBody', () => {
   const base = {
-    examId: 'DEMOb002',
-    recruitId: 900004,
-    stuExamId: 'DEMOa001',
-    schoolId: 9001,
-    courseId: 9000000002,
+    examId: 'FfGh0002',
+    recruitId: 470001,
+    stuExamId: 'AbCd0001',
+    schoolId: 1001,
+    courseId: 1000009999,
   };
 
   it('逐字段对齐真机形态（fromType=3、三个空串字段、answer 逗号分隔）', () => {
-    const body = buildAnswerBody({ ...base, answers: [{ eid: 'eid-1', optionIds: ['900000006'], questionType: 1 }] });
+    const body = buildAnswerBody({ ...base, answers: [{ eid: 'eid-1', optionIds: ['900000011'], questionType: 1 }] });
     expect(JSON.parse(body)).toEqual([
       {
-        examId: 'DEMOb002',
-        recruitId: 900004,
-        stuExamId: 'DEMOa001',
+        examId: 'FfGh0002',
+        recruitId: 470001,
+        stuExamId: 'AbCd0001',
         eid: 'eid-1',
-        schoolId: 9001,
+        schoolId: 1001,
         deviceId: '',
         examType: '',
         fromType: 3,
-        answer: '900000006',
+        answer: '900000011',
         dataIds: '',
         questionType: 1,
       },

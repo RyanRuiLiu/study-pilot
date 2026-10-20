@@ -34,7 +34,7 @@ function snapshotOf(units: CourseUnit[]): Snapshot {
         courseId: 100,
         schoolShortName: 'NTU',
         mode: 0,
-        courseName: '示例课程丁',
+        courseName: '示例课程甲',
         works: [],
         units,
       },
@@ -53,7 +53,7 @@ describe('课件进度计数', () => {
     ];
 
     expect(summarizeCourseware(snapshotOf(units), false)).toEqual([
-      { courseName: '示例课程丁', done: 1, total: 5, pending: 2, cannot: 2, needsAi: 0 },
+      { courseName: '示例课程甲', done: 1, total: 5, pending: 2, cannot: 2, needsAi: 0 },
     ]);
   });
 
@@ -83,11 +83,11 @@ describe('课件进度计数', () => {
   it('每门课各一条，顺序与快照一致', () => {
     const snapshot: Snapshot = {
       courses: [
-        { termId: 1, courseId: 1, schoolShortName: 'A', mode: 0, courseName: '示例课程戊', works: [], units: [unitOf()] },
-        { termId: 2, courseId: 2, schoolShortName: 'B', mode: 0, courseName: '示例课程丁', works: [], units: [] },
+        { termId: 1, courseId: 1, schoolShortName: 'A', mode: 0, courseName: '乙课', works: [], units: [unitOf()] },
+        { termId: 2, courseId: 2, schoolShortName: 'B', mode: 0, courseName: '甲课', works: [], units: [] },
       ],
     };
 
-    expect(summarizeCourseware(snapshot, false).map((entry) => entry.courseName)).toEqual(['示例课程戊', '示例课程丁']);
+    expect(summarizeCourseware(snapshot, false).map((entry) => entry.courseName)).toEqual(['乙课', '甲课']);
   });
 });

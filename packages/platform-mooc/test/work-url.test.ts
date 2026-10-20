@@ -14,30 +14,30 @@
 import { describe, expect, it } from 'vitest';
 import { parseWorkLocation, workPageUrl, type WorkKind } from '../src/course-url.ts';
 
-const LEARN_BASE = 'https://www.icourse163.org/learn/NTU-9000000014';
+const LEARN_BASE = 'https://www.icourse163.org/learn/DEMO-1000000001';
 const COURSE = {
-  courseId: 9000000014,
-  schoolShortName: 'NTU',
+  courseId: 1000000001,
+  schoolShortName: 'DEMO',
   mode: 0,
-  termId: 9000000030,
+  termId: 1400000001,
 };
 
 describe('解析页面地址', () => {
   it('解析测验页', () => {
-    const result = parseWorkLocation(`${LEARN_BASE}?tid=9000000030#/learn/quiz?id=9000000019`);
+    const result = parseWorkLocation(`${LEARN_BASE}?tid=1400000001#/learn/quiz?id=1200000001`);
     expect(result).toEqual({
-      termId: 9000000030,
+      termId: 1400000001,
       view: 'quiz',
-      contentId: 9000000019,
+      contentId: 1200000001,
     });
   });
 
   it('解析作业页', () => {
-    const result = parseWorkLocation(`${LEARN_BASE}?tid=9000000030#/learn/hw?id=9000000020`);
+    const result = parseWorkLocation(`${LEARN_BASE}?tid=1400000001#/learn/hw?id=1200000002`);
     expect(result).toEqual({
-      termId: 9000000030,
+      termId: 1400000001,
       view: 'homework',
-      contentId: 9000000020,
+      contentId: 1200000002,
     });
   });
 
@@ -52,31 +52,31 @@ describe('解析页面地址', () => {
 
   it('SPOC 路径同样解析', () => {
     const result = parseWorkLocation(
-      'https://www.icourse163.org/spoc/learn/NTU-9000000014?tid=9000000030#/learn/quiz?id=1',
+      'https://www.icourse163.org/spoc/learn/DEMO-1000000001?tid=1400000001#/learn/quiz?id=1',
     );
     expect(result.view).toBe('quiz');
-    expect(result.termId).toBe(9000000030);
+    expect(result.termId).toBe(1400000001);
   });
 
   it('其它视图归为 other', () => {
-    const result = parseWorkLocation(`${LEARN_BASE}?tid=9000000030#/learn/announce`);
+    const result = parseWorkLocation(`${LEARN_BASE}?tid=1400000001#/learn/announce`);
     expect(result.view).toBe('other');
     expect(result.contentId).toBeNull();
   });
 
   it('没有 hash 时视图为 other 且内容 id 为空', () => {
-    const result = parseWorkLocation(`${LEARN_BASE}?tid=9000000030`);
-    expect(result).toEqual({ termId: 9000000030, view: 'other', contentId: null });
+    const result = parseWorkLocation(`${LEARN_BASE}?tid=1400000001`);
+    expect(result).toEqual({ termId: 1400000001, view: 'other', contentId: null });
   });
 
   it('缺少 tid 时 termId 为空', () => {
-    const result = parseWorkLocation(`${LEARN_BASE}#/learn/quiz?id=9000000019`);
+    const result = parseWorkLocation(`${LEARN_BASE}#/learn/quiz?id=1200000001`);
     expect(result.termId).toBeNull();
-    expect(result.contentId).toBe(9000000019);
+    expect(result.contentId).toBe(1200000001);
   });
 
   it('缺少 id 时 contentId 为空', () => {
-    const result = parseWorkLocation(`${LEARN_BASE}?tid=9000000030#/learn/quiz`);
+    const result = parseWorkLocation(`${LEARN_BASE}?tid=1400000001#/learn/quiz`);
     expect(result.contentId).toBeNull();
   });
 
@@ -108,12 +108,12 @@ describe('拼出来再认回去', () => {
   ];
 
   it.each(cases)('%s', (kind, examId) => {
-    const href = workPageUrl(COURSE, kind, 9000000019, examId);
+    const href = workPageUrl(COURSE, kind, 1200000001, examId);
 
     expect(parseWorkLocation(href)).toEqual({
       termId: COURSE.termId,
       view: kind,
-      contentId: 9000000019,
+      contentId: 1200000001,
     });
   });
 

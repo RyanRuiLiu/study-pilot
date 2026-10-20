@@ -18,13 +18,13 @@ describe('getShareCourses', () => {
           totalCount: 1,
           courseOpenDtos: [
             {
-              courseId: 9000000002,
-              recruitId: 900004,
-              courseName: '示例课程己',
+              courseId: 1000000001,
+              recruitId: 470001,
+              courseName: '示例课程甲',
               schoolName: '示例大学',
               courseStartTime: 1789315200000,
               courseEndTime: 1795363199000,
-              secret: 'bb66bb66bb66bb66bb66bb66bb66bb66bb66bb',
+              secret: 'aa55aa55aa55aa55aa55aa55aa55aa55aa55aa',
             },
           ],
         },
@@ -32,10 +32,10 @@ describe('getShareCourses', () => {
     );
     expect(briefs).toEqual([
       {
-        courseId: 9000000002,
-        recruitId: 900004,
-        secret: 'bb66bb66bb66bb66bb66bb66bb66bb66bb66bb',
-        name: '示例课程己',
+        courseId: 1000000001,
+        recruitId: 470001,
+        secret: 'aa55aa55aa55aa55aa55aa55aa55aa55aa55aa',
+        name: '示例课程甲',
         schoolName: '示例大学',
         startTime: 1789315200000,
         endTime: 1795363199000,
@@ -103,10 +103,10 @@ describe('refreshCourses', () => {
     zhihuishu: {
       courses: [
         {
-          courseId: 9000000002,
-          recruitId: 900004,
+          courseId: 1000000001,
+          recruitId: 470001,
           secret: 'old',
-          name: '示例课程己',
+          name: '示例课程甲',
           schoolName: '示例大学',
           startTime: 1767225600000,
           endTime: 1795363199000,
@@ -134,19 +134,19 @@ describe('refreshCourses', () => {
 
   const openDtos = [
     {
-      courseId: 9000000002,
-      recruitId: 900004,
-      courseName: '示例课程己',
+      courseId: 1000000001,
+      recruitId: 470001,
+      courseName: '示例课程甲',
       schoolName: '示例大学',
       courseStartTime: 1789315200000,
       courseEndTime: 1795363199000,
       secret: 'new',
     },
     {
-      courseId: 9000000004,
-      recruitId: 900001,
-      courseName: '示例课程辛',
-      schoolName: '示例大学',
+      courseId: 1000000002,
+      recruitId: 470002,
+      courseName: '示例课程乙',
+      schoolName: '另一所大学',
       courseStartTime: 0,
       courseEndTime: 0,
       secret: 'x',
@@ -159,8 +159,8 @@ describe('refreshCourses', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.courses).toMatchObject([
-      { courseId: 9000000002, startTime: 1789315200000, secret: 'new', enabled: true },
-      { courseId: 9000000004, enabled: false },
+      { courseId: 1000000001, startTime: 1789315200000, secret: 'new', enabled: true },
+      { courseId: 1000000002, enabled: false },
     ]);
     // 只动 zhihuishu.courses 一段，不整份回写
     expect(updates).toEqual([{ zhihuishu: { courses: result.courses } }]);

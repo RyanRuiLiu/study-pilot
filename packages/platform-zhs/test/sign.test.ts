@@ -67,7 +67,7 @@ describe('xorHexEncode', () => {
   });
 
   it('往返自洽：编码→反解得到原数组（键循环覆盖超过一轮长度）', () => {
-    const values = ['900003', 9000000013, 0, 90000002, 9000000007, 0, 175, 175, '00:02:55'];
+    const values = ['470001', 1000050001, 0, 66000001, 1000050002, 0, 175, 175, '00:02:55'];
     expect(xorHexDecode(xorHexEncode(values))).toEqual(values.map(String));
   });
 });
@@ -117,7 +117,7 @@ describe('wrapSignedBody', () => {
 
   it('省略 stamp 时只输出 secretStr——考试族的外层形态（时间戳只在密文里）', async () => {
     const cKey = new Uint8Array(16).fill(7);
-    const body = await wrapSignedBody({ recruitId: 900004, dateFormate: 123 }, cKey);
+    const body = await wrapSignedBody({ recruitId: 470001, dateFormate: 123 }, cKey);
     expect(body.startsWith('secretStr=')).toBe(true);
     // 外层没有第二个字段，也没有 & 分隔符
     expect(body).not.toContain('&');

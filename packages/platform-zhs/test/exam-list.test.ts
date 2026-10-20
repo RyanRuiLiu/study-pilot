@@ -8,20 +8,20 @@ describe('normalizeHomeworkList', () => {
   it('两类条目都归一：单元测试带章节名，见面课测验章节名为 null', () => {
     const items = normalizeHomeworkList({
       studentHomeworkList: [
-        { id: 'ymVxX7lb', examId: 'DEMOd004', examName: '绪论单元测试', meetCourseType: 0, state: 1, cpOrderNumber: '绪论' },
+        { id: 'AbCd0005', examId: 'FfGh0004', examName: '第一章单元测试', meetCourseType: 0, state: 1, cpOrderNumber: '第一章' },
         { id: 'ab12cd34', examId: 'zz99yy88', examName: '10-13 见面课', meetCourseType: 1, state: 4, score: 9, totalScore: 10, cpOrderNumber: null },
       ],
     });
     expect(items).toHaveLength(2);
     expect(items[0]).toEqual({
-      id: 'ymVxX7lb',
-      examId: 'DEMOd004',
-      examName: '绪论单元测试',
+      id: 'AbCd0005',
+      examId: 'FfGh0004',
+      examName: '第一章单元测试',
       meetCourseType: 0,
       state: 1,
       score: null,
       totalScore: null,
-      chapterName: '绪论',
+      chapterName: '第一章',
       problemNum: null,
       deadline: null,
     });
@@ -164,17 +164,17 @@ describe('getExamList', () => {
 
   it('未提交页签 → flag=1；一次取全（pageSize=100）', async () => {
     const { client, calls } = fakeClient({ rt: { studentHomeworkList: [] } });
-    await getExamList(client, { recruitId: 900004, courseId: 9000000002, submitted: false });
+    await getExamList(client, { recruitId: 470001, courseId: 1000009999, submitted: false });
     expect(calls[0]).toEqual({
       name: 'examHomeworkList',
       // pageNum 是 0 基（实测 1 回空表）——这条断言就是防手滑改回 1
-      payload: { recruitId: 900004, courseId: 9000000002, flag: 1, pageSize: 100, pageNum: 0 },
+      payload: { recruitId: 470001, courseId: 1000009999, flag: 1, pageSize: 100, pageNum: 0 },
     });
   });
 
   it('已提交页签 → flag=2', async () => {
     const { client, calls } = fakeClient({ rt: { studentHomeworkList: [] } });
-    await getExamList(client, { recruitId: 900004, courseId: 9000000002, submitted: true });
+    await getExamList(client, { recruitId: 470001, courseId: 1000009999, submitted: true });
     expect((calls[0]!.payload as { flag: number }).flag).toBe(2);
   });
 });

@@ -57,7 +57,7 @@ function course(): SnapshotCourse {
     courseId: 1001,
     termId: 2001,
     schoolShortName: 'NTU',
-    courseName: '示例课程丁',
+    courseName: '示例课程甲',
     mode: 0,
     works: [
       work(1),

@@ -58,7 +58,7 @@ export async function getQuizPaper(
 ): Promise<Result<QuizPaper, TransportError>> {
   /*
    * withStdAnswerAndAnalyse: true —— 答案随卷面下发（选项正确标记 + 填空 stdAnswer）。
-   * 固定 true 是取超集：实测存在只有 true 才给填空 stdAnswer 的卷（示例课程丁，2026-10-17）。
+   * 固定 true 是取超集：实测存在只有 true 才给填空 stdAnswer 的卷（2026-10-17 实测）。
    */
   return client.rpc.call<QuizPaper>(ENDPOINTS.quizPaper.bean, ENDPOINTS.quizPaper.method, {
     tid,

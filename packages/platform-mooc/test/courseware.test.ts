@@ -342,7 +342,7 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
      */
     const escaped =
       's0.title="3.4 \\u8BA8\\u8BBA\\u9898";' +
-      's0.content="<p>\\u5982\\u4F55\\u7406\\u89E3\\u76F4\\u6D41\\u901A\\u8DEF\\u548C\\u4EA4\\u6D41\\u901A\\u8DEF\\u7684\\u6982\\u5FF5\\uFF1F</p>";';
+      's0.content="<p>\\u5982\\u4F55\\u533A\\u5206\\u793A\\u4F8B\\u6982\\u5FF5\\u7532\\u4E0E\\u793A\\u4F8B\\u6982\\u5FF5\\u4E59\\uFF1F</p>";';
     const { client, dwrCalls, rpcCalls } = clientStub({ getLessonUnitLearnVo: escaped });
     const seen: Array<{ task: string; input: string }> = [];
 
@@ -352,14 +352,14 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
       {
         generateText: async (request) => {
           seen.push(request);
-          return { ok: true, text: '示例回答乙。' };
+          return { ok: true, text: '我理解示例概念甲按静态看，示例概念乙只看变化量。' };
         },
       },
     );
 
     expect(seen).toHaveLength(1);
     expect(seen[0]?.task).toBe('discuss-reply');
-    expect(seen[0]?.input).toContain('示例问题甲？');
+    expect(seen[0]?.input).toContain('如何区分示例概念甲与示例概念乙？');
     expect(seen[0]?.input).not.toContain('讨论3.4');
 
     const replies = dwrCalls('addReply');
@@ -377,16 +377,16 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
     expect(body).toContain('c0-e2=string:%3Cp%3E');
     // 第二个参数（图片附件）不能省：少了它服务端报缺参数
     expect(body).toContain('c0-param1=Array:[]');
-    expect(decodeURIComponent(body)).toContain('示例回答片段');
+    expect(decodeURIComponent(body)).toContain('示例概念乙只看变化量');
     expect(rpcCalls('saveMocContentLearn')).toHaveLength(1);
   });
 
   it('标题即题目（正文为空）也照常作答：两种形态都是平台真实下发的数据', async () => {
     /*
-     * 实测形态（2026-10-17，示例课程丁第 4/5 章）：平台只给标题、正文为空，题面就写在
-     * 标题里。代码两种形态都处理——标题取自平台，不是编的。
+     * 实测形态（2026-10-17）：有的课只给标题、正文为空，题面就写在
+     * 标题里。代码两种形态都处理——标题取自平台，不是编的。样例题面是合成的。
      */
-    const raw = 's0.title="讨论：在分析直流通路与交流通路时，我们有哪些需要注意的？";s0.content="<p> </p>";';
+    const raw = 's0.title="讨论：在比较示例概念甲与示例概念乙时，有哪些需要注意的？";s0.content="<p> </p>";';
     const { client, dwrCalls, rpcCalls } = clientStub({ getLessonUnitLearnVo: raw });
     const seen: Array<{ task: string; input: string }> = [];
 
@@ -396,13 +396,13 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
       {
         generateText: async (request) => {
           seen.push(request);
-          return { ok: true, text: '示例回答甲。' };
+          return { ok: true, text: '比较两个概念时要先固定条件，再看各自的适用范围。' };
         },
       },
     );
 
     expect(seen).toHaveLength(1);
-    expect(seen[0]?.input).toContain('在分析直流通路与交流通路时，我们有哪些需要注意的？');
+    expect(seen[0]?.input).toContain('在比较示例概念甲与示例概念乙时，有哪些需要注意的？');
     expect(dwrCalls('addReply')).toHaveLength(1);
     expect(rpcCalls('saveMocContentLearn')).toHaveLength(1);
   });
@@ -448,7 +448,7 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
 
     for (const value of variants) {
       const { client, dwrCalls, rpcCalls } = clientStub({
-        getLessonUnitLearnVo: 's0.title="3.4 讨论题";s0.content="<p>示例问题甲？</p>";',
+        getLessonUnitLearnVo: 's0.title="3.4 讨论题";s0.content="<p>如何区分示例概念甲与示例概念乙？</p>";',
       });
       const result = await completeUnit(
         client,
@@ -464,7 +464,7 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
 
   it('生成内容里的链接被去掉，句子本身保留', async () => {
     const { client, dwrCalls } = clientStub({
-      getLessonUnitLearnVo: 's0.title="3.4 讨论题";s0.content="<p>示例问题甲？</p>";',
+      getLessonUnitLearnVo: 's0.title="3.4 讨论题";s0.content="<p>如何区分示例概念甲与示例概念乙？</p>";',
     });
     const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.DISCUSS }), {
       generateText: async () => ({ ok: true, text: '看这里 https://example.com/answer 有详解' }),
@@ -479,7 +479,7 @@ describe('讨论：AI 写回复，写不出来就失败（没有固定文案）'
   });
 
   it('长度按产品上限放行/拒绝（与提示词共用一个常量，不写死数字）', async () => {
-    const question = 's0.title="3.4 讨论题";s0.content="<p>示例问题甲？</p>";';
+    const question = 's0.title="3.4 讨论题";s0.content="<p>如何区分示例概念甲与示例概念乙？</p>";';
 
     // 上限以内（含边界）：照发
     const withinLimit = '在'.repeat(DISCUSS_REPLY_MAX_CHARS - 1) + '。';
@@ -513,9 +513,9 @@ describe('结构里的课件单元', () => {
         message: '',
         result: {
           mocTermDto: {
-            id: 9000000031,
-            courseId: 9000000027,
-            courseName: '示例课',
+            id: 1400000002,
+            courseId: 1000000002,
+            courseName: '示例课程甲',
             // 曾经写错的位置：单元不在章节下。这里刻意放一个，断言它被忽略
             units: [{ id: 9999, contentType: 1 }],
             chapters: [
@@ -547,7 +547,7 @@ describe('结构里的课件单元', () => {
       },
     });
 
-    const structure = await getCourseStructure(client, 9000000031);
+    const structure = await getCourseStructure(client, 1400000002);
 
     expect(structure.ok).toBe(true);
     if (!structure.ok) return;
@@ -555,7 +555,7 @@ describe('结构里的课件单元', () => {
       {
         unitId: 1001,
         contentId: 2002,
-        termId: 9000000031,
+        termId: 1400000002,
         lessonId: 3004,
         lessonName: '1.1 课时',
         name: '示例视频',
@@ -571,7 +571,7 @@ describe('结构里的课件单元', () => {
 // ---------- 讨论预取 ----------
 
 describe('讨论预取：生成先并发做完，发帖仍逐条串行', () => {
-  const QUESTION = 's0.title="3.4 讨论题";s0.content="<p>示例问题甲？</p>";';
+  const QUESTION = 's0.title="3.4 讨论题";s0.content="<p>如何区分示例概念甲与示例概念乙？</p>";';
 
   it('袋子里的预取结果直接使用：不再调生成器', async () => {
     const { client, dwrCalls } = clientStub({ getLessonUnitLearnVo: QUESTION });
@@ -585,7 +585,7 @@ describe('讨论预取：生成先并发做完，发帖仍逐条串行', () => {
           return { ok: true, text: '不该被用到' };
         },
         preparedReplies: new Map([
-          [6006, { ok: true as const, text: '示例回答丙。' }],
+          [6006, { ok: true as const, text: '预取好的：示例概念甲只看静态，示例概念乙只看变化量。' }],
         ]),
       },
     );
@@ -595,7 +595,7 @@ describe('讨论预取：生成先并发做完，发帖仍逐条串行', () => {
     const body = decodeURIComponent(
       String((dwrCalls('addReply')[0]?.body as { __raw?: string }).__raw ?? ''),
     );
-    expect(body).toContain('示例回答丁。');
+    expect(body).toContain('预取好的：示例概念甲只看静态');
   });
 
   it('袋子里是失败结论：如实失败，不再二次生成', async () => {

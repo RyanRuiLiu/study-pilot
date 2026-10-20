@@ -37,9 +37,9 @@ describe('md5hex 与 node:crypto 交叉验证', () => {
     'a'.repeat(65),
     'a'.repeat(1000),
     '中文测试',
-    '示例课程丁',
+    '示例课程甲',
     '混合 mixed 内容 with 多字节字符：日本語、한국어、Ελληνικά、Русский',
-    '{"tid":9000000019,"termId":9000000030}',
+    '{"tid":1000000001,"termId":1400000001}',
   ];
 
   for (const input of cases) {
@@ -80,7 +80,7 @@ describe('serializeForSign 的空值语义', () => {
 
 describe('makeSignature', () => {
   it('拼接顺序为 body + nonce + timestamp + SALT', () => {
-    const body = '{"tid":9000000019}';
+    const body = '{"tid":1000000001}';
     const timestamp = 1790257895088;
     const nonce = 8229;
 

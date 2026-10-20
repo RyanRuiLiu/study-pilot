@@ -82,19 +82,19 @@ describe('askOracle', () => {
       },
     };
     const rt = await askOracle(client, {
-      recruitId: 900004,
+      recruitId: 470001,
       userId: 900000009,
-      examId: 90000006,
-      stuExamId: 9000000037,
+      examId: 61000001,
+      stuExamId: 6200000002,
       questionIds: [9000000015, 1120783436],
     });
     expect(calls[0]).toEqual({
       name: 'examQuestionDoneState',
       payload: {
-        recruitId: 900004,
+        recruitId: 470001,
         userId: 900000009,
-        examId: 90000006,
-        stuExamId: 9000000037,
+        examId: 61000001,
+        stuExamId: 6200000002,
         questionIds: '[9000000015,1120783436]',
       },
     });

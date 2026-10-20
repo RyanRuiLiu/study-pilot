@@ -318,7 +318,7 @@ describe('执行范围', () => {
     const mooc = platform('mooc', {
       items: [
         { ...item('a', 'auto'), group: '示例课程戊' },
-        { ...item('b', 'auto'), group: '示例课程丁' },
+        { ...item('b', 'auto'), group: '甲课' },
       ],
     });
     const { runner } = setup([mooc]);

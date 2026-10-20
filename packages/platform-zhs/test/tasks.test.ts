@@ -15,10 +15,10 @@ const SETTINGS: Settings = {
   zhihuishu: {
     courses: [
       {
-        courseId: 9000000002,
-        recruitId: 900004,
+        courseId: 1000009999,
+        recruitId: 470001,
         secret: 'hex-secret',
-        name: '示例课程己',
+        name: '示例课程甲',
         schoolName: '示例大学',
         startTime: 0,
         endTime: 0,
@@ -29,7 +29,7 @@ const SETTINGS: Settings = {
         recruitId: 1,
         secret: 's',
         name: '没勾的课',
-        schoolName: 'X',
+        schoolName: '另一所大学',
         startTime: 0,
         endTime: 0,
         enabled: false,
@@ -45,7 +45,7 @@ const CHAPTERS = {
   data: {
     videoChapterDtos: [
       {
-        id: 9000000008,
+        id: 2000000009,
         name: '第一章',
         videoLessons: [
           { id: 1, name: '已看的课', videoId: 111, videoSec: 100, videoSmallLessons: null },
@@ -118,7 +118,7 @@ describe('plan', () => {
     expect(plan.items).toHaveLength(1);
     const item = plan.items[0];
     expect(item.id).toBe(unitItemId({ videoId: 222, smallLessonId: 0 } as never));
-    expect(item).toMatchObject({ group: '示例课程己', title: '没看的课', mode: 'auto', kind: 'courseware' });
+    expect(item).toMatchObject({ group: '示例课程甲', title: '没看的课', mode: 'auto', kind: 'courseware' });
   });
 });
 
@@ -273,12 +273,12 @@ describe('run', () => {
 
     // 子节：lessonVideoId = 子节 id（金样本口径；站点 ee.lessonVideoId = A.id）
     expect(notes[0]).toEqual({
-      ccCourseId: 9000000002,
+      ccCourseId: 1000009999,
       chapterId: 9,
       isApply: 1,
       lessonId: 7,
       lessonVideoId: 8,
-      recruitId: 900004,
+      recruitId: 470001,
       videoId: 88,
     });
     // 无子节：站点 delete 该字段——wire 上不出现
@@ -343,7 +343,7 @@ describe('run', () => {
     });
     const item = {
       id: 'x',
-      group: '示例课程己',
+      group: '示例课程甲',
       title: 't',
       mode: 'auto' as const,
       kind: 'courseware',
@@ -357,22 +357,22 @@ describe('run', () => {
 describe('plan：单元测试项', () => {
   // 形态取自真机：examUrl 的 t1 就是清单条目的 id（这一条是「章节测验 ↔ 清单」的连接键）
   const EXAM_URL =
-    '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/900004/DEMOc003/DEMOd004/9000000002/9001/0';
+    '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/470001/AbCd0003/FfGh0004/1000009999/1001/0';
   const CHAPTERS_WITH_EXAM = {
     data: {
       videoChapterDtos: [
         {
-          id: 9000000008,
+          id: 2000000009,
           name: '第一章',
           videoLessons: [{ id: 1, name: '课', videoId: 111, videoSec: 100, videoSmallLessons: null }],
-          studentExamDto: { id: 9000000037, state: 1, exam: { id: 90000006, type: 1 }, examUrl: EXAM_URL },
+          studentExamDto: { id: 6200000002, state: 1, exam: { id: 61000001, type: 1 }, examUrl: EXAM_URL },
         },
       ],
     },
   };
   const item = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
-    id: 'DEMOc003',
-    examId: 'DEMOd004',
+    id: 'AbCd0003',
+    examId: 'FfGh0004',
     examName: '第一章单元测试',
     meetCourseType: 0,
     state: 1,
@@ -404,8 +404,8 @@ describe('plan：单元测试项', () => {
     const quiz = quizzesOf(plan.items);
     expect(quiz).toHaveLength(1);
     expect(quiz[0]).toMatchObject({
-      id: 'zhs-quiz-DEMOc003',
-      group: '示例课程己',
+      id: 'zhs-quiz-AbCd0003',
+      group: '示例课程甲',
       title: '第一章单元测试',
       mode: 'auto',
     });

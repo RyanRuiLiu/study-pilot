@@ -28,14 +28,14 @@ function learnPagePrefix(mode: number): string {
  * 拼课程页地址。
  *
  * 路径段是 **学校简称 + '-' + 课程 id**，不是课程自己的 shortName。
- * 实测对照：
+ * 实测对照（2026-10-17，同一所学校的两门课，号已脱敏、位数照旧）：
  *
- *   示例课程丁  course.shortName=DEMO001  course.id=9000000014
- *                 实际地址 /learn/NTU-9000000014?tid=9000000030
- *   示例课程戊          course.shortName=DEMO002  course.id=9000000025
- *                 实际地址 /learn/NTU-9000000025?tid=9000000028
+ *   课程一  course.shortName=DEMO001  course.id=9000000014
+ *           实际地址 /learn/NTU-9000000014?tid=9000000030
+ *   课程二  course.shortName=DEMO002  course.id=9000000025
+ *           实际地址 /learn/NTU-9000000025?tid=9000000028
  *
- * 学校简称取自 schoolPanel.shortName（该账号为 NTU）。
+ * 学校简称取自 schoolPanel.shortName。
  * 用课程 shortName 会拼出打不开的地址。
  */
 export function coursePageUrl(course: {

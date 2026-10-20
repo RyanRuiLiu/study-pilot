@@ -15,13 +15,13 @@ import { discussReplyTask } from '../src/ai/tasks/discuss-reply.ts';
 
 describe('讨论回复提示词', () => {
   it('把字数上限交给模型，且与发布前校验同一个数', () => {
-    const messages = discussReplyTask.messages('讨论题：示例问题甲？');
+    const messages = discussReplyTask.messages('讨论题：如何区分示例概念甲与示例概念乙？');
     const system = messages.find((message) => message.role === 'system')?.content ?? '';
     expect(system).toContain(String(DISCUSS_REPLY_MAX_CHARS));
   });
 
   it('任务输入原样进入用户消息，不再包一层', () => {
-    const input = '讨论题：示例问题甲？';
+    const input = '讨论题：如何区分示例概念甲与示例概念乙？';
     const messages = discussReplyTask.messages(input);
     expect(messages.find((message) => message.role === 'user')?.content).toBe(input);
   });

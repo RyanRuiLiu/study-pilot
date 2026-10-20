@@ -64,8 +64,8 @@ describe('countUnitTests', () => {
 
 describe('reportPageUrl', () => {
   it('指向平台成绩分析页，带上两个必需参数', () => {
-    expect(reportPageUrl(900004, 9000000002)).toBe(
-      'https://stuonline.zhihuishu.com/stuonline/stuLearnReportNew/index?recruitId=900004&courseId=9000000002',
+    expect(reportPageUrl(470001, 1000009999)).toBe(
+      'https://stuonline.zhihuishu.com/stuonline/stuLearnReportNew/index?recruitId=470001&courseId=1000009999',
     );
   });
 });
@@ -73,10 +73,10 @@ describe('reportPageUrl', () => {
 /* ---------- 处理器：两种降级各走一遍 ---------- */
 
 const COURSE = {
-  courseId: 9000000002,
-  recruitId: 900004,
+  courseId: 1000009999,
+  recruitId: 470001,
   secret: 'hex-secret',
-  name: '示例课程己',
+  name: '示例课程甲',
   schoolName: '示例大学',
   startTime: 0,
   endTime: 0,

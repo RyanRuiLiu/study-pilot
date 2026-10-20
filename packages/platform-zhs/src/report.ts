@@ -2,7 +2,7 @@
  * 完成上报的载荷组装（全包唯一一处）。
  *
  * 形态逐字段来自 2026-10-16 的真机金样本（saveDatabaseIntervalTimeV2，真播并提交成功），
- * 并在沙箱课《示例课程己》上实测闭环通过（submitSuccess → 回读 watchState=1）：
+ * 并在沙箱课上实测闭环通过（submitSuccess → 回读 watchState=1）：
  *
  *   sdsew = XOR-hex( [recruitId, lessonId, smallLessonId, videoId, chapterId,
  *                     studyStatus, y, Ke, 位置HH:MM:SS, uuid+"zhs"] )   ← join(';') 后逐字符异或

@@ -24,7 +24,7 @@ describe('版本 2 的存量数据（两段迁移连着跑）', () => {
     mooc: {
       background: {
         schedule: { checkIntervalMinutes: 7, keepOverdueDays: 0 },
-        courses: [{ termId: 123, name: '示例课程戊', enabled: true }],
+        courses: [{ termId: 123, name: '乙课', enabled: true }],
         autoReview: { enabled: true, comment: '先搬后丢' },
       },
     },
@@ -62,7 +62,7 @@ describe('版本 4 → 5 的设置迁移', () => {
         autoQuiz: { enabled: true },
         autoReview: { enabled: true, comment: '完成得不错' },
         autoSelfEvaluate: { enabled: false },
-        courses: [{ termId: 7, name: '示例课程丁', enabled: true }],
+        courses: [{ termId: 7, name: '示例课程甲', enabled: true }],
       },
     },
     schedule: { checkIntervalMinutes: 11, keepOverdueDays: 5 },
@@ -151,11 +151,11 @@ describe('版本 8 新增的 zhihuishu 段', () => {
 
   it('已勾的课程原样保留（数组是整体替换的契约）', () => {
     const course = {
-      courseId: 9000000001,
-      recruitId: 900003,
-      secret: 'aa55aa55aa55aa55aa55aa55aa55aa55aa55aa',
-      name: '示例课程甲',
-      schoolName: '示例大学、另一所大学/跨校共建',
+      courseId: 1000009999,
+      recruitId: 470001,
+      secret: 'hex',
+      name: '示例课程乙',
+      schoolName: '另一所大学',
       startTime: 0,
       endTime: 0,
       enabled: true,
@@ -182,10 +182,10 @@ describe('版本 9：课程表搬成开课区间', () => {
       zhihuishu: {
         courses: [
           {
-            courseId: 9000000003,
-            recruitId: 900002,
+            courseId: 1000009998,
+            recruitId: 470002,
             secret: 'hex',
-            name: '示例课程乙',
+            name: '示例课程甲',
             schoolName: '示例大学',
             progressText: '100.0%',
             enabled: true,
@@ -195,10 +195,10 @@ describe('版本 9：课程表搬成开课区间', () => {
     });
     expect(settings.zhihuishu.courses).toEqual([
       {
-        courseId: 9000000003,
-        recruitId: 900002,
+        courseId: 1000009998,
+        recruitId: 470002,
         secret: 'hex',
-        name: '示例课程乙',
+        name: '示例课程甲',
         schoolName: '示例大学',
         startTime: 0,
         endTime: 0,
@@ -233,17 +233,17 @@ describe('课程列表里的脏元素', () => {
     shortName: 'C1',
     mode: 0,
     schoolName: '某大学',
-    schoolShortName: 'NTU',
+    schoolShortName: 'DEMO',
     coverUrl: '',
     startTime: 0,
     endTime: 0,
     enabled: true,
   };
   const goodZhs = {
-    courseId: 9000000003,
-    recruitId: 900002,
+    courseId: 1000009998,
+    recruitId: 470002,
     secret: 'hex',
-    name: '示例课程乙',
+    name: '示例课程甲',
     schoolName: '示例大学',
     startTime: 0,
     endTime: 0,
@@ -268,7 +268,7 @@ describe('课程列表里的脏元素', () => {
   });
 
   it('只有 termId 的存量课照旧留下（任务以 termId 为单位，courseId 缺不代表是脏数据）', () => {
-    const settings = normalize({ mooc: { courses: [{ termId: 123, name: '示例课程戊', enabled: true }] } });
+    const settings = normalize({ mooc: { courses: [{ termId: 123, name: '乙课', enabled: true }] } });
 
     expect(settings.mooc.courses).toHaveLength(1);
     expect(settings.mooc.courses[0]?.termId).toBe(123);

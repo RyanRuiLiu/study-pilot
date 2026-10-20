@@ -19,7 +19,7 @@ import {
 const POPUP = [
   {
     testQuestion: {
-      name: '示例判断题甲。（ ）',
+      name: '示例判断题一：甲必然属于乙。（ ）',
       questionOptions: [
         { id: 900000001, content: '对', result: '0' },
         { id: 900000002, content: '错', result: '1' },
@@ -28,11 +28,11 @@ const POPUP = [
   },
   {
     testQuestion: {
-      name: '<p>示例题干甲（ ）</p>',
+      name: '<p>示例多选题二的特征包括（ ）</p>',
       questionOptions: [
-        { id: 900000003, content: '示例选项乙', result: '1' },
-        { id: 900000004, content: '示例选项丙', result: '1' },
-        { id: 900000005, content: '示例选项甲', result: '0' },
+        { id: 900000004, content: '甲特征', result: '1' },
+        { id: 900000005, content: '乙特征', result: '1' },
+        { id: 900000006, content: '丙特征', result: '0' },
       ],
     },
   },
@@ -49,7 +49,7 @@ const POPUP = [
 const PAPER: PaperQuestion[] = [
   {
     eid: 'eid-A',
-    text: '示例判断题甲。（ ）',
+    text: '示例判断题一：甲必然属于乙。（ ）',
     options: [
       { id: '900000001', text: '对' },
       { id: '900000002', text: '错' },
@@ -57,18 +57,18 @@ const PAPER: PaperQuestion[] = [
   },
   {
     eid: 'eid-B',
-    text: '示例题干甲（ ）',
+    text: '示例多选题二的特征包括（ ）',
     options: [
-      { id: '900000005', text: '示例选项甲' },
-      { id: '900000004', text: '示例选项丙' },
-      { id: '900000003', text: '示例选项乙' },
+      { id: '900000006', text: '丙特征' },
+      { id: '900000005', text: '乙特征' },
+      { id: '900000004', text: '甲特征' },
     ],
   },
 ];
 
 describe('normalizeQuestionText', () => {
   it('剥标签、去空白与中英标点', () => {
-    expect(normalizeQuestionText('<p>示例题干甲（ ）</p>')).toBe('示例题干甲');
+    expect(normalizeQuestionText('<p>示例多选题二的特征包括（ ）</p>')).toBe('示例多选题二的特征包括');
     expect(normalizeQuestionText(' A  B。，、？ ')).toBe('AB');
   });
 });
@@ -76,11 +76,11 @@ describe('normalizeQuestionText', () => {
 describe('answerKeyFromPopupExam', () => {
   it('只收 result="1" 的选项；没有正解的条目不进键', () => {
     const key = answerKeyFromPopupExam(POPUP);
-    expect(key.correctOptionIds.sort()).toEqual(['900000002', '900000003', '900000004']);
+    expect(key.correctOptionIds.sort()).toEqual(['900000002', '900000004', '900000005']);
     expect(key.entries).toHaveLength(2);
-    const multi = key.entries.find((entry) => entry.question.startsWith('示例课程己'));
-    expect(multi?.correct.sort()).toEqual(['900000003', '900000004']);
-    expect(multi?.correctTexts.sort()).toEqual(['示例选项乙', '示例选项丙'].sort());
+    const multi = key.entries.find((entry) => entry.question.startsWith('示例多选题二'));
+    expect(multi?.correct.sort()).toEqual(['900000004', '900000005']);
+    expect(multi?.correctTexts.sort()).toEqual(['甲特征', '乙特征'].sort());
   });
 
   it('空输入建出空键（不是错键）', () => {
@@ -96,7 +96,7 @@ describe('matchPaper', () => {
     expect(match.missing).toHaveLength(0);
     expect(match.answers).toEqual([
       { eid: 'eid-A', optionIds: ['900000002'] },
-      { eid: 'eid-B', optionIds: ['900000004', '900000003'] },
+      { eid: 'eid-B', optionIds: ['900000005', '900000004'] },
     ]);
     expect(coverageOf(PAPER, match)).toBe(1);
   });
@@ -106,7 +106,7 @@ describe('matchPaper', () => {
     const freshCopy: PaperQuestion[] = [
       {
         eid: 'eid-new-A',
-        text: '示例判断题甲。 ( )',   // 空格与半角括号都变了
+        text: '示例判断题一：甲必然属于乙。 ( )',   // 空格与半角括号都变了
         options: [
           { id: '7001', text: '对' },
           { id: '7002', text: '错' },
@@ -114,11 +114,11 @@ describe('matchPaper', () => {
       },
       {
         eid: 'eid-new-B',
-        text: '<p>示例题干甲（ ）</p>',
+        text: '<p>示例多选题二的特征包括（ ）</p>',
         options: [
-          { id: '8001', text: '示例选项丙' },
-          { id: '8002', text: '示例选项乙' },
-          { id: '8003', text: '示例选项甲' },
+          { id: '8001', text: '乙特征' },
+          { id: '8002', text: '甲特征' },
+          { id: '8003', text: '丙特征' },
         ],
       },
     ];
@@ -135,7 +135,7 @@ describe('matchPaper', () => {
     const stranger: PaperQuestion[] = [
       { eid: 'eid-x', text: '这门课没见过的题（ ）', options: [{ id: '9001', text: '甲' }] },
       // 题干一样，但本卷选项里没有那条正解文本（对不上就是不同题）
-      { eid: 'eid-A', text: '示例判断题甲。（ ）', options: [{ id: '9002', text: '也许' }] },
+      { eid: 'eid-A', text: '示例判断题一：甲必然属于乙。（ ）', options: [{ id: '9002', text: '也许' }] },
     ];
     const match = matchPaper(stranger, key);
     expect(match.answers).toHaveLength(0);

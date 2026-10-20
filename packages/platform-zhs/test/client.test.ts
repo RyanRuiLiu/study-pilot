@@ -119,7 +119,7 @@ describe('签名封装形态', () => {
     const { client, calls } = makeClient([
       { match: 'student/getStudentHomework', json: { code: 0, rt: { studentHomeworkList: [] } } },
     ]);
-    await client.call('examHomeworkList', { recruitId: 900004, courseId: 9000000002, flag: 1 });
+    await client.call('examHomeworkList', { recruitId: 470001, courseId: 1000009999, flag: 1 });
     const post = calls.find((c) => c.url.includes('student/getStudentHomework'));
     // 外层形态：一个字段，没有 & 分隔符
     const form = parseForm(String(post?.init?.body));
@@ -127,7 +127,7 @@ describe('签名封装形态', () => {
     // 密文里那份时间戳在（stampInside），载荷字段也在
     const inner = (await decryptSecret(form.secretStr!)) as Record<string, unknown>;
     expect(inner.dateFormate).toBe(1792099999000);
-    expect(inner.recruitId).toBe(900004);
+    expect(inner.recruitId).toBe(470001);
     expect(inner.flag).toBe(1);
   });
 
@@ -135,10 +135,10 @@ describe('签名封装形态', () => {
     const { client, calls } = makeClient([
       { match: 'getQuestionDoneState', json: { status: '200', rt: {} } },
     ]);
-    await client.call('examQuestionDoneState', { recruitId: 900004, questionIds: '[1]' });
+    await client.call('examQuestionDoneState', { recruitId: 470001, questionIds: '[1]' });
     const post = calls.find((c) => c.url.includes('getQuestionDoneState'));
     expect(post?.init?.method).toBe('POST');
-    expect(String(post?.init?.body)).toBe('recruitId=900004&questionIds=%5B1%5D');
+    expect(String(post?.init?.body)).toBe('recruitId=470001&questionIds=%5B1%5D');
     expect(calls.filter((c) => c.url.includes('c/has'))).toHaveLength(0);
   });
 

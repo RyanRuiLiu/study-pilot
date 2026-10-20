@@ -12,13 +12,13 @@ import type { AnswerKey } from '../src/exam-answers.ts';
 import { ZhsApiError, type ZhsClient } from '../src/client.ts';
 
 const TARGET: ExamTarget = {
-  recruitId: 900004,
-  courseId: 9000000002,
-  schoolId: 9001,
-  listId: 'DEMOa001',
-  examKey: 'DEMOb002',
-  examIdNum: 90000007,
-  stuExamIdNum: 9000000036,
+  recruitId: 470001,
+  courseId: 1000009999,
+  schoolId: 1001,
+  listId: 'AbCd0001',
+  examKey: 'FfGh0002',
+  examIdNum: 61000002,
+  stuExamIdNum: 6200000001,
 };
 
 /** 卷面两题，每题 2 分（合计 4）——与神谕的判据配套。 */

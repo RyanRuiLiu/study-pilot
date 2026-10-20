@@ -11,10 +11,10 @@ import type { ZhihuishuCourse } from '@study-pilot/application';
 import type { ZhsClient } from '@study-pilot/platform-zhs';
 
 const COURSE: ZhihuishuCourse = {
-  courseId: 9000000002,
-  recruitId: 900004,
+  courseId: 1000009999,
+  recruitId: 470001,
   secret: 'hex-secret',
-  name: '示例课程己',
+  name: '示例课程甲',
   schoolName: '示例大学',
   startTime: 0,
   endTime: 0,
@@ -26,15 +26,15 @@ const CHAPTERS = {
   data: {
     videoChapterDtos: [
       {
-        id: 9000000008,
+        id: 2000000009,
         name: '第三章',
         videoLessons: [{ id: 1000058308, name: '课', videoId: 1, videoSec: 100, videoSmallLessons: null }],
         studentExamDto: {
-          id: 9000000036,
+          id: 6200000001,
           state: 1,
-          exam: { id: 90000007, type: 1 },
+          exam: { id: 61000002, type: 1 },
           examUrl:
-            '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/900004/DEMOa001/DEMOb002/9000000002/9001/0',
+            '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/470001/AbCd0001/FfGh0002/1000009999/1001/0',
         },
       },
     ],
@@ -42,8 +42,8 @@ const CHAPTERS = {
 };
 
 const ITEM = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
-  id: 'DEMOa001',
-  examId: 'DEMOb002',
+  id: 'AbCd0001',
+  examId: 'FfGh0002',
   examName: '第三章单元测试',
   meetCourseType: 0,
   state: 1,

@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeMeetSessions } from '../src/meet.ts';
 
-/** 真实形态的一条（2026-10-17 真机抓包，字段裁剪到用到的那些）。 */
+/** 形态取自 2026-10-17 真机抓包的一条（裁到用到的字段，id 与地址换成合成样例）。 */
 const SESSION = {
-  taskId: '9000001',
+  taskId: '1100001',
   taskName: '第一次见面课',
   taskType: '1',
   taskStatus: '3',
   startTime: '2026-10-08 18:30:00',
   endTime: '2026-10-08 20:00:00',
   courseEndTime: '2026-12-27 23:59:59',
-  liveCourseUrl: '//lc.zhihuishu.com/live/live_room.html?t=1798387199000&liveId=90000001',
-  replayCourseUrl: '//lc.zhihuishu.com/live/vod_room.html?t=1798387199000&liveId=90000001',
-  videoId: '90000008',
-  examH5Url: 'https://onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/900003/x/y/9000000001/5067/1',
-  examId: 'wKjExBDg',
+  liveCourseUrl: '//lc.zhihuishu.com/live/live_room.html?t=1798387199000&liveId=13000001',
+  replayCourseUrl: '//lc.zhihuishu.com/live/vod_room.html?t=1798387199000&liveId=13000001',
+  videoId: '80000001',
+  examH5Url: 'https://onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/470001/x/y/1000009999/5067/1',
+  examId: 'M9n0P1q2',
   meetCourseExamStatus: '1',
 };
 
@@ -22,13 +22,13 @@ describe('normalizeMeetSessions', () => {
   it('形态符合：取到主题、状态、起止与回放地址', () => {
     const [session] = normalizeMeetSessions({ maps: [SESSION] });
     expect(session).toMatchObject({
-      taskId: '9000001',
+      taskId: '1100001',
       name: '第一次见面课',
       status: 3,
-      examId: 'wKjExBDg',
+      examId: 'M9n0P1q2',
       quizStatus: 1,
     });
-    expect(session?.replayUrl).toBe('https://lc.zhihuishu.com/live/vod_room.html?t=1798387199000&liveId=90000001');
+    expect(session?.replayUrl).toBe('https://lc.zhihuishu.com/live/vod_room.html?t=1798387199000&liveId=13000001');
     expect(session?.startAt).not.toBeNull();
   });
 

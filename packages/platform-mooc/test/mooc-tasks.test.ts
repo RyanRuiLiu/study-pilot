@@ -127,8 +127,8 @@ describe('按范围收窄的计划', () => {
       refreshCourses: refresh,
       selectedCourses: () =>
         [
-          { termId: 7, courseId: 1, name: '示例课程戊' },
-          { termId: 8, courseId: 2, name: '示例课程丁' },
+          { termId: 7, courseId: 1, name: '乙课' },
+          { termId: 8, courseId: 2, name: '甲课' },
         ] as never,
       loadSnapshot: async (courses) => {
         read.push(courses.map((course) => course.name));
@@ -136,9 +136,9 @@ describe('按范围收窄的计划', () => {
       },
     });
 
-    await tasks.plan(NOW, { group: '示例课程丁' });
+    await tasks.plan(NOW, { group: '甲课' });
 
-    expect(read).toEqual([['示例课程丁']]);
+    expect(read).toEqual([['甲课']]);
     expect(refresh).not.toHaveBeenCalled();
   });
 
@@ -159,10 +159,10 @@ describe('按范围收窄的计划', () => {
     const base = deps();
     const tasks = createMoocTasks({
       ...base,
-      selectedCourses: () => [{ termId: 7, courseId: 1, name: '示例课程戊' }] as never,
+      selectedCourses: () => [{ termId: 7, courseId: 1, name: '乙课' }] as never,
     });
 
-    expect(await tasks.plan(NOW, { group: '示例课程丁' })).toEqual({ items: [], blocked: 'no-course' });
+    expect(await tasks.plan(NOW, { group: '甲课' })).toEqual({ items: [], blocked: 'no-course' });
   });
 });
 

@@ -22,29 +22,29 @@ const CHAPTERS = {
   data: {
     videoChapterDtos: [
       {
-        id: 9000000005,
-        name: '导论',
+        id: 2000000001,
+        name: '示例绪论',
         videoLessons: [
-          { id: 9000000011, name: '导论', videoId: 90000003, videoSec: 501, videoSmallLessons: null },
+          { id: 3000000001, name: '示例绪论', videoId: 500000001, videoSec: 501, videoSmallLessons: null },
         ],
       },
       {
-        id: 9000000006,
-        name: '示例问题乙？',
+        id: 2000000002,
+        name: '示例章节一？',
         videoLessons: [
           {
-            id: 9000000012,
-            name: '示例问题丙？',
+            id: 3000000002,
+            name: '示例课时甲',
             videoId: null,
             videoSec: null,
             videoSmallLessons: [
-              { id: 9000000009, name: '示例问题丙？（上）', videoId: 90000004, videoSec: 680 },
-              { id: 9000000010, name: '示例问题丙？（下）', videoId: 90000005, videoSec: 500 },
+              { id: 4000000001, name: '示例课时甲（上）', videoId: 500000002, videoSec: 680 },
+              { id: 4000000002, name: '示例课时甲（下）', videoId: 500000003, videoSec: 500 },
             ],
           },
         ],
       },
-      { id: 9000000007, name: '创新的机会', videoLessons: [] },
+      { id: 2000000003, name: '示例章节二', videoLessons: [] },
     ],
   },
 };
@@ -52,11 +52,11 @@ const CHAPTERS = {
 const STUDY_INFO = {
   data: {
     lesson: {
-      '9000000011': { watchState: 1, studyTotalTime: 408 },
+      '3000000001': { watchState: 1, studyTotalTime: 408 },
     },
     lv: {
-      '9000000009': { watchState: 0, studyTotalTime: 0 },
-      '9000000010': { watchState: 1, studyTotalTime: 500 },
+      '4000000001': { watchState: 0, studyTotalTime: 0 },
+      '4000000002': { watchState: 1, studyTotalTime: 500 },
     },
   },
 };
@@ -86,16 +86,16 @@ describe('readCourseChapters', () => {
 describe('getCourseUnits', () => {
   it('拍平章节并有子节位次映射（子节：lessonId=父、smallLessonId=自己）', async () => {
     const { client } = fakeClient({ videoList: CHAPTERS, studyInfo: STUDY_INFO });
-    const units = await getCourseUnits(client, { recruitAndCourseId: 'hex', recruitId: 900003 });
+    const units = await getCourseUnits(client, { recruitAndCourseId: 'hex', recruitId: 470001 });
     expect(units).toHaveLength(3);
-    expect(units[0]).toMatchObject({ lessonId: 9000000011, smallLessonId: 0, videoId: 90000003, sec: 501 });
-    expect(units[1]).toMatchObject({ lessonId: 9000000012, smallLessonId: 9000000009, sec: 680 });
-    expect(units[2]).toMatchObject({ lessonId: 9000000012, smallLessonId: 9000000010, sec: 500 });
+    expect(units[0]).toMatchObject({ lessonId: 3000000001, smallLessonId: 0, videoId: 500000001, sec: 501 });
+    expect(units[1]).toMatchObject({ lessonId: 3000000002, smallLessonId: 4000000001, sec: 680 });
+    expect(units[2]).toMatchObject({ lessonId: 3000000002, smallLessonId: 4000000002, sec: 500 });
   });
 
   it('两表合并出完成状态与累计秒（lesson + lv）', async () => {
     const { client } = fakeClient({ videoList: CHAPTERS, studyInfo: STUDY_INFO });
-    const units = await getCourseUnits(client, { recruitAndCourseId: 'hex', recruitId: 900003 });
+    const units = await getCourseUnits(client, { recruitAndCourseId: 'hex', recruitId: 470001 });
     expect(units[0]).toMatchObject({ done: true, studyTotalTime: 408 });
     expect(units[1]).toMatchObject({ done: false, studyTotalTime: 0 });
     expect(units[2]).toMatchObject({ done: true, studyTotalTime: 500 });
@@ -103,13 +103,13 @@ describe('getCourseUnits', () => {
 
   it('学情请求载荷与真实浏览器同形：lessonIds 含全部父课时（含有子节的），子节表非空才附', async () => {
     const { client, calls } = fakeClient({ videoList: CHAPTERS, studyInfo: STUDY_INFO });
-    await getCourseUnits(client, { recruitAndCourseId: 'hex', recruitId: 900003 });
+    await getCourseUnits(client, { recruitAndCourseId: 'hex', recruitId: 470001 });
     const info = calls.find((c) => c.name === 'studyInfo');
     expect(info?.payload).toEqual({
       // 金样本解密实证：站点对每个 videoLesson 都进 lessonIds（59/59）
-      lessonIds: [9000000011, 9000000012],
-      recruitId: 900003,
-      lessonVideoIds: [9000000009, 9000000010],
+      lessonIds: [3000000001, 3000000002],
+      recruitId: 470001,
+      lessonVideoIds: [4000000001, 4000000002],
     });
   });
 
@@ -145,14 +145,14 @@ describe('chapterExams', () => {
   // 形态取自实测样本 .probe/zhs-ctm-videolist.json（第一章）
   const withExams = [
     {
-      id: 9000000008,
+      id: 2000000009,
       name: '第一章',
-      videoLessons: [{ id: 9000000011, name: '导论', videoId: 90000003, videoSec: 501 }],
+      videoLessons: [{ id: 3000000001, name: '示例绪论', videoId: 500000001, videoSec: 501 }],
       studentExamDto: {
-        id: 9000000037,
+        id: 6200000002,
         state: 1,
-        exam: { id: 90000006, type: 1 },
-        examUrl: '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/900004/DEMOc003/DEMOd004/9000000002/9001/0',
+        exam: { id: 61000001, type: 1 },
+        examUrl: '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/470001/AbCd0003/FfGh0004/1000009999/1001/0',
       },
     },
   ];
@@ -161,12 +161,12 @@ describe('chapterExams', () => {
     expect(chapterExams(withExams)).toEqual([
       {
         chapterName: '第一章',
-        listId: 'DEMOc003',
-        examKey: 'DEMOd004',
-        examId: 90000006,
-        stuExamId: 9000000037,
-        schoolId: 9001,
-        lessonId: 9000000011,
+        listId: 'AbCd0003',
+        examKey: 'FfGh0004',
+        examId: 61000001,
+        stuExamId: 6200000002,
+        schoolId: 1001,
+        lessonId: 3000000001,
       },
     ]);
   });
@@ -183,19 +183,19 @@ describe('chapterExams', () => {
           ...withExams[0]!.studentExamDto,
           state: 4,
           examUrl:
-            '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/checkHomework/900004/DEMOc003/DEMOd004/9000000002/9001',
+            '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/checkHomework/470001/AbCd0003/FfGh0004/1000009999/1001',
         },
       },
     ];
     expect(chapterExams(done)).toEqual([
       {
         chapterName: '第一章',
-        listId: 'DEMOc003',
-        examKey: 'DEMOd004',
-        examId: 90000006,
-        stuExamId: 9000000037,
-        schoolId: 9001,
-        lessonId: 9000000011,
+        listId: 'AbCd0003',
+        examKey: 'FfGh0004',
+        examId: 61000001,
+        stuExamId: 6200000002,
+        schoolId: 1001,
+        lessonId: 3000000001,
       },
     ]);
   });
@@ -206,7 +206,7 @@ describe('chapterExams', () => {
   });
 
   it('数字 id 缺失（exam.id 不在）跳过——神谕没有入参就不能用', () => {
-    const broken = [{ ...withExams[0], studentExamDto: { id: 9000000037, examUrl: withExams[0]!.studentExamDto.examUrl } }];
+    const broken = [{ ...withExams[0], studentExamDto: { id: 6200000002, examUrl: withExams[0]!.studentExamDto.examUrl } }];
     expect(chapterExams(broken)).toEqual([]);
   });
 });

@@ -21,9 +21,9 @@ const TERM_END = 1_900_000_000_000;
 function summary(over: Partial<CourseSummary> = {}): CourseSummary {
   return {
     courseId: 1,
-    name: '示例课程丁',
+    name: '示例课程甲',
     shortName: 'EE101',
-    termId: 9000000030,
+    termId: 1400000001,
     mode: 0,
     courseType: 1,
     schoolName: '某大学',
@@ -42,8 +42,8 @@ function summary(over: Partial<CourseSummary> = {}): CourseSummary {
 function selected(over: Partial<SelectedCourse> = {}): SelectedCourse {
   return {
     courseId: 1,
-    termId: 9000000030,
-    name: '示例课程丁',
+    termId: 1400000001,
+    name: '示例课程甲',
     shortName: 'EE101',
     mode: 0,
     schoolName: '某大学',

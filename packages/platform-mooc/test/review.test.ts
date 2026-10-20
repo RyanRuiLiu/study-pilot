@@ -2,7 +2,7 @@
  * 互评 DWR 响应解析测试。
  *
  * 样本是实测抓取的真实响应，来自示例课程子的第三单元作业
- * （testId 9000000021）。
+ * （testId 1200000003）。
  *
  * 这里钉住格式是有必要的：DWR 把对象拆成逐字段赋值，
  * 早期实现误以为响应形如 `s0{...}`，结果所有字段都解析不到，
@@ -20,7 +20,7 @@ const NEXT_SUBMISSION_RESPONSE = [
   '//#DWR-REPLY',
   'var s0={};s0.answerformId=9000000044;s0.evaluateId=9000000034;',
   's0.evaluateJudgeType=2;s0.evaluatorId=1;s0.origScore=0.0;',
-  's0.status=1;s0.testId=9000000021;',
+  's0.status=1;s0.testId=1200000003;',
   "dwr.engine._remoteHandleCallback('1790366273307','0',{next:s0,total:5,max:30,completed:2});",
   '',
 ].join('\r\n');
@@ -31,10 +31,10 @@ const EVALUATE_DETAIL_RESPONSE = [
   '//#DWR-REPLY',
   'var s0=[];var s4={};var s5={};var s1={};var s2={};var s3={};s0[0]=s4;s0[1]=s5;',
   's4.answerformId=9000000042;s4.evaluateId=9000000033;s4.evaluateJudgeType=2;',
-  's4.evaluatorId=1;s4.origScore=100.0;s4.status=2;s4.testId=9000000021;',
+  's4.evaluatorId=1;s4.origScore=100.0;s4.status=2;s4.testId=1200000003;',
   's5.answerformId=9000000043;s5.evaluateId=9000000035;s5.evaluateJudgeType=2;',
-  's5.evaluatorId=1;s5.origScore=100.0;s5.status=2;s5.testId=9000000021;',
-  "s1.id=9000000021;s1.name=\"\\u7B2C\\u4E09\\u5355\\u5143 \\u5355\\u5143\\u4F5C\\u4E1A\";s1.termId=9000000031;",
+  's5.evaluatorId=1;s5.origScore=100.0;s5.status=2;s5.testId=1200000003;',
+  "s1.id=1200000003;s1.name=\"\\u7B2C\\u4E09\\u5355\\u5143 \\u5355\\u5143\\u4F5C\\u4E1A\";s1.termId=1400000002;",
   's2.answerformId=9000000045;s2.evaluateId=9000000032;s2.evaluateJudgeType=3;s2.status=1;',
   's3.answerformId=9000000044;s3.evaluateId=9000000034;s3.evaluateJudgeType=2;s3.status=1;',
   "dwr.engine._remoteHandleCallback('1790365791170','0',{completedEvaluates:s0,enoughAnswer:true,",
@@ -49,7 +49,7 @@ describe('parseDwrObjectVariables', () => {
     expect(fields.evaluateId).toBe('9000000034');
     expect(fields.answerformId).toBe('9000000044');
     expect(fields.status).toBe('1');
-    expect(fields.testId).toBe('9000000021');
+    expect(fields.testId).toBe('1200000003');
     expect(fields.evaluateJudgeType).toBe('2');
     expect(fields.evaluatorId).toBe('1');
   });
