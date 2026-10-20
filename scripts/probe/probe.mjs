@@ -40,6 +40,9 @@ import {
   ZHS_ENDPOINTS,
   BROWSER_USER_AGENT as ZHS_USER_AGENT,
 } from '../../packages/platform-zhs/src/index.ts';
+// 下载源码用的 UA 也取自正源（相对路径 + .ts，同上）。这里曾自己抄了一份逐字节相同的串：
+// UA 要跟着真实浏览器版本走，两处各改必然漂移，而漂移的表现是平台按 UA 把我们认成非浏览器。
+import { BROWSER_USER_AGENT as SRC_USER_AGENT } from '../../packages/transport/src/user-agent.ts';
 
 const ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const PROFILE = path.join(ROOT, '.probe', 'profile');
@@ -93,7 +96,9 @@ const ZHS_WRITE_ENDPOINTS = new Set([
   'examApplyRedo',
 ]);
 /** 签名盐值与协议版本——出处是 packages/transport/src/sign.ts（按线上源码还原；
- * 本文件只用于慕课的 .rpc 调试；智慧树的签名在 packages/platform-zhs/src/sign.ts，是另一套协议）。 */
+ * 本文件只用于慕课的 .rpc 调试；智慧树的签名在 packages/platform-zhs/src/sign.ts，是另一套协议）。
+ * 正源是 packages/transport/src/sign.ts 导出的 `SIGN_SALT`，这里是它的一份复制：那边改了必须同步改这里，
+ * 盐随平台前端发版会变，两处一漂移，call 签出的 Auth-Signature 就与真机对不上。 */
 const SIGN_SALT = 'fu2s2kxcswgn5hqanx7asmlogyr5wu29';
 /** 只读方法前缀白名单：写方法直接拦截，这是硬约束不是建议（账号数据不可逆）。 */
 const READONLY_PREFIXES = ['get', 'list', 'search', 'query', 'has', 'is', 'can', 'check', 'page', 'find'];
@@ -104,6 +109,36 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function die(message) {
   console.error(message);
   process.exit(1);
+}
+
+/**
+ * `--out` 的落点：夹在 .probe/ 内。capture / har / shot 三条命令共用这一条判据，
+ * 不要各自再写一份规则。
+ *
+ * 为什么要夹：这三样产物是**带账号数据**的东西（真实响应体、登录后的页面截图），
+ * 而 .gitignore 只忽略 .probe/ 等固定路径——落在外面等于把账号数据写到会被 git
+ * 跟踪的路径上，一次 `git add -A` 就进版本库。
+ *
+ * 判据：两种写法都认——裸名字按老习惯相对仓库根解析，解析后仍在 `.probe/` 内才放行；
+ * 写成 `.probe/xxx` 的（har 的老用法就是这么用的）保持原地，不要再套一层 `.probe/.probe/`。
+ * 绝对路径或 `..` 越界一律拒绝（不给悄悄改路径的余地）。
+ */
+function probeOutPath(name, command) {
+  const probeDir = path.resolve(ROOT, '.probe');
+  const withinProbe = (target) => {
+    const within = path.relative(probeDir, target);
+    return !(within === '' || within === '..' || within.startsWith(`..${path.sep}`) || path.isAbsolute(within));
+  };
+  // 先按仓库根解：`.probe/x.json` 这种写法就该落在原地
+  const target = [path.resolve(ROOT, name), path.resolve(probeDir, name)].find(withinProbe);
+  if (target === undefined) {
+    die(
+      `${command} 的 --out「${name}」会落在 ${rel(probeDir)}/ 之外，已拒绝写入。\n` +
+        `  产物带账号数据，而 .gitignore 只忽略 ${rel(probeDir)}/——落在外面就是可被 git 跟踪的路径。\n` +
+        `  改成 ${rel(probeDir)}/ 内的相对路径，或不给 --out（默认本来就落在 ${rel(probeDir)}/ 里）。`,
+    );
+  }
+  return target;
 }
 
 // ---------------------------------------------------------------- 参数解析
@@ -391,7 +426,7 @@ async function saveScriptBody(response, dir, saved) {
 async function capture(opts) {
   const url = opts.url;
   if (!url) die('capture 需要 --url <URL>（--out <名字> 可指定产物目录，缺省 capture-<时间戳>）');
-  const outDir = path.resolve(ROOT, '.probe', opts.out ?? `capture-${Date.now()}`);
+  const outDir = probeOutPath(opts.out ?? `capture-${Date.now()}`, 'capture');
 
   // recordHar 只能在启动时开，所以 capture 必须独占启动；探测浏览器在跑就先让位。
   if (await attach()) {
@@ -451,7 +486,7 @@ async function harExtract(opts) {
   const content = hits[hits.length - 1].response?.content ?? {};
   const body = content.encoding === 'base64' ? Buffer.from(content.text ?? '', 'base64') : Buffer.from(content.text ?? '');
   if (opts.out) {
-    const target = path.resolve(ROOT, opts.out);
+    const target = probeOutPath(opts.out, 'har');
     mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(target, body);
     console.log(`匹配 ${hits.length} 条，取最后一条 → ${rel(target)}（${body.length} 字节）`);
@@ -687,9 +722,7 @@ async function zhsCall(opts) {
  *   .probe/mooc-src/readable/<去哈希名>.js    格式化
  *   .probe/mooc-src/INDEX.md                  来源 URL → 文件，以及关键标记 → 哪些文件命中
  */
-/** 出站请求的常规浏览器 UA（与 packages/transport/src/user-agent.ts 同一口径）。 */
-const SRC_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
+/** 出站请求的常规浏览器 UA 见文件头：取自 packages/transport/src/user-agent.ts（`SRC_USER_AGENT`）。 */
 
 const SRC_MARKERS = [
   'saveDraftAnswers', 'submitAnswers', 'getOpenQuizPaperDto', 'getQuestionListByTermId',
@@ -935,12 +968,15 @@ async function cmdKill() {
 async function cmdShot(opts) {
   const url = opts.url;
   if (!url) die('shot 需要 --url <URL>');
+  // --out 先验后开浏览器：越界就当场拒绝，不必为一条注定失败的命令弹窗口、把带登录态的页面加载一遍。
+  // 缺省路径仍在截图前才定（时间戳含义不变）。
+  const outTarget = opts.out ? probeOutPath(opts.out, 'shot') : null;
   const handle = await acquire();
   try {
     const page = await handle.context.newPage();
     await page.goto(url, { waitUntil: 'load', timeout: 60000 });
     await sleep(Number(opts.wait ?? 1500));
-    const file = opts.out ? path.resolve(ROOT, opts.out) : path.join(ROOT, '.probe', `shot-${Date.now()}.png`);
+    const file = outTarget ?? path.join(ROOT, '.probe', `shot-${Date.now()}.png`);
     mkdirSync(path.dirname(file), { recursive: true });
     await page.screenshot({ path: file });
     console.log(`已截图 → ${rel(file)}`);
@@ -1801,6 +1837,7 @@ const USAGE = `用法：pnpm probe <命令> [选项]
       [--wait <毫秒>] [--eval <代码>...]    产物：trace.har + page.html + console.jsonl + shot.png + scripts/
   har --dir <名字> --match <片段> [--out <文件>]
                                          从采集的 HAR 里取出匹配请求的响应体
+                                         （--out 是 .probe/ 内的相对路径；落在 .probe/ 外一律拒绝——响应体带账号数据）
   call --bean <Bean> --method <方法>     在页面上下文发 .rpc 请求（默认只放行只读方法）
       [--body <JSON|@文件>] [--allow-write]
   src fetch [--url <页面>...] [--refetch]  下载 mooc 全站前端源码 → .probe/mooc-src/
@@ -1817,7 +1854,7 @@ const USAGE = `用法：pnpm probe <命令> [选项]
   store [--check]                        生成商店促销磁贴 → dist/store/
                                           （440x280 与 1400x560；色值与字体现读 tokens.css；
                                            --check 只核对不生成）
-  shot --url <URL> [--out <文件>]        截图
+  shot --url <URL> [--out <文件>]        截图（--out 同上，只认 .probe/ 内的相对路径；缺省 .probe/shot-<时间戳>.png）
   kill                                   关闭探测浏览器
 `;
 
