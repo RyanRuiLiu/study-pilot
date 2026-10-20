@@ -44,8 +44,6 @@ export interface TaskState {
 /** 后台此刻处于哪种状态。 */
 export type LiveRunState = 'idle' | 'running' | 'interrupted';
 
-
-
 /**
  * 一次查询的结果。
  *
@@ -80,7 +78,6 @@ export const REJECTION_MESSAGES: Record<JobRejection, string> = {
   FETCH_FAILED: '平台请求失败',
   NO_USER_ID: '无法读取账号信息，确认登录后重试',
 };
-
 
 /** 手动执行一轮的响应。 */
 export type RunScheduledTasksResponse =

@@ -47,7 +47,6 @@ export interface CourseSummary {
   enrollCount: number | null;
 }
 
-
 // ---------- 课程结构 ----------
 
 export type WorkType = 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective';
@@ -196,7 +195,6 @@ export interface WorkFlags {
   /** 已过截止时间 */
   overdue: boolean;
 }
-
 
 // 地址与试卷类型已按域移出，这里保持唯一出口，导入方不受影响
 export * from './course-url.ts';
