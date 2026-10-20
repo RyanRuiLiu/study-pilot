@@ -25,7 +25,7 @@ import { completionDto, postLearnInfo } from './reports.ts';
 export const unitQuizBehavior: UnitBehavior = {
   type: UNIT_TYPE.QUESTION,
   ready: (unit) => unit.contentId > 0,
-  async run(client, unit) {
+  async run(client, unit, _context, control) {
     /*
      * 只有一条路径：作答并提交（唯一实现见 quiz.ts 的 answerAndSubmitQuiz，
      * 做题助手的提交按钮走同一个函数）→ 报完成。
@@ -33,9 +33,15 @@ export const unitQuizBehavior: UnitBehavior = {
      * 因此答案组不齐、含主观题等情况一律返回失败，不退化成「只标完成」——
      * 那样会留下一条没有作答记录的「已学」，与真人的痕迹对不上。
      * 失败会在下一轮重试，仍不齐就交人工。
+     *
+     * 停止键必须接到 submit 之前：交卷落下去就是不可撤销的一条作答记录，
+     * 用户按下「停止」之后不该再有写操作出去（与讨论在发帖前问同一句是同一个约定）。
      */
-    const outcome = await answerAndSubmitQuiz(client, unit.contentId, unit.termId);
+    const outcome = await answerAndSubmitQuiz(client, unit.contentId, unit.termId, {
+      beforeSubmit: () => !control.stopped(),
+    });
 
+    if (outcome.status === 'stopped') return ok('stopped');
     if (outcome.status === 'failed') return err(apiError(-1, outcome.message));
     if (outcome.status === 'no-objective') {
       return err(apiError(-1, '这份随堂测验没有客观题，无法按唯一路径作答'));

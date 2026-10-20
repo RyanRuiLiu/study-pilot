@@ -13,7 +13,7 @@
  *   - 没有客观题 / 没有可评题目 / 不在互评期：skipped，不是 failed
  *
  * 平台接口按模块替身，但纯函数
- * （`buildAnswers`、`buildAnswerIndex`、`buildEvaluationItems`、
+ * （`buildAnswers`、`buildEvaluationItems`、
  * `currentEvaluatePhase`）走真实实现：这三条路的判据就建在它们上面，
  * 换掉它们等于把要验的东西一起换掉，测试就只剩下「我调用了你」。
  */
@@ -32,7 +32,7 @@ import type {
 import type { SnapshotCourse, SnapshotWork } from '../src/policy/read/types.ts';
 import type { WorkAutoAction } from '../src/policy/plan/types.ts';
 
-/* 只替身「会向平台写」的那几个调用，纯函数（buildAnswers / buildAnswerIndex /
+/* 只替身「会向平台写」的那几个调用，纯函数（buildAnswers /
    currentEvaluatePhase 等）走真实实现：判据就建在它们上面，换掉等于把要验的东西一起换掉。
    替身按被测代码 import 的模块分：测验在 ../src/quiz.ts，作业与互评在 ../src/review.ts。 */
 vi.mock('../src/quiz.ts', async (importOriginal) => {

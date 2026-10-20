@@ -35,12 +35,28 @@ const ORIGIN_REJECTION = '非法跨域';
  *
  * 读的是克隆体，不消耗调用方的响应流。
  * 只在状态码可疑时才读正文，正常响应不付这个代价。
+ *
+ * 加一道「已经进业务就不算回绝」的闸：正文是 `code: 0` 的成功信封时，服务端
+ * 已经把这次请求当一次正常的接口调用处理过了——对 POST 来说那就是**一次已发生的
+ * 写**。此时再重发一次就是双写，而重发换来的只是把同一件事做两遍。回绝形态是
+ * 非零 code 或一句不带信封的话（实测：403，以及带「非法跨域」字样的非成功正文），
+ * 它们都落在闸的外面，照常重发一次。
  */
 async function looksLikeOriginRejection(res: Response): Promise<boolean> {
   if (res.status !== 403 && res.status !== 200) return false;
   try {
     const text = await res.clone().text();
-    return text.includes(ORIGIN_REJECTION);
+    if (!text.includes(ORIGIN_REJECTION)) return false;
+    return !isBusinessSuccess(text);
+  } catch {
+    return false;
+  }
+}
+
+/** 正文是不是 `code: 0` 的成功信封（进了业务）。解析不出就按「没进业务」处理。 */
+function isBusinessSuccess(text: string): boolean {
+  try {
+    return (JSON.parse(text) as { code?: unknown }).code === 0;
   } catch {
     return false;
   }
@@ -55,31 +71,35 @@ export function createPlatformClient(
   host: HostCapabilities,
   carrierFetch?: MoocClientOptions['fetch'],
 ): PlatformClient {
-  const send = carrierFetch ?? fetch;
-  const client = createMoocClient({
-    /*
-     * 出站请求的第一步是确保改写 Origin 的规则已生效。
-     *
-     * whenNetRulesReady 只保证「规则已提交」，不保证「已挂上网络栈」——
-     * updateDynamicRules 是异步提交的。规则还没生效时发出去的请求会带着
-     * 扩展自身的 Origin，被平台回「非法跨域请求」。
-     * 实测这表现为：装好后第一次读取失败，要手动打开一次 MOOC 页面，
-     * 等 service worker 被唤醒、规则真正生效之后才正常。
-     *
-     * 因此这里再加一层：命中那个回绝就等一拍重发一次。
-     * 重发时规则一定已生效，不必猜要等多久——第一次失败本身就是判据。
-     *
-     * 为什么这对写请求也是安全的：回绝发生在服务端处理**之前**（Origin 不合格
-     * 就不进业务逻辑），第一次请求并没有改动任何数据，重发不是第二次提交。
-     */
-    fetch: async (input, init) => {
-      await host.whenRequestRulesReady(MOOC_REQUEST_RULES);
-      const first = await send(input, init);
-      if (!(await looksLikeOriginRejection(first))) return first;
+  // 不把全局 fetch 拆出来直接调用（浏览器里那是 Illegal invocation），包一层再交出去
+  const send: MoocClientOptions['fetch'] = carrierFetch ?? ((input, init) => fetch(input, init));
 
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      return send(input, init);
-    },
+  /*
+   * 出站请求的第一步是确保改写 Origin 的规则已生效。
+   *
+   * whenNetRulesReady 只保证「规则已提交」，不保证「已挂上网络栈」——
+   * updateDynamicRules 是异步提交的。规则还没生效时发出去的请求会带着
+   * 扩展自身的 Origin，被平台回「非法跨域请求」。
+   * 实测这表现为：装好后第一次读取失败，要手动打开一次 MOOC 页面，
+   * 等 service worker 被唤醒、规则真正生效之后才正常。
+   *
+   * 因此这里再加一层：命中那个回绝就等一拍重发一次。
+   * 重发时规则一定已生效，不必猜要等多久——第一次失败本身就是判据。
+   *
+   * 对写请求的护栏在 `looksLikeOriginRejection` 里：正文已是 `code: 0` 的成功信封时
+   * 不算回绝、不重发——那一次已经进了业务，重发就是第二次提交。
+   */
+  const sendWithRules: MoocClientOptions['fetch'] = async (input, init) => {
+    await host.whenRequestRulesReady(MOOC_REQUEST_RULES);
+    const first = await send(input, init);
+    if (!(await looksLikeOriginRejection(first))) return first;
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    return send(input, init);
+  };
+
+  const client = createMoocClient({
+    fetch: sendWithRules,
     getToken: () => readToken(host),
     md5: md5hex,
   });
@@ -89,8 +109,13 @@ export function createPlatformClient(
    *
    * 返回布尔而不是会话对象：调用点关心的只有「换到没有」，
    * 换到之后一律重新读数据，而不是拿旧对象接着用。
+   *
+   * 这一次 GET 也走客户端那套出站（等规则生效 + 载体自己的请求头 + 客户端的站点地址）：
+   * 直接拿全局 fetch 发出去的话，在命令行这类载体上会带着扩展 Origin 打到平台首页，
+   * 恢复动作本身就失败了——而那看起来像「持久凭证也失效了」，把人说岔。
    */
-  const renew = async (): Promise<boolean> => (await renewSession(host)).renewed;
+  const renew = async (): Promise<boolean> =>
+    (await renewSession(host, client.send, client.origin)).renewed;
 
   return { client, renew };
 }

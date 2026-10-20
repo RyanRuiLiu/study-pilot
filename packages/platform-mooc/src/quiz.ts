@@ -102,17 +102,6 @@ export async function getQuizBank(
 /** 选项 id → 是否为正确答案。 */
 export type AnswerIndex = Map<string, boolean>;
 
-/** 由题库建立「选项 id → 是否为正确答案」。选项 id 全站唯一，不必按题目分组。 */
-export function buildAnswerIndex(bank: PaperQuestion[]): AnswerIndex {
-  const index = new Map<string, boolean>();
-  for (const question of bank) {
-    for (const option of question.optionDtos ?? []) {
-      index.set(String(option.id), option.answer === true);
-    }
-  }
-  return index;
-}
-
 /*
  * 卷面 + 题库 → 带答案的题（**唯一实现**）
  * -----------------------------------------

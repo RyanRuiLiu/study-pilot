@@ -30,12 +30,11 @@ export {
 
 export * from './types.ts';
 
-export { getCourses, getCoursesWithTrace, getAllCourses, type GetCoursesOptions } from './courses.ts';
+export { getCourses, getAllCourses, type GetCoursesOptions } from './courses.ts';
 
 export {
   getCourseStructure,
   deriveStatus,
-  filterReviewable,
 } from './structure.ts';
 
 export {

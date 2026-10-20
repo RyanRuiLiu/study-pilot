@@ -296,6 +296,31 @@ describe('随堂测验：像真人一样交一份答卷', () => {
       { qid: 12, type: 4, optIds: [104], time: expect.any(Number) },
     ]);
   });
+
+  it('停止键在提交之前生效：交卷不可撤销，停了就一条写请求都不发', async () => {
+    const { client, rpcCalls } = clientStub({
+      getOpenQuizPaperDto: {
+        code: 0,
+        message: '',
+        result: {
+          id: 5004,
+          objectiveQList: [{ id: 11, type: 1, optionDtos: [{ id: 101, answer: true }] }],
+        },
+      },
+    });
+
+    const result = await completeUnit(
+      client,
+      unitOf({ contentType: UNIT_TYPE.QUESTION }),
+      {},
+      { stopped: () => true },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toBe('stopped');
+    expect(rpcCalls('submitAnswers')).toHaveLength(0);
+    expect(rpcCalls('saveMocContentLearn')).toHaveLength(0);
+  });
 });
 
 describe('讨论：AI 写回复，写不出来就失败（没有固定文案）', () => {

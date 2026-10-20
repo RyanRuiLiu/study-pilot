@@ -131,7 +131,7 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
     name: '中国大学 MOOC',
 
     async isReady(): Promise<boolean> {
-      return (await ensureSession(deps.host)).loggedIn;
+      return (await ensureSession(deps.host, deps.client.send, deps.client.origin)).loggedIn;
     },
 
     async plan(now: number, scope?: RunSelection): Promise<PlanResult> {
@@ -144,7 +144,7 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
           : selected.filter((course) => course.name === scope.group);
       if (courses.length === 0) return { items: [], blocked: 'no-course' };
 
-      const session = await ensureSession(deps.host);
+      const session = await ensureSession(deps.host, deps.client.send, deps.client.origin);
       if (!session.loggedIn) return { items: [], needsLogin: true };
 
       /*
@@ -203,7 +203,7 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       const action = item.payload;
       // payload 是本平台 plan() 放进去的，形状由本文件保证
       const settings = await deps.config.read();
-      const session = await ensureSession(deps.host);
+      const session = await ensureSession(deps.host, deps.client.send, deps.client.origin);
       const [result] = await executeActions(
         deps.client,
         [action as Parameters<typeof executeActions>[1][number]],

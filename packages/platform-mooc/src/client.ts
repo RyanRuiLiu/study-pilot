@@ -46,6 +46,13 @@ export interface MoocClient {
   rpc: RpcClient;
   dwr: DwrClient;
   origin: string;
+  /**
+   * 本客户端用的出站环境（载体的 fetch，扩展那边还包着「等规则生效 + 回绝重发」）。
+   *
+   * 交出来是因为会话恢复那一次静默 GET 也必须走同一套出站规则：绕过去自己发，
+   * 在命令行/代理域这类载体上就会带着错的 Origin、发到错的站点。
+   */
+  send: FetchLike;
 }
 
 export function createMoocClient(options: MoocClientOptions): MoocClient {
@@ -56,6 +63,7 @@ export function createMoocClient(options: MoocClientOptions): MoocClient {
 
   return {
     origin,
+    send: options.fetch,
     rpc: createRpcClient({
       origin,
       fetch: options.fetch,

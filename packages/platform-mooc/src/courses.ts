@@ -83,7 +83,7 @@ function toSummary(raw: RawCourse): CourseSummary {
 }
 
 /**
- * 课程列表的未登录形态判定，getCourses 与 getCoursesWithTrace 共用。
+ * 课程列表的未登录形态判定，getCourses 用它。
  *
  * 内层 result 为 `null` 时平台在说「我不认得你」；空数组才是
  * 「认得，但确实没有课程」（实测 2026-10-03）。
@@ -121,55 +121,6 @@ export async function getCourses(
   if (!list.ok) return list;
   return ok(list.value.map(toSummary).filter((course) => course.termId > 0));
 }
-
-/**
- * 取课程列表，并把中间结果一并返回。
- *
- * 仅用于诊断：课程列表在界面上出现缺失时，需要区分是「请求返回空」
- * 还是「解析后为空」，两者的处理方式完全不同。
- */
-export async function getCoursesWithTrace(
-  client: MoocClient,
-  options: GetCoursesOptions = {},
-): Promise<{
-  request: Record<string, unknown>;
-  envelope?: unknown;
-  rawCount?: number;
-  parsedCount?: number;
-  error?: string;
-}> {
-  const request = {
-    type: 30,
-    p: 1,
-    psize: options.pageSize ?? 50,
-    courseType: options.courseType ?? COURSE_TYPE.MOOC,
-  };
-
-  const payload = await client.rpc.call<CourseListPayload>(
-    ENDPOINTS.courseList.bean,
-    ENDPOINTS.courseList.method,
-    request,
-  );
-
-  if (!payload.ok) {
-    return { request, error: `${payload.error.kind}: ${payload.error.message}` };
-  }
-
-  // 与 getCourses 共用同一份未登录形态判定
-  const list = authedCourseList(payload.value);
-  if (!list.ok) {
-    return { request, error: `${list.error.kind}: ${list.error.message}` };
-  }
-  const parsed = list.value.map(toSummary).filter((course) => course.termId > 0);
-
-  return {
-    request,
-    envelope: payload.value,
-    rawCount: list.value.length,
-    parsedCount: parsed.length,
-  };
-}
-
 
 /** 同时取 MOOC 与 SPOC 两边的课程。 */
 export async function getAllCourses(

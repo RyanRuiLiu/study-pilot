@@ -18,7 +18,17 @@
  */
 
 import type { HostCapabilities } from '@study-pilot/application';
+import type { FetchLike } from '@study-pilot/transport';
 import { MOOC_ORIGIN } from '../client.ts';
+
+/**
+ * 会话恢复那一次静默 GET 的默认出站环境：全局 fetch。
+ *
+ * 包一层箭头函数而不是直接拿 `fetch` 当默认值——把全局 fetch 解构出来再调用，
+ * 在浏览器里是「Illegal invocation」。（调用方若能给出载体的 fetch，别用这个默认值：
+ * 扩展那边要等 Origin 改写规则生效，命令行那边要自己设头。）
+ */
+const defaultSend: FetchLike = (input, init) => fetch(input, init);
 
 /**
  * 三个 cookie 的名字。**全项目只有这一处写字面量**：读会话、续期时比对、
@@ -96,12 +106,16 @@ async function readSession(host: HostCapabilities): Promise<MoocSession> {
  * 已死的情形由 {@link renewSession} 处理——那里的判据是服务端的表态，
  * 不是本地的 cookie。
  */
-export async function ensureSession(host: HostCapabilities): Promise<MoocSession> {
+export async function ensureSession(
+  host: HostCapabilities,
+  send: FetchLike = defaultSend,
+  origin: string = MOOC_ORIGIN,
+): Promise<MoocSession> {
   const current = await readSession(host);
   if (current.loggedIn && current.token) return current;
 
   try {
-    await fetch(`${MOOC_ORIGIN}/`, { credentials: 'include' });
+    await send(`${origin}/`, { credentials: 'include' });
   } catch {
     // 网络失败就按当前状态返回，由调用方决定怎么提示
     return current;
@@ -142,10 +156,12 @@ export class SessionExpiredError extends Error {
  */
 export async function renewSession(
   host: HostCapabilities,
+  send: FetchLike = defaultSend,
+  origin: string = MOOC_ORIGIN,
 ): Promise<{ renewed: boolean; session: MoocSession }> {
   const before = await readCookie(host, SESSION_COOKIES.sess);
   try {
-    await fetch(`${MOOC_ORIGIN}/`, { credentials: 'include' });
+    await send(`${origin}/`, { credentials: 'include' });
   } catch {
     return { renewed: false, session: await readSession(host) };
   }

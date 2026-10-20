@@ -112,7 +112,10 @@ export interface QuizPaper {
   aid?: number | null;
   submitStatus?: number | null;
   type?: number | null;
-  /** 写操作字段：提交时必须置为 null，答案由服务端从草稿读取 */
+  /**
+   * 写操作字段：提交时原样带上——submitQuiz 只补 submitType，清空它就没有答案可交了
+   * （页面源码的 `_$submitAnswers` 也只清理 content 里的 emoji；真机提交取证 2026-10-17）。
+   */
   answers?: PaperAnswer[] | null;
   /** 写操作字段：提交时为 1 */
   submitType?: number | null;

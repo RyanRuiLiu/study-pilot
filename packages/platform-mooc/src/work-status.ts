@@ -40,17 +40,3 @@ export function deriveStatus(work: CourseWork, now: number = Date.now()): WorkFl
     overdue: test.deadline != null && now > test.deadline,
   };
 }
-
-/**
- * 筛选出当前可以提交互评的作业：支持互评，且互评窗口尚未关闭。
- * 不检查「已提交」——一份作业可以评多个人，评过之后仍可继续评。
- */
-export function filterReviewable(
-  works: CourseWork[],
-  now: number = Date.now(),
-): CourseWork[] {
-  return works.filter((work) => {
-    const status = deriveStatus(work, now);
-    return status.reviewable && !(work.test.evaluateEnd != null && now > work.test.evaluateEnd);
-  });
-}
