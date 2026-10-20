@@ -386,3 +386,124 @@ describe('缺键路径（探路重做）', () => {
     expect(names.filter((n) => n === 'examDoHomework')).toHaveLength(1);
   });
 });
+
+/*
+ * 已交过的两种进法：**最贵的那一步只在这里发生**（重做会覆盖原分数，而申请一次就吃掉
+ * 一次机会）。计划层只钉了两个字符串（tasks.test.ts），会话层的顺序与「申请几次」
+ * 一直没有整卷断言——这两条恰恰是写操作，红了才知道出事的是哪一步。
+ */
+const HARVESTED_LOOKED = {
+  rt: {
+    examBase: {
+      workExamParts: [
+        {
+          questionDtos: [
+            { id: 111, eid: null, name: '第一题', questionType: { id: 1 }, questionOptions: [{ id: 900000006, content: '对' }] },
+            { id: 222, eid: null, name: '第二题', questionType: { id: 1 }, questionOptions: [{ id: 561505200, content: '对' }] },
+          ],
+        },
+      ],
+    },
+  },
+};
+
+/** 通道按题号回正解：两题都回，键才覆盖得全（覆盖不全是要拦的，不是这里的场景）。 */
+const HARVESTED_POPUP = {
+  data: {
+    lessonTestQuestionUseInterfaceDtos: [
+      { testQuestion: { name: '第一题', questionOptions: [{ id: 900000006, content: '对', result: '1' }] } },
+      { testQuestion: { name: '第二题', questionOptions: [{ id: 561505200, content: '对', result: '1' }] } },
+    ],
+  },
+};
+
+describe('已交未满分（enter=submitted）：收割 → 申请一次重做 → 定分', () => {
+  const SIGNED = {
+    examIsObject: { rt: 1 },
+    // rt=2 ⇒ 剩余 1 次。这条路只要 ≥1（它不探路）；门槛写成 2 就会把这条路挡死——那正是要钉住的分界
+    examRedoNum: { rt: 2 },
+    examLookHomework: HARVESTED_LOOKED,
+    popupExam: HARVESTED_POPUP,
+    examApplyRedo: { rt: 1 },
+    examDoHomework: { rt: PAPER },
+    examSaveAnswer: { rt: { statu: '1' } },
+    examQuestionDoneState: ORACLE_PASS,
+    examSubmit: { rt: { statu: '0', score: '4' } },
+  };
+
+  it('只申请一次重做，且申请在重开卷之前；整场只交一次卷', async () => {
+    const { client, names } = recordingClient(SIGNED);
+    const outcome = await executeExam(client, input({ enter: 'submitted' }), NEVER_STOPPED);
+
+    expect(outcome.status).toBe('done');
+    if (outcome.status !== 'done') return;
+    expect(outcome.message).toContain('重做定分');
+
+    expect(names.filter((n) => n === 'examApplyRedo')).toHaveLength(1);
+    // 不重打第一枪：整场只有定分那一次 submit
+    expect(names.filter((n) => n === 'examSubmit')).toHaveLength(1);
+    expect(names.indexOf('examApplyRedo')).toBeLessThan(names.indexOf('examDoHomework'));
+    expect(names).toEqual([
+      'examIsObject',
+      'examRedoNum',
+      'examLookHomework',
+      'popupExam',
+      'examApplyRedo',
+      'examDoHomework',
+      'examSaveAnswer',
+      'examSaveAnswer',
+      'examQuestionDoneState',
+      'examSubmit',
+    ]);
+  });
+
+  it('收割不出键 → 不申请重做（机会一次都不白花）', async () => {
+    const { client, names } = recordingClient({
+      ...SIGNED,
+      // 通道只回第一题的正解：键覆盖 50%，这条判据必须在动重做之前就把路拦住
+      popupExam: {
+        data: {
+          lessonTestQuestionUseInterfaceDtos: [
+            { testQuestion: { name: '第一题', questionOptions: [{ id: 900000006, content: '对', result: '1' }] } },
+          ],
+        },
+      },
+    });
+    const outcome = await executeExam(client, input({ enter: 'submitted' }), NEVER_STOPPED);
+    expect(outcome.status).toBe('failed');
+    expect(outcome.message).toContain('未申请重做');
+    expect(outcome.message).toContain('50%');
+    expect(names).not.toContain('examApplyRedo');
+    expect(names).not.toContain('examSubmit');
+  });
+});
+
+describe('重做已申请（enter=redoOpen）：直接接管，绝不再申请一次', () => {
+  const OPENED = {
+    examLookHomework: HARVESTED_LOOKED,
+    popupExam: HARVESTED_POPUP,
+    examDoHomework: { rt: PAPER },
+    examSaveAnswer: { rt: { statu: '1' } },
+    examQuestionDoneState: ORACLE_PASS,
+    examSubmit: { rt: { statu: '0', score: '4' } },
+  };
+
+  it('不碰 examApplyRedo：重做早就用掉了，再申请是白吃一次机会', async () => {
+    const { client, names } = recordingClient(OPENED);
+    const outcome = await executeExam(client, input({ enter: 'redoOpen' }), NEVER_STOPPED);
+
+    expect(outcome.status).toBe('done');
+    if (outcome.status !== 'done') return;
+    expect(outcome.message).toContain('接管重做定分');
+    expect(names).not.toContain('examApplyRedo');
+    expect(names.filter((n) => n === 'examSubmit')).toHaveLength(1);
+  });
+
+  it('这条路不问门槛：examIsObject 与 examRedoNum 都不该被调', async () => {
+    // 「剩几次都交」是这条路的定案（设计文档 §7-7）：它不花机会，所以不设次数门槛
+    const { client, names } = recordingClient(OPENED);
+    await executeExam(client, input({ enter: 'redoOpen' }), NEVER_STOPPED);
+    expect(names).not.toContain('examIsObject');
+    expect(names).not.toContain('examRedoNum');
+  });
+});
