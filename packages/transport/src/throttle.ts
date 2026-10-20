@@ -22,7 +22,7 @@
 export const DEFAULT_MIN_GAP_MS = 200;
 
 export interface ThrottleOptions {
-  /** 两次请求之间的最小间隔（毫秒） */
+  /** 两次请求之间的最小间隔（毫秒）。缺省为 `DEFAULT_MIN_GAP_MS`；非有限数值会在构造时抛错。 */
   minGapMs?: number;
   /** 注入时钟，便于测试 */
   now?: () => number;
@@ -50,6 +50,22 @@ const defaultSleep = (ms: number): Promise<void> =>
  */
 export function createThrottle(options: ThrottleOptions = {}): Throttle {
   const minGapMs = options.minGapMs ?? DEFAULT_MIN_GAP_MS;
+  /**
+   * 间隔必须在构造时就是有限数值。
+   *
+   * 不校验的后果是静默退化：`minGapMs` 为 NaN 时 `wait` 也是 NaN，
+   * `wait > 0` 恒为 false，于是每次都跳过等待——节流看起来在工作（请求仍串行），
+   * 实际已经把间隔丢掉了，而平台判定限流的依据恰恰就是这个间隔。
+   * 为 Infinity 时则恒为 true，第一个请求之后队列永久挂住。
+   *
+   * 选择抛错而不是回退 `DEFAULT_MIN_GAP_MS`：调用方是代码而不是用户，
+   * NaN 只可能来自上游的计算或序列化错误；悄悄换成一个能用的值，
+   * bug 会原样留在调用点，等到线上被平台封禁才暴露。
+   * 只拦「非有限」这一种情况：0 是合法取值，表示显式关闭间隔。
+   */
+  if (!Number.isFinite(minGapMs)) {
+    throw new TypeError(`minGapMs 必须是有限数值，实际收到 ${minGapMs}`);
+  }
   const now = options.now ?? Date.now;
   const sleep = options.sleep ?? defaultSleep;
 

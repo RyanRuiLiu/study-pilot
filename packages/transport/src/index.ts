@@ -30,7 +30,7 @@ export {
 
 export {
   createRpcClient,
-  pendingCount,
+  DEFAULT_TIMEOUT_MS,
   type RpcClient,
   type RpcClientOptions,
   type RpcEnvelope,
@@ -41,6 +41,7 @@ export {
 export {
   CONCURRENCY_LIMIT_CODE,
   networkError,
+  timeoutError,
   httpError,
   parseError,
   apiError,

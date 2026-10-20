@@ -122,4 +122,22 @@ describe('createThrottle', () => {
 
     expect(clock.elapsed()).toBe(DEFAULT_MIN_GAP_MS);
   });
+
+  it('minGapMs 非有限数值时构造即抛错，不静默丢掉间隔', () => {
+    const clock = fakeClock();
+    const options = { now: clock.now, sleep: clock.sleep };
+
+    // NaN 会让 `wait > 0` 恒为 false：节流表面仍在串行，间隔却已静默消失
+    expect(() => createThrottle({ ...options, minGapMs: Number.NaN })).toThrow(TypeError);
+    // Infinity 会让等待时间恒为正：队列从第二个请求起永久挂住
+    expect(() => createThrottle({ ...options, minGapMs: Number.POSITIVE_INFINITY })).toThrow(
+      /minGapMs/,
+    );
+    expect(() => createThrottle({ ...options, minGapMs: Number.NEGATIVE_INFINITY })).toThrow(
+      /minGapMs/,
+    );
+
+    // 0 是「显式关闭间隔」的合法取值，不能被上面的校验误杀
+    expect(() => createThrottle({ ...options, minGapMs: 0 })).not.toThrow();
+  });
 });

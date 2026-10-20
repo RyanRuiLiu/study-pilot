@@ -42,9 +42,9 @@
  *    上一代实现把它当请求头附加，属于没有依据的多余动作。
  *
  * 3. **签名不是无条件的**。调用点是 `if (n.isNeedAuth) headers = {...geneAuthHeaders(n)}`，
- *    是否签名由各接口的配置决定。本实现把开关交给调用方（见 `RpcClient` 的 `sign` 选项），
- *    默认全部签名——因为已实测带签名的只读请求全部返回 `code: 0`，服务端不会拒绝。
- *    哪些接口**必须**签名、哪些接口**不接受**签名，尚未逐接口核对。
+ *    是否签名由各接口的配置决定。本实现不给这个开关——全部签名，因为已实测带签名的只读请求
+ *    全部返回 `code: 0`，服务端不会拒绝。哪些接口**必须**签名、哪些接口**不接受**签名，
+ *    尚未逐接口核对；真遇到「某接口拒绝带签名请求」时，再加这个开关并把它写在这里。
  */
 
 import type { Md5HexFn } from '@study-pilot/core';
@@ -59,11 +59,19 @@ export const SIGN_SYSTEM = 'v1';
 export const JSON_CONTENT_TYPE = 'application/json;charset=UTF-8';
 
 /**
- * 按页面语义把请求体序列化成参与签名的字符串。
+ * 把请求体序列化成参与签名的字符串。
  *
- * - 普通对象（`[object Object]`）→ `JSON.stringify`
+ * - 普通对象 → `JSON.stringify`
  * - 其它假值（`undefined` / `null` / `0` / `''`）→ 空串
  * - 其它真值（字符串、数字）→ 字符串化
+ *
+ * **对象这一支与页面不一致，是有意的**，别「改回去」：页面写作
+ * `"[Object Object]" === Object.prototype.toString.call(e) ? JSON.stringify(e) : e || ""`
+ * （逐字核对 `.probe/mooc-src/core.js`，大写 O）——那个字面量永远不相等，所以页面对
+ * 真对象走的是 `e || ""`，拼进签名的是隐式转换出来的 `"[object Object]"`。
+ * 真实的 `.rpc` 调用在这里传进去的已经是 `JSON.stringify` 过的**字符串**，两边在这一支
+ * 上逐字相同（带签名请求全部 `code: 0` 就是这条依据）。若把这里改成「和页面一样」，
+ * 对象入参的签名就会变成对一个无意义字面量取摘要。
  */
 export function serializeForSign(data: unknown): string {
   if (Object.prototype.toString.call(data) === '[object Object]') {

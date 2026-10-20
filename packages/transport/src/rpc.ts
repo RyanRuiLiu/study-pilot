@@ -27,6 +27,7 @@ import {
   httpError,
   networkError,
   parseError,
+  timeoutError,
   type TransportError,
 } from './errors.ts';
 import { buildAuthHeaders } from './sign.ts';
@@ -70,6 +71,13 @@ export interface RpcClientOptions {
   maxRetries?: number;
   /** 重试间隔基数，实际间隔按第几次重试线性放大，默认 1200ms */
   retryDelayMs?: number;
+  /**
+   * 单次出站的时间上界（**含响应体读取**），默认 20000ms。
+   *
+   * 必须有上界：节流器是全站串行的，一个挂死的请求会把后面所有出站一直压在队列里，
+   * 界面看起来就是「整站冻住」，直到浏览器自己放弃（可能要几分钟）。
+   */
+  timeoutMs?: number;
   /** 注入睡眠，便于测试 */
   sleep?: (ms: number) => Promise<void>;
 }
@@ -95,12 +103,16 @@ export interface RpcClient {
 const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+/** 单次出站的时间上界。平台正常响应在秒级，20 秒还不回就是挂了。RPC 与 DWR 共用这一个数。 */
+export const DEFAULT_TIMEOUT_MS = 20_000;
+
 export function createRpcClient(options: RpcClientOptions): RpcClient {
   const { origin, fetch, getToken, md5 } = options;
   const throttle = options.throttle ?? createThrottle({});
   const maxRetries = options.maxRetries ?? 3;
   const retryDelayMs = options.retryDelayMs ?? 1200;
   const sleep = options.sleep ?? defaultSleep;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   /** 发一次请求，不含重试。 */
   async function attempt<T>(
@@ -108,35 +120,58 @@ export function createRpcClient(options: RpcClientOptions): RpcClient {
     method: string,
     body: Record<string, unknown>,
   ): Promise<Result<RpcEnvelope<T>, TransportError>> {
-    const token = await getToken();
+    /*
+     * 取 token 也会失败：浏览器侧它读的是 cookie，权限被撤、profile 被清都可能 reject。
+     * 放在 try 之外就等于让异常穿过 Result 契约，调用方拿到的是 rejection 而不是可判别的失败。
+     */
+    let token: string;
+    try {
+      token = await getToken();
+    } catch (cause) {
+      return err(networkError(cause));
+    }
+
     const url = `${origin}/web/j/${bean}.${method}.rpc?csrfKey=${token}`;
     const headers = buildAuthHeaders(body, md5);
+    // 序列化失败（循环引用等）是实现的问题，不降级成 Result——降级只会把它藏得更深
+    const payload = JSON.stringify(body);
 
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: { ...headers },
-        body: JSON.stringify(body),
-        credentials: 'include',
-      });
-    } catch (cause) {
-      return err(networkError(cause));
-    }
-
-    let text: string;
-    try {
-      text = await response.text();
-    } catch (cause) {
-      return err(networkError(cause));
-    }
-
-    if (!response.ok) return err(httpError(response.status, text));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const failure = (cause: unknown): TransportError =>
+      controller.signal.aborted ? timeoutError(timeoutMs) : networkError(cause);
 
     try {
-      return ok(JSON.parse(text) as RpcEnvelope<T>);
-    } catch {
-      return err(parseError(text));
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { ...headers },
+          body: payload,
+          credentials: 'include',
+          signal: controller.signal,
+        });
+      } catch (cause) {
+        return err(failure(cause));
+      }
+
+      let text: string;
+      try {
+        text = await response.text();
+      } catch (cause) {
+        // 响应头到手不等于请求完成：读体卡住同样要按超时算
+        return err(failure(cause));
+      }
+
+      if (!response.ok) return err(httpError(response.status, text));
+
+      try {
+        return ok(JSON.parse(text) as RpcEnvelope<T>);
+      } catch {
+        return err(parseError(text));
+      }
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -166,9 +201,4 @@ export function createRpcClient(options: RpcClientOptions): RpcClient {
       return ok(result as T);
     },
   };
-}
-
-/** 当前排队中的请求数，用于诊断节流是否在正常工作。 */
-export function pendingCount(throttle: Throttle): number {
-  return throttle.pending();
 }

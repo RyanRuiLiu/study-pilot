@@ -41,7 +41,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function makeClient(
   responder: (url: string, init?: RequestInit) => Response | Promise<Response>,
-  overrides: { maxRetries?: number; retryDelayMs?: number } = {},
+  overrides: { maxRetries?: number; retryDelayMs?: number; timeoutMs?: number } = {},
 ) {
   const { fetch, calls } = stubFetch(responder);
   const client = createRpcClient({
@@ -235,5 +235,83 @@ describe('凭证', () => {
 
     expect(calls[0].url).toContain('csrfKey=first');
     expect(calls[1].url).toContain('csrfKey=second');
+  });
+
+  it('取 token 失败：归成 Result 里的失败，且一个请求都不发出去', async () => {
+    const { fetch, calls } = stubFetch(() => jsonResponse({ code: 0 }));
+    const client = createRpcClient({
+      origin: ORIGIN,
+      fetch,
+      getToken: async () => {
+        throw new Error('cookies 权限被撤');
+      },
+      md5: md5hex,
+      throttle: createThrottle({ minGapMs: 0 }),
+    });
+
+    const result = await client.call('aBean', 'getA');
+
+    expect(calls).toHaveLength(0);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('network');
+      expect(result.error.message).toContain('权限被撤');
+    }
+  });
+});
+
+/*
+ * 时间上界。节流器是全站串行的，没有上界的一个挂死请求会把后面所有出站一直压在队列里——
+ * 所以「超时了」必须是可判别的失败，而不是永远不 resolve 的 Promise。
+ */
+describe('时间上界', () => {
+  it('请求挂死：按超时归错', async () => {
+    const { client } = makeClient(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        }),
+      { timeoutMs: 20 },
+    );
+
+    const result = await client.call('aBean', 'getA');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('timeout');
+      expect(result.error.message).toContain('秒未返回');
+    }
+  });
+
+  it('响应头已到位、读体挂死：同样按超时归错（上界要罩住读体）', async () => {
+    const { client } = makeClient(
+      (_url, init) =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              init?.signal?.addEventListener('abort', () => controller.error(new Error('aborted')));
+              // 永不 enqueue、永不 close：读体就卡在这儿
+            },
+          }),
+          { status: 200 },
+        ),
+      { timeoutMs: 20 },
+    );
+
+    const result = await client.call('aBean', 'getA');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('timeout');
+  });
+
+  it('没超时就不该有超时错误', async () => {
+    const { client } = makeClient(() => jsonResponse({ code: 0, result: 'ok' }), {
+      timeoutMs: 5000,
+    });
+
+    const result = await client.call<string>('aBean', 'getA');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toBe('ok');
   });
 });

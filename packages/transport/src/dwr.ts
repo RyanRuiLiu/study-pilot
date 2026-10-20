@@ -33,8 +33,9 @@
  */
 
 import { err, ok, type Result } from '@study-pilot/core';
-import { networkError, type TransportError } from './errors.ts';
+import { networkError, timeoutError, type TransportError } from './errors.ts';
 import { createThrottle, type Throttle } from './throttle.ts';
+import { DEFAULT_TIMEOUT_MS } from './rpc.ts';
 import type { FetchLike, TokenProvider } from './rpc.ts';
 
 export const DWR_CONTENT_TYPE = 'text/plain';
@@ -58,6 +59,11 @@ export interface DwrClientOptions {
   throttle?: Throttle;
   /** 注入时钟，便于测试 */
   now?: () => number;
+  /**
+   * 单次出站的时间上界（**含响应体读取**），默认 20000ms。
+   * 与 RPC 共用节流器，所以这里的挂死同样会冻住整条出站队列——上界必须一样有。
+   */
+  timeoutMs?: number;
 }
 
 export interface DwrClient {
@@ -150,11 +156,21 @@ export function createDwrClient(options: DwrClientOptions): DwrClient {
   const { origin, fetch, getToken } = options;
   const throttle = options.throttle ?? createThrottle({});
   const now = options.now ?? Date.now;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   return {
     async call(bean, method, paramLines) {
       return throttle.run(async () => {
-        const token = await getToken();
+        /*
+         * 取 token 会失败（权限被撤、cookie 被清）时，异常必须留在 Result 里：
+         * 这条路径的调用方按「拿到一个可判别的失败」写，不该收到 rejection。
+         */
+        let token: string;
+        try {
+          token = await getToken();
+        } catch (cause) {
+          return err(networkError(cause));
+        }
         const batchId = now();
         const body =
           [
@@ -171,13 +187,17 @@ export function createDwrClient(options: DwrClientOptions): DwrClient {
 
         const url = `${origin}/dwr/call/plaincall/${bean}.${method}.dwr`;
 
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
           const response = await fetch(url, {
             method: 'POST',
             headers: { 'content-type': DWR_CONTENT_TYPE },
             body,
             credentials: 'include',
+            signal: controller.signal,
           });
+          // 读完体才算完：只罩住「发出请求」的话，卡在读体依然没有上界
           const raw = await response.text();
           return ok<DwrResponse>({
             ok: response.ok,
@@ -186,7 +206,9 @@ export function createDwrClient(options: DwrClientOptions): DwrClient {
             raw,
           });
         } catch (cause) {
-          return err(networkError(cause));
+          return err(controller.signal.aborted ? timeoutError(timeoutMs) : networkError(cause));
+        } finally {
+          clearTimeout(timer);
         }
       });
     },

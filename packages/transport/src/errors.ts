@@ -9,6 +9,8 @@
 export type TransportErrorKind =
   /** fetch 本身抛异常：断网、DNS、跨域被拒 */
   | 'network'
+  /** 出站超过时间上界（含响应体读取）。与「断网」分开，是因为调用方要能区分「等太久」与「没网」 */
+  | 'timeout'
   /** HTTP 状态码不是 2xx */
   | 'http'
   /** 响应不是合法 JSON（通常是登录失效被重定向到 HTML 页面） */
@@ -45,6 +47,11 @@ export function networkError(cause: unknown): TransportError {
     kind: 'network',
     message: cause instanceof Error ? cause.message : String(cause),
   };
+}
+
+/** 出站超时。秒数取整即可——它给人看，不是给机器判的。 */
+export function timeoutError(timeoutMs: number): TransportError {
+  return { kind: 'timeout', message: `请求超过 ${Math.round(timeoutMs / 1000)} 秒未返回` };
 }
 
 export function httpError(status: number, raw?: string): TransportError {
