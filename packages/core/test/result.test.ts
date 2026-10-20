@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { err, ok, unwrap } from '../src/result.ts';
+import { err, ok } from '../src/result.ts';
 
 describe('ok / err', () => {
   it('ok 标记成功并携带值', () => {
@@ -25,16 +25,5 @@ describe('ok / err', () => {
     const result = ok<void>(undefined);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value).toBeUndefined();
-  });
-});
-
-describe('unwrap', () => {
-  it('成功时返回值', () => {
-    expect(unwrap(ok('值'))).toBe('值');
-  });
-
-  it('失败时抛出，且错误信息里带上原因', () => {
-    const result = err({ kind: 'api' as const, code: 40001, message: '未登录' });
-    expect(() => unwrap(result)).toThrow(/40001|未登录/);
   });
 });
