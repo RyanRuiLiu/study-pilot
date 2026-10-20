@@ -1,7 +1,7 @@
 /* 作业清单归一的形态核对（纯函数喂真机样本形态；读取只核对载荷与 flag 映射）。 */
 
 import { describe, expect, it } from 'vitest';
-import { EXAM_LIST_PAGE_SIZE, getExamList, isActionable, needsWork, normalizeHomeworkList } from '../src/exam-list.ts';
+import { EXAM_LIST_PAGE_SIZE, getExamList, needsWork, normalizeHomeworkList } from '../src/exam-list.ts';
 import type { ZhsClient } from '../src/client.ts';
 
 describe('normalizeHomeworkList', () => {
@@ -76,27 +76,6 @@ describe('normalizeHomeworkList', () => {
     });
     expect(zero!.score).toBe(0);
     expect(missing!.score).toBeNull();
-  });
-});
-
-describe('isActionable', () => {
-  it('只有 state=1（未动过）可做；4 与 5 都只呈现', () => {
-    const at = (state: number) =>
-      isActionable({
-        id: 'x',
-        examId: 'y',
-        examName: '',
-        meetCourseType: 0,
-        state,
-        score: null,
-        totalScore: null,
-        chapterName: null,
-        problemNum: null,
-        deadline: null,
-      });
-    expect(at(1)).toBe(true);
-    expect(at(4)).toBe(false);
-    expect(at(5)).toBe(false);
   });
 });
 

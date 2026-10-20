@@ -60,7 +60,6 @@ export {
   EXAM_LIST_PAGE_SIZE,
   getExamList,
   HOMEWORK_STATE,
-  isActionable,
   MEET_COURSE_TYPE,
   needsWork,
   normalizeHomeworkList,
