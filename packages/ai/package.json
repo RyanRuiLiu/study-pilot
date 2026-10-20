@@ -12,7 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@study-pilot/core": "workspace:*"
+    "@study-pilot/core": "workspace:*",
+    "@study-pilot/transport": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

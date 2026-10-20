@@ -44,6 +44,7 @@ export {
   CONCURRENCY_LIMIT_CODE,
   networkError,
   timeoutError,
+  timeoutMessage,
   httpError,
   parseError,
   apiError,

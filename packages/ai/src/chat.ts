@@ -10,12 +10,14 @@
  * 换地址就是换一个 `baseUrl` 字符串，这里没有预置表可漂移。
  *
  * 与 `transport` 的分工：那层说「平台接口怎么发」，这层说「模型接口怎么发」。
- * 两者都只依赖 `core`，都不认识业务概念（课件、讨论、题目）。
+ * 这层从 transport 只取两样与「模型」无关的机械件：出站超时的表与那句文案。
+ * 两层都不认识业务概念（课件、讨论、题目）。
  *
  * 失败一律经 `Result` 表达，且错误消息里**不含密钥**：它会进日志与运行记录。
  */
 
 import { err, ok, type FetchLike, type Result } from '@study-pilot/core';
+import { startOutboundTimeout, timeoutMessage } from '@study-pilot/transport';
 import { chatEndpoint } from './endpoint.ts';
 import { aiError, type AiError } from './errors.ts';
 
@@ -67,16 +69,14 @@ export function createChatClient(options: ChatClientOptions): ChatClient {
       if (!options.apiKey.trim()) return err(aiError('config', '未填写密钥'));
       if (!options.model.trim()) return err(aiError('config', '未填写模型名'));
 
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const timeout = startOutboundTimeout(timeoutMs);
       /*
-       * 超时与断网要分开判：`aborted` 是我们自己掐的，说明「等太久」；其余抛异常才是连不上。
-       * 这一句只写一处，因为「发出请求」与「读完返回体」两段都可能被掐。
+       * 超时与断网要分开判：`timedOut()` 是我们自己掐的，说明「等太久」；
+       * 其余抛异常才是连不上。这一句只写一处，因为「发出请求」与「读完返回体」
+       * 两段都可能被掐（表的机械部分在 transport/timeout.ts，与两条平台链共用）。
        */
       const failure = (cause: unknown): AiError =>
-        controller.signal.aborted
-          ? aiError('timeout', `请求超过 ${Math.round(timeoutMs / 1000)} 秒未返回`)
-          : aiError('network', describe(cause));
+        timeout.timedOut() ? aiError('timeout', timeoutMessage(timeoutMs)) : aiError('network', describe(cause));
 
       // 上界罩住「请求 + 读体」全过程：清表早于读完，连接建立后 body 卡住就没有回话了
       try {
@@ -95,7 +95,7 @@ export function createChatClient(options: ChatClientOptions): ChatClient {
               temperature,
               stream: false,
             }),
-            signal: controller.signal,
+            signal: timeout.signal,
           });
         } catch (cause) {
           return err(failure(cause));
@@ -141,7 +141,7 @@ export function createChatClient(options: ChatClientOptions): ChatClient {
         }
         return ok(content.trim());
       } finally {
-        clearTimeout(timer);
+        timeout.dispose();
       }
     },
   };

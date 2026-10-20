@@ -21,6 +21,7 @@ import {
   DEFAULT_MIN_GAP_MS,
   DEFAULT_TIMEOUT_MS,
   startOutboundTimeout,
+  timeoutMessage,
   type FetchLike,
 } from '@study-pilot/transport';
 import { ZHS_ENDPOINTS, ZHS_HOSTS, type ZhsEndpointName } from './endpoints.ts';
@@ -66,12 +67,12 @@ export class ZhsApiError extends Error {
  *
  * 为什么要有这一类：这条链上没有上界时，一次挂住的请求会把整轮停在原地——
  * 界面既不出结果也不报失败，人只能关掉扩展。有了上界就有个说得出口的结论。
- * 与慕课那条链同一口径（transport 的 `timeoutError` 也是「请求超过 N 秒未返回」），
- * 只是这一族用抛而不是 Result。
+ * 句子与慕课那条链同一个来源（transport 的 `timeoutMessage`）；
+ * 只是这一族用抛而不是 Result——抛还是返回是各层自己的契约，措辞不必各造一份。
  */
 export class ZhsTimeoutError extends Error {
   constructor(timeoutMs: number) {
-    super(`请求超过 ${Math.round(timeoutMs / 1000)} 秒未返回`);
+    super(timeoutMessage(timeoutMs));
     this.name = 'ZhsTimeoutError';
   }
 }

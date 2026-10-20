@@ -49,9 +49,19 @@ export function networkError(cause: unknown): TransportError {
   };
 }
 
-/** 出站超时。秒数取整即可——它给人看，不是给机器判的。 */
+/**
+ * 超时的说法，全项目一处（秒数取整即可——它给人看，不是给机器判的）。
+ *
+ * 三条链各自抛/返回不同类型（TransportError、ZhsTimeoutError、AiError），
+ * 但界面与 CLI 上它们是同一件事，句子必须一样；抄三份的地方，改一份就露馅。
+ */
+export function timeoutMessage(timeoutMs: number): string {
+  return `请求超过 ${Math.round(timeoutMs / 1000)} 秒未返回`;
+}
+
+/** 出站超时。 */
 export function timeoutError(timeoutMs: number): TransportError {
-  return { kind: 'timeout', message: `请求超过 ${Math.round(timeoutMs / 1000)} 秒未返回` };
+  return { kind: 'timeout', message: timeoutMessage(timeoutMs) };
 }
 
 export function httpError(status: number, raw?: string): TransportError {
