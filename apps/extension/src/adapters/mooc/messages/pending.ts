@@ -21,7 +21,7 @@ import type { MoocResponseMap } from './payload.ts';
 export function pendingCommand(deps: MoocMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
     const settings = await getSettings();
-    const session = await ensureSession(deps.host);
+    const session = await ensureSession(deps.host, deps.client.send, deps.client.origin);
 
     if (!session.loggedIn) {
       sendResponse({

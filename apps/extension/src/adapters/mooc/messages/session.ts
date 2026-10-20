@@ -15,7 +15,7 @@ import type { MoocResponseMap } from './payload.ts';
 
 export function sessionCommand(deps: MoocMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
-    const session = await ensureSession(deps.host);
+    const session = await ensureSession(deps.host, deps.client.send, deps.client.origin);
     if (!session.loggedIn) {
       sendResponse(session satisfies MoocResponseMap['MOOC_SESSION']);
       return;
@@ -27,7 +27,11 @@ export function sessionCommand(deps: MoocMessageDeps): MessageHandler {
       return;
     }
 
-    const { renewed, session: renewedSession } = await renewSession(deps.host);
+    const { renewed, session: renewedSession } = await renewSession(
+      deps.host,
+      deps.client.send,
+      deps.client.origin,
+    );
     if (renewed) {
       const afterRenewal = await getCourses(deps.client, {
         courseType: COURSE_TYPE.MOOC,

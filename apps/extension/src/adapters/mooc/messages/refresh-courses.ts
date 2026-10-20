@@ -16,7 +16,7 @@ import type { MoocResponseMap } from './payload.ts';
 
 export function refreshCoursesCommand(deps: MoocMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
-    const session = await ensureSession(deps.host);
+    const session = await ensureSession(deps.host, deps.client.send, deps.client.origin);
     if (!session.loggedIn) {
       sendResponse({ ok: false, reason: 'NOT_LOGGED_IN' } satisfies MoocResponseMap['MOOC_REFRESH_COURSES']);
       return;

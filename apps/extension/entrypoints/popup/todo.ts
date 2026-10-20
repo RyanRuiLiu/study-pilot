@@ -16,6 +16,7 @@
 import { getPending, getSession, getSettings, runNow } from '../../src/ui-bridge';
 import type { PendingEntry } from '../../src/ui-bridge';
 import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
+import { MOOC_LOGIN_URL } from '../../src/ui/login.ts';
 import { todoEl } from './elements.ts';
 import { createTodoArea } from './todo-area.ts';
 import { setRunning, statusWriterFor } from './status.ts';
@@ -163,7 +164,7 @@ function buildRow(entry: PendingEntry): HTMLElement {
 const area = createTodoArea<PendingEntry>({
   element: () => todoEl,
   loginText: '登录已失效，需重新登录慕课。',
-  loginHref: 'https://www.icourse163.org/',
+  loginHref: MOOC_LOGIN_URL,
 });
 
 /**

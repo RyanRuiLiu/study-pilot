@@ -22,25 +22,31 @@ import { configStore } from '../src/settings';
 
 export default defineBackground(() => {
   /*
-   * 平台。外壳只调工厂，不碰平台的内部实现（read / plan / execute / 处理器）。
+   * 整段装配都在这一个 try 里：平台工厂、规则安装、监听器注册、消息路由，一个不留在外面。
    *
-   * 第二个平台（智慧树）就是这么加进来的：调它的工厂，把它并进
-   * handlers 与 platforms 清单。消息类型带 ZHS_ 前缀，与慕课的命令互不相撞；
-   * 没人认领的 type 由路由自己回「处理不了」（兜底不挂在任何平台的表上）。
+   * 生产构建把 console 替换成空函数，抛到 try 外面的异常不会有任何输出——表现只是
+   * 「什么都没起来」。而唯一还能看见这件事的地方是界面，可 `recordRunFailure` 恰好
+   * 在被跳过的那段里：任一家平台的工厂出错（配置端口的假设变了、构造期崩了），
+   * 都会让 service worker 静默启动失败，界面上一个字都不出现。
    */
-  const mooc = createMoocPlatform({
-    host: browserCapabilities,
-    config: configStore,
-    shell: {
-      recordFailure: (message: string) => recordRunFailure(message),
-    },
-  });
-
-  const zhihuishu = createZhihuishuPlatform({ config: configStore });
-
-  // 回调内包一层 try/catch 是有必要的：生产构建会把 console 替换为空函数，
-  // 回调抛出异常时不会有任何输出，表现只是「监听器一个都没注册」。
   try {
+    /*
+     * 平台。外壳只调工厂，不碰平台的内部实现（read / plan / execute / 处理器）。
+     *
+     * 第二个平台（智慧树）就是这么加进来的：调它的工厂，把它并进
+     * handlers 与 platforms 清单。消息类型带 ZHS_ 前缀，与慕课的命令互不相撞；
+     * 没人认领的 type 由路由自己回「处理不了」（兜底不挂在任何平台的表上）。
+     */
+    const mooc = createMoocPlatform({
+      host: browserCapabilities,
+      config: configStore,
+      shell: {
+        recordFailure: (message: string) => recordRunFailure(message),
+      },
+    });
+
+    const zhihuishu = createZhihuishuPlatform({ config: configStore });
+
     /*
      * 先把请求头规则装上，再注册其余逻辑。
      *
@@ -61,45 +67,43 @@ export default defineBackground(() => {
 
     // 运行状态的推送通道：页面打开时连上，关掉时自动断开，不需要轮询
     browser.runtime.onConnect.addListener(attachRunStatePort);
+
+    /*
+     * 「跑一轮」用例 + 本载体的两个端口实现。
+     *
+     * 消息路由拿到的是这个 runner：它不认识存储，也不认识平台实例是谁造的。
+     * 平台实例每次现建，本轮状态不跨轮残留。范围里的 platformId 决定这一轮
+     * 实际用到哪几家（见 application/round.ts）。
+     */
+    const runner = createRunner({
+      platforms: () => [mooc.tasks(), zhihuishu.tasks()],
+      tasks: taskStore,
+      progress: progressStore,
+    });
+
+    /*
+     * 处理器合并：两平台的表平权并进来（各自只带自己前缀的键，互不覆盖），
+     * 外壳自己的命令（TASK_STATE 等）由这里补——它不属于任何平台。
+     */
+    registerMessageHandler({
+      handlers: {
+        ...mooc.handlers,
+        ...zhihuishu.handlers,
+        TASK_STATE: async (request, sendResponse) => {
+          // 协议里 platformId 是必填（messages.ts 的 ShellRequest）；表内的 request 是宽松型，这里按契约收窄
+          const { platformId } = request as { platformId: string };
+          const state = await getTaskState();
+          // 状态按平台独立：判据只问请求点名的那家（界面问谁答谁）
+          sendResponse({ state, live: liveRunState(state, platformId) });
+        },
+      },
+      runner,
+    });
   } catch (error) {
     /*
-     * 监听器一个都没注册上时，唯一能看见这件事的地方是界面。
-     *
-     * 生产构建把 console 换成空函数，所以这里不能只打印：失败记进运行状态
+     * 装配或注册没做成时，唯一能看见这件事的地方是界面：失败记进运行状态
      * （记在 shell 名下，页面级状态行在当前平台无失败时会呈现它）。
      */
     void recordRunFailure(error instanceof Error ? error.message : String(error));
   }
-
-  /*
-   * 「跑一轮」用例 + 本载体的两个端口实现。
-   *
-   * 消息路由拿到的是这个 runner：它不认识存储，也不认识平台实例是谁造的。
-   * 平台实例每次现建，本轮状态不跨轮残留。范围里的 platformId 决定这一轮
-   * 实际用到哪几家（见 application/round.ts）。
-   */
-  const runner = createRunner({
-    platforms: () => [mooc.tasks(), zhihuishu.tasks()],
-    tasks: taskStore,
-    progress: progressStore,
-  });
-
-  /*
-   * 处理器合并：两平台的表平权并进来（各自只带自己前缀的键，互不覆盖），
-   * 外壳自己的命令（TASK_STATE 等）由这里补——它不属于任何平台。
-   */
-  registerMessageHandler({
-    handlers: {
-      ...mooc.handlers,
-      ...zhihuishu.handlers,
-      TASK_STATE: async (request, sendResponse) => {
-        // 协议里 platformId 是必填（messages.ts 的 ShellRequest）；表内的 request 是宽松型，这里按契约收窄
-        const { platformId } = request as { platformId: string };
-        const state = await getTaskState();
-        // 状态按平台独立：判据只问请求点名的那家（界面问谁答谁）
-        sendResponse({ state, live: liveRunState(state, platformId) });
-      },
-    },
-    runner,
-  });
 });

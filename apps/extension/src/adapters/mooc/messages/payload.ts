@@ -105,6 +105,14 @@ export interface PendingSummary {
   entries: PendingEntry[];
 }
 
+/**
+ * 登录态消息的响应：平台会话，但 token 可以缺席。
+ *
+ * 未登录那一支不给 token（见 sessionCommand）：`NTESSTUDYSI` 访客状态下也有值，
+ * 报「未登录」时把它一起送出既没有消费者——界面只读 loggedIn / userId，
+ * 后台自己走 `readToken` 取 csrf 令牌，从不读这份响应——又白多一份凭证离开后台。
+ */
+export type MoocSessionResponse = Omit<MoocSession, 'token'> & { token?: string };
 
 // ---------- 本平台的命令 ----------
 
@@ -159,7 +167,7 @@ export interface CoursewareSummary {
 
 /** 每条请求对应的响应。请求的 type 同时是这里的键，改一半会被类型检查拦下。 */
 export interface MoocResponseMap {
-  MOOC_SESSION: MoocSession;
+  MOOC_SESSION: MoocSessionResponse;
   MOOC_COURSES: CourseBrief[];
   MOOC_REFRESH_COURSES:
     | { ok: true; courses: CourseBrief[] }

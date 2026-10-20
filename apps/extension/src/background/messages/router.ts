@@ -58,7 +58,17 @@ function respondToRound(result: RoundResult): RunScheduledTasksResponse {
 }
 
 export function registerMessageHandler(deps: RouterDeps): void {
-  browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    /*
+     * 只处理自家扩展发来的消息。
+     *
+     * manifest 里没有 externally_connectable，外部页面本来就进不到这里——但「进不来」
+     * 是配置给的，不是这段代码给的。写命令（跑一轮、停止、交卷）都从这个口子进来，
+     * 信任边界就该写在这里一次：哪天加了外部入口、或别的东西复用了这段协议，
+     * 不至于直接落在「谁发都算」上。不是自家 id 就连响应都不给。
+     */
+    if (sender.id !== browser.runtime.id) return false;
+
     const request = message as AppRequest | undefined;
 
     void (async () => {

@@ -207,13 +207,24 @@ function followText(): string {
  * 收尾读插一句会把状态行闪成空白。
  */
 export async function renderState(options: { settleText?: boolean } = {}): Promise<boolean> {
+  /*
+   * 先记住「这一次是为哪家平台渲染的」。
+   *
+   * 取状态是一次网络/存储读取，期间用户完全可能切走 tab。继续用模块里那个
+   * `statusPlatform` 写下去，就会把**上一家**的失败留痕、停止句、置灰状态画到
+   * **当前这家**的行上（`statusWriterFor` 只护住执行结果，护不到这里）。
+   * 所以：全程用点名的 `platform`，回来时若已切走就不画——新那家自己那次
+   * renderState 会落定，两份数据不该叠着画。
+   */
+  const platform = statusPlatform;
   try {
-    const status = await getTaskState(statusPlatform);
+    const status = await getTaskState(platform);
+    if (statusPlatform !== platform) return false;
     const running = status.live === 'running';
-    // 失败留痕按平台独立：先看状态行面向的那家；没有就看外壳自己那条
+    // 失败留痕按平台独立：先看这一家；没有就看外壳自己那条
     // （系统级失败——监听器都注册不上这类，页面级状态行是它唯一能被人看见的地方）
     const failure =
-      status.state.platforms[statusPlatform]?.failure ??
+      status.state.platforms[platform]?.failure ??
       status.state.platforms[SHELL_PLATFORM_ID]?.failure ??
       null;
 
@@ -232,19 +243,19 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
       // 跟在跑的一轮（哪怕不是本弹窗发起的）都该能停
       stateLine?.classList.add('is-running');
       // 别处发起的执行也要把那家行内的「执行」变灰（本弹窗点的那轮归 setRunning 管）
-      if (!localRun) todoListOf(statusPlatform)?.classList.add('is-running');
+      if (!localRun) todoListOf(platform)?.classList.add('is-running');
       // 跑动时动作位让位给「停止」
       applyStateAction(null);
     } else {
       wasRunning = false;
-      if (stoppingHere === statusPlatform) stoppingHere = null;
+      if (stoppingHere === platform) stoppingHere = null;
       stateLine?.classList.remove('is-running');
       // 清全部（自愈）：按平台置灰是收窄的，这里的清必须是宽的，免得留灰
       if (!localRun) for (const list of Object.values(todoLists)) list?.classList.remove('is-running');
       if (options.settleText ?? true) {
         if (status.live === 'interrupted') {
           setText(stateEl, '上次执行未正常结束，可重新执行');
-        } else if (stoppedHere !== null && stoppedHere.platform === statusPlatform) {
+        } else if (stoppedHere !== null && stoppedHere.platform === platform) {
           /*
            * 本弹窗按过停止、且确实停到了**这个平台**：留一句收尾而不是清空。
            * 完成数在按停止那一刻记下（进度在跑完时会被清空）。
@@ -267,10 +278,13 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
     applyRunEnabled();
     return running;
   } catch (error) {
-    setText(stateEl, errorText(error));
-    stateLine?.classList.add('is-error');
-    runningNow = false;
-    applyRunEnabled();
+    // 报错也认时机：切走了就不把这一句写到当前那家的行上
+    if (statusPlatform === platform) {
+      setText(stateEl, errorText(error));
+      stateLine?.classList.add('is-error');
+      runningNow = false;
+      applyRunEnabled();
+    }
     return false;
   }
 }

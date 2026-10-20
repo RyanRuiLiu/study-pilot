@@ -19,6 +19,7 @@ import { getSettings, getZhsPending, getZhsSession, runNow } from '../../src/ui-
 import type { ZhsPendingEntry } from '../../src/ui-bridge';
 import { boardOrder } from '../../src/adapters/zhihuishu/boards.ts';
 import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
+import { ZHS_LOGIN_URL } from '../../src/ui/login.ts';
 import { zhsTodoEl } from './elements.ts';
 import { createTodoArea } from './todo-area.ts';
 import { setRunning, statusWriterFor } from './status.ts';
@@ -28,8 +29,6 @@ function durationText(sec: number): string {
   if (sec < 60) return '不足 1 分钟';
   return `约 ${Math.round(sec / 60)} 分钟`;
 }
-
-
 
 function buildRow(entry: ZhsPendingEntry): HTMLElement {
   const item = document.createElement('div');
@@ -158,7 +157,7 @@ function buildDate(entry: ZhsPendingEntry): HTMLElement {
 const area = createTodoArea<ZhsPendingEntry>({
   element: () => zhsTodoEl,
   loginText: '登录已失效，需重新登录智慧树。',
-  loginHref: 'https://www.zhihuishu.com/',
+  loginHref: ZHS_LOGIN_URL,
 });
 
 /** 渲染智慧树待办。 */

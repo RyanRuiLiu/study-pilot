@@ -16,11 +16,10 @@ export function note(text: string, error = false): HTMLElement {
 /**
  * 两个平台的首页——登录入口都在导航里，与弹窗的「前往登录」同一个地址。
  *
- * 定义在这里而不是各调用文件：它是 `loginNote` 的入参，跟着它走才有唯一一份；
- * 四个调用点（两平台各两处）各抄一遍就是四处可能改漏的地方。
+ * 定义在 `src/ui/login.ts`（设置页与弹窗两边都要，一处）；这里转出是为了让
+ * `loginNote` 的调用点跟着它走，不必知道它住在哪。
  */
-export const MOOC_LOGIN_URL = 'https://www.icourse163.org/';
-export const ZHS_LOGIN_URL = 'https://www.zhihuishu.com/';
+export { MOOC_LOGIN_URL, ZHS_LOGIN_URL } from '../../src/ui/login.ts';
 
 /**
  * 「未登录」那一句 ＋ 去登录的去处。
