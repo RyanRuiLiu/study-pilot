@@ -2,8 +2,12 @@
  * OpenAI 兼容的对话调用。
  *
  * 只认一种协议：`POST {baseUrl}/v1/chat/completions`，`Authorization: Bearer <密钥>`，
- * 取 `choices[0].message.content`。**不内置任何厂商预置**——地址、模型、密钥都由
- * 用户在设置里填，因此厂商改名或换地址都不需要改代码，也不存在预置表漂移的问题。
+ * 取 `choices[0].message.content`。
+ *
+ * 三个入参里只有**模型与密钥**来自用户在设置页填的那两格；`baseUrl` 不是用户填的——
+ * 扩展侧唯一的来源是 application 的 `AI_BASE_URL`（地址钉死一家，见 config/ai.ts 的说明，
+ * 主机权限也据此在 wxt.config.ts 里静态声明）。本模块不认识「厂商」这个概念，
+ * 换地址就是换一个 `baseUrl` 字符串，这里没有预置表可漂移。
  *
  * 与 `transport` 的分工：那层说「平台接口怎么发」，这层说「模型接口怎么发」。
  * 两者都只依赖 `core`，都不认识业务概念（课件、讨论、题目）。
@@ -31,7 +35,7 @@ const MAX_TOKENS = 600;
 const TEMPERATURE = 0.6;
 
 export interface ChatClientOptions {
-  /** 用户填写的接口地址，允许带或不带 `/v1` */
+  /** 接口地址。允许带或不带版本段；扩展侧唯一来源是 application 的 `AI_BASE_URL` */
   baseUrl: string;
   model: string;
   apiKey: string;
@@ -65,74 +69,80 @@ export function createChatClient(options: ChatClientOptions): ChatClient {
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
+      /*
+       * 超时与断网要分开判：`aborted` 是我们自己掐的，说明「等太久」；其余抛异常才是连不上。
+       * 这一句只写一处，因为「发出请求」与「读完返回体」两段都可能被掐。
+       */
+      const failure = (cause: unknown): AiError =>
+        controller.signal.aborted
+          ? aiError('timeout', `请求超过 ${Math.round(timeoutMs / 1000)} 秒未返回`)
+          : aiError('network', describe(cause));
 
-      let response: Response;
+      // 上界罩住「请求 + 读体」全过程：清表早于读完，连接建立后 body 卡住就没有回话了
       try {
-        response = await options.fetch(endpoint.value, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${options.apiKey.trim()}`,
-          },
-          body: JSON.stringify({
-            model: options.model.trim(),
-            messages,
-            max_tokens: maxTokens,
-            temperature,
-            stream: false,
-          }),
-          signal: controller.signal,
-        });
-      } catch (cause) {
-        return err(
-          controller.signal.aborted
-            ? aiError('timeout', `请求超过 ${Math.round(timeoutMs / 1000)} 秒未返回`)
-            : aiError('network', describe(cause)),
-        );
+        let response: Response;
+        try {
+          response = await options.fetch(endpoint.value, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${options.apiKey.trim()}`,
+            },
+            body: JSON.stringify({
+              model: options.model.trim(),
+              messages,
+              max_tokens: maxTokens,
+              temperature,
+              stream: false,
+            }),
+            signal: controller.signal,
+          });
+        } catch (cause) {
+          return err(failure(cause));
+        }
+        if (!response.ok) {
+          /*
+           * 带上响应体的一小段：401 与 429 的处理完全不同，只报状态码不够用。
+           * 截断到 200 字符，任何情况下都不包含密钥（密钥只在请求头里）。
+           */
+          let snippet: string;
+          try {
+            snippet = (await response.text()).replace(/\s+/g, ' ').slice(0, 200);
+          } catch {
+            snippet = '';
+          }
+          return err(
+            aiError(
+              'http',
+              `接口返回 ${response.status}${snippet ? `：${snippet}` : ''}`,
+              response.status,
+            ),
+          );
+        }
+
+        let text: string;
+        try {
+          text = await response.text();
+        } catch (cause) {
+          return err(failure(cause));
+        }
+
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          return err(aiError('parse', '返回体不是合法 JSON'));
+        }
+
+        const content = (parsed as { choices?: Array<{ message?: { content?: unknown } }> })
+          ?.choices?.[0]?.message?.content;
+        if (typeof content !== 'string' || !content.trim()) {
+          return err(aiError('empty', '返回内容为空'));
+        }
+        return ok(content.trim());
       } finally {
         clearTimeout(timer);
       }
-
-      if (!response.ok) {
-        /*
-         * 带上响应体的一小段：401 与 429 的处理完全不同，只报状态码不够用。
-         * 截断到 200 字符，任何情况下都不包含密钥（密钥只在请求头里）。
-         */
-        let snippet: string;
-        try {
-          snippet = (await response.text()).replace(/\s+/g, ' ').slice(0, 200);
-        } catch {
-          snippet = '';
-        }
-        return err(
-          aiError(
-            'http',
-            `接口返回 ${response.status}${snippet ? `：${snippet}` : ''}`,
-            response.status,
-          ),
-        );
-      }
-
-      let text: string;
-      try {
-        text = await response.text();
-      } catch (cause) {
-        return err(aiError('network', describe(cause)));
-      }
-
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        return err(aiError('parse', '返回体不是合法 JSON'));
-      }
-
-      const content = (parsed as { choices?: Array<{ message?: { content?: unknown } }> })
-        ?.choices?.[0]?.message?.content;
-      if (typeof content !== 'string' || !content.trim()) {
-        return err(aiError('empty', '返回内容为空'));
-      }
-      return ok(content.trim());
     },
   };
 }

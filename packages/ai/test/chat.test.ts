@@ -43,6 +43,43 @@ describe('接口地址归一化', () => {
     expect(chatEndpoint('api.example.com').ok).toBe(false);
   });
 
+  /*
+   * 地址钉死在 `AI_BASE_URL`（https），没有一处调用方用 http；
+   * 而请求头里带着 `Authorization: Bearer <密钥>`，走 http 等于明文外送，
+   * 所以协议收窄到只允许 https。
+   */
+  it('http 地址在配置阶段就报错（密钥不该走明文）', () => {
+    for (const insecure of ['http://api.example.com', 'http://api.example.com/v1']) {
+      const result = chatEndpoint(insecure);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.kind).toBe('config');
+        expect(result.error.message).toContain('https://');
+      }
+    }
+  });
+
+  it('钉死的智谱地址按「以 /v<N> 结尾」拼成实际端点', () => {
+    expect(chatEndpoint('https://open.bigmodel.cn/api/paas/v4')).toEqual({
+      ok: true,
+      value: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    });
+  });
+
+  // 拼接是纯字符串后缀拼接，解析不了的地址或带查询串/锚点的地址都会被拼坏，宁可在配置阶段拒掉
+  it('带查询串、锚点或解析不了的地址在配置阶段就报错', () => {
+    const cases = [
+      'https://api.example.com?key=1',
+      'https://api.example.com/v1#frag',
+      'https://api exam ple.com/v1',
+    ];
+    for (const bad of cases) {
+      const result = chatEndpoint(bad);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.kind).toBe('config');
+    }
+  });
+
   it('取出源，用于只申请这一个域名的主机权限', () => {
     expect(chatOrigin('https://api.example.com/v1')).toBe('https://api.example.com');
     expect(chatOrigin('not a url')).toBeNull();
@@ -119,12 +156,14 @@ describe('调用', () => {
   it('返回体不是 JSON 时报解析失败', async () => {
     const client = clientWith(async () => new Response('<html>502</html>', { status: 200 }));
     const result = await client.complete([{ role: 'user', content: 'x' }]);
+    expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('parse');
   });
 
   it('返回内容为空时报空', async () => {
     const client = clientWith(async () => new Response(JSON.stringify({ choices: [] }), { status: 200 }));
     const result = await client.complete([{ role: 'user', content: 'x' }]);
+    expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('empty');
   });
 
@@ -143,9 +182,33 @@ describe('调用', () => {
       { timeoutMs: 20 },
     );
     const timedOut = await hanging.complete([{ role: 'user', content: 'x' }]);
+    expect(timedOut.ok).toBe(false);
     if (!timedOut.ok) {
       expect(timedOut.error.kind).toBe('timeout');
       expect(timedOut.error.message).not.toContain(KEY);
     }
+  });
+
+  it('响应头已到位、返回体挂死：仍按超时处理（上界必须罩住读体）', async () => {
+    const client = clientWith(
+      (_url: string, init: RequestInit) =>
+        Promise.resolve(
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                init.signal?.addEventListener('abort', () => controller.error(new Error('aborted')));
+                // 永不 enqueue、永不 close：连接建立后对方不再把话说完
+              },
+            }),
+            { status: 200 },
+          ),
+        ),
+      { timeoutMs: 20 },
+    );
+
+    const result = await client.complete([{ role: 'user', content: 'x' }]);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('timeout');
   });
 });
