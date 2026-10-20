@@ -246,6 +246,9 @@ importers:
       '@study-pilot/core':
         specifier: workspace:*
         version: link:../core
+      '@study-pilot/transport':
+        specifier: workspace:*
+        version: link:../transport
     devDependencies:
       typescript:
         specifier: ^7.0.2
