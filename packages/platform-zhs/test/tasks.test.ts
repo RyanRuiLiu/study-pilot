@@ -345,6 +345,26 @@ describe('run', () => {
     expect(String((err as Error).message)).toBe('需完成人机验证');
   });
 
+  it('回读撞 -12 同样停轮并带动作位（信号不因是回读就换个意思）', async () => {
+    // 计划阶段那次回读要放行（不然这一项根本排不进队列），第二次——执行里的确认回读——才撞门
+    let asked = 0;
+    const h = harness({
+      studyInfo: () => {
+        asked += 1;
+        if (asked === 1) return STUDY_INFO(0);
+        throw new ZhsApiError(-12, '需要弹出滑块验证');
+      },
+    });
+    const err = await runOne(h).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ZhsRoundHalt);
+    expect(String((err as Error).message)).toBe('需完成人机验证');
+    expect((err as ZhsRoundHalt).action).toEqual({
+      platformId: 'zhihuishu',
+      label: '打开验证页',
+      url: 'https://wisdom-mooc.zhihuishu.com/study/index?recruitAndCourseId=hex-secret',
+    });
+  });
+
   it('停止柄被按到 → skipped，且不发任何写', async () => {
     const h = harness();
     const outcome = await runOne(h, true);

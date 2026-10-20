@@ -4,7 +4,7 @@
  *
  * 数据口径（report.ts）：按 1× 真人观看生成——时长、序列、位置全部自洽。
  * 提交节奏：不等待真实时长（长视频按段上报）；出站仍走客户端的通用节流
- * （请求间最小间隔，见 client.ts）——服务端给出什么信号就如实处理。
+ * （请求间最小间隔）与出站时间上界（见 client.ts）——服务端给出什么信号就如实处理。
  *
  * 实测备忘（2026-10-17 真机）：快速连发下单个单元被服务端完整接受——32 个单元
  * 约 1 秒/个全部 submitSuccess + watchState=1（服务端不核对「声称秒数 vs 壁钟」）；
@@ -208,15 +208,29 @@ export async function executeUnit(
   };
 }
 
-/** 回读这个单元的最新学情（done 与累计秒）；结构里找不到就是 null。 */
+/**
+ * 回读这个单元的最新学情（done 与累计秒）；结构里找不到就是 null。
+ *
+ * 门信号在这里也要变成停轮：-12 / -10 是「这个账号现在不该继续自动化」的信号，
+ * 它不会因为这次是回读就换个意思。三处写与读走同一处置，动作位（打开验证页）
+ * 才不会在某一条路上悄悄丢掉。
+ */
 async function readUnit(
   client: ZhsClient,
   input: ExecuteUnitInput,
   unit: ZhsUnit,
 ): Promise<ZhsUnit | null> {
-  const units = await getCourseUnits(client, {
-    recruitAndCourseId: input.recruitAndCourseId,
-    recruitId: input.recruitId,
-  });
+  let units: ZhsUnit[];
+  try {
+    units = await getCourseUnits(client, {
+      recruitAndCourseId: input.recruitAndCourseId,
+      recruitId: input.recruitId,
+    });
+  } catch (error) {
+    if (isGateRejection(error)) {
+      throw new ZhsRoundHalt(rejectionHaltMessage(error), gateAction(input.recruitAndCourseId));
+    }
+    throw error;
+  }
   return units.find((entry) => entry.videoId === unit.videoId && entry.smallLessonId === unit.smallLessonId) ?? null;
 }
