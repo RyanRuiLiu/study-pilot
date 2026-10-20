@@ -37,12 +37,33 @@ function findRepoRoot(): string {
 const repoRoot = findRepoRoot();
 const SKIP = new Set(['node_modules', '.output', '.wxt', 'dist']);
 
+/**
+ * 该不该跳过这个目录项。
+ *
+ * 点开头的一律跳过：项目内容不住在点目录里，而 `.probe/` 下是一个真的
+ * Chromium profile（成千上万个文件、锁文件、坏软链）。拿它当「项目源码」扫，
+ * 一是白扫一遍，二是 `statSync` 撞上断链会让这条门禁整个崩掉——
+ * 门禁该在违规时红，不该在路过调试目录时红。
+ */
+function skipped(name: string): boolean {
+  return SKIP.has(name) || name.startsWith('.');
+}
+
+/** 取条目类型；断链/权限问题按「不是目录，也不是 .ts 源文件」处理，不让扫描崩掉。 */
+function isDirectory(full: string): boolean {
+  try {
+    return statSync(full).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 function listFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
-    if (SKIP.has(entry)) continue;
+    if (skipped(entry)) continue;
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) out.push(...listFiles(full));
+    if (isDirectory(full)) out.push(...listFiles(full));
     else if (full.endsWith('.ts')) out.push(full);
   }
   return out;
@@ -51,9 +72,9 @@ function listFiles(dir: string): string[] {
 function listDirs(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
-    if (SKIP.has(entry)) continue;
+    if (skipped(entry)) continue;
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) out.push(full);
+    if (isDirectory(full)) out.push(full);
   }
   return out;
 }

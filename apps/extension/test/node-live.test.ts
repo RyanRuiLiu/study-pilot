@@ -13,19 +13,25 @@
  * 前置：
  *   1. 浏览器（探测用的那个）里已登录慕课；
  *   2. pnpm probe state export                ← 把登录态落到 .probe/（Playwright storageState，已 gitignore）
- * 跑法：
- *   node node_modules/vitest/vitest.mjs run --root apps/extension test/node-live.test.ts
+ * 跑法（要显式说要跑）：
+ *   STUDY_PILOT_LIVE=1 node node_modules/vitest/vitest.mjs run --root apps/extension test/node-live.test.ts
  *
- * 没有会话文件时这条用例会跳过，而不是失败——它需要真实账号，不该卡住其它人。
+ * 默认**不跑**这条，判据是环境变量而不是「会话文件在不在」：文件在而服务端会话已死是
+ * 常态（浏览器闲置几天就会这样），那时它会红。一条经常因环境而非因代码变红的用例，
+ * 最后教会人的是忽略红灯——那比没有这条用例更糟。
  */
 
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { BROWSER_USER_AGENT, COURSE_TYPE, createMoocClient, getCourses } from '@study-pilot/platform-mooc';
 import { md5hex } from '@study-pilot/core';
 
-const SESSION_FILE = resolve(process.cwd(), '../../.probe/browser-session.json');
+/*
+ * 按本文件的位置定位仓库根，不按 cwd：从仓库根跑 vitest 与从 apps/extension 跑，
+ * 找的得是同一份会话文件。
+ */
+const SESSION_FILE = fileURLToPath(new URL('../../../.probe/browser-session.json', import.meta.url));
 
 interface SessionFile {
   origin: string;
@@ -76,8 +82,11 @@ function nodeFetch(sessionFile: SessionFile): typeof fetch {
 
 const sessionFile = readSession();
 
+/** 只有显式开启（STUDY_PILOT_LIVE=1）且拿得到会话文件时才真连。 */
+const live = sessionFile !== null && process.env.STUDY_PILOT_LIVE === '1';
+
 describe('Node 里连真实平台（只读）', () => {
-  it.skipIf(sessionFile === null)('读得到课程列表', async () => {
+  it.skipIf(!live)('读得到课程列表', async () => {
     if (sessionFile === null) return;
 
     const client = createMoocClient({
