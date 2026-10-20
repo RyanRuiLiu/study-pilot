@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createZhsClient, ZhsApiError, ZhsHttpError } from '../src/client.ts';
+import { createZhsClient, ZhsApiError, ZhsHttpError, ZhsTimeoutError } from '../src/client.ts';
 import type { FetchLike } from '@study-pilot/transport';
 
 const FIXED_KEY = new Uint8Array(16).fill(7);
@@ -226,5 +226,53 @@ describe('平台自己的说明字段（msg）', () => {
       code: -1,
       message: '当前考试暂不可作答',
     });
+  });
+});
+
+describe('出站超时', () => {
+  /*
+   * 挂住的请求要变成一次可说的失败，而不是让整轮停在原地。替身按真 fetch 的行为写：
+   * signal 触发时 reject——不 reject 的话，测试里那个 await 永远不落地，
+   * 也就测不到「超时被分出来」这件事。
+   */
+  function hangingFetch(hangMatch: string): FetchLike {
+    return (url, init) => {
+      if (!url.includes(hangMatch)) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ rt: { sl: 'fake-sl-for-test' } }), { status: 200 }),
+        );
+      }
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('AbortError')));
+      });
+    };
+  }
+
+  const hangingClient = (hangMatch: string) =>
+    createZhsClient({
+      fetch: hangingFetch(hangMatch),
+      minGapMs: 0,
+      timeoutMs: 5,
+      recoverKey: async () => FIXED_KEY,
+    });
+
+  it('业务请求挂住 → 到点上界就抛 ZhsTimeoutError', async () => {
+    await expect(hangingClient('learning/videolist').call('videoList', {})).rejects.toBeInstanceOf(
+      ZhsTimeoutError,
+    );
+  });
+
+  it('取钥那一步挂住同样有上界（这一族每个签名请求都先过它）', async () => {
+    await expect(hangingClient('app-commserv-user/c/has').call('videoList', {})).rejects.toBeInstanceOf(
+      ZhsTimeoutError,
+    );
+  });
+
+  it('文案给出上界本身：报失败时人能看到等多久才判的', async () => {
+    const error = await hangingClient('learning/videolist')
+      .call('videoList', {})
+      .catch((thrown: unknown) => thrown as Error);
+    expect(error).toBeInstanceOf(ZhsTimeoutError);
+    expect((error as Error).message).toContain('秒未返回');
   });
 });

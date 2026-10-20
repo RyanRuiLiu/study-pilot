@@ -32,6 +32,7 @@ import {
 } from './errors.ts';
 import { buildAuthHeaders } from './sign.ts';
 import { createThrottle, type Throttle } from './throttle.ts';
+import { startOutboundTimeout } from './timeout.ts';
 
 /**
  * 平台响应信封。
@@ -136,10 +137,9 @@ export function createRpcClient(options: RpcClientOptions): RpcClient {
     // 序列化失败（循环引用等）是实现的问题，不降级成 Result——降级只会把它藏得更深
     const payload = JSON.stringify(body);
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timeout = startOutboundTimeout(timeoutMs);
     const failure = (cause: unknown): TransportError =>
-      controller.signal.aborted ? timeoutError(timeoutMs) : networkError(cause);
+      timeout.timedOut() ? timeoutError(timeoutMs) : networkError(cause);
 
     try {
       let response: Response;
@@ -149,7 +149,7 @@ export function createRpcClient(options: RpcClientOptions): RpcClient {
           headers: { ...headers },
           body: payload,
           credentials: 'include',
-          signal: controller.signal,
+          signal: timeout.signal,
         });
       } catch (cause) {
         return err(failure(cause));
@@ -171,7 +171,7 @@ export function createRpcClient(options: RpcClientOptions): RpcClient {
         return err(parseError(text));
       }
     } finally {
-      clearTimeout(timer);
+      timeout.dispose();
     }
   }
 

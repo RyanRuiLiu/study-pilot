@@ -38,6 +38,8 @@ export {
   type TokenProvider,
 } from './rpc.ts';
 
+export { startOutboundTimeout, type OutboundTimeout } from './timeout.ts';
+
 export {
   CONCURRENCY_LIMIT_CODE,
   networkError,

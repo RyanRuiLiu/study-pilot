@@ -35,6 +35,7 @@
 import { err, ok, type Result } from '@study-pilot/core';
 import { networkError, timeoutError, type TransportError } from './errors.ts';
 import { createThrottle, type Throttle } from './throttle.ts';
+import { startOutboundTimeout } from './timeout.ts';
 import { DEFAULT_TIMEOUT_MS } from './rpc.ts';
 import type { FetchLike, TokenProvider } from './rpc.ts';
 
@@ -187,15 +188,14 @@ export function createDwrClient(options: DwrClientOptions): DwrClient {
 
         const url = `${origin}/dwr/call/plaincall/${bean}.${method}.dwr`;
 
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const timeout = startOutboundTimeout(timeoutMs);
         try {
           const response = await fetch(url, {
             method: 'POST',
             headers: { 'content-type': DWR_CONTENT_TYPE },
             body,
             credentials: 'include',
-            signal: controller.signal,
+            signal: timeout.signal,
           });
           // 读完体才算完：只罩住「发出请求」的话，卡在读体依然没有上界
           const raw = await response.text();
@@ -206,9 +206,9 @@ export function createDwrClient(options: DwrClientOptions): DwrClient {
             raw,
           });
         } catch (cause) {
-          return err(controller.signal.aborted ? timeoutError(timeoutMs) : networkError(cause));
+          return err(timeout.timedOut() ? timeoutError(timeoutMs) : networkError(cause));
         } finally {
-          clearTimeout(timer);
+          timeout.dispose();
         }
       });
     },

@@ -38,6 +38,7 @@ export {
   BROWSER_USER_AGENT,
   ZhsHttpError,
   ZhsApiError,
+  ZhsTimeoutError,
   type ZhsClient,
   type ZhsClientOptions,
 } from './client.ts';

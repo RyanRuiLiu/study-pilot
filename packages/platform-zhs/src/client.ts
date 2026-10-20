@@ -1,11 +1,15 @@
 /*
  * 智慧树领域客户端。
  *
- * 把「取钥 + 签名 + 节流 + 错误分类」组装成对接口清单的一次调用。
+ * 把「取钥 + 签名 + 节流 + 超时 + 错误分类」组装成对接口清单的一次调用。
  * 只做组装与协议翻译，不含业务判断（课程/单元那些在各自的模块里）。
  *
  * 运行环境要求：`fetch` 由调用方注入（扩展后台传全局 fetch；测试传替身），
  * 不碰 DOM、不碰 `browser.*`——与 platform-mooc 的同一条边界。
+ *
+ * 每次出站都有时间上界（transport 的 `DEFAULT_TIMEOUT_MS`，含读响应体）。
+ * 慕课那条链早就有了，这一族先前没有：挂住的请求会把整轮停在原地，
+ * 界面既不出结果也不报失败。
  *
  * 取钥按模块缓存：页面自己也是这么做的（`q = q || labc(module)`），
  * 同一会话内一把钥签一族请求。取到的 sl 只活在内存里，不落任何存储。
@@ -15,6 +19,8 @@ import {
   BROWSER_USER_AGENT,
   createThrottle,
   DEFAULT_MIN_GAP_MS,
+  DEFAULT_TIMEOUT_MS,
+  startOutboundTimeout,
   type FetchLike,
 } from '@study-pilot/transport';
 import { ZHS_ENDPOINTS, ZHS_HOSTS, type ZhsEndpointName } from './endpoints.ts';
@@ -55,10 +61,30 @@ export class ZhsApiError extends Error {
   }
 }
 
+/**
+ * 出站超过时间上界仍未返回（或被掐在读体上）。
+ *
+ * 为什么要有这一类：这条链上没有上界时，一次挂住的请求会把整轮停在原地——
+ * 界面既不出结果也不报失败，人只能关掉扩展。有了上界就有个说得出口的结论。
+ * 与慕课那条链同一口径（transport 的 `timeoutError` 也是「请求超过 N 秒未返回」），
+ * 只是这一族用抛而不是 Result。
+ */
+export class ZhsTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`请求超过 ${Math.round(timeoutMs / 1000)} 秒未返回`);
+    this.name = 'ZhsTimeoutError';
+  }
+}
+
 export interface ZhsClientOptions {
   fetch: FetchLike;
   /** 出站请求最小间隔。只有测试才需要改它 */
   minGapMs?: number;
+  /**
+   * 单次出站（发出 + 读体）的时间上界，默认 transport 那一个数（20 秒）。
+   * 注入替身的测试要它变小，真实调用一律用默认。
+   */
+  timeoutMs?: number;
   /** 注入时钟（时间戳与测试） */
   now?: () => number;
   /**
@@ -110,8 +136,26 @@ export interface ZhsClient {
 
 export function createZhsClient(options: ZhsClientOptions): ZhsClient {
   const throttle = createThrottle({ minGapMs: options.minGapMs ?? DEFAULT_MIN_GAP_MS });
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const now = options.now ?? Date.now;
   const recoverKey = options.recoverKey ?? recoverCKey;
+
+  /**
+   * 发一次请求并把 JSON 响应体读回来。超时同时罩住「发出」与「读体」——
+   * 只罩前一步的话，卡在读体照样没有上界。
+   */
+  async function sendJson(url: string, init: RequestInit): Promise<{ status: number; body: unknown }> {
+    const timeout = startOutboundTimeout(timeoutMs);
+    try {
+      const response = await options.fetch(url, { ...init, signal: timeout.signal });
+      return { status: response.status, body: await response.json() };
+    } catch (cause) {
+      if (timeout.timedOut()) throw new ZhsTimeoutError(timeoutMs);
+      throw cause;
+    } finally {
+      timeout.dispose();
+    }
+  }
 
   /** 每模块一把钥；缓存的是 Promise，并发调用不会重复取钥。 */
   const keys = new Map<number, Promise<Uint8Array<ArrayBuffer>>>();
@@ -123,19 +167,15 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
         const uid = await rsaPublicEncrypt(
           new TextEncoder().encode(JSON.stringify({ module })),
         );
-        const response = await throttle.run(() =>
-          options.fetch(
-            `${ZHS_HOSTS.key}${ZHS_ENDPOINTS.keyFetch.path}?uid=${encodeURIComponent(uid)}`,
-            {
-              method: 'GET',
-              headers: { accept: 'application/json', 'user-agent': BROWSER_USER_AGENT },
-              credentials: 'include',
-            },
-          ),
+        const { status, body } = await throttle.run(() =>
+          sendJson(`${ZHS_HOSTS.key}${ZHS_ENDPOINTS.keyFetch.path}?uid=${encodeURIComponent(uid)}`, {
+            method: 'GET',
+            headers: { accept: 'application/json', 'user-agent': BROWSER_USER_AGENT },
+            credentials: 'include',
+          }),
         );
-        if (response.status !== 200) throw new ZhsHttpError(response.status);
-        const body = (await response.json()) as { rt?: { sl?: unknown } };
-        const sl = body.rt?.sl;
+        if (status !== 200) throw new ZhsHttpError(status);
+        const sl = (body as { rt?: { sl?: unknown } }).rt?.sl;
         if (typeof sl !== 'string' || sl.length === 0) {
           throw new ZhsApiError(-1, '取钥失败：c/has 未返回 sl');
         }
@@ -208,10 +248,10 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
         }
       }
 
-      const response = await throttle.run(() => options.fetch(requestUrl, init));
-      if (response.status !== 200) throw new ZhsHttpError(response.status);
+      const { status, body } = await throttle.run(() => sendJson(requestUrl, init));
+      if (status !== 200) throw new ZhsHttpError(status);
 
-      const parsed = (await response.json()) as {
+      const parsed = body as {
         code?: unknown;
         status?: unknown;
         message?: unknown;
