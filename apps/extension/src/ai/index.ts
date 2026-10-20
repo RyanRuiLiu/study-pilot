@@ -17,7 +17,7 @@
 import { createChatClient, type AiError } from '@study-pilot/ai';
 import { AI_BASE_URL, hasTextGenerator } from '@study-pilot/application';
 import type { TextGenerator } from '@study-pilot/platform-mooc';
-import type { Settings } from '../settings';
+import type { Settings } from '../settings/index.ts';
 import { discussReplyTask, type AiTask } from './tasks/discuss-reply.ts';
 
 /** 任务表：任务 id → 提示词与解析。新增用途：在 tasks/ 下加一个模块，在这里登记一行。 */

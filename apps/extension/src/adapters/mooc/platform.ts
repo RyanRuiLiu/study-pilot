@@ -10,7 +10,7 @@
 
 import { createMoocRuntime } from '@study-pilot/platform-mooc';
 import type { ConfigPort, HostCapabilities, PlatformTasks, PlatformWiring } from '@study-pilot/application';
-import { createTextGenerator } from '../../ai';
+import { createTextGenerator } from '../../ai/index.ts';
 import { aiTextAvailable } from '../../ai/permission.ts';
 import type { MessageHandlers } from '../../protocol.ts';
 import type { MoocMessageDeps } from './messages/deps.ts';

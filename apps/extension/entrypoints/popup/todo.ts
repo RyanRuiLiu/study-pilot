@@ -13,8 +13,8 @@
  * 界面只经 src/ui-bridge.ts 取数：getPending / getSettings。
  */
 
-import { getPending, getSession, getSettings, runNow } from '../../src/ui-bridge';
-import type { PendingEntry } from '../../src/ui-bridge';
+import { getPending, getSession, getSettings, runNow } from '../../src/ui-bridge.ts';
+import type { PendingEntry } from '../../src/ui-bridge.ts';
 import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { MOOC_LOGIN_URL } from '../../src/ui/login.ts';
 import { todoEl } from './elements.ts';

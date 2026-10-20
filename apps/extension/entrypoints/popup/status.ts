@@ -22,7 +22,7 @@
  * 「什么都没做」与「试了但失败了」长得一样。
  */
 
-import { getTaskState, stopRun, subscribeRunState, type RunState } from '../../src/ui-bridge';
+import { getTaskState, stopRun, subscribeRunState, type RunState } from '../../src/ui-bridge.ts';
 import { SHELL_PLATFORM_ID } from '@study-pilot/application';
 import type { RunFailureAction } from '../../src/protocol.ts';
 import { errorText } from '../../src/ui/format.ts';

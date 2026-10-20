@@ -6,7 +6,7 @@
  */
 
 import type { MessageHandler } from '../../../protocol.ts';
-import { getSettings } from '../../../settings';
+import { getSettings } from '../../../settings/index.ts';
 import type { MoocResponseMap } from './payload.ts';
 
 export function coursesCommand(): MessageHandler {

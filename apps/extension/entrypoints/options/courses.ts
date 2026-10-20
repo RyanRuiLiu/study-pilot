@@ -8,8 +8,8 @@
  */
 
 import { coursePageUrl } from '@study-pilot/platform-mooc';
-import { getCourses, getSession, getSettings, refreshCourses, updateSettings } from '../../src/ui-bridge';
-import type { Settings } from '../../src/ui-bridge';
+import { getCourses, getSession, getSettings, refreshCourses, updateSettings } from '../../src/ui-bridge.ts';
+import type { Settings } from '../../src/ui-bridge.ts';
 import { errorText, formatTermRange } from '../../src/ui/format.ts';
 import { refreshCourseViews } from './courseware.ts';
 import { loginNote, note, MOOC_LOGIN_URL } from './note.ts';

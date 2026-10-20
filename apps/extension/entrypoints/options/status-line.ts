@@ -16,8 +16,8 @@
  * 算成一个数字，读不到与没有要交的事就分不清了。
  */
 
-import { getCourseware, getSession, getSettings } from '../../src/ui-bridge';
-import type { CoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
+import { getCourseware, getSession, getSettings } from '../../src/ui-bridge.ts';
+import type { CoursewareSummary, QueryOutcome } from '../../src/ui-bridge.ts';
 
 /**
  * 卡头状态行立刻进入等待（骨架守位）。

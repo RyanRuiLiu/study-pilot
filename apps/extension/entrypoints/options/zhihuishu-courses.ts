@@ -12,8 +12,8 @@
  * 未登录指引与读取失败都落在列表区里说。
  */
 
-import { getZhsCourses, getZhsSession, refreshZhsCourses, updateSettings, getSettings } from '../../src/ui-bridge';
-import type { ZhihuishuCourse } from '../../src/ui-bridge';
+import { getZhsCourses, getZhsSession, refreshZhsCourses, updateSettings, getSettings } from '../../src/ui-bridge.ts';
+import type { ZhihuishuCourse } from '../../src/ui-bridge.ts';
 import { errorText, formatTermRange } from '../../src/ui/format.ts';
 import { reportPageUrl } from '../../src/adapters/zhihuishu/pages.ts';
 import { markZhsTasksLoading, refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';

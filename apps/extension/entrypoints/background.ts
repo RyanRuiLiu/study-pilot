@@ -13,12 +13,12 @@
 import { createRunner, liveRunState } from '@study-pilot/application';
 import { createMoocPlatform } from '../src/adapters/mooc/platform.ts';
 import { createZhihuishuPlatform } from '../src/adapters/zhihuishu/platform.ts';
-import { whenNetRulesReady } from '../src/browser/net-rules';
+import { whenNetRulesReady } from '../src/browser/net-rules.ts';
 import { browserCapabilities } from '../src/browser/capabilities.ts';
-import { registerMessageHandler } from '../src/background/messages/router';
-import { attachRunStatePort, progressStore } from '../src/background/runtime/run-state';
-import { getTaskState, recordRunFailure, taskStore } from '../src/background/runtime/task-state';
-import { configStore } from '../src/settings';
+import { registerMessageHandler } from '../src/background/messages/router.ts';
+import { attachRunStatePort, progressStore } from '../src/background/runtime/run-state.ts';
+import { getTaskState, recordRunFailure, taskStore } from '../src/background/runtime/task-state.ts';
+import { configStore } from '../src/settings/index.ts';
 
 export default defineBackground(() => {
   /*

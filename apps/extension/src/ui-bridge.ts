@@ -19,7 +19,7 @@
 import { sendToBackground } from './messages.ts';
 import { runNow as runOnce } from './browser/run-once.ts';
 import { subscribeRunState } from './browser/run-feed.ts';
-import { getSettings, updateSettings } from './settings';
+import { getSettings, updateSettings } from './settings/index.ts';
 
 // 视图模型：界面需要认识的就这几个形状
 export type { PendingEntry, PendingSummary } from './messages.ts';
@@ -27,14 +27,14 @@ export type { QueryOutcome } from './messages.ts';
 export type { CoursewareProgress, CoursewareSummary } from './messages.ts';
 export type { RunState } from './messages.ts';
 export type { Tone } from './browser/run-once.ts';
-export type { Settings } from './settings';
+export type { Settings } from './settings/index.ts';
 export type {
   ZhsPendingEntry,
   ZhsPendingKind,
   ZhsCourseTask,
   ZhsCourseTaskSummary,
 } from './messages.ts';
-export type { ZhihuishuCourse } from './settings';
+export type { ZhihuishuCourse } from './settings/index.ts';
 
 /** 登录状态（是否登录、用户 id、会话令牌）。 */
 export function getSession() {

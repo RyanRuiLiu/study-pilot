@@ -15,8 +15,8 @@
  * 停止在下一个安全点生效：不再发新的写请求，正在飞的落地即止。
  */
 
-import { getCourseware, getTaskState, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
-import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge';
+import { getCourseware, getTaskState, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge.ts';
+import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge.ts';
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { COURSEWARE_KINDS } from '../../src/ui/scopes.ts';

@@ -23,8 +23,8 @@
  * 运行状态的读取按平台收窄（platformRunningItem('zhihuishu')）。
  */
 
-import { getTaskState, getZhsCourseTasks, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge';
-import type { ZhsCourseTask, ZhsCourseTaskSummary, QueryOutcome } from '../../src/ui-bridge';
+import { getTaskState, getZhsCourseTasks, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge.ts';
+import type { ZhsCourseTask, ZhsCourseTaskSummary, QueryOutcome } from '../../src/ui-bridge.ts';
 import { errorText, formatDate } from '../../src/ui/format.ts';
 import { ZHS_BOARDS, boardOfKind, type ZhsBoardId } from '../../src/adapters/zhihuishu/boards.ts';
 import { meetPageUrl } from '../../src/adapters/zhihuishu/pages.ts';

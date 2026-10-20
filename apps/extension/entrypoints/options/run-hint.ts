@@ -10,7 +10,7 @@
  * 任何 tab 下都可见（页面级，不在某个板块里）。
  */
 
-import { subscribeRunState } from '../../src/ui-bridge';
+import { subscribeRunState } from '../../src/ui-bridge.ts';
 import { isRunning, progressTextOf, runningItem } from '../../src/ui/run-view.ts';
 
 const hintEl = document.getElementById('run-hint');

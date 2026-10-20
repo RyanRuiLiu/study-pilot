@@ -16,7 +16,7 @@
 import '../../src/ui/tokens.css';
 import './style.css';
 
-import { getCourseware, getZhsCourseTasks } from '../../src/ui-bridge';
+import { getCourseware, getZhsCourseTasks } from '../../src/ui-bridge.ts';
 import { initTabs } from '../../src/ui/tabs.ts';
 import { initCourseActions, renderCourses } from './courses.ts';
 import { renderCourseware } from './courseware.ts';

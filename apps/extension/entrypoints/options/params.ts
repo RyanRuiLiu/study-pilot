@@ -10,9 +10,9 @@
  * 只做一件事——若用户在浏览器中撤回了访问权限，如实说出来。
  */
 
-import { testAiConnection } from '../../src/ai';
-import { hasAiHostPermission } from '../../src/ai/permission';
-import { getSettings, updateSettings } from '../../src/ui-bridge';
+import { testAiConnection } from '../../src/ai/index.ts';
+import { hasAiHostPermission } from '../../src/ai/permission.ts';
+import { getSettings, updateSettings } from '../../src/ui-bridge.ts';
 import { toast } from './toast.ts';
 
 function input(id: string): HTMLInputElement | null {

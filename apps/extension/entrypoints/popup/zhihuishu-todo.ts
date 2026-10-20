@@ -15,8 +15,8 @@
  * 平台（platformId 见 main.ts）。
  */
 
-import { getSettings, getZhsPending, getZhsSession, runNow } from '../../src/ui-bridge';
-import type { ZhsPendingEntry } from '../../src/ui-bridge';
+import { getSettings, getZhsPending, getZhsSession, runNow } from '../../src/ui-bridge.ts';
+import type { ZhsPendingEntry } from '../../src/ui-bridge.ts';
 import { boardOrder } from '../../src/adapters/zhihuishu/boards.ts';
 import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { ZHS_LOGIN_URL } from '../../src/ui/login.ts';

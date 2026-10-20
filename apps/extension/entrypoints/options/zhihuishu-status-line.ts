@@ -10,8 +10,8 @@
  * 读不到时头部只留本地事实（已登录 · N 门参与），失败细节由课程任务卡自己报。
  */
 
-import { getZhsCourseTasks, getZhsSession, getSettings } from '../../src/ui-bridge';
-import type { ZhsCourseTaskSummary, QueryOutcome } from '../../src/ui-bridge';
+import { getZhsCourseTasks, getZhsSession, getSettings } from '../../src/ui-bridge.ts';
+import type { ZhsCourseTaskSummary, QueryOutcome } from '../../src/ui-bridge.ts';
 
 /**
  * 卡头状态行立刻进入等待（骨架守位）。

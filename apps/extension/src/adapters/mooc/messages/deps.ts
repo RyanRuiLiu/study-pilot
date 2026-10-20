@@ -7,7 +7,7 @@
  */
 
 import type { CourseSummary, CoursewareContext, MoocClient } from '@study-pilot/platform-mooc';
-import type { Settings } from '../../../settings';
+import type { Settings } from '../../../settings/index.ts';
 import type { InspectCourse, Snapshot } from '@study-pilot/platform-mooc';
 import type { HostCapabilities } from '@study-pilot/application';
 

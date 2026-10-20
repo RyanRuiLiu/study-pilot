@@ -12,7 +12,7 @@
  * 这就是规格 13.2 里「落到 general 按 mooc 处理」的实现。
  */
 
-import { getSettings, updateSettings } from '../ui-bridge';
+import { getSettings, updateSettings } from '../ui-bridge.ts';
 
 export type TabId = 'general' | 'mooc' | 'zhihuishu';
 

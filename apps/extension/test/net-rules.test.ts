@@ -54,9 +54,9 @@ function stubDeclarativeNetRequest(): void {
 }
 
 /** 重新导入模块：等价于 service worker 被回收后重新起来（内存清空，浏览器侧规则还在）。 */
-async function loadFresh(): Promise<(typeof import('../src/browser/net-rules'))['whenNetRulesReady']> {
+async function loadFresh(): Promise<(typeof import('../src/browser/net-rules.ts'))['whenNetRulesReady']> {
   vi.resetModules();
-  const module = await import('../src/browser/net-rules');
+  const module = await import('../src/browser/net-rules.ts');
   return module.whenNetRulesReady;
 }
 

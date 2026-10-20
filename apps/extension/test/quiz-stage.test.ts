@@ -12,7 +12,7 @@ import {
   detectQuizStage,
   probeQuizStage,
   type QuizStageProbe,
-} from '../src/features/mooc/quiz-stage';
+} from '../src/features/mooc/quiz-stage.ts';
 
 function probe(overrides: Partial<QuizStageProbe>): QuizStageProbe {
   return {

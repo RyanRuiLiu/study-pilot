@@ -12,7 +12,7 @@ import { manualItemId, workItemId, workPageUrl } from '@study-pilot/platform-moo
 import type { PendingEntry, PendingKind, PendingSummary } from './messages/payload.ts';
 import { OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from '@study-pilot/platform-mooc';
 import type { SnapshotCourse } from '@study-pilot/platform-mooc';
-import { describeStatusDetail, describeWorkStatus } from './work-status';
+import { describeStatusDetail, describeWorkStatus } from './work-status.ts';
 
 /**
  * 自动项的三个类别 → 界面上的待办类别。

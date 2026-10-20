@@ -22,7 +22,7 @@
 import '../../src/ui/tokens.css';
 import './style.css';
 
-import { runNow } from '../../src/ui-bridge';
+import { runNow } from '../../src/ui-bridge.ts';
 import { PENDING_KINDS } from '../../src/ui/scopes.ts';
 import { initTabs } from '../../src/ui/tabs.ts';
 import { runBtn, settingsBtn } from './elements.ts';
