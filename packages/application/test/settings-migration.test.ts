@@ -218,3 +218,81 @@ describe('版本 9：课程表搬成开课区间', () => {
     });
   });
 });
+
+/*
+ * 课程列表的逐条校验。
+ *
+ * 数组是整体替换的（用户数据不逐项合并），所以元素一直没被查过：一条身份键是
+ * NaN 的记录会被当成合法课程交下去，之后每一处都拿它当数字用。
+ */
+describe('课程列表里的脏元素', () => {
+  const goodMooc = {
+    courseId: 100,
+    termId: 200,
+    name: '一门课',
+    shortName: 'C1',
+    mode: 0,
+    schoolName: '某大学',
+    schoolShortName: 'NTU',
+    coverUrl: '',
+    startTime: 0,
+    endTime: 0,
+    enabled: true,
+  };
+  const goodZhs = {
+    courseId: 9000000003,
+    recruitId: 900002,
+    secret: 'hex',
+    name: '示例课程乙',
+    schoolName: '示例大学',
+    startTime: 0,
+    endTime: 0,
+    enabled: true,
+  };
+
+  it('慕课：termId 不是有限数字的那条被丢掉，正常的留下', () => {
+    const settings = normalize({
+      mooc: { courses: [{ ...goodMooc, termId: Number.NaN }, goodMooc, { ...goodMooc, termId: '200' }] },
+    });
+
+    expect(settings.mooc.courses).toHaveLength(1);
+    expect(settings.mooc.courses[0]?.termId).toBe(200);
+  });
+
+  it('智慧树：定位键（courseId 与 recruitId）缺一个就丢掉', () => {
+    const settings = normalize({
+      zhihuishu: { courses: [{ ...goodZhs, recruitId: undefined }, { ...goodZhs }, goodZhs] },
+    });
+
+    expect(settings.zhihuishu.courses).toHaveLength(2);
+  });
+
+  it('只有 termId 的存量课照旧留下（任务以 termId 为单位，courseId 缺不代表是脏数据）', () => {
+    const settings = normalize({ mooc: { courses: [{ termId: 123, name: '示例课程戊', enabled: true }] } });
+
+    expect(settings.mooc.courses).toHaveLength(1);
+    expect(settings.mooc.courses[0]?.termId).toBe(123);
+  });
+
+  it('不是对象的元素直接丢掉（字符串、null 都不算一条课程）', () => {
+    const settings = normalize({ mooc: { courses: ['两门课', null, goodMooc] } });
+
+    expect(settings.mooc.courses).toHaveLength(1);
+  });
+
+  it('enabled 只认真正的 true：脏值按未勾选处理，不替用户做写操作', () => {
+    const settings = normalize({
+      mooc: { courses: [{ ...goodMooc, enabled: 1 }, { ...goodMooc, termId: 201, enabled: 'yes' }] },
+      zhihuishu: { courses: [{ ...goodZhs, enabled: 'on' }] },
+    });
+
+    expect(settings.mooc.courses.map((course) => course.enabled)).toEqual([false, false]);
+    expect(settings.zhihuishu.courses[0]?.enabled).toBe(false);
+  });
+
+  it('正常数据一个字段都不动（校验不是重写）', () => {
+    const settings = normalize({ zhihuishu: { courses: [goodZhs] } });
+
+    expect(settings.zhihuishu.courses).toEqual([goodZhs]);
+  });
+});

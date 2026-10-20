@@ -152,6 +152,20 @@ export function createRunner(deps: RoundDeps): Runner {
           ? all.filter((platform) => platform.id === selection.platformId)
           : all;
 
+      /*
+       * 点名的平台不存在（id 拼错，或这个载体根本没装这家）必须说清楚。
+       * 放它走下去，结局是「没有可执行的事项」——用户会以为这家真的无事可做。
+       */
+      if (selection?.platformId !== undefined && targets.length === 0) {
+        return {
+          status: 'failed',
+          message:
+            all.length === 0
+              ? '这个载体没有装任何平台'
+              : `不认识的平台 id：${selection.platformId}（可用的：${all.map((platform) => platform.id).join(' / ')}）`,
+        };
+      }
+
       const now = Date.now();
       const snapshot = await deps.tasks.read();
       for (const platform of targets) {
@@ -178,6 +192,8 @@ export function createRunner(deps: RoundDeps): Runner {
       let manual = 0;
       let stopped = false;
       const failed: RunFailure[] = [];
+      /** 这一轮里「这家需要先登录」的平台。不当场返回，见循环后的汇总。 */
+      const loginBlocked: PlatformTasks[] = [];
       /** 此刻在跑哪个平台：抛错时给失败归属用（平台自己给的 action.platformId 优先）。 */
       let currentPlatform: PlatformTasks | null = null;
 
@@ -197,16 +213,31 @@ export function createRunner(deps: RoundDeps): Runner {
           // 该平台的一轮：begin → …… → finally finish（走哪种提前返回都不留残标记）
           await settle((state) => beginRun(state, platform.id, Date.now()));
           try {
+            /*
+             * 一家没登录不拦另一家。这里原来是整轮 `return`：前面平台已经做完的项、
+             * 已经攒下的失败全跟着丢，而排在后面的平台连一次都不试——两家都配好的时候，
+             * 一门课的会话过期就把另一门课的整轮变成一句笼统的「未登录」。
+             * 改成记下这一家、走完循环再汇总（只剩一家时结局与原来一致）。
+             */
             if (!(await platform.isReady())) {
-              // 有人在等答案：立刻告诉他去登录，别让他等一轮空跑
-              return { status: 'not-logged-in' };
+              loginBlocked.push(platform);
+              continue;
             }
 
             // 每一步之前刷新心跳：心跳过期会让界面把「正在跑」读成「上次没结束」
             await heartbeat();
 
-            const plan = await platform.plan(now, selection);
-            if (plan.needsLogin === true) return { status: 'not-logged-in' };
+            /*
+             * 时刻按家取，不用整轮开头那个：第二轮 plan 可能已经是几分钟后，
+             * 拿过期时刻判「截止/过期/待办保留天数」会一家对一家错。
+             */
+            const plan = await platform.plan(Date.now(), selection);
+            if (plan.needsLogin === true) {
+              loginBlocked.push(platform);
+              continue;
+            }
+            // 计划是本轮最长的一段网络读取，回来先补一次心跳再往下走
+            await heartbeat();
             if (plan.blocked === 'no-course') {
               noCourse = true;
               continue;
@@ -224,6 +255,8 @@ export function createRunner(deps: RoundDeps): Runner {
 
             // 总数先落定，界面立刻能画出「0 / 7」
             await show((state) => beginPlatform(state, platform, queue.length, Date.now()));
+            /** 这一轮在这家做出的失败数：决定它过去的留痕该不该清 */
+            let failedHere = 0;
             for (const item of queue) {
               // 项间这道闸；长动作内部还有自己的安全点（control 一路传下去）
               if (control.stopped()) {
@@ -239,6 +272,7 @@ export function createRunner(deps: RoundDeps): Runner {
               );
               if (outcome.status === 'done') done += 1;
               if (outcome.status === 'failed') {
+                failedHere += 1;
                 failed.push({
                   name: item.title,
                   kind: item.kind,
@@ -251,8 +285,10 @@ export function createRunner(deps: RoundDeps): Runner {
             /*
              * 这家跑完了（队列正常走完）：它过去的失败留痕已经被这一轮的结果取代。
              * 半途停止不算「交代过」——不在这里清（下一次干净的一轮会清）。
+             * 这一轮自己就做出了失败的项也不算交代过：留着它，界面的「上次执行出了
+             * 问题」才说得出刚发生的事，而不是把证据擦掉。
              */
-            if (!control.stopped()) {
+            if (!control.stopped() && failedHere === 0) {
               await settle((state) => clearPlatformFailure(state, platform.id));
             }
             /*
@@ -266,6 +302,37 @@ export function createRunner(deps: RoundDeps): Runner {
           }
         }
 
+        /*
+         * 「这家要先登录」在这里说话，而且只在它自己那一格里说：
+         *   全都堵着、这轮什么都没做成 → 仍报「未登录」，界面那个「去登录」入口照旧
+         *     （只点名一家、而它那一家没登录时，结局与改动前一致）；
+         *   只堵住一部分 → 如实报这一轮做出来的部分，并给每家各自留下失败留痕，
+         *     不让一句笼统的「未登录」盖掉另一家已经做完的结果。
+         */
+        if (loginBlocked.length > 0) {
+          for (const platform of loginBlocked) {
+            await settle((state) =>
+              recordPlatformFailure(
+                state,
+                platform.id,
+                `${platform.name}：登录已失效，需重新登录`,
+                Date.now(),
+              ),
+            );
+          }
+          if (
+            loginBlocked.length === targets.length &&
+            done === 0 &&
+            manual === 0 &&
+            failed.length === 0
+          ) {
+            return { status: 'not-logged-in' };
+          }
+          for (const platform of loginBlocked) {
+            failed.push({ name: platform.name, kind: 'session', detail: '登录已失效，需重新登录' });
+          }
+        }
+
         // 停过的一轮怎么都是「跑过」，不像无事可做
         if (stopped) return { status: 'finished', done, manual, failed, stopped };
         if (done === 0 && failed.length === 0 && manual === 0) {
@@ -273,6 +340,7 @@ export function createRunner(deps: RoundDeps): Runner {
         }
         return { status: 'finished', done, manual, failed };
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         /*
          * 抛错中止时先把范围内各平台的进度卡收尾。
          *
@@ -281,23 +349,30 @@ export function createRunner(deps: RoundDeps): Runner {
          * （实测：智慧树 -12 中止后，进度卡挂着 running）。收尾用 {id,name}
          * 轻对象即可：finishPlatform 按 id 归位，不依赖平台实例。
          * 平台自己的运行标记由上面那层 finally 收（begin/finish 成对）。
-         */
-        for (const platform of all) {
-          if (selection?.platformId !== undefined && platform.id !== selection.platformId) continue;
-          await show((state) => finishPlatform(state, { id: platform.id, name: platform.name }));
-        }
-        /*
-         * 一轮的失败记下来（按平台），同时也交给调用方。
          *
-         * 归属：平台自己给的 action.platformId 最可信；其次「此刻在跑的平台」；
-         * 还没有进到任何平台就抛了（罕见）就取选择里点名的平台；都无 → 不落平台表，
-         * 只把消息交回给调用方（不猜归属）。
+         * 收尾的写自己也可能失败（存储坏了）。那时也不能让它把这一轮变成一个
+         * rejection：runRound 的契约是「必返 RoundResult」，命令行那边没有兜底捕获，
+         * 而本轮的失败原因已经拿到手了——进度卡收不回来是界面下一步的事。
          */
-        const message = error instanceof Error ? error.message : String(error);
-        const action = runFailureActionOf(error);
-        const platformId = action?.platformId ?? currentPlatform?.id ?? selection?.platformId;
-        if (platformId !== undefined) {
-          await settle((state) => recordPlatformFailure(state, platformId, message, Date.now(), action));
+        try {
+          for (const platform of all) {
+            if (selection?.platformId !== undefined && platform.id !== selection.platformId) continue;
+            await show((state) => finishPlatform(state, { id: platform.id, name: platform.name }));
+          }
+          /*
+           * 一轮的失败记下来（按平台），同时也交给调用方。
+           *
+           * 归属：平台自己给的 action.platformId 最可信；其次「此刻在跑的平台」；
+           * 还没有进到任何平台就抛了（罕见）就取选择里点名的平台；都无 → 不落平台表，
+           * 只把消息交回给调用方（不猜归属）。
+           */
+          const action = runFailureActionOf(error);
+          const platformId = action?.platformId ?? currentPlatform?.id ?? selection?.platformId;
+          if (platformId !== undefined) {
+            await settle((state) => recordPlatformFailure(state, platformId, message, Date.now(), action));
+          }
+        } catch {
+          // 收尾没做成也不改本轮结局：已经是失败了，再抛只会把原因换成「写存储时炸了」
         }
         return { status: 'failed', message };
       } finally {

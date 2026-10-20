@@ -19,4 +19,30 @@ export * from './state.ts';
 export * from './progress.ts';
 export * from './round.ts';
 export * from './ports.ts';
-export * from './config/index.ts';
+/*
+ * config 这一段逐个列名，不用 `export *`：`ACTIVE_TABS` 只是 normalize 收敛
+ * `ui.activeTab` 取值时的内部依据（界面上的 tab 由扩展自己列），包外没有消费者，
+ * 就不跟着进对外面。新增配置项要对外时得在这里补一行——收紧面就是要人工确认过。
+ */
+export type {
+  ActiveTab,
+  AiSettings,
+  MoocSettings,
+  SelectedCourse,
+  Settings,
+  UiSettings,
+  ZhihuishuCourse,
+  ZhihuishuSettings,
+} from './config/index.ts';
+export {
+  AI_BASE_URL,
+  AI_DEFAULT_MODEL,
+  DEFAULT_AI,
+  DEFAULT_MOOC,
+  DEFAULT_SETTINGS,
+  DEFAULT_UI,
+  DEFAULT_ZHIHUISHU,
+  SETTINGS_VERSION,
+  mergeWithBase,
+  normalize,
+} from './config/index.ts';

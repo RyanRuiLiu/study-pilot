@@ -9,8 +9,8 @@
  */
 
 import { DEFAULT_AI, type AiSettings } from './ai.ts';
-import { DEFAULT_MOOC, type MoocSettings } from './mooc.ts';
-import { DEFAULT_ZHIHUISHU, type ZhihuishuSettings } from './zhihuishu.ts';
+import { DEFAULT_MOOC, type MoocSettings, type SelectedCourse } from './mooc.ts';
+import { DEFAULT_ZHIHUISHU, type ZhihuishuCourse, type ZhihuishuSettings } from './zhihuishu.ts';
 
 export * from './ai.ts';
 export * from './mooc.ts';
@@ -224,6 +224,43 @@ export function mergeWithBase<T>(base: T, patch: Json): T {
 }
 
 /**
+ * 勾选课程列表的逐条校验（两家各一份，字段名不同）。
+ *
+ * `mergeWithBase` 对数组是**整体替换**（课程是用户数据，不逐项合并），于是列表里的
+ * 元素从来没被查过：一条 `termId` 是 `NaN`/字符串/缺失的记录会被原样当成 `SelectedCourse`
+ * 交下去，后面每一处拿它当数字用——地址拼不出、勾选对不上、界面上显示成 NaN。
+ * 上面那段 v9 的迁移注释说的正是同一个症状，但那一次补的是一个键，没补这道闸。
+ *
+ * 只拦「身份不可用」的条目：
+ *   - 不是对象，或**任务定位键**不是有限数字 → 丢掉。那条课连入口都拼不出来，留着只会让用户点了没反应。
+ *     慕课只认 `termId`（任务全部以它为单位）：v2/v4 的存量课里有的只有 termId、没有 courseId，
+ *     把 courseId 也当必填就等于删掉用户的勾选——那比脏数据更糟。
+ *   - `enabled` 只认真正的 `true`。存进来是脏值时意图不可知，按未勾选处理——
+ *     替用户多做写操作比少做一次的后果重。
+ *   - 其余字段一律原样交回：它们只影响显示，缺了不该让这门课从配置里消失。
+ */
+function sanitizeMoocCourses(courses: readonly SelectedCourse[]): SelectedCourse[] {
+  return courses
+    .filter(
+      (course) =>
+        typeof course === 'object' && course !== null && Number.isFinite(course.termId),
+    )
+    .map((course) => ({ ...course, enabled: course.enabled === true }));
+}
+
+function sanitizeZhihuishuCourses(courses: readonly ZhihuishuCourse[]): ZhihuishuCourse[] {
+  return courses
+    .filter(
+      (course) =>
+        typeof course === 'object' &&
+        course !== null &&
+        Number.isFinite(course.courseId) &&
+        Number.isFinite(course.recruitId),
+    )
+    .map((course) => ({ ...course, enabled: course.enabled === true }));
+}
+
+/**
  * 把任意来源的数据规范成合法配置。
  *
  * 迁移按版本先后串起来：每段只认自己接手的旧形状，输出交给下一段，
@@ -253,7 +290,12 @@ export function normalize(raw: Json): Settings {
     ui: { activeTab },
     mooc: {
       ...merged.mooc,
+      courses: sanitizeMoocCourses(merged.mooc.courses),
       reviewComment: comment.trim() || DEFAULT_MOOC.reviewComment,
+    },
+    zhihuishu: {
+      ...merged.zhihuishu,
+      courses: sanitizeZhihuishuCourses(merged.zhihuishu.courses),
     },
     ai: {
       ...merged.ai,

@@ -5,7 +5,7 @@
  * 用例的行为在这里验，载体只管把端口接上。
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   EMPTY_PROGRESS,
   EMPTY_STATE,
@@ -512,5 +512,210 @@ describe('抛错中止时平台进度卡收尾', () => {
     expect(result).toMatchObject({ status: 'failed', message: '平台中止信号' });
     const platform = progress.current().platforms.find((entry) => entry.id === 'mooc');
     expect(platform?.state).toBe('idle');
+  });
+});
+
+/*
+ * 两家平台在同一轮里。
+ *
+ * 以前的写法是「一家没登录就整轮 return」：前面平台已经做完的计数被丢掉，排在后面的
+ * 平台连一次都不试，而报出来的是一句笼统的「未登录」——两家都配好的用户会看到
+ * 「智慧树那轮什么都没做」，可它其实从没被试过。这一组用例钉住新的聚合。
+ */
+describe('两家平台在一轮里', () => {
+  interface Stub extends PlatformTasks {
+    calls: string[];
+  }
+
+  function stub(
+    id: string,
+    options: {
+      ready?: boolean;
+      plan?: Awaited<ReturnType<PlatformTasks['plan']>>;
+      outcome?: { status: 'done' | 'failed'; message?: string };
+    } = {},
+  ): Stub {
+    const calls: string[] = [];
+    return {
+      id,
+      name: `平台 ${id}`,
+      calls,
+      isReady: async () => {
+        calls.push('isReady');
+        return options.ready ?? true;
+      },
+      plan: async () => {
+        calls.push('plan');
+        return options.plan ?? { items: [] };
+      },
+      run: async (entry) => {
+        calls.push(`run:${entry.id}`);
+        return options.outcome ?? { status: 'done' };
+      },
+    };
+  }
+
+  const sessionFailure = (id: string) => ({
+    name: `平台 ${id}`,
+    kind: 'session',
+    detail: '登录已失效，需重新登录',
+  });
+
+  it('一家没登录：另一家照样读计划、照样执行、照样如实报数', async () => {
+    const dead = stub('mooc', { ready: false });
+    const alive = stub('zhihuishu', { plan: { items: [item('z1', 'auto')] } });
+    const { runner, tasks } = setup([dead, alive]);
+
+    const result = await runner.runRound();
+
+    expect(result).toEqual({
+      status: 'finished',
+      done: 1,
+      manual: 0,
+      failed: [sessionFailure('mooc')],
+    });
+    expect(alive.calls).toEqual(['isReady', 'plan', 'run:z1']);
+    // 被堵的那家留下自己的留痕：界面才说得出是哪家要去登录
+    expect(tasks.current().platforms['mooc']?.failure?.message).toContain('登录已失效');
+  });
+
+  it('计划里说会话失效的那家，不拦另一家', async () => {
+    const lost = stub('a', { plan: { items: [], needsLogin: true } });
+    const fine = stub('b', { plan: { items: [item('b1', 'auto')] } });
+    const { runner } = setup([lost, fine]);
+
+    const result = await runner.runRound();
+
+    expect(fine.calls).toContain('run:b1');
+    expect(result).toEqual({
+      status: 'finished',
+      done: 1,
+      manual: 0,
+      failed: [sessionFailure('a')],
+    });
+  });
+
+  it('两家都没登录：仍然报「未登录」，界面那个去登录的入口照旧', async () => {
+    const a = stub('a', { ready: false });
+    const b = stub('b', { ready: false });
+    const { runner } = setup([a, b]);
+
+    expect(await runner.runRound()).toEqual({ status: 'not-logged-in' });
+  });
+
+  it('点名了不存在的平台：如实失败，不谎报成「没有可执行的事项」', async () => {
+    const mooc = stub('mooc', { plan: { items: [item('m1', 'auto')] } });
+    const { runner } = setup([mooc]);
+
+    const result = await runner.runRound({ platformId: 'zhihuishuu' });
+
+    expect(result.status).toBe('failed');
+    if (result.status === 'failed') {
+      expect(result.message).toContain('不认识的平台 id：zhihuishuu');
+      expect(result.message).toContain('mooc');
+    }
+    expect(mooc.calls).toEqual([]);
+  });
+
+  it('这一轮做出失败项时，不清那家的失败留痕', async () => {
+    const before: TaskState = {
+      platforms: {
+        mooc: {
+          runningSince: null,
+          heartbeatAt: null,
+          lastFinishedAt: 1,
+          failure: { message: '上次：滑块验证没过', action: null, at: 1 },
+        },
+      },
+    };
+    const mooc = stub('mooc', {
+      plan: { items: [item('m1', 'auto')] },
+      outcome: { status: 'failed', message: '平台拒绝了这次操作' },
+    });
+    const { runner, tasks } = setup([mooc], { task: before });
+
+    const result = await runner.runRound();
+
+    expect(result).toEqual({
+      status: 'finished',
+      done: 0,
+      manual: 0,
+      failed: [{ name: '事项 m1', kind: 'quiz', detail: '平台拒绝了这次操作' }],
+    });
+    expect(tasks.current().platforms['mooc']?.failure?.message).toBe('上次：滑块验证没过');
+  });
+
+  it('一轮里没有失败项才清掉留痕', async () => {
+    const before: TaskState = {
+      platforms: {
+        mooc: {
+          runningSince: null,
+          heartbeatAt: null,
+          lastFinishedAt: 1,
+          failure: { message: '上次：滑块验证没过', action: null, at: 1 },
+        },
+      },
+    };
+    const mooc = stub('mooc', { plan: { items: [item('m1', 'auto')] } });
+    const { runner, tasks } = setup([mooc], { task: before });
+
+    await runner.runRound();
+
+    expect(tasks.current().platforms['mooc']?.failure).toBeNull();
+  });
+
+  it('收尾时端口再坏，也只回 failed，不把 rejection 抛给载体', async () => {
+    /*
+     * runRound 的契约是「必返 RoundResult」，命令行那边没有兜底捕获。
+     * 抛错发生在家还没读完前置条件时，于是 catch 分支要写进度卡——
+     * 那一步再失败，也只能吞掉：本轮的原因已经拿到手了，不该被换成「写存储时炸了」。
+     */
+    const tasks = fakeStore();
+    const brokenProgress: ProgressPort = {
+      snapshot: async () => EMPTY_PROGRESS,
+      publish: async () => {
+        throw new Error('进度写不进');
+      },
+    };
+    const mooc = stub('mooc');
+    mooc.isReady = async () => {
+      throw new Error('平台把这一轮打断了');
+    };
+    const runner = createRunner({ platforms: () => [mooc], tasks: tasks.port, progress: brokenProgress });
+
+    const result = await runner.runRound();
+
+    expect(result).toEqual({ status: 'failed', message: '平台把这一轮打断了' });
+  });
+
+  it('每家计划拿到的时刻是它自己那一刻，不是整轮开头那份快照', async () => {
+    /*
+     * 计划是最长的一段读取。用整轮开头取的那一次时刻，第二家几分钟后拿到的仍是
+     * 旧时刻——「过期/截止/待办保留天数」就会一家对一家错。
+     */
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(1_700_000_000_000));
+    const stamps: number[] = [];
+    const slow = (id: string, minutesBusy: number): PlatformTasks => ({
+      id,
+      name: `平台 ${id}`,
+      isReady: async () => true,
+      plan: async (now) => {
+        stamps.push(now);
+        if (minutesBusy > 0) vi.advanceTimersByTime(minutesBusy * MINUTE);
+        return { items: [] };
+      },
+      run: async () => ({ status: 'done' as const }),
+    });
+    const { runner } = setup([slow('a', 4), slow('b', 0)]);
+
+    try {
+      await runner.runRound();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(stamps).toHaveLength(2);
+    expect(stamps[1] - stamps[0]).toBe(4 * MINUTE);
   });
 });
