@@ -179,44 +179,40 @@ export async function readCourseExams(
 }
 
 /**
- * 单元测试的完成计数（纯函数：两个页签 → 分数）。
+ * 按题型统计「已交 / 全部」。
  *
- * 两件事都在这里定死：
- *   - **只数单元测试**（`meetCourseType=0`）——见面课测验是另一个组件，
- *     混进来会让「学习进度·测试」变成两样东西的和；
- *   - **按条目 id 去重**。真机实测（2026-10-17，沙箱课）两页签不重叠：
- *     未交 17 条（含 1 条 `state=5`）＋ 已交 3 条 ＝ 20 条，正好二十章。
- *     去重是防「重做留下第二条目」把分母撑大——数错不如数稳。
+ * 两件事在这里定死：
+ *   - **按条目 id 去重**（两个页签各算一次会把分母撑大）。真机实测（2026-10-17，沙箱课）
+ *     两页签不重叠：未交 17 条（含 1 条 `state=5`）＋ 已交 3 条 ＝ 20 条，正好二十章。
  *     同一 id 若真同时出现，以**已交页签**为准（那才是平台判的交没交）。
+ *
+ * 单元测试与见面课测验只在题型上不同，因此共用这一份；分开写两份同构代码，
+ * 下一次改「去重规则」时必然漏一处。
  */
-export function countUnitTests(tabs: CourseExamTabs): { done: number; total: number } {
-  const unitTests = (items: readonly ZhsExamListItem[]): ZhsExamListItem[] =>
-    items.filter((item) => item.meetCourseType === MEET_COURSE_TYPE.unitTest);
-
-  const ids = new Set<string>();
-  for (const item of [...unitTests(tabs.pending), ...unitTests(tabs.submitted)]) ids.add(item.id);
-
-  const doneIds = new Set<string>();
-  for (const item of unitTests(tabs.submitted)) doneIds.add(item.id);
-
-  // 已交页签里的条目必然也在 ids 里（它就是那么进去的），所以直接取大小
+function countByType(tabs: CourseExamTabs, type: number): { done: number; total: number } {
+  const ofType = (items: readonly ZhsExamListItem[]): ZhsExamListItem[] =>
+    items.filter((item) => item.meetCourseType === type);
+  const ids = new Set([...ofType(tabs.pending), ...ofType(tabs.submitted)].map((item) => item.id));
+  const doneIds = new Set(ofType(tabs.submitted).map((item) => item.id));
   return { done: doneIds.size, total: ids.size };
 }
 
 /**
- * 见面课测验的「已交 / 全部」——与单元测试**同一份清单**里的另一类条目
- * （`meetCourseType=1`，条目名 = 场次名）。去重与判据同 `countUnitTests`：
- * 按条目 id 去重、以已交页签为准。
+ * 单元测试的完成计数（纯函数：两个页签 → 分数）。
+ *
+ * 只数 `meetCourseType=0`：见面课测验是另一个组件，混进来会让「学习进度·测试」
+ * 变成两样东西的和。去重与「以已交为准」的规则见 `countByType`。
+ */
+export function countUnitTests(tabs: CourseExamTabs): { done: number; total: number } {
+  return countByType(tabs, MEET_COURSE_TYPE.unitTest);
+}
+
+/**
+ * 见面课测验的「已交 / 全部」：与单元测试同一份清单里的另一类条目
+ * （`meetCourseType=1`，条目名 = 场次名）。去重与判据同 `countByType`。
  */
 export function countMeetQuizzes(tabs: CourseExamTabs): { done: number; total: number } {
-  const quizzes = (items: readonly ZhsExamListItem[]): ZhsExamListItem[] =>
-    items.filter((item) => item.meetCourseType === MEET_COURSE_TYPE.meetingQuiz);
-
-  const ids = new Set<string>();
-  for (const item of [...quizzes(tabs.pending), ...quizzes(tabs.submitted)]) ids.add(item.id);
-  const doneIds = new Set<string>();
-  for (const item of quizzes(tabs.submitted)) doneIds.add(item.id);
-  return { done: doneIds.size, total: ids.size };
+  return countByType(tabs, MEET_COURSE_TYPE.meetingQuiz);
 }
 
 /**
