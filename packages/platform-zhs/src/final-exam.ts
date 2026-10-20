@@ -65,9 +65,15 @@ function num(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-/** 把 `rt` 归一成条目表。纯函数，可离线核对形态。 */
+/**
+ * 把 `rt` 归一成条目表。纯函数，可离线核对形态。
+ *
+ * 形态不符**抛错**，不返回空表：空表会被读成「这门课没有期末考试」，而它真正的意思
+ * 可能是「我没读懂平台回了什么」——调用方（reads.ts 的 readFinalExam）正是按抛错
+ * 来分「读不到」与「没有期末」的（真失败走 unread 那条既有通道，不静默）。
+ */
 export function normalizeFinalExam(rt: unknown): ZhsFinalExam[] {
-  if (!Array.isArray(rt)) return [];
+  if (!Array.isArray(rt)) throw new Error('期末考试：响应不是列表（平台回的形状与预期不符）');
   return rt.map((raw) => {
     const item = (raw ?? {}) as Record<string, unknown>;
     return {

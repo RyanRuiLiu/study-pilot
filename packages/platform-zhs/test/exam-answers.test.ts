@@ -10,10 +10,8 @@ import {
   answerKeyFromPopupExam,
   coverageOf,
   matchPaper,
-  mergeKeys,
   normalizeQuestionText,
   planAnswering,
-  type AnswerKey,
   type PaperQuestion,
 } from '../src/exam-answers.ts';
 
@@ -162,10 +160,9 @@ describe('planAnswering', () => {
   });
 
   it('缺键 + 机会 ≥ 2 → 按门槛走探路后重做', () => {
-    const partial = mergeKeys([key, { version: 1, correctOptionIds: [], entries: [] }]);
     const plan = planAnswering({
       paper: [...PAPER, { eid: 'eid-C', text: '缺键的题（ ）', options: [{ id: '1', text: '甲' }] }],
-      key: partial,
+      key,
       remainingAttempts: MIN_ATTEMPTS_FOR_PROBE,
     });
     expect(plan.kind).toBe('probe-then-redo');
@@ -185,17 +182,5 @@ describe('planAnswering', () => {
   it('没有键：机会够就探路，不够就只报', () => {
     expect(planAnswering({ paper: PAPER, key: null, remainingAttempts: 3 }).kind).toBe('probe-then-redo');
     expect(planAnswering({ paper: PAPER, key: null, remainingAttempts: 1 }).kind).toBe('report-only');
-  });
-});
-
-describe('mergeKeys', () => {
-  it('多来源取并集（历史提交 / 重做卷 / 同课副本）', () => {
-    const a: AnswerKey = { version: 1, correctOptionIds: ['1'], entries: [{ question: 'q1', correct: ['1'], correctTexts: ['甲'] }] };
-    const b: AnswerKey = { version: 1, correctOptionIds: ['2'], entries: [{ question: 'q1', correct: ['2'], correctTexts: ['乙'] }, { question: 'q2', correct: ['3'], correctTexts: [] }] };
-    const merged = mergeKeys([a, b]);
-    expect(merged.correctOptionIds.sort()).toEqual(['1', '2']);
-    expect(merged.entries.find((entry) => entry.question === 'q1')?.correct.sort()).toEqual(['1', '2']);
-    expect(merged.entries.find((entry) => entry.question === 'q1')?.correctTexts.sort()).toEqual(['乙', '甲'].sort());
-    expect(merged.entries.find((entry) => entry.question === 'q2')?.correct).toEqual(['3']);
   });
 });

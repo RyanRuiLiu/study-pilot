@@ -51,7 +51,15 @@ export async function readCourseChapters(
   const listBody = (await client.call('videoList', { recruitAndCourseId: course.recruitAndCourseId })) as {
     data?: { videoChapterDtos?: ZhsChapterNode[] | null } | null;
   };
-  return listBody.data?.videoChapterDtos ?? [];
+  /*
+   * 读不到列表就抛错，不交空表：空表会被上面那层读成「这门课没有章节」，
+   * 于是课件、章节测验、进度全都不进计划，而一句错误也不说（同一口径见 meet.ts）。
+   */
+  const chapters = listBody.data?.videoChapterDtos;
+  if (!Array.isArray(chapters)) {
+    throw new Error('课程结构：videolist 响应里没有 videoChapterDtos 列表（平台回的形状与预期不符）');
+  }
+  return chapters;
 }
 
 /** 读结构 + 学情，合并成单元表（章节自然序）。`chapters` 给了就不重复读 videolist。 */

@@ -244,32 +244,3 @@ export function planAnswering(input: {
     ? { kind: 'probe-then-redo', coverage, missing: match.missing }
     : { kind: 'report-only', coverage, missing: match.missing };
 }
-
-/**
- * 合并两份键（多来源：历史提交、重做卷、同课副本）。
- *
- * 键只做并集，不做覆盖——两个来源对同一道题给了不同答案时保留两者，
- * 由 matchPaper 的"正解 id 必须落在卷面选项里"这一条自然筛掉不适用的那一份。
- */
-export function mergeKeys(keys: readonly AnswerKey[]): AnswerKey {
-  const correctOptionIds = new Set<string>();
-  const entries = new Map<string, { correct: Set<string>; correctTexts: Set<string> }>();
-  for (const key of keys) {
-    for (const id of key.correctOptionIds) correctOptionIds.add(id);
-    for (const entry of key.entries) {
-      const bucket = entries.get(entry.question) ?? { correct: new Set<string>(), correctTexts: new Set<string>() };
-      for (const id of entry.correct) bucket.correct.add(id);
-      for (const text of entry.correctTexts) bucket.correctTexts.add(text);
-      entries.set(entry.question, bucket);
-    }
-  }
-  return {
-    version: 1,
-    correctOptionIds: [...correctOptionIds],
-    entries: [...entries.entries()].map(([question, bucket]) => ({
-      question,
-      correct: [...bucket.correct],
-      correctTexts: [...bucket.correctTexts],
-    })),
-  };
-}

@@ -28,11 +28,17 @@ describe('normalizeHomeworkList', () => {
     expect(items[1]).toMatchObject({ meetCourseType: 1, state: 4, score: 9, totalScore: 10, chapterName: null });
   });
 
-  it('形状不对返回空表（不是抛错，也不造记录）', () => {
-    expect(normalizeHomeworkList({ studentHomeworkList: null })).toEqual([]);
-    expect(normalizeHomeworkList({})).toEqual([]);
-    expect(normalizeHomeworkList(null)).toEqual([]);
-    expect(normalizeHomeworkList({ studentHomeworkList: 'x' })).toEqual([]);
+  it('真·空数组给空表——那是「这门课一张卷都没有」', () => {
+    expect(normalizeHomeworkList({ studentHomeworkList: [] })).toEqual([]);
+  });
+
+  it('形态不符抛错：不拿空表冒充「我没读懂平台回了什么」', () => {
+    // 空表会被计划读成「无事可做」，平台变形从此不会自己冒出来
+    expect(() => normalizeHomeworkList({ studentHomeworkList: null })).toThrow(/studentHomeworkList/);
+    expect(() => normalizeHomeworkList({})).toThrow(/studentHomeworkList/);
+    expect(() => normalizeHomeworkList(null)).toThrow(/studentHomeworkList/);
+    expect(() => normalizeHomeworkList('x')).toThrow(/studentHomeworkList/);
+    expect(() => normalizeHomeworkList({ studentHomeworkList: 'x' })).toThrow(/studentHomeworkList/);
   });
 
   it('没有 id 的条目跳过——lookHomework 认 id，缺了就用不了', () => {

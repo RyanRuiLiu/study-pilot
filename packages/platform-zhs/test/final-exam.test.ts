@@ -50,10 +50,10 @@ describe('normalizeFinalExam', () => {
     expect(exam?.limitTime).toBe(90);
   });
 
-  it('空表与坏形状都回空数组，不抛', () => {
+  it('真·空数组才给空表；形态不符抛错（不冒充「这门课没有期末」）', () => {
     expect(normalizeFinalExam([])).toEqual([]);
-    expect(normalizeFinalExam(null)).toEqual([]);
-    expect(normalizeFinalExam({})).toEqual([]);
+    expect(() => normalizeFinalExam(null)).toThrow(/不是列表/);
+    expect(() => normalizeFinalExam({})).toThrow(/不是列表/);
   });
 
   it('缺字段的条目给默认值（不猜）', () => {

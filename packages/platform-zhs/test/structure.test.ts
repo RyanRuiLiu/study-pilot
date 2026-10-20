@@ -61,6 +61,28 @@ const STUDY_INFO = {
   },
 };
 
+describe('readCourseChapters', () => {
+  it('响应里没有 videoChapterDtos：抛错，不交空表冒充「这门课没有章节」', async () => {
+    // 空表会让课件、章节测验、进度全都不进计划，而一句错误也不说
+    const empty = fakeClient({ videoList: { code: 200, data: {} } });
+    await expect(
+      readCourseChapters(empty.client, { recruitAndCourseId: 'abc', recruitId: 1 }),
+    ).rejects.toThrow(/videoChapterDtos/);
+
+    const noData = fakeClient({ videoList: { code: 200 } });
+    await expect(
+      readCourseChapters(noData.client, { recruitAndCourseId: 'abc', recruitId: 1 }),
+    ).rejects.toThrow(/videoChapterDtos/);
+  });
+
+  it('真·空章节表照原样交出（那是这门课的结构确实没有章节）', async () => {
+    const ok = fakeClient({ videoList: { code: 200, data: { videoChapterDtos: [] } } });
+    await expect(
+      readCourseChapters(ok.client, { recruitAndCourseId: 'abc', recruitId: 1 }),
+    ).resolves.toEqual([]);
+  });
+});
+
 describe('getCourseUnits', () => {
   it('拍平章节并有子节位次映射（子节：lessonId=父、smallLessonId=自己）', async () => {
     const { client } = fakeClient({ videoList: CHAPTERS, studyInfo: STUDY_INFO });

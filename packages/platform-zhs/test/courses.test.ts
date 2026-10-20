@@ -49,6 +49,13 @@ describe('getShareCourses', () => {
     );
     expect(briefs).toEqual([]);
   });
+
+  it('响应里没有 courseOpenDtos：抛错，不交空表冒充「这账号一门课都没选」', async () => {
+    await expect(getShareCourses(clientReturning({ code: 200, result: {} }))).rejects.toThrow(
+      /courseOpenDtos/,
+    );
+    await expect(getShareCourses(clientReturning({ code: 200 }))).rejects.toThrow(/courseOpenDtos/);
+  });
 });
 
 describe('readCourseIsApply', () => {

@@ -11,16 +11,23 @@
  * 同一会话内一把钥签一族请求。取到的 sl 只活在内存里，不落任何存储。
  */
 
-import { createThrottle, DEFAULT_MIN_GAP_MS, type FetchLike } from '@study-pilot/transport';
+import {
+  BROWSER_USER_AGENT,
+  createThrottle,
+  DEFAULT_MIN_GAP_MS,
+  type FetchLike,
+} from '@study-pilot/transport';
 import { ZHS_ENDPOINTS, ZHS_HOSTS, type ZhsEndpointName } from './endpoints.ts';
 import { recoverCKey, rsaPublicEncrypt, wrapSignedBody } from './sign.ts';
 
 /**
  * 常规浏览器 UA。浏览器载体用不到（请求天然带自己的 UA），
- * 自建请求的环境（Node 载体）要用它——平台按 UA 判来源。写成一处。
+ * 自建请求的环境（Node 载体）要用它——平台按 UA 判来源。
+ *
+ * 定义在 transport（那才是「一处」），本包只是按自己的消费者再转导出一份，
+ * 与慕课包的做法一致：留两份逐字节相同的字符串，改 UA 时必然漂移。
  */
-export const BROWSER_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
+export { BROWSER_USER_AGENT };
 
 /** 响应是 HTTP 层面的失败（非 200）。 */
 export class ZhsHttpError extends Error {

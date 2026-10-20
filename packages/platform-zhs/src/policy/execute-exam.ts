@@ -45,7 +45,7 @@ import {
 } from '../exam-paper.ts';
 import { askOracle, judge } from '../oracle.ts';
 import { gateAction, gateHaltMessage, ZhsRoundHalt } from './execute.ts';
-import { examListUrl, studyPageUrl } from '../pages.ts';
+import { examListUrl, studyPageUrl, ZHS_SITE_ORIGIN } from '../pages.ts';
 
 /** 一张卷的入口参数（清单 + 章节测验条目合成）。 */
 export interface ExamTarget {
@@ -93,9 +93,6 @@ export interface ExamRunInput {
   recruitAndCourseId: string;
 }
 
-/** 会话失效（CAS SSO 过期）的去处：站点首页（登录入口在导航里）。 */
-const LOGIN_URL = 'https://www.zhihuishu.com';
-
 /**
  * SSO 过期时考试族 `302 → passport`，浏览器里表现为「拿到了一个不是 JSON 的东西」。
  * 这不是业务失败，是「要人重新登录一次」——按整轮中止处理并给出动作位。
@@ -110,7 +107,7 @@ function sessionHalt(): ZhsRoundHalt {
   return new ZhsRoundHalt('登录已失效，需重新登录智慧树', {
     platformId: 'zhihuishu',
     label: '打开登录页',
-    url: LOGIN_URL,
+    url: ZHS_SITE_ORIGIN, // 去处是站点首页：登录入口在导航里，站点没有独立登录页
   });
 }
 

@@ -18,6 +18,13 @@
 
 import { encryptRecruitId } from './sign.ts';
 
+/**
+ * 站点首页的源。两个用途共用这一个串：读会话 cookie 的锚点（session.ts），
+ * 以及 SSO 过期时给用户的「去登录」去处（policy/execute-exam.ts）——
+ * 登录入口在首页导航里，站点没有独立的登录页地址。
+ */
+export const ZHS_SITE_ORIGIN = 'https://www.zhihuishu.com';
+
 /** 学习页：教程视频那几行的落点，也是撞门时的去处（账号级挂起在那儿过一次验证）。 */
 export function studyPageUrl(recruitAndCourseId: string): string {
   return `https://wisdom-mooc.zhihuishu.com/study/index?recruitAndCourseId=${encodeURIComponent(recruitAndCourseId)}`;

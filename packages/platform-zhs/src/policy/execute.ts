@@ -25,6 +25,7 @@
 
 import type { RunControl, RunFailureAction, RunOutcome } from '@study-pilot/application';
 import { ZhsApiError, type ZhsClient } from '../client.ts';
+import { studyPageUrl } from '../pages.ts';
 import { buildStudyReport } from '../report.ts';
 import { getCourseUnits, type ZhsUnit } from '../structure.ts';
 
@@ -81,9 +82,12 @@ function isGateRejection(error: unknown): error is ZhsApiError {
 /**
  * 验证页地址：该课的学习页（站点自身地址形态；2026-10-17 金样本实测——
  * 在该页任意点开一个课时即弹出验证，站点自己完成后续校验）。
+ *
+ * 串的构造走 `pages.ts` 的 `studyPageUrl`（那里是全包唯一写这个地址的地方），
+ * 这里只回答「验证该把人送去哪个页面」。
  */
 function verifyPageUrl(recruitAndCourseId: string): string {
-  return `https://wisdom-mooc.zhihuishu.com/study/index?recruitAndCourseId=${encodeURIComponent(recruitAndCourseId)}`;
+  return studyPageUrl(recruitAndCourseId);
 }
 
 /**

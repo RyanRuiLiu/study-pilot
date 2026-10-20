@@ -32,7 +32,15 @@ export async function getShareCourses(client: ZhsClient): Promise<ZhsCourseBrief
   const body = (await client.call('shareCourses', { status: 0, pageNo: 1, pageSize: 50 })) as {
     result?: { courseOpenDtos?: Array<Record<string, unknown>> | null } | null;
   };
-  const list = body.result?.courseOpenDtos ?? [];
+  /*
+   * 没有这个列表就抛错，不交空表：空表的意思会被读成「这账号一门共享课都没选」，
+   * 而它更可能是平台回了别的形状。课程列表是刷新流程的第一步，这里静默下来
+   * 后面每一步都建立在「没有课」这个假事实之上（同一口径见 meet.ts）。
+   */
+  const list = body.result?.courseOpenDtos;
+  if (!Array.isArray(list)) {
+    throw new Error('共享课列表：响应里没有 courseOpenDtos 列表（平台回的形状与预期不符）');
+  }
   return list
     .filter((entry) => typeof entry.courseId === 'number' && typeof entry.recruitId === 'number')
     .map((entry) => ({

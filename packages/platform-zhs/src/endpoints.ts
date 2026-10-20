@@ -8,7 +8,10 @@
  *   studyservice-api   = 11  学习页全族（videolist / queryStuyInfo / 上报 …）
  *   onlineservice-api  = 13  首页族（课程卡等；实测 3 会报「aes解密异常」，13 通过）
  *   studentexam-api    = 3   考试族（二期）
- *   taurusexam-api     = 5   考试族（二期）
+ *   taurusexam-api     = 3   期末那族（**不是 5**）：考试应用的 postFetch 对这条族不传
+ *                            `type`，于是走 `getK()` → `labc(3)`；`labc(5)` 只在传 `type=1`
+ *                            的那条路径上。实测用 5 会被网关回 404（Tomcat 错误页），
+ *                            与 Origin/Referer 无关——是密文解不开。见 final-exam.ts 的取证。
  *
  * 三族的封装差异（均来自抓包解密，逐条核对过）：
  *   - 外层时间戳字段名不同：学习族 `dateFormate`、首页族 `date`、**考试族没有外层时间戳**；
@@ -38,12 +41,11 @@ export const ZHS_HOSTS = {
 } as const;
 export type ZhsHost = keyof typeof ZHS_HOSTS;
 
-/** 模块号（逐族校准过的实测值）。 */
+/** 模块号（逐族校准过的实测值）。taurus 宿主也用 3，见文件头那段的取证——所以这里没有 5。 */
 export const ZHS_MODULE = {
   study: 11,
   online: 13,
   exam: 3,
-  taurus: 5,
 } as const;
 
 export interface ZhsEndpoint {

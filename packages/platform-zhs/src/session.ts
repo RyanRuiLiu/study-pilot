@@ -17,6 +17,8 @@
  * 作为读取锚点；读不到返回空串——宿主能力的约定，见扩展侧 capabilities.ts。
  */
 
+import { ZHS_SITE_ORIGIN } from './pages.ts';
+
 export type CookieReader = (origin: string, name: string) => Promise<string>;
 
 export interface ZhsSession {
@@ -35,9 +37,6 @@ export interface ZhsSession {
   userId: number | null;
 }
 
-/** CASLOGC 的读取锚点：cookie 落在 .zhihuishu.com，任何子域等价。 */
-const SESSION_ORIGIN = 'https://www.zhihuishu.com';
-
 /**
  * 判据（形态来自 2026-10-17 对真实 cookie 的实测）：
  *   · cookie 不存在 → 未登录；
@@ -46,7 +45,8 @@ const SESSION_ORIGIN = 'https://www.zhihuishu.com';
  *     → 未登录（不拿别的字段凑数）。
  */
 export async function readSession(readCookie: CookieReader): Promise<ZhsSession> {
-  const raw = await readCookie(SESSION_ORIGIN, 'CASLOGC');
+  // 锚点用站点源即可：cookie 落在 `.zhihuishu.com`，任何子域读到的是同一枚（源定义在 pages.ts，一处）
+  const raw = await readCookie(ZHS_SITE_ORIGIN, 'CASLOGC');
   if (raw === '') return { loggedIn: false, uuid: '', userId: null };
   let text = raw;
   try {
