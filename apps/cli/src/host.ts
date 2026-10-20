@@ -19,6 +19,8 @@
 
 import { readFileSync } from 'node:fs';
 import type { HostCapabilities } from '@study-pilot/application';
+import { MOOC_ORIGIN } from '@study-pilot/platform-mooc';
+import { ZHS_SITE_ORIGIN as ZHS_ORIGIN } from '@study-pilot/platform-zhs';
 
 export interface SessionFile {
   origin: string;
@@ -37,9 +39,11 @@ interface StorageStateCookie {
   domain?: string;
 }
 
-const MOOC_ORIGIN = 'https://www.icourse163.org';
-const ZHS_ORIGIN = 'https://www.zhihuishu.com';
-
+/**
+ * 两家平台的源取自各自的包（`MOOC_ORIGIN` / `ZHS_SITE_ORIGIN`）——
+ * 会话文件的归属判定与 cookie 锚点都要按源筛，而「这一家住在哪个域」是平台的事实，
+ * 载体抄一份就是第二处：换域名时必然有一处改漏，表现是把 cookie 筛空、看着像没登录。
+ */
 export function readSessions(file: string): Sessions {
   const parsed = JSON.parse(readFileSync(file, 'utf8')) as { cookies?: StorageStateCookie[] };
   const list = Array.isArray(parsed.cookies) ? parsed.cookies : [];

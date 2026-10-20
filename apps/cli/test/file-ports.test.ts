@@ -93,3 +93,55 @@ describe('进度输出', () => {
     expect(lines.some((line) => line.includes('■') && line.includes('共完成 1 项'))).toBe(true);
   });
 });
+
+/*
+ * 两个文件端口对「坏文件」的说话方式。
+ *
+ * 落盘文件是给人手改的（.probe/ 下那两份），改坏了不能只丢一句 JSON.parse 的
+ * 内部报错——那既不说是哪个文件，也不说能怎么办。
+ */
+describe('坏文件的说法', () => {
+  it('状态文件不是合法 JSON：点名文件并给出补救', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'study-pilot-state-'));
+    dirs.push(dir);
+    const file = join(dir, 'cli-state.json');
+    writeFileSync(file, '{ 这不是 JSON');
+
+    await expect(createFileTaskStore(file).read()).rejects.toThrow(/状态文件不是合法 JSON.*cli-state\.json/);
+  });
+
+  it('配置文件不是合法 JSON：点名文件并给出补救', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'study-pilot-config-'));
+    dirs.push(dir);
+    const file = join(dir, 'cli-config.json');
+    writeFileSync(file, 'const x = 1;');
+
+    const { createFileConfigStore } = await import('../src/config-store.ts');
+    await expect(createFileConfigStore(file).read()).rejects.toThrow(
+      /配置文件不是合法 JSON.*cli-config\.json/,
+    );
+  });
+
+  it('配置文件是合法 JSON 但缺字段：照常规范化补齐，不报错', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'study-pilot-config-'));
+    dirs.push(dir);
+    const file = join(dir, 'cli-config.json');
+    writeFileSync(file, JSON.stringify({ mooc: { keepOverdueDays: 9 } }));
+
+    const { createFileConfigStore } = await import('../src/config-store.ts');
+    const settings = await createFileConfigStore(file).read();
+
+    expect(settings.mooc.keepOverdueDays).toBe(9);
+    expect(settings.zhihuishu.courses).toEqual([]);
+  });
+
+  it('配置文件写成 null：按默认值走（normalize 认得这个形状）', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'study-pilot-config-'));
+    dirs.push(dir);
+    const file = join(dir, 'cli-config.json');
+    writeFileSync(file, 'null');
+
+    const { createFileConfigStore } = await import('../src/config-store.ts');
+    await expect(createFileConfigStore(file).read()).resolves.toBeDefined();
+  });
+});

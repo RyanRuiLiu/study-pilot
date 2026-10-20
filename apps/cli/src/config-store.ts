@@ -17,8 +17,23 @@ import {
 } from '@study-pilot/application';
 
 export function createFileConfigStore(file: string): ConfigPort {
-  const read = (): Settings =>
-    existsSync(file) ? normalize(JSON.parse(readFileSync(file, 'utf8'))) : normalize(DEFAULT_SETTINGS);
+  /*
+   * 读不进去要说清是哪个文件、能怎么补救。裸的 JSON.parse 报错（「Unexpected token o…」）
+   * 只说了解析失败，不说失败在谁身上——配置文件就在 .probe/ 里，多半是手改过的。
+   */
+  const read = (): Settings => {
+    if (!existsSync(file)) return normalize(DEFAULT_SETTINGS);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(file, 'utf8'));
+    } catch (error) {
+      throw new Error(
+        `配置文件不是合法 JSON：${file}（修好这一份，或删掉它重新跑 courses 勾选）——` +
+          `${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    return normalize(parsed);
+  };
 
   return {
     read: async () => read(),

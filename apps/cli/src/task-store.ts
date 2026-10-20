@@ -16,8 +16,22 @@ export function createFileTaskStore(file: string): TaskStorePort {
   return {
     read: async () => {
       if (!existsSync(file)) return normalizeTaskState(null);
-      // 归一在应用层（迁移规则一处写）；文件可能是手写的、旧版本的、缺字段的
-      return normalizeTaskState(JSON.parse(readFileSync(file, 'utf8')));
+      /*
+       * 归一在应用层（迁移规则一处写）；文件可能是手写的、旧版本的、缺字段的。
+       * 但「不是合法 JSON」与「字段缺」是两回事：前者要说出来并给出补救，
+       * 后者由 normalizeTaskState 补齐。让一轮执行静默从空状态开始，
+       * 等于把上一轮的中断判定与失败留痕丢掉却什么都不说。
+       */
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(readFileSync(file, 'utf8'));
+      } catch (error) {
+        throw new Error(
+          `状态文件不是合法 JSON：${file}（删掉它即可重来，代价是上一轮的记录作废）——` +
+            `${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      return normalizeTaskState(parsed);
     },
     write: async (state) => {
       mkdirSync(dirname(file), { recursive: true });
