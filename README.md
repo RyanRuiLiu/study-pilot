@@ -5,7 +5,9 @@
 能替你做的事（看课件、客观题测验、互评、自评）在你点下按钮时完成——没有定时任务，
 也不会在你没点的时候写任何东西。考试目前不自动提交；自动化考试在二期设计中
 （docs/zhs-task-modules-design.md），落地时本文件与
-PRIVACY.md 会同步改写。
+PRIVACY.md 会同步改写。已经能自动做的客观题测验里，智慧树那一家可能申请**重做**（新分数覆盖旧分数），
+一时取不到答案时还可能先交一份**探路卷**换回题号——这些不可撤销的后果逐条写在 `PRIVACY.md`
+「关于提交类功能」一节，开启前请读它。
 
 这份文件回答「它是什么、怎么跑」。**开发标准全部集中在 `CONTRIBUTING.md`**
 （总体思想、放置决策、调试标准、测试与提交、界面语言）——动手前读那一份。
@@ -14,9 +16,12 @@ PRIVACY.md 会同步改写。
 ## 怎么跑
 
     pnpm install
-    pnpm -r typecheck       # 各包类型检查（包含测试）
-    pnpm -r test            # 各包测试
-    pnpm build              # 构建扩展（apps/extension/.output/chrome-mv3）
+    pnpm -r typecheck       # 各包类型检查（连测试一起编）
+    pnpm -r test            # 各包测试（全绿才算收工；不依赖任何登录态）
+    pnpm build              # 构建扩展 → apps/extension/.output/chrome-mv3
+    pnpm --filter @study-pilot/extension zip
+                            # 打成单文件 → apps/extension/.output/study-pilot-extension-<版本>-chrome.zip
+                            # 版本号在 apps/extension/package.json（清单与设置页页脚都取自它）
 
 四条冒烟（可选，后两条要本地已有登录会话）：
 
@@ -29,25 +34,38 @@ PRIVACY.md 会同步改写。
     pnpm probe state export
         # 从探测浏览器导出登录态到 .probe/（Playwright storageState；见「真机调试」一节）
 
-    pnpm --filter @study-pilot/extension exec vitest run test/node-live.test.ts
-        # 在 Node 里直连平台读慕课课程列表（只读，不写平台；无会话文件时跳过）
+    STUDY_PILOT_LIVE=1 pnpm --filter @study-pilot/extension exec vitest run test/node-live.test.ts
+        # 在 Node 里直连平台读慕课课程列表（只读，不写平台）
+        # 这条必须显式给 STUDY_PILOT_LIVE=1：它要真账号，服务端会话过期是常态，
+        # 让它挂在默认门禁上只会教人忽略红灯
 
 装到浏览器：chrome://extensions → 开发者模式 → 加载已解压的扩展程序 →
 选 apps/extension/.output/chrome-mv3。
 
 命令行载体（第二个载体；与扩展同覆盖——两个平台都接；courses / pending 只读，run 默认预演）：
 
-    node apps/cli/src/main.ts courses --cookies .probe/browser-session.json --config .probe/cli-config.json
+    node apps/cli/src/main.ts courses
         # 去两个平台各读一次课程列表（同一个会话文件里两家的 cookie 都有）；
         # 加 --select <id> 把那门课勾进配置：慕课是 termId（单选，勾上它即取消其余），
         # 智慧树是 courseId（逐门切换，再跑一次即反向）；可加 --platform 只读一家
-    node apps/cli/src/main.ts pending --cookies .probe/browser-session.json --config .probe/cli-config.json
+    node apps/cli/src/main.ts pending
         # 读一遍并算出要做什么（可自动 / 需人工），不改平台上的任何数据；--platform 收窄
-    node apps/cli/src/main.ts run --cookies .probe/browser-session.json --config .probe/cli-config.json
+    node apps/cli/src/main.ts run
         # 预演这一轮会做什么；**加 --yes 才真的执行**——写平台会改账号上的学习记录且不可撤销，
         # 所以默认只摆出来，动手必须显式授权（扩展那边等价的是用户点按钮）
         # 可加 --platform mooc|zhihuishu、--kind courseware,quiz 与 --course <课程名>
         # 收窄范围；预演与执行两侧同样生效
+
+    三个文件的默认路径都相对**仓库根**解析（不按当前目录，从哪儿跑都找到同一份）：
+        --cookies .probe/browser-session.json   登录态（probe state export 导出的）
+        --config  .probe/cli-config.json        配置（课程勾选、评语、AI 设置）
+        --state   .probe/cli-state.json         跨次运行的状态（中断判定与失败留痕）
+
+退出码是契约（脚本与 CI 按它分支，不看输出文字）：
+
+        0  正常            1  有失败（某家读不到、某项没做成、--select 没命中）
+        2  未登录（含会话文件读不出）        3  没有勾选课程
+        4  上一轮还没结束（状态文件的防重入）  64  命令或参数本身不对
 
 直接跑 TS 即可：Node 22+ 会剥掉类型，而包内的相对导入都带 .ts 扩展名，因此不经打包也能加载。
 要单文件分发时再打包：pnpm --filter @study-pilot/cli build → apps/cli/dist/main.mjs（esbuild）。
@@ -82,6 +100,11 @@ PRIVACY.md 会同步改写。
         # 默认只放行读端点，写端点（如 saveStudyInterval）要 --allow-write 显式放行；
         # 响应存 .probe/api/，被拒（-12 门、-1 解码错…）也照常打印与归档
     pnpm probe ext id | ext reload          # 打印扩展 id / 重载扩展（要求探测浏览器在运行）
+    pnpm probe icon [--check] [--preview]  # 生成扩展图标 → apps/extension/public/icon/
+        # 色值与字体现读 tokens.css；产物是**入库文件**，改完要看过 diff 再提交
+        # --check 只核对不生成（界面 tokens.css 变了用它确认图标是否过期）
+    pnpm probe store [--check]              # 生成商店促销磁贴 → dist/store/（440x280 与 1400x560）
+        # 落 dist/（git 忽略）：那是对外商店素材，不入库；--check 只核对不生成
     pnpm probe kill                         # 关闭探测浏览器
 
 两个平台共用同一个探测浏览器与登录态（state check 两家都报）。
@@ -129,8 +152,9 @@ PRIVACY.md 会同步改写。
       src/progress.ts      执行进度打到标准输出
       src/main.ts          命令：courses / pending / run（run 默认预演，--yes 才写）
     scripts/probe/   真机调试唯一入口（pnpm probe；见「真机调试」一节）
-    docs/            设计记录：zhs-task-modules-design.md（二期考试/见面课/报告，待实现）——
-                     已实现的设计不再留档（规则在代码注释里，历史在 git）
+    docs/            设计记录：zhs-task-modules-design.md（智慧树二期的考试/见面课/报告设计，
+                     内含一节「落地状态」逐条写明哪些已接进执行、哪些只是设计）——
+                     已实现且不再需要留档的设计不进仓库（规则在代码注释里，历史在 git）
 
 ## 新人从哪读起
 

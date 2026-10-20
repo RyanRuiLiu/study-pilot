@@ -56,7 +56,7 @@
 
 | 字段 | 值/含义（实测） |
 |---|---|
-| `id` | 8 位 token（如 `ymVxX7lb`），不是数字 id |
+| `id` | 8 位 token（形如 `A1b2C3d4`，脱敏样例），不是数字 id |
 | `examName` | 「绪论单元测试」「吃下去的药物是怎么进入血液的？」 |
 | `meetCourseType` | **0 = 单元测试；1 = 见面课测验**（唯二实测值） |
 | `state` | **1 = 未提交；4 = 已提交** |
@@ -132,7 +132,7 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
 |---|---|
 | `questionIds` | **必填**；JSON 数字数组的字符串。缺 → HTTP 400「缺少必要的参数」；空数组 → `rt:{}` |
 | `eid` 喂进去 | **不认**：`fastjson JSONException: parseInt error, field : 0`（它对每个元素 parseInt） |
-| `examId` / `stuExamId` | **要数字**（`90000006`），不是 dohomework 路由里的 8 字符串（`DEMOd004`） |
+| `examId` / `stuExamId` | **要数字**（形如 `12345678`，脱敏样例），不是 dohomework 路由里的 8 字符串（形如 `A1b2C3d4`） |
 | `userId` | **必填**（CASLOGC 的 `userId`）；缺 → 500 NumberFormatException |
 
 **返回**：`{"rt":{"<数字题号>":{"score":"2","done":"true"}, …},"status":"200"}`
@@ -279,6 +279,10 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
 
 - 职责：**单元测试 / 见面课测验 / 期末考试共用一条答卷会话**——
   开卷 → 取题面 → 逐题作答（`saveStudentAnswer`）→ **神谕验证** → 交卷（`submit`）→ 回读确认（清单 state=4）。
+  - **落地状态（2026-10-20 复核）：只有单元测试接进了执行**。计划的 `run()` 只分派
+    `kind === 'quiz'`（`policy/tasks.ts`），`meeting-quiz` / `final-exam` 这两个 kind 从不被产出，
+    所以见面课测验与期末考试今天是**只读展示**（`reads.ts` 的 `readFinalExam` 等），不交卷。
+    这一条不是巧合，是 `PRIVACY.md`「考试目前不会被自动提交」的落地依据。
 - **作答报文用 `eid` 定位**（真机形态，`.probe/zhs-sbx-submit/eval-close-loop.js`）：
   `saveStudentAnswer` 的 `stuExamAnswer` 是一个 JSON 数组，元素
   `{examId, recruitId, stuExamId, eid, schoolId, deviceId:'', examType:'', fromType:3, answer:'<选项id逗号分隔>', dataIds:'', questionType}`
@@ -288,9 +292,11 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
   `src/exam-paper.ts`（会话状态机：题目序列、作答缓冲、暂存节奏、交卷确认）；
   神谕归 `src/oracle.ts`（纯函数解析 + 一次免签调用）。
 - **答卷节奏（真人化，Ryan 定，2026-10-16）**：起卷 → 逐题作答 → 交卷按**真实时间**推进——
-  每题之间留出真人量级的间隔（按题量估算总时长，落在合理区间），不做"秒交"；
+  每题之间留出真人量级的间隔（按题量估算总时长），不做"秒交"；
   等待期间照走心跳、可停止（沿用 v1 壁钟等待的设计模式，等待函数按需重建）。
   时间花在"作答过程"上，而不是交卷前的空等。
+  - **落地状态（2026-10-20 复核）：未实现**。`execute-exam.ts` 的 `saveAnswers` 是逐题连着发完
+    就交卷，中间没有任何间隔（文件里没有 sleep/等待函数）。这条仍是设计，不是事实。
 - **交卷前过神谕（Ryan 定，2026-10-17，见 §1.4）**：逐题作答后、`submit` 之前，用该卷的
   数字题号问一次 `getQuestionDoneState`，判据 = **Σ每题得分 == 该卷 `totalScore` 且每题 `done`**。
   - 过 → 交卷。**此时无论剩几次作答机会都交**——这一枪是平台自己确认过的满分，不是赌博。
@@ -340,7 +346,8 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
 - **边界**：既没有键、也没有副本/历史可建键时，首答探路仍是唯一出路——这是平台把题号锁在交卷之后的
   结果，不是实现选择；对外表述不得说成「已绕过」。
 - 落点：`packages/platform-zhs/src/exam-answers.ts`（建键／匹配／覆盖率／计划，**已实现并接线到 index**）
-  ＋ `test/exam-answers.test.ts`（12 项）＋ `policy/execute-exam.ts`（答卷会话与重做编排，待实现）。
+  ＋ `test/exam-answers.test.ts`（12 项）＋ `policy/execute-exam.ts`（答卷会话与重做编排，
+  **已实现并接线**：四条入口 `fresh` / `submitted`（申请重做）/ `redoOpen`（接管已申请的卷）/ 缺键探路）。
 
 ### 模块 4：见面课（只读 + 提醒）
 
@@ -363,6 +370,31 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
 - 职责：报告族接口 → 官方分数 / 权重 / 逐章（视频观看程度 + 测试进度）/ 逐场见面课三列得分。
 - 落点：`packages/platform-zhs/src/score-report.ts`。
 - 意义：展示与平台成绩分析页**同源同数**，不自己算百分比。
+
+### 落地状态（2026-10-20 逐条对着文件系统核对）
+
+这一节的每条都以「文件在不在、有没有被 `policy/tasks.ts` 的计划与执行用到」为准，
+不按设计意图写。设计里没落地的部分**不代表已经做到**——界面上、对外说法上都得以此为准。
+
+- **已实现并接线（在自动执行范围内）**：模块 1（清单）、模块 2（单元测试的答卷会话：
+  开卷/作答/神谕/交卷/重做与接管）、模块 3（建键/匹配/覆盖率/计划）、课件（`structure.ts`
+  的单元表 + `policy/execute.ts`）。计划的 `run()` 只认 `kind === 'quiz'` 与课件两类。
+- **只读，不进执行**：见面课场次（`meet.ts`）、期末考试（`final-exam.ts`，仅 `reads.ts` 的
+  `readFinalExam` 用它做展示）、学情报告（`report.ts`）。因此 §4 里「见面课测验」「期末考试」
+  两条执行流程是**设计，不是现状**；`PRIVACY.md` 说「考试不会被自动提交」与现状一致。
+- **设计里写了、代码里不存在**（本节点名以免下一个人在这里找半天）：
+  `meeting.ts`（模块 4 的落点，实际文件叫 `meet.ts`）、`exam-h5url.ts`（模块 2 的第二入口，
+  未建——所以见面课的 `examH5Url` 目前不参与任何答卷会话）、`paper-ledger.ts`（模块 2 的题号台账）、
+  `score-report.ts` 与 `homework-report.ts`（模块 6/7 的落点，实际只有 `report.ts` 一份，
+  是否覆盖两族接口按 `report.ts` 为准，不按本节）、`read-work-status.ts` /
+  `read-remaining-attempts.ts` / `getWorkTotalScore` / `getRedoNum`（模块 3 的判据，实际能力内联在
+  `exam-list.ts` 的 `needsWork` 与 `execute-exam.ts` 的 `objectGate` / `remainingGate`，
+  没有独立文件）。
+- **判据的残余风险（今天不咬人，但它是靠巧合不是靠闸）**：`needsWork` 与 `objectGate` 都**不判
+  `meetCourseType`**，「不自动做见面课」目前全靠见面课测验不出现在清单接口的返回里
+  （`.probe/zhs-exam-list/console.jsonl` 实测如此）与 `chapterByListId` 那道章节匹配闸
+  （`policy/tasks.ts`，对不上章节就不排）。平台若哪天把见面课卷塞进同一份清单，
+  第二道闸会先失效。
 
 ## 4. 执行流程（逐类）
 
