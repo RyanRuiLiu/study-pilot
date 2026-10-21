@@ -109,9 +109,9 @@
 | apps/extension/src/ui/controls.css | 待读 |
 | apps/extension/src/ui/format.ts | 已读 |
 | apps/extension/src/ui/login.ts | 已读 |
-| apps/extension/src/ui/run-view.ts | 待读 |
-| apps/extension/src/ui/scopes.ts | 待读 |
-| apps/extension/src/ui/tabs.ts | 部分 |
+| apps/extension/src/ui/run-view.ts | 已读 |
+| apps/extension/src/ui/scopes.ts | 已读 |
+| apps/extension/src/ui/tabs.ts | 已读 |
 | apps/extension/src/ui/tokens.css | 待读 |
 | apps/extension/src/ui/tokens.ts | 待读 |
 | apps/extension/src/vite-env.d.ts | 待读 |
@@ -124,6 +124,7 @@
 | apps/extension/test/course-toggle.test.ts | 已读 |
 | apps/extension/test/params.test.ts | 已读 |
 | apps/extension/test/format.test.ts | 已读 |
+| apps/extension/test/tabs.test.ts | 已读 |
 | apps/extension/test/node-live.test.ts | 待读 |
 | apps/extension/test/options.test.ts | 待读 |
 | apps/extension/test/popup-status.test.ts | 待读 |
@@ -303,4 +304,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：293 个文件；已读 60，部分 24，待读 209。
+合计：294 个文件；已读 64，部分 23，待读 207。

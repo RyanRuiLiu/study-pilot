@@ -74,7 +74,8 @@ export async function initTabs(hooks: TabsHooks = {}): Promise<void> {
     const id = tab.dataset.tab;
     if (!isTabId(id)) return;
     activate(id);
-    void updateSettings({ ui: { activeTab: id } });
+    // 记忆失败不影响这次切换（下次打开回到旧 tab）；这里不为它弹提示，避免每切一次都说一声
+    void updateSettings({ ui: { activeTab: id } }).catch(() => undefined);
   }
 
   tabsEl.addEventListener('click', (event) => {
@@ -100,10 +101,16 @@ export async function initTabs(hooks: TabsHooks = {}): Promise<void> {
     }
   });
 
-  const settings = await getSettings();
   // 记忆值由 normalize 收敛过（类型即契约，不再重复校验）；
   // 它在当前页面上不存在时（弹窗没有「通用」）落到第一个 tab。
-  const remembered = settings.ui.activeTab;
-  const initial = tabs.some((tab) => tab.dataset.tab === remembered) ? remembered : first;
+  // 读不到记忆（消息通道 reject）也按第一个 tab 打开：页面仍然可用。
+  let remembered: TabId | undefined;
+  try {
+    remembered = (await getSettings()).ui.activeTab;
+  } catch {
+    remembered = undefined;
+  }
+  const initial: TabId =
+    remembered !== undefined && tabs.some((tab) => tab.dataset.tab === remembered) ? remembered : first;
   activate(initial);
 }
