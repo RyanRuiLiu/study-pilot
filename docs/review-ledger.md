@@ -56,10 +56,10 @@
 | apps/extension/src/adapters/mooc/messages/courseware-summary.ts | 待读 |
 | apps/extension/src/adapters/mooc/messages/deps.ts | 待读 |
 | apps/extension/src/adapters/mooc/messages/handlers.ts | 已读 |
-| apps/extension/src/adapters/mooc/messages/homework-paper.ts | 待读 |
+| apps/extension/src/adapters/mooc/messages/homework-paper.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/payload.ts | 部分 |
 | apps/extension/src/adapters/mooc/messages/pending.ts | 待读 |
-| apps/extension/src/adapters/mooc/messages/quiz-helper.ts | 待读 |
+| apps/extension/src/adapters/mooc/messages/quiz-helper.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/refresh-courses.ts | 待读 |
 | apps/extension/src/adapters/mooc/messages/session.ts | 待读 |
 | apps/extension/src/adapters/mooc/platform.ts | 待读 |
@@ -307,4 +307,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：297 个文件；已读 95，部分 21，待读 181。
+合计：297 个文件；已读 97，部分 21，待读 179。
