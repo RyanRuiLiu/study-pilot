@@ -33,7 +33,7 @@
 |---|---|---|
 | A 业务正确性 | 已修一处，其余已过 | 神谕判据原缺「每题 `done`」这一半（设计文档 §1.4/§3 写明，代码只看得分）；补齐后 `done` 缺失或不真一律记 missing，绝不放行。断言 `oracle.test.ts`「分数已出但 done 不为真 → 不算通过」；变异核对：去掉 `\|\| !done` 该条即红。其余：闸的顺序与门槛在 `execute-exam.ts` 各闸注释；剩余次数算式出自平台源码；`SEGMENT_SEC`/`HEARTBEAT_TIMEOUT_MS` 有实测注释；空/畸形响应在 `parsePaper`、`exam-list`、`final-exam`、`meet`、`structure` 一律抛错 |
 | B 并发与重入 | 已过（补一条跨平台并发断言） | 认领按平台（round.ts 的 claimed；新断言「两家平台的一轮可以同时在飞」；变异核对：把 claimed.has(id) 改成 claimed.size>0 该条即红）；跨进程防重入与迟到心跳（state.test.ts 心跳只对进行中的一轮有效）；状态读改写串行（runner 的 serialize 队列，同一断言里两家 lastFinishedAt 都落盘）；停止按平台且只在安全点生效（round.test.ts 停止用例、两家平台一组、zhs/mooc 交卷前停止用例） |
-| C 错误与资源上限 | 待查 | - |
+| C 错误与资源上限 | 已过 | 空 catch 共 10 处，逐条读过，全部是「解析失败＝未登录/非本形态」的显式判定并带注释；出站上界统一走 transport 的 startOutboundTimeout（rpc、dwr、智慧树客户端、AI 对话四处都接了，含读体）；节流覆盖 rpc/dwr/智慧树全部请求；重试只在平台并发限制码上发生（rpc.ts 的 callEnvelope），网络/HTTP 失败不重试，写不会被悄悄重发；失败的动作位经 ZhsRoundHalt.action 与 RunFailure.action 落到状态与界面；除注入适配器与 transport 客户端外无裸 fetch |
 | D 架构与边界 | 待查 | - |
 | E 单一事实源 | 待查 | - |
 | F 测试 | 待查 | - |
