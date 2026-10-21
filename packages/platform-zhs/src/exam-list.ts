@@ -13,7 +13,7 @@
  *   - **`flag` 页签才判「交没交」，别拿 `state` 猜**：2026-10-17 真机在沙箱课看到
  *     `state` 至少三值——1（未动）、4（已交，落在「已提交」页签）、5（重做过的那卷，
  *     落在「未提交」页签且 `score` 为 null）。所以「要不要做」的判据是
- *     `flag=1 页签 && state === 1`，其余状态一律**如实呈现、不动手**。
+ *     `flag=1 页签 && needsWork`（state=1 或 5），其余状态一律**如实呈现、不动手**。
  *
  * 归一与读取分开：`normalizeHomeworkList` 是纯函数（可离线核对形态），
  * `getExamList` 只负责发一次请求。取不到的字段一律给 null——**不猜**。
@@ -177,13 +177,6 @@ function num(value: unknown): number {
 }
 
 /**
- * 分值之类的可选数字：取不到给 null（**不是 0**——0 分和「没给分」是两件事）。
- *
- * **必须同时认字符串**：清单的 `score` / `totalScore` 实测是**字符串**
- * （`"10"` / `"100"`，2026-10-17 全量核对 46 个条目字段集），而 `state` /
- * `meetCourseType` 是数字。同一个响应里类型不统一是平台事实，不是笔误。
- */
-/**
  * 把平台的本地时间字符串解析成毫秒。
  *
  * 实测形态：`"2027-01-20 23:59:59"`（`endDate` / `startTime` 都是这个格式，2026-10-17）。
@@ -206,6 +199,13 @@ export function parsePlatformTime(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * 分值之类的可选数字：取不到给 null（**不是 0**——0 分和「没给分」是两件事）。
+ *
+ * **必须同时认字符串**：清单里的 `score` / `totalScore` 实测是**字符串**
+ * （`"10"` / `"100"`，2026-10-17 全量核对 46 个条目的字段集），而 `state` /
+ * `meetCourseType` 是数字。同一个响应里类型不统一是平台事实，不是笔误。
+ */
 function numberLike(value: unknown): number | null {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'string' && value.trim() !== '') {

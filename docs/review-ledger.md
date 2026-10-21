@@ -259,7 +259,7 @@
 | packages/platform-zhs/src/courses.ts | 已读 |
 | packages/platform-zhs/src/endpoints.ts | 部分 |
 | packages/platform-zhs/src/exam-answers.ts | 已读 |
-| packages/platform-zhs/src/exam-list.ts | 部分 |
+| packages/platform-zhs/src/exam-list.ts | 已读 |
 | packages/platform-zhs/src/exam-paper.ts | 已读 |
 | packages/platform-zhs/src/final-exam.ts | 部分 |
 | packages/platform-zhs/src/index.ts | 待读 |
@@ -310,4 +310,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：300 个文件；已读 166，部分 15，待读 119。
+合计：300 个文件；已读 167，部分 14，待读 119。
