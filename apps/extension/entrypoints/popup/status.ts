@@ -104,7 +104,7 @@ export function statusWriterFor(
  * 点了先禁用自己，一次就够；下一轮开始时由 setRunning 复位。
  *
  * 记下「停到过一轮」：若这一轮是别处发起的，结果落在发起页——弹窗作为
- * 跟随者收尾时会[把状态行清空]，那这条停止看起来就像没发生过。
+ * 跟随者收尾时会把状态行清空，那这条停止看起来就像没发生过。
  */
 stopBtn?.addEventListener('click', () => {
   if (stopBtn === null) return;
