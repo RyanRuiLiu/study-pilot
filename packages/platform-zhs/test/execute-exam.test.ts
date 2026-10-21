@@ -61,8 +61,8 @@ const FULL_KEY: AnswerKey = {
 /** 只覆盖第一题。 */
 const HALF_KEY: AnswerKey = { version: 1, correctOptionIds: ['900000006'], entries: [] };
 
-const ORACLE_PASS = { status: '200', rt: { '111': { score: '2' }, '222': { score: '2' } } };
-const ORACLE_ZERO = { status: '200', rt: { '111': { score: '2' }, '222': { score: '0' } } };
+const ORACLE_PASS = { status: '200', rt: { '111': { score: '2', done: 'true' }, '222': { score: '2', done: 'true' } } };
+const ORACLE_ZERO = { status: '200', rt: { '111': { score: '2', done: 'true' }, '222': { score: '0', done: 'true' } } };
 
 function recordingClient(responses: Record<string, unknown>): {
   client: ZhsClient;

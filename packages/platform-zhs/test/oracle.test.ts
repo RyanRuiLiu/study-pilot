@@ -67,8 +67,23 @@ describe('judge', () => {
   });
 
   it('数字题号与字符串题号都能对上响应键', () => {
-    const verdict = judge({ rt: { '9000000015': { score: '2' } }, questionIds: [9000000015], totalScore: 2 });
+    const verdict = judge({
+      rt: { '9000000015': { score: '2', done: 'true' } },
+      questionIds: [9000000015],
+      totalScore: 2,
+    });
     expect(verdict.pass).toBe(true);
+  });
+
+  it('分数已出但 done 不为真 → 不算通过（平台自己说这题没判完）', () => {
+    // 只看得分会在这个中间态上放行；这正是「交卷前必须确认」要拦的那一枪
+    const rt = { '1': { score: '2', done: 'false' }, '2': { score: '2', done: 'true' } };
+    const verdict = judge({ rt, questionIds: ['1', '2'], totalScore: 4 });
+    expect(verdict.pass).toBe(false);
+    expect(verdict.missing).toEqual(['1']);
+    expect(verdict.scoreSum).toBe(2);
+    // 缺 done 字段同样不算：判据要的是显式的「判完了」，不是默认值
+    expect(judge({ rt: { '1': { score: '2' } }, questionIds: ['1'], totalScore: 2 }).pass).toBe(false);
   });
 });
 

@@ -35,7 +35,9 @@ export interface OracleVerdict {
 /**
  * 把神谕响应与卷面总分比出结论（纯函数）。
  *
- * 判据 = `Σ每题得分 == totalScore` 且每题都有回、没有 0 分。
+ * 判据 = `Σ每题得分 == totalScore`、每题都有回、每题 `done` 为真、没有 0 分。
+ * `done` 不是装饰：它是平台自己给的「这题判完了」标记（样本逐题带 `done:"true"`），
+ * 只看得分会在「分数已出、判定未完成」的中间态上放行。
  *
  * **`totalScore` 缺失 = 判据失效 = 不通过**（不是「跳过」）：这时候放行，
  * 交出去的那一枪就是没把握的一枪，而这一次机会是不可逆的。
@@ -52,9 +54,10 @@ export function judge(input: {
 
   for (const raw of input.questionIds) {
     const id = String(raw);
-    const entry = table[id] as { score?: unknown } | null | undefined;
+    const entry = table[id] as { score?: unknown; done?: unknown } | null | undefined;
     const score = entry === null || entry === undefined ? Number.NaN : Number(entry.score);
-    if (!Number.isFinite(score)) {
+    const done = entry !== null && entry !== undefined && (entry.done === true || entry.done === 'true');
+    if (!Number.isFinite(score) || !done) {
       missing.push(id);
       continue;
     }
