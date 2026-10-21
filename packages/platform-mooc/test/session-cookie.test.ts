@@ -32,4 +32,50 @@ describe('STUDY_INFO 的解析', () => {
     const session = await ensureSession(host, noNetwork);
     expect(session).toEqual({ loggedIn: true, userId: 12345, token: 'token' });
   });
+
+  it('cookie 落在裸域（host-only）而 www 上读不到：两个 origin 都问', async () => {
+    const cookies: Record<string, string> = {
+      NTESSTUDYSI: 'token',
+      STUDY_INFO: encodeURIComponent('a@b|8|12345|1700000000000'),
+    };
+    const host: HostCapabilities = {
+      whenRequestRulesReady: async () => undefined,
+      readCookie: async (origin, name) =>
+        origin === 'https://icourse163.org' ? (cookies[name] ?? '') : '',
+    };
+    const session = await ensureSession(host, noNetwork);
+    expect(session).toEqual({ loggedIn: true, userId: 12345, token: 'token' });
+  });
+});
+
+/*
+ * cookie 读不出 userId（缺失/格式变了）但服务端会话仍活：用户点「读取课程列表」
+ * 能拉到课，界面却显示未登录。这时让服务端表态，别把 cookie 的结论当登录结论。
+ */
+describe('cookie 读不出用户而服务端认得', () => {
+  const host = hostWith({ NTESSTUDYSI: 'token', STUDY_INFO: 'not-the-old-format' });
+
+  function clientWith(result: unknown) {
+    return { rpc: { call: async () => ({ ok: true, value: { result } }) } } as never;
+  }
+
+  it('课程列表探问成功：按登录处理（userId 保持 0）', async () => {
+    const session = await ensureSession(
+      host,
+      noNetwork,
+      'https://www.icourse163.org',
+      clientWith([]),
+    );
+    expect(session).toEqual({ loggedIn: true, userId: 0, token: 'token' });
+  });
+
+  it('服务端回未登录形态：仍是未登录', async () => {
+    const session = await ensureSession(
+      host,
+      noNetwork,
+      'https://www.icourse163.org',
+      clientWith(null),
+    );
+    expect(session).toEqual({ loggedIn: false, userId: 0, token: 'token' });
+  });
 });

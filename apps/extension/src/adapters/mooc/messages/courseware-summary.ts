@@ -26,7 +26,7 @@ import type { MoocResponseMap } from './payload.ts';
 export function coursewareSummaryCommand(deps: MoocMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
     const settings = await getSettings();
-    const session = await ensureSession(deps.host, deps.client.send, deps.client.origin);
+    const session = await ensureSession(deps.host, deps.client.send, deps.client.origin, deps.client);
 
     if (!session.loggedIn) {
       sendResponse({

@@ -15,7 +15,7 @@ import type { MoocResponseMap } from './payload.ts';
 
 export function sessionCommand(deps: MoocMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
-    const session = await ensureSession(deps.host, deps.client.send, deps.client.origin);
+    const session = await ensureSession(deps.host, deps.client.send, deps.client.origin, deps.client);
     if (!session.loggedIn) {
       // 未登录这一支不带 token（payload 的 MoocSessionResponse 注释就是这条约定）：
       // 界面只读 loggedIn / userId，凭证不离开后台

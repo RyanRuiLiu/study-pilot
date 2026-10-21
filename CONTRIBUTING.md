@@ -102,7 +102,7 @@
 6. 上传 zip 到开发者后台；同一份 zip 归档到 `apps/extension/releases/`（git 忽略，只作回看）。
 
 **GitHub Release**：把版本抬好、主分支门禁绿了之后，推一个 `v<版本>` 标签即可
-（例：`git tag -a v0.3.5 -m "v0.3.5" && git push origin v0.3.5`）。
+（例：`git tag -a v0.3.6 -m "v0.3.6" && git push origin v0.3.6`）。
 `.github/workflows/release.yml` 会在标签上重跑 lint / typecheck / 全部测试 /
 构建 / 无头冒烟，用仓库自带的 `GITHUB_TOKEN` 建 Release，并附上扩展 zip 与
 CLI 单文件；标签版本与 `apps/extension/package.json` 不一致时发布会直接失败。

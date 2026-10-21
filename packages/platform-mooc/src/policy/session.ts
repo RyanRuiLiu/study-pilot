@@ -19,7 +19,10 @@
 
 import type { HostCapabilities } from '@study-pilot/application';
 import type { FetchLike } from '@study-pilot/transport';
+import type { MoocClient } from '../client.ts';
 import { MOOC_ORIGIN } from '../client.ts';
+import { getCourses } from '../courses.ts';
+import { COURSE_TYPE } from '../endpoints.ts';
 
 /**
  * 会话恢复那一次静默 GET 的默认出站环境：全局 fetch。
@@ -62,9 +65,20 @@ export interface MoocSession {
   token: string;
 }
 
-/** 读一个 cookie。域名是本平台的事实，取值与容错在宿主实现里。 */
-function readCookie(host: HostCapabilities, name: string): Promise<string> {
-  return host.readCookie(MOOC_ORIGIN, name);
+/**
+ * 读一个 cookie。域名是本平台的事实，取值与容错在宿主实现里。
+ *
+ * 两个 origin 都问：平台的会话 cookie 实测可能落在**裸域**
+ * （`icourse163.org`，host-only）而不是 `www` 上。cookies API 按 URL 精确匹配，
+ * 只问 `www` 时那几枚读不到——表现正是「课程列表能拉、登录态却说未登录」。
+ * 先问 www（接口与 CSRF 用的那个源），没有再问裸域。
+ */
+async function readCookie(host: HostCapabilities, name: string): Promise<string> {
+  for (const origin of [MOOC_ORIGIN, 'https://icourse163.org']) {
+    const value = await host.readCookie(origin, name);
+    if (value !== '') return value;
+  }
+  return '';
 }
 
 /** 解析 STUDY_INFO 得到用户 id。格式不符时返回 0。 */
@@ -118,18 +132,39 @@ export async function ensureSession(
   host: HostCapabilities,
   send: FetchLike = defaultSend,
   origin: string = MOOC_ORIGIN,
+  client?: MoocClient,
 ): Promise<MoocSession> {
   const current = await readSession(host);
   if (current.loggedIn && current.token) return current;
 
+  let session = current;
   try {
     await send(`${origin}/`, { credentials: 'include' });
+    session = await readSession(host);
   } catch {
-    // 网络失败就按当前状态返回，由调用方决定怎么提示
-    return current;
+    // 网络失败：保留当前判断，接下来还有服务端探问这一次机会
+  }
+  if (session.loggedIn) return session;
+
+  /*
+   * cookie 读不出 userId（缺失、格式变了、被干净插件清过）不等于未登录：
+   * 用户点「读取课程列表」能拉到课，说明服务端会话是活的。用一次只读探问
+   * 让服务端表态——认得就按登录处理。
+   *
+   * 此时 userId 可能为 0：登录态来自服务端而不是 STUDY_INFO。界面只需要
+   * loggedIn；评分份数这类按 evaluatorId 查的细节会退化为未知，但不该因此
+   * 把整个账号判成未登录。
+   */
+  if (client !== undefined) {
+    try {
+      const probe = await getCourses(client, { courseType: COURSE_TYPE.MOOC, pageSize: 1 });
+      if (probe.ok) return { ...session, loggedIn: true };
+    } catch {
+      // 探问失败就保持 cookie 的结论，由调用方照常报未登录/读取失败
+    }
   }
 
-  return readSession(host);
+  return session;
 }
 
 /**
