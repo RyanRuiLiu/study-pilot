@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@study-pilot/application": "workspace:*",
-    "@study-pilot/core": "workspace:*",
     "@study-pilot/platform-mooc": "workspace:*",
     "@study-pilot/platform-zhs": "workspace:*",
     "@study-pilot/adapters-node": "workspace:*"

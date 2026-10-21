@@ -187,9 +187,6 @@ importers:
       '@study-pilot/application':
         specifier: workspace:*
         version: link:../../packages/application
-      '@study-pilot/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@study-pilot/platform-mooc':
         specifier: workspace:*
         version: link:../../packages/platform-mooc
