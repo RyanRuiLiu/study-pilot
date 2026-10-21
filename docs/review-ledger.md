@@ -77,11 +77,11 @@
 | apps/extension/src/adapters/zhihuishu/messages/session.ts | 待读 |
 | apps/extension/src/adapters/zhihuishu/pages.ts | 待读 |
 | apps/extension/src/adapters/zhihuishu/platform.ts | 待读 |
-| apps/extension/src/ai/index.ts | 待读 |
-| apps/extension/src/ai/permission.ts | 待读 |
-| apps/extension/src/ai/tasks/discuss-reply.ts | 待读 |
+| apps/extension/src/ai/index.ts | 已读 |
+| apps/extension/src/ai/permission.ts | 已读 |
+| apps/extension/src/ai/tasks/discuss-reply.ts | 已读 |
 | apps/extension/src/background/messages/router.ts | 部分 |
-| apps/extension/src/background/runtime/run-state.ts | 待读 |
+| apps/extension/src/background/runtime/run-state.ts | 已读 |
 | apps/extension/src/background/runtime/task-state.ts | 待读 |
 | apps/extension/src/browser/capabilities.ts | 已读 |
 | apps/extension/src/browser/net-rules.ts | 已读 |
@@ -102,8 +102,8 @@
 | apps/extension/src/keys.ts | 待读 |
 | apps/extension/src/messages.ts | 待读 |
 | apps/extension/src/protocol.ts | 已读 |
-| apps/extension/src/settings/index.ts | 待读 |
-| apps/extension/src/settings/storage.ts | 待读 |
+| apps/extension/src/settings/index.ts | 已读 |
+| apps/extension/src/settings/storage.ts | 已读 |
 | apps/extension/src/ui-bridge.ts | 部分 |
 | apps/extension/src/ui/components.css | 待读 |
 | apps/extension/src/ui/controls.css | 待读 |
@@ -126,6 +126,7 @@
 | apps/extension/test/format.test.ts | 已读 |
 | apps/extension/test/tabs.test.ts | 已读 |
 | apps/extension/test/run-once.test.ts | 已读 |
+| apps/extension/test/run-state.test.ts | 已读 |
 | apps/extension/test/node-live.test.ts | 待读 |
 | apps/extension/test/options.test.ts | 待读 |
 | apps/extension/test/popup-status.test.ts | 待读 |
@@ -305,4 +306,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：295 个文件；已读 70，部分 23，待读 202。
+合计：296 个文件；已读 78，部分 23，待读 195。

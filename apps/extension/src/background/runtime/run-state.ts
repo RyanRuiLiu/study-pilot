@@ -9,16 +9,17 @@
  * 界面端口用结构声明：@wxt-dev/browser 没有导出可用的端口类型名，而这里只用到
  * 两个成员，按结构声明比硬凑一个命名空间路径更准。
  */
+
+import { EMPTY_PROGRESS, type ProgressPort, type RunState } from '@study-pilot/application';
+import { KEYS } from '../../keys.ts';
+import { RUN_STATE_PORT } from '../../protocol.ts';
+
 interface RunStatePort {
   /** 端口名。界面按 'run-state' 连接，这里用它过滤掉别的端口 */
   name: string;
   postMessage(message: unknown): void;
   onDisconnect: { addListener(listener: () => void): void };
 }
-
-import { EMPTY_PROGRESS, type ProgressPort, type RunState } from '@study-pilot/application';
-import { KEYS } from '../../keys.ts';
-import { RUN_STATE_PORT } from '../../protocol.ts';
 
 const KEY = KEYS.runState;
 
@@ -34,10 +35,23 @@ async function read(): Promise<RunState> {
  */
 const ports = new Set<RunStatePort>();
 
+/**
+ * 推一份给某个页面。页面恰好在推送这一刻关掉时 postMessage 会抛：
+ * 丢掉这个端口即可——让异常穿出去会打断正在跑的那一轮（用户看到「执行失败」，
+ * 真正原因只是有个标签页关了）。
+ */
+function push(port: RunStatePort, state: RunState): void {
+  try {
+    port.postMessage(state);
+  } catch {
+    ports.delete(port);
+  }
+}
+
 /** 落盘并推送。应用层每变一次都经过它，保证「看到的」与「存下的」是同一份。 */
 async function publish(state: RunState): Promise<void> {
   await browser.storage.local.set({ [KEY]: state });
-  for (const port of ports) port.postMessage(state);
+  for (const port of ports) push(port, state);
 }
 
 /** 进度端口：应用层通过它读写，不直接碰存储。 */
@@ -55,5 +69,5 @@ export function attachRunStatePort(port: RunStatePort): void {
   port.onDisconnect.addListener(() => {
     ports.delete(port);
   });
-  void getRunState().then((state) => port.postMessage(state));
+  void getRunState().then((state) => push(port, state));
 }
