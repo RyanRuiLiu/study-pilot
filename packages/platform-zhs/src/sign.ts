@@ -95,8 +95,7 @@ function parsePublicKey(der: Uint8Array): { n: bigint; e: bigint } {
   const algorithmLength = readLength();
   offset += algorithmLength; // 算法标识整段跳过
   expect(0x03);
-  const bitStringLength = readLength(); // 位串总长（含未用位数字节）
-  void bitStringLength;
+  readLength(); // 位串总长（含未用位数字节），只用来推进游标
   offset += 1; // 跳过未用位数字节
   expect(0x30);
   readLength(); // 内层 RSAPublicKey SEQUENCE

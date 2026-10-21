@@ -273,7 +273,7 @@
 | packages/platform-zhs/src/report.ts | 已读 |
 | packages/platform-zhs/src/runtime.ts | 待读 |
 | packages/platform-zhs/src/session.ts | 部分 |
-| packages/platform-zhs/src/sign.ts | 待读 |
+| packages/platform-zhs/src/sign.ts | 已读 |
 | packages/platform-zhs/src/structure.ts | 待读 |
 | packages/platform-zhs/test/client.test.ts | 待读 |
 | packages/platform-zhs/test/courses.test.ts | 待读 |
@@ -310,4 +310,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：300 个文件；已读 160，部分 17，待读 123。
+合计：300 个文件；已读 161，部分 17，待读 122。
