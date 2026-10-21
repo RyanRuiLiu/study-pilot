@@ -31,9 +31,9 @@
 | apps/extension/entrypoints/options/courses.ts | 已读 |
 | apps/extension/entrypoints/options/courseware.ts | 已读 |
 | apps/extension/entrypoints/options/index.html | 待读 |
-| apps/extension/entrypoints/options/main.ts | 待读 |
+| apps/extension/entrypoints/options/main.ts | 已读 |
 | apps/extension/entrypoints/options/note.ts | 待读 |
-| apps/extension/entrypoints/options/params.ts | 待读 |
+| apps/extension/entrypoints/options/params.ts | 已读 |
 | apps/extension/entrypoints/options/run-hint.ts | 待读 |
 | apps/extension/entrypoints/options/skeleton.ts | 待读 |
 | apps/extension/entrypoints/options/status-line.ts | 已读 |
@@ -122,6 +122,7 @@
 | apps/extension/test/status-line.test.ts | 已读 |
 | apps/extension/test/popup-todo.test.ts | 已读 |
 | apps/extension/test/course-toggle.test.ts | 已读 |
+| apps/extension/test/params.test.ts | 已读 |
 | apps/extension/test/node-live.test.ts | 待读 |
 | apps/extension/test/options.test.ts | 待读 |
 | apps/extension/test/popup-status.test.ts | 待读 |
@@ -301,4 +302,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：291 个文件；已读 49，部分 24，待读 218。
+合计：292 个文件；已读 52，部分 24，待读 216。

@@ -13,6 +13,7 @@
 import { testAiConnection } from '../../src/ai/index.ts';
 import { hasAiHostPermission } from '../../src/ai/permission.ts';
 import { getSettings, updateSettings } from '../../src/ui-bridge.ts';
+import { errorText } from '../../src/ui/format.ts';
 import { toast } from './toast.ts';
 
 function input(id: string): HTMLInputElement | null {
@@ -32,7 +33,14 @@ const REVOKED_HINT =
   '智谱访问许可已撤回：在扩展详情页开启「网站访问权限」后重试';
 
 export async function renderParams(): Promise<void> {
-  const settings = await getSettings();
+  let settings: Awaited<ReturnType<typeof getSettings>>;
+  try {
+    settings = await getSettings();
+  } catch (error) {
+    // 读配置失败（后台重启、端口失效）：说在 AI 状态位，不让页面静默空白
+    setStatus(`读取设置失败：${errorText(error)}`, true);
+    return;
+  }
 
   const comment = input('review-comment');
   const enabled = input('ai-enabled');
@@ -52,21 +60,32 @@ export async function renderParams(): Promise<void> {
    * 不该进存储——那是每次互评都会提交出去的措辞。
    */
   comment.addEventListener('change', () => {
-    void updateSettings({ mooc: { reviewComment: comment.value } }).then((next) => {
-      // 留空会退回默认评语（normalize 的兜底），把兜底后的值写回输入框
-      comment.value = next.mooc.reviewComment;
-      toast('评语已保存');
-    });
+    void updateSettings({ mooc: { reviewComment: comment.value } })
+      .then((next) => {
+        // 留空会退回默认评语（normalize 的兜底），把兜底后的值写回输入框
+        comment.value = next.mooc.reviewComment;
+        toast('评语已保存');
+      })
+      .catch((error: unknown) => {
+        // 写不进去就说一句：输入框里的字不等于已保存
+        toast(`未能保存评语：${errorText(error)}`);
+      });
   });
 
+  /** 保存 AI 三项；失败写进状态位并返回 null（调用方据此中止后续动作）。 */
   const saveAi = async () => {
-    return updateSettings({
-      ai: {
-        enabled: enabled.checked,
-        model: model.value.trim(),
-        apiKey: apiKey.value.trim(),
-      },
-    });
+    try {
+      return await updateSettings({
+        ai: {
+          enabled: enabled.checked,
+          model: model.value.trim(),
+          apiKey: apiKey.value.trim(),
+        },
+      });
+    } catch (error) {
+      setStatus(`未能保存 AI 设置：${errorText(error)}`, true);
+      return null;
+    }
   };
   enabled.addEventListener('change', () => void saveAi());
   model.addEventListener('change', () => void saveAi());
@@ -75,6 +94,8 @@ export async function renderParams(): Promise<void> {
   document.getElementById('ai-test')?.addEventListener('click', () => {
     void (async () => {
       const next = await saveAi();
+      // 保存失败已在状态位说明，不再拿着旧配置去发测试请求
+      if (next === null) return;
 
       // 权限是清单静态声明的，正常装好就有；被撤回时先说清楚，
       // 否则测试请求只会报销一句网络错误，线索指不回「网站访问权限」
