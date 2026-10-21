@@ -124,6 +124,12 @@ function stripInvisible(node: Node): void {
  * 清掉夹带的零宽字符。结构保持原样，因此段落的相对位置与站点一致。
  */
 export function renderRichText(html: string): HTMLElement {
+  /*
+   * 用 innerHTML 接收平台的富文本，随后立刻按白名单净化（见 ALLOWED_TAGS）。
+   * 内容来源是平台自己已经渲染在同一页面上的评分依据；净化在同一个同步块里完成，
+   * 没有中间态挂到文档上。换成 DOMParser 可以在解析阶段就不加载资源，
+   * 但测试环境（linkedom）没有这个全局，而多一条环境分支不值当。
+   */
   const container = document.createElement('div');
   container.innerHTML = html;
 

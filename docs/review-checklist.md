@@ -37,7 +37,7 @@
 | D 架构与边界 | 已修一处，其余已过 | 六条边界机械核对全绿；依赖边实测只有向内（core←transport←平台包←application←载体）；新端装配面：智慧树 3 项（config、fetch、readCookie）、慕课 5 项（host、config、recordFailure、fetch?、textGenerator?）+ runner 3 个端口，全是装配不含逻辑。已修：两个「去登录」地址原先是扩展载体里的平台事实（ui/login.ts），移到平台包（MOOC_LOGIN_URL、ZHS_SITE_ORIGIN），载体只转出，六个界面调用点不动 |
 | E 单一事实源 | 已修一处，其余已过 | 值级事实各只有一处：端点/宿主在 endpoints.ts（ZHS_HOSTS）、页面地址在 pages.ts、登录去处各在平台包、tokens 在 tokens.css、超时句子在 transport、未登录句子在 round.ts、state/kind 枚举各一处。已修：两张消息处理器表原先与响应映射无类型关联（漏登记只在运行期表现成「处理不了」），现在用 satisfies 绑定（zhs 的 ZhsResponseMap、mooc 的 MoocResponseMap）；变异核对：删掉一条 handler 立刻 TS2741。顺带修掉 handlers.ts 里「`*` 兜底由慕课表提供」这句过期注释（兜底早已归外壳路由） |
 | F 测试 | 已修（收紧五处弱断言） | 全天 615 通过 / 1 显式跳过；无 .only/describe.skip，唯一的跳过是 node-live 的 it.skipIf(!live)。收紧：client 的 status 信封断言具体字段；meet 直接断言开始时刻；tasks 的「计划不开卷」断言产出类别；file-ports 断言坏文件回默认配置的具体形状；options 的 blank 断言控件类型（原先只判非空，收紧后发现 blank 存的是元素不是值，说明这条本来就该写具体）。tokens-parity 的 toBeDefined 保留：它是「每个令牌都能在 CSS 里找到」的存在性判定且带失败说明。变异核对见各批提交 |
-| G 隐私与安全 | 待查 | - |
+| G 隐私与安全 | 已过 | 无定时触发（全仓无 alarms/setInterval），写只由按钮或 --yes 发起；消息只处理 sender.id === 本扩展 的来源；富文本走白名单净化（允许标签/属性、img 只放行 https、script/iframe/表单类整体丢弃），innerHTML 后同一同步块内净化；密钥只进 Authorization 头，全仓无任何日志语句（生产零 console）；manifest 权限与 host_permissions 与用途逐条对应；PRIVACY 的写清单（课件/单元测验客观题/互评自评/智慧树重做与探路）与代码里五个 zh写了端点 + 慕课四个写路径一一对上 |
 | H 数据与状态 | 待查 | - |
 | I 界面与文案 | 待查 | - |
 | J 平台事实 | 待查 | - |
