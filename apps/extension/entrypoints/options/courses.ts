@@ -51,9 +51,15 @@ function buildRow(course: SelectedCourse): HTMLElement {
   row.append(check, name, meta);
 
   check.addEventListener('change', () => {
+    const next = check.checked;
     // 弱化态跟着勾选走：勾上就不灰，取消就灰（不等重画）
-    row.classList.toggle('is-off', !check.checked);
-    void toggle(course.termId, check.checked);
+    row.classList.toggle('is-off', !next);
+    void toggle(course.termId, next).catch((error: unknown) => {
+      // 写配置失败：勾选退回原样并说一句——否则界面显示已勾、配置其实没变
+      check.checked = !next;
+      row.classList.toggle('is-off', next);
+      toast(`未能更新参与范围：${errorText(error)}`);
+    });
   });
 
   return row;

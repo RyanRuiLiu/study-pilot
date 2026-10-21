@@ -60,8 +60,14 @@ function buildRow(course: ZhihuishuCourse): HTMLElement {
   row.append(check, name, meta);
 
   check.addEventListener('change', () => {
-    row.classList.toggle('is-off', !check.checked);
-    void toggle(course.courseId, check.checked);
+    const next = check.checked;
+    row.classList.toggle('is-off', !next);
+    void toggle(course.courseId, next).catch((error: unknown) => {
+      // 与慕课同一处置：写配置失败就退回勾选并说一句
+      check.checked = !next;
+      row.classList.toggle('is-off', next);
+      toast(`未能更新参与范围：${errorText(error)}`);
+    });
   });
 
   return row;

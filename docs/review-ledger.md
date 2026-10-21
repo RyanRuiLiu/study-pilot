@@ -28,7 +28,7 @@
 | apps/cli/tsconfig.json | 待读 |
 | apps/extension/entrypoints/background.ts | 待读 |
 | apps/extension/entrypoints/mooc.content.ts | 部分 |
-| apps/extension/entrypoints/options/courses.ts | 待读 |
+| apps/extension/entrypoints/options/courses.ts | 已读 |
 | apps/extension/entrypoints/options/courseware.ts | 已读 |
 | apps/extension/entrypoints/options/index.html | 待读 |
 | apps/extension/entrypoints/options/main.ts | 待读 |
@@ -38,9 +38,9 @@
 | apps/extension/entrypoints/options/skeleton.ts | 待读 |
 | apps/extension/entrypoints/options/status-line.ts | 已读 |
 | apps/extension/entrypoints/options/style.css | 待读 |
-| apps/extension/entrypoints/options/toast.ts | 待读 |
+| apps/extension/entrypoints/options/toast.ts | 已读 |
 | apps/extension/entrypoints/options/zhihuishu-course-tasks.ts | 已读 |
-| apps/extension/entrypoints/options/zhihuishu-courses.ts | 待读 |
+| apps/extension/entrypoints/options/zhihuishu-courses.ts | 已读 |
 | apps/extension/entrypoints/options/zhihuishu-status-line.ts | 已读 |
 | apps/extension/entrypoints/popup/elements.ts | 已读 |
 | apps/extension/entrypoints/popup/index.html | 待读 |
@@ -121,6 +121,7 @@
 | apps/extension/test/net-rules.test.ts | 待读 |
 | apps/extension/test/status-line.test.ts | 已读 |
 | apps/extension/test/popup-todo.test.ts | 已读 |
+| apps/extension/test/course-toggle.test.ts | 已读 |
 | apps/extension/test/node-live.test.ts | 待读 |
 | apps/extension/test/options.test.ts | 待读 |
 | apps/extension/test/popup-status.test.ts | 待读 |
@@ -300,4 +301,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：290 个文件；已读 45，部分 24，待读 221。
+合计：291 个文件；已读 49，部分 24，待读 218。
