@@ -10,6 +10,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const bridge = vi.hoisted(() => ({
   getZhsCourseTasks: vi.fn(),
+  getZhsSession: vi.fn(),
+  getZhsCourses: vi.fn(),
   getTaskState: vi.fn(),
   subscribeRunState: vi.fn(),
   runNow: vi.fn(),
@@ -20,6 +22,7 @@ vi.mock('../src/ui-bridge.ts', () => bridge);
 
 const window = parseHTML(
   '<!doctype html><html><body>' +
+    '<div id="zhs-course-list"></div>' +
     '<div id="zhs-tasks-list"></div>' +
     '<div id="zhs-tasks-head" hidden><p id="zhs-tasks-status"></p><a id="zhs-tasks-action" hidden></a></div>' +
     '<div id="toast"></div>' +
@@ -39,6 +42,7 @@ g.HTMLAnchorElement = window.HTMLAnchorElement;
 g.HTMLElement = window.HTMLElement;
 
 const { initToast } = await import('../entrypoints/options/toast.ts');
+const { renderZhsCourses } = await import('../entrypoints/options/zhihuishu-courses.ts');
 const { renderZhsCourseTasks } = await import('../entrypoints/options/zhihuishu-course-tasks.ts');
 
 function course(courseId: number) {
@@ -99,9 +103,42 @@ beforeEach(() => {
   initToast(document.getElementById('toast') as unknown as HTMLElement);
   for (const fn of Object.values(bridge)) fn.mockReset();
   bridge.getTaskState.mockResolvedValue({ live: 'idle', state: { platforms: {} } });
+  bridge.getZhsSession.mockResolvedValue({ loggedIn: true });
+  bridge.getZhsCourses.mockResolvedValue([]);
   bridge.subscribeRunState.mockImplementation((fn: (state: unknown) => void) => {
     listener = fn;
     return () => undefined;
+  });
+});
+
+describe('未登录', () => {
+  it('登录指引只在账号与课程卡里出现一次，课程任务区不重复', async () => {
+    bridge.getZhsSession.mockResolvedValue({ loggedIn: false });
+    bridge.getZhsCourses.mockResolvedValue([
+      {
+        courseId: 1,
+        recruitId: 2,
+        secret: 'x',
+        name: '示例课程甲',
+        schoolName: '示例大学',
+        startTime: 0,
+        endTime: 0,
+        enabled: true,
+      },
+    ]);
+    bridge.getZhsCourseTasks.mockResolvedValue({
+      status: 'error',
+      reason: 'NOT_LOGGED_IN',
+      message: '未登录',
+    });
+
+    await renderZhsCourses();
+    await renderZhsCourseTasks();
+
+    const document = (globalThis as unknown as { document: Document }).document;
+    expect(document.getElementById('zhs-course-list')?.textContent).toContain('未登录');
+    expect(document.getElementById('zhs-tasks-list')?.textContent).toBe('');
+    expect((document.body.textContent ?? '').match(/未登录/g)).toHaveLength(1);
   });
 });
 

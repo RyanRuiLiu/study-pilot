@@ -29,7 +29,7 @@ import { errorText, formatDate } from '../../src/ui/format.ts';
 import { ZHS_BOARDS, boardOfKind, type ZhsBoardId } from '../../src/adapters/zhihuishu/boards.ts';
 import { meetPageUrl } from '../../src/adapters/zhihuishu/pages.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
-import { loginNote, note, ZHS_LOGIN_URL } from './note.ts';
+import { note } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
 import { renderZhsStatusLine } from './zhihuishu-status-line.ts';
 import { toast } from './toast.ts';
@@ -432,8 +432,11 @@ export async function renderZhsCourseTasks(
   if (outcome.status === 'error') {
     listEl.replaceChildren();
     if (outcome.reason === 'NOT_LOGGED_IN') {
-      // 未登录不是「出错」，是少做了一步：给按钮把人送去登录，而不是只留一句话
-      listEl.append(loginNote('未登录，在浏览器登录智慧树后执行。', ZHS_LOGIN_URL));
+      /*
+       * 未登录的指引只在「账号与课程」卡里出现一次（那里才有「前往登录」与
+       * 读取按钮）。这里再放一份就在卡片外重复了同一句话——页面已经明说，
+       * 课程任务区留空即可，登录后重读会自己填回来。
+       */
       return;
     }
     listEl.append(note(`读取失败：${outcome.message}`, true));
