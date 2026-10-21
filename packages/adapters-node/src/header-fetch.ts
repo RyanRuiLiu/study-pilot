@@ -3,7 +3,7 @@
  *
  * 扩展那一侧靠 declarativeNetRequest 把 Origin 与 Cookie 写到出站请求上；命令行没有那层，
  * 于是这里按**每个平台自己的事实**补齐（差别是实测的，出处见各平台包的 net-rules）：
- *   Cookie          浏览器里本来就有的那一串（按平台从会话文件取，见 host.ts）
+ *   Cookie          浏览器里本来就有的那一串（按平台从会话文件取，见 session-file.ts）
  *   Origin/Referer  慕课必须指向平台自己的域名——实测：带扩展 Origin 的请求会被回
  *                   403「非法跨域请求」；智慧树**不需要**改写（直连即 200），因此由
  *                   调用方按平台给 `rewriteOrigin`

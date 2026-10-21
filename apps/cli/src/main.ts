@@ -4,11 +4,13 @@
  * 它的作用是证明「扩展只是一个载体」：核心用例与两个平台的装配都从包里取，
  * 扩展侧一行代码都不用——`@study-pilot/application` 给端口与用例，
  * `@study-pilot/platform-mooc` / `@study-pilot/platform-zhs` 各给自家的运行件。
- * 本目录只提供载体自己的四件事：配置文件、cookie 文件、状态文件、进度输出。
+ * 本目录只剩载体自己的进度输出；配置/状态/会话文件与按平台设头的 fetch 都在
+ * `@study-pilot/adapters-node`（第三个 Node 载体可以原样复用）。
  *
  * 两个平台的待遇与扩展侧一致（对照 extension 的 background.ts 装配）：
- * 同一份会话文件里各取各的 cookie（host.ts）、各出各的请求头（fetch.ts），
- * `run` 的 platforms() 两家都给——命令默认两家都读，`--platform` 收窄。
+ * 同一份会话文件里各取各的 cookie（session-file.ts）、各出各的请求头
+ * （header-fetch.ts），`run` 的 platforms() 两家都给——命令默认两家都读，
+ * `--platform` 收窄。
  *
  * 命令：
  *   courses [--platform <id>] [--select <id>]   去平台读课程列表；--select 勾上那门课（写进配置）
@@ -219,7 +221,7 @@ async function main(): Promise<number> {
   const mooc = createMoocRuntime({
     host: createCookieFileHost(sessions.mooc),
     config,
-    // 慕课必须把 Origin/Referer 指向平台域名（实测事实，见 fetch.ts 文件头）
+    // 慕课必须把 Origin/Referer 指向平台域名（实测事实，见 header-fetch.ts 文件头）
     fetch: createHeaderFetch(sessions.mooc, { userAgent: MOOC_USER_AGENT, rewriteOrigin: true }),
     recordFailure: async (message) => {
       console.error(`[失败] ${message}`);

@@ -155,12 +155,9 @@ PRIVACY.md 会同步改写。已经能自动做的客观题测验里，智慧树
       entrypoints/    后台装配、弹窗（含 zhihuishu-todo）、设置页（含智慧树卡片）、内容脚本
       test/           测试（boundaries.test.ts 是分层的机械核对）
     apps/cli/        载体二：命令行（两个平台都接）
-      src/config-store.ts  配置端口落到一个 JSON 文件
-      src/task-store.ts    运行状态落到一个 JSON 文件（跨次运行的中断判定用）
-      src/host.ts          会话从浏览器导出的 cookie 文件读（两个平台各取各的域）
-      src/fetch.ts         出站请求头按平台自己设（命令行没有 declarativeNetRequest）
-      src/progress.ts      执行进度打到标准输出
+      src/progress.ts      执行进度打到标准输出（本载体自己的那一件）
       src/main.ts          命令：courses / pending / run（run 默认预演，--yes 才写）
+      # 配置/状态/会话文件与按平台设头的 fetch 在 packages/adapters-node（见上）
     scripts/probe/   真机调试唯一入口（pnpm probe；见「真机调试」一节）
     docs/            设计记录与决策：zhs-task-modules-design.md（智慧树二期设计，内含
                      「落地状态」逐条写明哪些已接进执行）、adr/（跨端决策，只记为什么与
