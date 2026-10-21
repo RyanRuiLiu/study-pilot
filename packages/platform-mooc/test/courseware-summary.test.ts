@@ -53,7 +53,7 @@ describe('课件进度计数', () => {
     ];
 
     expect(summarizeCourseware(snapshotOf(units), false)).toEqual([
-      { courseName: '示例课程甲', done: 1, total: 5, pending: 2, cannot: 2, needsAi: 0 },
+      { termId: 1, courseName: '示例课程甲', done: 1, total: 5, pending: 2, cannot: 2, needsAi: 0 },
     ]);
   });
 

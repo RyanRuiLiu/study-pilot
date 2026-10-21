@@ -53,8 +53,8 @@
 | apps/extension/package.json | 待读 |
 | apps/extension/public/_locales/zh_CN/messages.json | 待读 |
 | apps/extension/src/adapters/mooc/messages/courses.ts | 已读 |
-| apps/extension/src/adapters/mooc/messages/courseware-summary.ts | 待读 |
-| apps/extension/src/adapters/mooc/messages/deps.ts | 待读 |
+| apps/extension/src/adapters/mooc/messages/courseware-summary.ts | 已读 |
+| apps/extension/src/adapters/mooc/messages/deps.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/handlers.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/homework-paper.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/payload.ts | 已读 |
@@ -62,7 +62,7 @@
 | apps/extension/src/adapters/mooc/messages/quiz-helper.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/refresh-courses.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/session.ts | 已读 |
-| apps/extension/src/adapters/mooc/platform.ts | 待读 |
+| apps/extension/src/adapters/mooc/platform.ts | 已读 |
 | apps/extension/src/adapters/mooc/to-messages.ts | 已读 |
 | apps/extension/src/adapters/mooc/work-status.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/boards.ts | 待读 |
@@ -129,6 +129,7 @@
 | apps/extension/test/run-state.test.ts | 已读 |
 | apps/extension/test/panel-info.test.ts | 已读 |
 | apps/extension/test/session-command.test.ts | 已读 |
+| apps/extension/test/courseware-summary-command.test.ts | 已读 |
 | apps/extension/test/node-live.test.ts | 待读 |
 | apps/extension/test/options.test.ts | 待读 |
 | apps/extension/test/popup-status.test.ts | 待读 |
@@ -220,7 +221,7 @@
 | packages/platform-mooc/src/policy/plan/order.ts | 待读 |
 | packages/platform-mooc/src/policy/plan/types.ts | 待读 |
 | packages/platform-mooc/src/policy/plan/work.ts | 待读 |
-| packages/platform-mooc/src/policy/read/courseware.ts | 待读 |
+| packages/platform-mooc/src/policy/read/courseware.ts | 已读 |
 | packages/platform-mooc/src/policy/read/index.ts | 待读 |
 | packages/platform-mooc/src/policy/read/inspect.ts | 待读 |
 | packages/platform-mooc/src/policy/read/types.ts | 待读 |
@@ -308,4 +309,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：298 个文件；已读 105，部分 20，待读 173。
+合计：299 个文件；已读 110，部分 20，待读 169。

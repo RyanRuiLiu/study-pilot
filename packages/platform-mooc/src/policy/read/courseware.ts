@@ -19,6 +19,8 @@ function needsText(unit: CourseUnit): boolean {
 }
 
 export interface CoursewareProgress {
+  /** 课程学期 id：界面按它把行对齐到设置里的课程（同名不同学期的课不能用名字当键） */
+  termId: number;
   courseName: string;
   /** 已完成的单元数 */
   done: number;
@@ -61,6 +63,7 @@ export function summarizeCourseware(snapshot: Snapshot, textAvailable: boolean):
       else if (!textAvailable && needsText(unit)) needsAi += 1;
     }
     return {
+      termId: course.termId,
       courseName: course.courseName,
       done,
       total: course.units.length,

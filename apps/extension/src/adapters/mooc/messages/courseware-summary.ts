@@ -5,8 +5,8 @@
  * 事实，因此合成一个响应、页面只发一条消息。先前它们是两条消息各读一遍
  * 六门课，又在同一条串行节流上排队，设置页一开要等 4 秒多（实测 2026-10-15）。
  *
- * 与单元明细（UNIT_DETAILS）同样共用 loadSnapshot：界面上的数字与真正的
- * 执行用同一份判据。未登录时不往下走，原因与其余读取相同。
+ * 与执行侧同样共用 loadSnapshot：界面上的数字与真正的执行用同一份判据。
+ * 未登录时不往下走，原因与其余读取相同。
  */
 
 import { aiTextAvailable } from '../../../ai/permission.ts';
@@ -52,13 +52,17 @@ export function coursewareSummaryCommand(deps: MoocMessageDeps): MessageHandler 
       const textAvailable = await aiTextAvailable(settings);
 
       /*
-       * 按课程列表逐门对齐：读不到结构的课（从未学过、平台不回结构）
-       * 补一行「读不到」，而不是静默消失——用户勾了它，就该看见它为什么是空的。
+       * 按课程列表逐门对齐：读不到结构的课（从未学过、平台不回结构）补一行「读不到」，
+       * 而不是静默消失——用户勾了它，就该看见它为什么是空的。
+       *
+       * 对齐键用 termId，不用课程名：同一门课可以有多个学期，重选后名字一模一样；
+       * 按名字找会把前一学期的数字安到这一学期头上。
        */
       const progress = summarizeCourseware(outcome.value, textAvailable);
       const rows = courses.map(
         (course) =>
-          progress.find((entry) => entry.courseName === course.name) ?? {
+          progress.find((entry) => entry.termId === course.termId) ?? {
+            termId: course.termId,
             courseName: course.name,
             done: 0,
             total: 0,
