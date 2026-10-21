@@ -47,9 +47,9 @@
 | apps/extension/entrypoints/popup/main.ts | 待读 |
 | apps/extension/entrypoints/popup/status.ts | 已读 |
 | apps/extension/entrypoints/popup/style.css | 待读 |
-| apps/extension/entrypoints/popup/todo-area.ts | 待读 |
-| apps/extension/entrypoints/popup/todo.ts | 待读 |
-| apps/extension/entrypoints/popup/zhihuishu-todo.ts | 待读 |
+| apps/extension/entrypoints/popup/todo-area.ts | 已读 |
+| apps/extension/entrypoints/popup/todo.ts | 已读 |
+| apps/extension/entrypoints/popup/zhihuishu-todo.ts | 部分 |
 | apps/extension/package.json | 待读 |
 | apps/extension/public/_locales/zh_CN/messages.json | 待读 |
 | apps/extension/src/adapters/mooc/messages/courses.ts | 待读 |
@@ -120,6 +120,7 @@
 | apps/extension/test/guidance.test.ts | 待读 |
 | apps/extension/test/net-rules.test.ts | 待读 |
 | apps/extension/test/status-line.test.ts | 已读 |
+| apps/extension/test/popup-todo.test.ts | 已读 |
 | apps/extension/test/node-live.test.ts | 待读 |
 | apps/extension/test/options.test.ts | 待读 |
 | apps/extension/test/popup-status.test.ts | 待读 |
@@ -299,4 +300,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：289 个文件；已读 40，部分 24，待读 225。
+合计：290 个文件；已读 43，部分 25，待读 222。

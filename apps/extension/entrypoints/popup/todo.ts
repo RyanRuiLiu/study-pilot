@@ -190,13 +190,20 @@ export async function renderTodo(): Promise<void> {
    * 顺序反了会把人指向一个他到了也做不成事的地方——智慧树那份同一条次序
    * （Ryan 报的正是这个：登录已失效时弹窗说的是「尚未选择参与任务的课程」）。
    */
-  const session = await getSession();
+  let session: Awaited<ReturnType<typeof getSession>>;
+  let settings: Awaited<ReturnType<typeof getSettings>>;
+  try {
+    // 两次读都要护住：消息通道断（后台重启）时是 reject，先前会落成未处理的异常、弹窗空白
+    [session, settings] = await Promise.all([getSession(), getSettings()]);
+  } catch (error) {
+    area.error(errorText(error));
+    return;
+  }
   if (!session.loggedIn) {
     area.loginPrompt();
     return;
   }
 
-  const settings = await getSettings();
   const courses = settings.mooc.courses.filter((course) => course.enabled);
   if (courses.length === 0) {
     area.write([area.note('todo-empty', '尚未选择参与任务的课程，在「更多」中读取并勾选。')]);

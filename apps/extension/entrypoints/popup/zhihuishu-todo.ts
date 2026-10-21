@@ -168,13 +168,20 @@ export async function renderZhsTodo(): Promise<void> {
    * 登录已失效时弹窗说的是「尚未选择参与任务的课程」，而真相与课程无关。
    * 慕课那份同一条次序，两处一起改（ruling 见那边同位置注释）。
    */
-  const session = await getZhsSession();
+  let session: Awaited<ReturnType<typeof getZhsSession>>;
+  let settings: Awaited<ReturnType<typeof getSettings>>;
+  try {
+    // 与慕课那句同一个理由：消息通道断时是 reject，护住才不会让待办区空白
+    [session, settings] = await Promise.all([getZhsSession(), getSettings()]);
+  } catch (error) {
+    area.error(errorText(error));
+    return;
+  }
   if (!session.loggedIn) {
     area.loginPrompt();
     return;
   }
 
-  const settings = await getSettings();
   const courses = settings.zhihuishu.courses.filter((course) => course.enabled);
   if (courses.length === 0) {
     area.write([area.note('todo-empty', '尚未选择参与任务的课程，在「更多」中读取并勾选。')]);
