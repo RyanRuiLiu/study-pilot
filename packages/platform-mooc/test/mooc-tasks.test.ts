@@ -227,3 +227,21 @@ describe('自动项的 id', () => {
   });
 });
 
+
+describe('执行前再确认会话', () => {
+  it('计划之后会话失效：如实报未登录，不发任何执行调用', async () => {
+    const auto = [coursewareAction(9, '1.1 课程介绍')];
+    const tasks = tasksOf(auto);
+
+    // 计划阶段还登录着：拿到这一项
+    const { items } = await tasks.plan(NOW);
+    // 执行前那一次确认失败
+    vi.mocked(ensureSession).mockResolvedValue({ loggedIn: false, userId: 0 } as never);
+    vi.mocked(executeActions).mockClear();
+
+    const outcome = await tasks.run(items[0]!, async () => {}, NEVER_STOPPED);
+
+    expect(outcome).toEqual({ status: 'failed', message: '未登录' });
+    expect(executeActions).not.toHaveBeenCalled();
+  });
+});

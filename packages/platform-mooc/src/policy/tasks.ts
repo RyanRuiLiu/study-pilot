@@ -204,6 +204,9 @@ export function createMoocTasks(deps: MoocRunDeps): PlatformTasks {
       // payload 是本平台 plan() 放进去的，形状由本文件保证
       const settings = await deps.config.read();
       const session = await ensureSession(deps.host, deps.client.send, deps.client.origin);
+      // 计划与执行之间隔着一整轮网络（甚至可能跨了几分钟）：写入前再确认一次会话，
+      // 免得拿 userId=0 去自称——互评/自评的评测人就是它
+      if (!session.loggedIn) return { status: 'failed', message: '未登录' };
       const [result] = await executeActions(
         deps.client,
         [action as Parameters<typeof executeActions>[1][number]],

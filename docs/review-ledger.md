@@ -228,7 +228,7 @@
 | packages/platform-mooc/src/policy/recovery.ts | 待读 |
 | packages/platform-mooc/src/policy/session.ts | 已读 |
 | packages/platform-mooc/src/policy/sync.ts | 待读 |
-| packages/platform-mooc/src/policy/tasks.ts | 待读 |
+| packages/platform-mooc/src/policy/tasks.ts | 已读 |
 | packages/platform-mooc/src/quiz.ts | 部分 |
 | packages/platform-mooc/src/review.ts | 待读 |
 | packages/platform-mooc/src/structure.ts | 待读 |
@@ -242,7 +242,7 @@
 | packages/platform-mooc/test/execute-work.test.ts | 待读 |
 | packages/platform-mooc/test/headless.test.ts | 待读 |
 | packages/platform-mooc/test/inspect-auth.test.ts | 待读 |
-| packages/platform-mooc/test/mooc-tasks.test.ts | 待读 |
+| packages/platform-mooc/test/mooc-tasks.test.ts | 部分 |
 | packages/platform-mooc/test/origin-retry.test.ts | 待读 |
 | packages/platform-mooc/test/session-cookie.test.ts | 已读 |
 | packages/platform-mooc/test/plan-smoke.test.ts | 待读 |
@@ -310,4 +310,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：300 个文件；已读 140，部分 17，待读 143。
+合计：300 个文件；已读 141，部分 18，待读 141。
