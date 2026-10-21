@@ -29,7 +29,7 @@ describe('normalizeMeetSessions', () => {
       quizStatus: 1,
     });
     expect(session?.replayUrl).toBe('https://lc.zhihuishu.com/live/vod_room.html?t=1798387199000&liveId=13000001');
-    expect(session?.startAt).not.toBeNull();
+    expect(session?.startAt).toBe(new Date(2026, 9, 8, 18, 30, 0).getTime());
   });
 
   it('响应里没有 maps → 抛错，不拿空表冒充「这门课没有场次」', () => {

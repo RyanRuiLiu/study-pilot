@@ -182,7 +182,10 @@ describe('错误映射', () => {
     const ok = makeClient([
       { match: 'student/getStudentHomework', json: { msg: '请求成功', rt: { studentHomeworkList: [] }, status: '200' } },
     ]);
-    await expect(ok.client.call('examHomeworkList', {})).resolves.toBeDefined();
+    await expect(ok.client.call('examHomeworkList', {})).resolves.toMatchObject({
+      status: '200',
+      msg: '请求成功',
+    });
 
     const bad = makeClient([
       { match: 'student/getStudentHomework', json: { msg: '2', rt: null, status: '-1' } },

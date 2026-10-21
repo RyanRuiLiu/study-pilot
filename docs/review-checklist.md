@@ -36,7 +36,7 @@
 | C 错误与资源上限 | 已过 | 空 catch 共 10 处，逐条读过，全部是「解析失败＝未登录/非本形态」的显式判定并带注释；出站上界统一走 transport 的 startOutboundTimeout（rpc、dwr、智慧树客户端、AI 对话四处都接了，含读体）；节流覆盖 rpc/dwr/智慧树全部请求；重试只在平台并发限制码上发生（rpc.ts 的 callEnvelope），网络/HTTP 失败不重试，写不会被悄悄重发；失败的动作位经 ZhsRoundHalt.action 与 RunFailure.action 落到状态与界面；除注入适配器与 transport 客户端外无裸 fetch |
 | D 架构与边界 | 已修一处，其余已过 | 六条边界机械核对全绿；依赖边实测只有向内（core←transport←平台包←application←载体）；新端装配面：智慧树 3 项（config、fetch、readCookie）、慕课 5 项（host、config、recordFailure、fetch?、textGenerator?）+ runner 3 个端口，全是装配不含逻辑。已修：两个「去登录」地址原先是扩展载体里的平台事实（ui/login.ts），移到平台包（MOOC_LOGIN_URL、ZHS_SITE_ORIGIN），载体只转出，六个界面调用点不动 |
 | E 单一事实源 | 已修一处，其余已过 | 值级事实各只有一处：端点/宿主在 endpoints.ts（ZHS_HOSTS）、页面地址在 pages.ts、登录去处各在平台包、tokens 在 tokens.css、超时句子在 transport、未登录句子在 round.ts、state/kind 枚举各一处。已修：两张消息处理器表原先与响应映射无类型关联（漏登记只在运行期表现成「处理不了」），现在用 satisfies 绑定（zhs 的 ZhsResponseMap、mooc 的 MoocResponseMap）；变异核对：删掉一条 handler 立刻 TS2741。顺带修掉 handlers.ts 里「`*` 兜底由慕课表提供」这句过期注释（兜底早已归外壳路由） |
-| F 测试 | 待查 | - |
+| F 测试 | 已修（收紧五处弱断言） | 全天 615 通过 / 1 显式跳过；无 .only/describe.skip，唯一的跳过是 node-live 的 it.skipIf(!live)。收紧：client 的 status 信封断言具体字段；meet 直接断言开始时刻；tasks 的「计划不开卷」断言产出类别；file-ports 断言坏文件回默认配置的具体形状；options 的 blank 断言控件类型（原先只判非空，收紧后发现 blank 存的是元素不是值，说明这条本来就该写具体）。tokens-parity 的 toBeDefined 保留：它是「每个令牌都能在 CSS 里找到」的存在性判定且带失败说明。变异核对见各批提交 |
 | G 隐私与安全 | 待查 | - |
 | H 数据与状态 | 待查 | - |
 | I 界面与文案 | 待查 | - |

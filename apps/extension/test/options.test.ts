@@ -62,7 +62,8 @@ describe('collectQuestions', () => {
 
     expect(questions).toHaveLength(1);
     expect(questions[0]!.inputs).toHaveLength(0);
-    expect(questions[0]!.blank).not.toBeNull();
+    // blank 存的是待填的控件本身（后续填充要它），不是值
+    expect((questions[0]!.blank as HTMLElement).tagName).toBe('TEXTAREA');
   });
 
   it('两种控件都没有的题目（如主观题）不收集', () => {

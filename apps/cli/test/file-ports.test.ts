@@ -142,6 +142,7 @@ describe('坏文件的说法', () => {
     writeFileSync(file, 'null');
 
     const { createFileConfigStore } = await import('../src/config-store.ts');
-    await expect(createFileConfigStore(file).read()).resolves.toBeDefined();
+    // 坏文件回默认配置（不是抛错，也不是把 null 当配置交下去）
+    await expect(createFileConfigStore(file).read()).resolves.toMatchObject({ ai: { enabled: false } });
   });
 });

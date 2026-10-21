@@ -516,6 +516,8 @@ describe('plan：单元测试项', () => {
         },
       }),
     });
-    await expect(mined.plan(0)).resolves.toBeDefined();
+    // 计划照常产出（这一项是课件），关键是没有踩到 examDoHomework 那颗雷
+    const plan = await mined.plan(0);
+    expect(plan.items.map((entry) => entry.kind)).toEqual(['courseware']);
   });
 });
