@@ -88,9 +88,9 @@
 | apps/extension/src/browser/run-feed.ts | 已读 |
 | apps/extension/src/browser/run-once.ts | 已读 |
 | apps/extension/src/features/mooc/guidance/block.ts | 已读 |
-| apps/extension/src/features/mooc/guidance/index.ts | 待读 |
-| apps/extension/src/features/mooc/guidance/loader.ts | 待读 |
-| apps/extension/src/features/mooc/guidance/markers.ts | 待读 |
+| apps/extension/src/features/mooc/guidance/index.ts | 已读 |
+| apps/extension/src/features/mooc/guidance/loader.ts | 已读 |
+| apps/extension/src/features/mooc/guidance/markers.ts | 已读 |
 | apps/extension/src/features/mooc/guidance/page.ts | 已读 |
 | apps/extension/src/features/mooc/quiz-stage.ts | 已读 |
 | apps/extension/src/features/mooc/quiz/actions.ts | 已读 |
@@ -307,4 +307,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：297 个文件；已读 91，部分 22，待读 184。
+合计：297 个文件；已读 95，部分 21，待读 181。
