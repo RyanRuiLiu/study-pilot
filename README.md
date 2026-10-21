@@ -111,7 +111,8 @@ PRIVACY.md 会同步改写。已经能自动做的客观题测验里，智慧树
     pnpm probe icon [--check] [--preview]  # 生成扩展图标 → apps/extension/public/icon/
         # 色值与字体现读 tokens.css；产物是**入库文件**，改完要看过 diff 再提交
         # --check 只核对不生成（界面 tokens.css 变了用它确认图标是否过期）
-    pnpm probe store [--check]              # 生成商店促销磁贴 → apps/extension/.output/store/（440x280 与 1400x560）
+    pnpm probe store [--check]              # 生成商店上传图与促销磁贴 → apps/extension/.output/store/
+        # store-icon-128（96+16 留白）/ store-icon-300（Edge logo）与 440x280、1400x560
         # 落 .output/（git 忽略）：那是对外商店素材，随构建重生，不入库；--check 只核对不生成
     pnpm probe kill                         # 关闭探测浏览器
 

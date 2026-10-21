@@ -1001,20 +1001,17 @@ async function cmdShot(opts) {
  * 主题从墨绿换成群青时它没跟上，而脚本里那句「与 tokens.css 的 --accent 一致」
  * 的注释早已不成立（2026-10-17 照这条线索查出）。收进本文件，改主题后跑一次即可。
  *
- * 每个尺寸各按管它的那条标准定留白
- * ------------------------------
- * 不是一刀切。Chrome 应用商店的图片规范要求 128 那张的图形为 96x96、四周各留
- * 16 像素透明留白（developer.chrome.com/docs/webstore/images#icons，2026-10-17
- * 核对原文："The actual icon size should be 96x96 … an additional 16 pixels per
- * side should be transparent padding"）——**那条管的只是 128 这一张**，它用于
- * 安装弹窗与商店列表。工具栏尺寸（16/32/48）的文档里没有任何留白要求，Chrome
- * 也不替工具栏图标补边框或投影；给它们留白纯亏——实测 16px 上字母墨迹会因此
- * 从 7px 掉到 5px。96 不在 Chrome 那张表里（WXT 约定的补充尺寸），没有标准管它，
- * 与工具栏同样处理。
+ * manifest 图标全满幅，商店上传图单独出
+ * ----------------------------------
+ * 清单里的 16/32/48/96/128 全部铺满画布：它们分别用于工具栏、扩展管理页与
+ * 安装弹窗，浏览器不替它们补边框或投影；给其中一张留白，它在同排图标里就会
+ * 小一圈（2026-10-21 Ryan 指出的正是 128 那一张）。
  *
- * 来历：最早五个尺寸都按商店那条留了白，结果是工具栏里这个图标比同排的其他扩展
- * 小一圈（Ryan 2026-10-17 指出）。先改成五个尺寸全满幅，同日 Ryan 说「按照标准
- * 执行」之后改成现在这样——每个尺寸按管它的那条标准，见 ICON_CONTENT_RATIOS。
+ * Chrome 商店列表的图片规范（图形 96x96 + 四周各 16px 透明留白）管的是**上传
+ * 到商店的那张 128**，不是 manifest 里的 128。两者因此拆开：manifest 用满幅的
+ * public/icon/128.png；商店上传用 .output/store/store-icon-128.png（按 96+16
+ * 留白生成）。Edge 加载项的商店 logo 建议 300x300（1:1），生成
+ * store-icon-300.png（满幅）。
  *
  * 色值与字体从 tokens.css 现读
  * ---------------------------
@@ -1034,14 +1031,20 @@ const ICON_SIZES = [16, 32, 48, 96, 128];
 /** 主画布。各尺寸都由它逐级折半缩出，五个尺寸保证是同一个形状（主画布始终满幅）。 */
 const ICON_MASTER_SIZE = 1024;
 /**
- * 每个尺寸**图形占画布的比例**，按管它的那条标准定（理由见本节开头）：
- *
- *   16 / 32 / 48  1      工具栏、右键菜单、扩展管理页。没有标准要求留白。
- *   96            1      没有标准管它，与工具栏同处理。
- *   128           0.75   商店图片规范：图形 96x96 + 四周各 16 像素透明留白。
- *                        128 是安装弹窗与商店列表共用的那一张。
+ * manifest 图标全部满幅（理由见本节开头）。商店上传图的留白在 STORE_ICON_SPECS
+ * 里单独给，不混进清单。
  */
-const ICON_CONTENT_RATIOS = { 16: 1, 32: 1, 48: 1, 96: 1, 128: 0.75 };
+const ICON_CONTENT_RATIOS = { 16: 1, 32: 1, 48: 1, 96: 1, 128: 1 };
+
+/**
+ * 商店上传图（不进 manifest）：
+ *   128  0.75  Chrome 商店列表图标：图形 96x96 + 四周各 16px 透明留白
+ *   300  1     Edge 加载项商店 logo（1:1，建议 300x300），满幅
+ */
+const STORE_ICON_SPECS = [
+  { size: 128, ratio: 0.75 },
+  { size: 300, ratio: 1 },
+];
 /** 圆角占图形的比例。0.22 是应用图标的通行比例（iOS 的连续圆角为 22.37%）。 */
 const ICON_RADIUS_RATIO = 0.22;
 /**
@@ -1106,8 +1109,16 @@ async function cmdIcon(opts) {
   });
 }
 
-/** 在页面里画主画布、缩出各尺寸，写进目录。 */
-async function drawIcons(page, dir, brand) {
+/**
+ * 在页面里画主画布、缩出各尺寸，写进目录。
+ *
+ * 默认出 manifest 的那五张；商店上传图用 options 指定尺寸、留白比例与文件名，
+ * 两者共用同一份绘制（字母对齐、字体判定、逐级缩放都只写一遍）。
+ */
+async function drawIcons(page, dir, brand, options = {}) {
+  const sizes = options.sizes ?? ICON_SIZES;
+  const ratios = options.ratios ?? ICON_CONTENT_RATIOS;
+  const nameFor = options.nameFor ?? ((size) => `${size}.png`);
   const drawn = await page.evaluate(
     async ({ brand, letter, masterSize, sizes, ratios, radiusRatio, letterRatio }) => {
       const blank = (w, h) => {
@@ -1185,7 +1196,11 @@ async function drawIcons(page, dir, brand) {
           dim /= 2;
           current = smoothDraw(current, dim);
         }
-        if (dim !== art) current = smoothDraw(current, art);
+        /*
+         * 折半到比目标还小（例如 300 会停在 256）时从主画布直接缩到目标，
+         * 不拿 256 往上放——放大插值只会糊，主画布足够大、缩一次是清楚的。
+         */
+        if (dim !== art) current = smoothDraw(dim < art ? master : current, art);
 
         if (art === size) {
           out[size] = current.toDataURL('image/png');
@@ -1207,8 +1222,8 @@ async function drawIcons(page, dir, brand) {
       brand,
       letter: ICON_LETTER,
       masterSize: ICON_MASTER_SIZE,
-      sizes: ICON_SIZES,
-      ratios: ICON_CONTENT_RATIOS,
+      sizes,
+      ratios,
       radiusRatio: ICON_RADIUS_RATIO,
       letterRatio: ICON_LETTER_RATIO,
     },
@@ -1219,10 +1234,11 @@ async function drawIcons(page, dir, brand) {
   console.log(`字母实际字体：${drawn.resolved}`);
 
   mkdirSync(dir, { recursive: true });
-  for (const size of ICON_SIZES) {
+  for (const size of sizes) {
     const base64 = drawn.out[size].replace(/^data:image\/png;base64,/, '');
-    if (!base64) die(`${size}.png 没画出来`);
-    writeFileSync(path.join(dir, `${size}.png`), Buffer.from(base64, 'base64'));
+    const file = nameFor(size);
+    if (!base64) die(`${file} 没画出来`);
+    writeFileSync(path.join(dir, file), Buffer.from(base64, 'base64'));
   }
   console.log(`已写入 ${rel(dir)}`);
 }
@@ -1385,13 +1401,18 @@ async function measureFile(page, file, colors, tolerances, box = null) {
  * 量的是「说了什么就验什么」，不是「命令没报错就算对」。在页面上量而不在 Node 里
  * 解 PNG：浏览器本来就认 PNG，不必为此引一个解码器。
  */
-async function checkIcons(page, dir, brand) {
+async function checkIcons(page, dir, brand, options = {}) {
+  const sizes = options.sizes ?? ICON_SIZES;
+  const ratios = options.ratios ?? ICON_CONTENT_RATIOS;
+  const nameFor = options.nameFor ?? ((size) => `${size}.png`);
+
   console.log(`\n核对 ${rel(dir)}：`);
   let failed = 0;
-  for (const size of ICON_SIZES) {
-    const file = path.join(dir, `${size}.png`);
+  for (const size of sizes) {
+    const filename = nameFor(size);
+    const file = path.join(dir, filename);
     if (!existsSync(file)) {
-      console.log(`  ✗ ${size}.png 缺失`);
+      console.log(`  ✗ ${filename} 缺失`);
       failed++;
       continue;
     }
@@ -1401,14 +1422,14 @@ async function checkIcons(page, dir, brand) {
       { accent: brand.accent, letter: brand.onAccent },
       { accent: 12, letter: 24 },
     );
-    const contentRatio = ICON_CONTENT_RATIOS[size] ?? 1;
+    const contentRatio = ratios[size] ?? 1;
     const { problems, accentRatio, offset } = judgeIcon(size, measured, contentRatio);
     // 字母墨迹高度：判断工具栏上认不认得出，看的就是这个数（图形范围只是前提）
     const letterBox = measured.colors.letter;
     const letterInk = letterBox.pixels > 0 ? letterBox.bottom - letterBox.top + 1 : 0;
     console.log(
       [
-        `  ${problems.length === 0 ? '✓' : '✗'} ${String(size).padStart(3)}.png`,
+        `  ${problems.length === 0 ? '✓' : '✗'} ${filename}`,
         `图形 ${measured.bounds.left}..${measured.bounds.right}（占 ${(contentRatio * 100).toFixed(0)}%）`,
         `主题色 ${(accentRatio * 100).toFixed(1)}%`,
         `字母墨迹 ${String(letterInk).padStart(3)}px`,
@@ -1418,7 +1439,7 @@ async function checkIcons(page, dir, brand) {
     for (const problem of problems) console.log(`      ${problem}`);
     if (problems.length > 0) failed++;
   }
-  if (failed > 0) die(`\n${failed} 个尺寸没通过核对。`);
+  if (failed > 0) die(`\n${failed} 个图没通过核对。`);
   console.log('  全部通过。');
 }
 
@@ -1561,7 +1582,9 @@ async function previewIcons(page, dir, brand) {
  * 旧脚本（make-store-assets.mjs，77a2c46 删除）写死的是上一套配色：墨绿 #0f766e、
  * 墨 #101828、纸 #f7f9fb、线 #ccd2d9——这些值现在的 tokens.css 里一个都没有，
  * 所以那批图不只是旧，是整体换了主题。色值一律现读 tokens.css，理由同图标那节。
- * 旧脚本还出一张 300x300 徽标，现行规范里没有这个尺寸，Ryan 2026-10-17 确认不要。
+ * 旧脚本也出过一张 300x300 徽标。Chrome 商店没有这个尺寸，但 Edge 加载项的
+ * 商店 logo 建议 300x300（1:1），所以现在与 128 商店图一起生成；两者都不进
+ * manifest，只作为后台上传素材（见 STORE_ICON_SPECS）。
  * 页面截图也不在这里：那几张要真实登录态，Ryan 2026-10-17 确认本次不做。
  */
 
@@ -1715,7 +1738,18 @@ async function cmdStore(opts) {
       letterRatio: ICON_LETTER_RATIO,
     });
 
+    /*
+     * 商店上传图与促销磁贴落同一个目录：清单图标是满幅的（见文件头），
+     * 商店列表按规范需要那张 96+16 留白的 128，Edge 的 logo 要 300 满幅。
+     */
+    const storeIcons = {
+      sizes: STORE_ICON_SPECS.map((spec) => spec.size),
+      ratios: Object.fromEntries(STORE_ICON_SPECS.map((spec) => [spec.size, spec.ratio])),
+      nameFor: (size) => `store-icon-${size}.png`,
+    };
+
     if (!opts.check) {
+      await drawIcons(page, STORE_DIR, brand, storeIcons);
       mkdirSync(STORE_DIR, { recursive: true });
       for (const tile of STORE_TILES) {
         const layout = drawn[tile.name];
@@ -1730,6 +1764,7 @@ async function cmdStore(opts) {
       console.log(`已写入 ${rel(STORE_DIR)}（文案：${STORE_TITLE} / ${STORE_SUBTITLE}）`);
     }
 
+    await checkIcons(page, STORE_DIR, brand, storeIcons);
     await checkTiles(page, brand, drawn);
   });
 }
@@ -1861,9 +1896,9 @@ const USAGE = `用法：pnpm probe <命令> [选项]
                                          生成扩展图标 → apps/extension/public/icon/
                                          （色值与字体现读 tokens.css；--check 只核对不生成；
                                            --preview 另出对照图 → .probe/shots/icon-preview.png）
-  store [--check]                        生成商店促销磁贴 → apps/extension/.output/store/
-                                          （440x280 与 1400x560；色值与字体现读 tokens.css；
-                                           --check 只核对不生成）
+  store [--check]                        生成商店上传图与促销磁贴 → apps/extension/.output/store/
+                                          （store-icon-128/300 与 440x280/1400x560；
+                                           色值与字体现读 tokens.css；--check 只核对不生成）
   shot --url <URL> [--out <文件>]        截图（--out 同上，只认 .probe/ 内的相对路径；缺省 .probe/shot-<时间戳>.png）
   kill                                   关闭探测浏览器
 `;

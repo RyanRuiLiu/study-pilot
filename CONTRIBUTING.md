@@ -96,12 +96,13 @@
 3. `pnpm build && pnpm --filter @study-pilot/extension zip` →
    `apps/extension/.output/study-pilot-extension-<版本>-chrome.zip`，manifest.json 在压缩包根目录。
 4. `pnpm e2e`：无头 Chromium 装载 `chrome-mv3/`，确认 service worker、popup、options 无页面异常。
-5. `pnpm probe icon --check` 核对图标未过期；`pnpm probe store` 生成两张商店磁贴
-   （`apps/extension/.output/store/`，440x280 必填、1400x560 精选位）。
+5. `pnpm probe icon --check` 核对 manifest 图标未过期；`pnpm probe store` 生成商店上传图
+   （`store-icon-128.png` 带 96+16 留白、`store-icon-300.png` 给 Edge logo）与两张促销磁贴
+   （440x280 必填、1400x560 精选位），都在 `apps/extension/.output/store/`。
 6. 上传 zip 到开发者后台；同一份 zip 归档到 `apps/extension/releases/`（git 忽略，只作回看）。
 
 **GitHub Release**：把版本抬好、主分支门禁绿了之后，推一个 `v<版本>` 标签即可
-（例：`git tag -a v0.3.4 -m "v0.3.4" && git push origin v0.3.4`）。
+（例：`git tag -a v0.3.5 -m "v0.3.5" && git push origin v0.3.5`）。
 `.github/workflows/release.yml` 会在标签上重跑 lint / typecheck / 全部测试 /
 构建 / 无头冒烟，用仓库自带的 `GITHUB_TOKEN` 建 Release，并附上扩展 zip 与
 CLI 单文件；标签版本与 `apps/extension/package.json` 不一致时发布会直接失败。
