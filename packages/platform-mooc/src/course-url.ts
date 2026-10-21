@@ -127,8 +127,8 @@ export function parseWorkLocation(href: string): WorkLocation {
  *
  * 课程页内部用 hash 路由，实测页面上的链接形如：
  *
- *   <a href="#/learn/quiz?id=9000000018">   测验
- *   <a href="#/learn/hw?id=9000000017">     作业
+ *   <a href="#/learn/quiz?id=1258000000">   测验
+ *   <a href="#/learn/hw?id=1258000001">     作业
  *
  * 其中的 id 就是接口返回的 testId（作业的互评也在 hw 页面里进行）。
  *

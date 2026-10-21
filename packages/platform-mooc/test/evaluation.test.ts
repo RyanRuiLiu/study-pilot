@@ -1,7 +1,7 @@
 /*
  * 互评进度解析测试。
  *
- * 样本是实测抓取的真实响应（示例课程子第三单元 testId 9000000021）。
+ * 形态取自实测抓取的真实响应（id 与课程名已换成合成样例）。
  *
  * 互评的完成条件由平台给出，即 totalEvaluateCount。页面上对应
  * 「请至少为5份 作业进行评分；不评或者少评都会直接影响 作业成绩和证书发放」。
@@ -18,10 +18,10 @@ const EVALUATE_DETAIL = [
   '//#DWR-REPLY',
   'var s0=[];var s4={};var s5={};var s1={};var s2={};var s3={};s0[0]=s4;s0[1]=s5;',
   's4.answerformId=9000000042;s4.evaluateId=9000000033;s4.evaluateJudgeType=2;',
-  's4.evaluatorId=1;s4.origScore=100.0;s4.status=2;s4.testId=9000000021;',
+  's4.evaluatorId=1;s4.origScore=100.0;s4.status=2;s4.testId=1258000000;',
   's5.answerformId=9000000043;s5.evaluateId=9000000035;s5.evaluateJudgeType=2;',
-  's5.evaluatorId=1;s5.origScore=100.0;s5.status=2;s5.testId=9000000021;',
-  's1.id=9000000021;s1.name="\\u7B2C\\u4E09\\u5355\\u5143 \\u5355\\u5143\\u4F5C\\u4E1A";',
+  's5.evaluatorId=1;s5.origScore=100.0;s5.status=2;s5.testId=1258000000;',
+  's1.id=1258000000;s1.name="\\u7B2C\\u4E09\\u5355\\u5143 \\u5355\\u5143\\u4F5C\\u4E1A";',
   's2.answerformId=9000000045;s2.evaluateId=9000000032;s2.evaluateJudgeType=3;s2.status=1;',
   's3.answerformId=9000000044;s3.evaluateId=9000000034;s3.evaluateJudgeType=2;s3.status=1;',
   "dwr.engine._remoteHandleCallback('1790365791170','0',{completedEvaluates:s0,enoughAnswer:true,",

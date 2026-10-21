@@ -176,7 +176,7 @@ describe('有键路径', () => {
     });
   });
 
-  it('没有 userId / 没有题号 → 照常交卷，但如实记「未过神谕」', async () => {
+  it('没有 userId → 照常交卷，但如实记「未过神谕」', async () => {
     const { client, names } = recordingClient({
       examDoHomework: { rt: PAPER },
       examSaveAnswer: { rt: { statu: '1' } },

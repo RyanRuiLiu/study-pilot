@@ -123,7 +123,7 @@ function toWork(
  * 与考试列表页的分组一致。
  *
  * 名称优先取 part 上的：实测两者不同——考试叫「期末测试」，
- * 而它的客观题部分叫「示例课程子期末网络测试」。后者才是答卷页上显示的名字，
+ * 而它的客观题部分叫「示例课程期末网络测试」。后者才是答卷页上显示的名字，
  * 也是用户能对上号的那个。
  */
 function examToWork(part: WorkTest, exam: RawExam, isObjective: boolean): CourseWork | null {
@@ -140,7 +140,7 @@ function examToWork(part: WorkTest, exam: RawExam, isObjective: boolean): Course
      *
      * 明细行把归属名与名称拼起来显示（「第3章 · 单元作业」），
      * 而考试的两级名字几乎重复：考试叫「期末考试预演」、它的主观题部分
-     * 叫「示例课程戊期末考试预演」，拼出来是「期末考试预演 · 示例课程戊期末考试预演」。
+     * 叫「示例课期末考试预演」，拼出来是「期末考试预演 · 示例课期末考试预演」。
      * 部分名更具体、更能对上号，因此只显示它。
      */
     chapterName: '',

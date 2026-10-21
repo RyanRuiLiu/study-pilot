@@ -14,8 +14,8 @@ import { createMoocClient } from '../src/client.ts';
 import { answerAndSubmitQuiz } from '../src/quiz.ts';
 import type { QuizPaper } from '../src/types.ts';
 
-const TID = 9000000016;
-const TERM_ID = 9000000029;
+const TID = 1247000000;
+const TERM_ID = 1476000000;
 const TOKEN = 'test-token';
 
 function paper(overrides: Partial<QuizPaper> = {}): QuizPaper {

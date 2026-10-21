@@ -14,7 +14,7 @@
  *              发送顺序一致的近似：实测（2026-10-17）以此口径读过
  *              queryShareCourseInfo / c/has / lessonPopupExam 三族接口，全部 200。
  *
- * 出站请求头不在这一层：命令行没有 declarativeNetRequest，改由 fetch.ts 按平台出。
+ * 出站请求头不在这一层：命令行没有 declarativeNetRequest，改由 header-fetch.ts 按平台出。
  */
 
 import { readFileSync } from 'node:fs';

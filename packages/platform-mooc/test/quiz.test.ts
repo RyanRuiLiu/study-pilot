@@ -21,26 +21,26 @@ function paper(): QuizPaper {
         id: 700000001,
         type: 1,
         optionDtos: [
-          { id: 90000000000001, content: '甲', answer: true },
-          { id: 900000000000001, content: '乙', answer: false },
-          { id: 900000000000002, content: '丙', answer: false },
+          { id: 91000000000001, content: '甲', answer: true },
+          { id: 191000000000001, content: '乙', answer: false },
+          { id: 291000000000001, content: '丙', answer: false },
         ],
       },
       {
         id: 700000002,
         type: 2,
         optionDtos: [
-          { id: 90000000000002, content: '甲', answer: true },
-          { id: 90000000000004, content: '乙', answer: true },
-          { id: 90000000000003, content: '丙', answer: false },
+          { id: 91000000000004, content: '甲', answer: true },
+          { id: 91000000000005, content: '乙', answer: true },
+          { id: 91000000000006, content: '丙', answer: false },
         ],
       },
       {
         id: 700000003,
         type: 4,
         optionDtos: [
-          { id: 18755666866460, content: '正确', answer: true },
-          { id: 118755666866460, content: '错误', answer: false },
+          { id: 91000000000007, content: '正确', answer: true },
+          { id: 191000000000007, content: '错误', answer: false },
         ],
       },
       { id: 700000004, type: 3, optionDtos: null, stdAnswer: '时间' },
@@ -63,11 +63,11 @@ describe('buildAnswers（答案来自卷面自身）', () => {
     buildAnswers(target, { now: 1700000000000 });
     const byQid = new Map(target.answers!.map((answer) => [answer.qid, answer]));
 
-    expect(byQid.get(700000001)!.optIds).toEqual([90000000000001]);
+    expect(byQid.get(700000001)!.optIds).toEqual([91000000000001]);
     // 多选：全部正确项都选上
     expect(byQid.get(700000002)!.optIds).toHaveLength(2);
     // 判断：一个
-    expect(byQid.get(700000003)!.optIds).toEqual([18755666866460]);
+    expect(byQid.get(700000003)!.optIds).toEqual([91000000000007]);
     for (const answer of target.answers!) {
       if (answer.qid !== 700000004) expect(answer.time).toBe(1700000000000);
     }
@@ -155,37 +155,37 @@ describe('题库补答案（resolveAnswers）', () => {
   it('填空类：按「同卷题号」取 stdAnswer，多个可接受答案取第一个', () => {
     const bank: PaperQuestion[] = [
       // 同卷（testId=777）+ 题号 6：库中带同义答案
-      { id: 9000000023, type: 3, testId: 777, position: 6, stdAnswer: '示例选项庚' },
+      { id: 9000000101, type: 3, testId: 777, position: 6, stdAnswer: '示例答案甲##%_YZPRLFH_%##示例答案乙' },
       // 别的卷的同一道题（testId 不同）：不得采用
-      { id: 9000000022, type: 3, testId: 555, position: 6, stdAnswer: '别的卷的答案' },
+      { id: 9000000102, type: 3, testId: 555, position: 6, stdAnswer: '别的卷的答案' },
     ];
     const questions: PaperQuestion[] = [
-      { id: 9000000038, type: 3, position: 6, optionDtos: [], stdAnswer: null },
+      { id: 9000000103, type: 3, position: 6, optionDtos: [], stdAnswer: null },
     ];
 
     const resolved = resolveAnswers(questions, bank, 777);
 
-    expect(resolved[0]!.stdAnswer).toBe('马其诺');
+    expect(resolved[0]!.stdAnswer).toBe('示例答案甲');
   });
 
   it('题型与键都对不上时不编答案（题干相同也不算数——不做文本匹配）', () => {
     const bank: PaperQuestion[] = [
       // 题干完全相同，但 testId 不是本卷、position 也不同
       {
-        id: 9000000024,
+        id: 9000000105,
         type: 3,
         testId: 555,
         position: 9,
-        plainTextTitle: '示例填空题甲（ ）万平方公里。',
-        stdAnswer: '300',
+        plainTextTitle: '示例填空题能力（ ）。',
+        stdAnswer: '示例答案',
       },
     ];
     const questions: PaperQuestion[] = [
       {
-        id: 9000000039,
+        id: 9000000104,
         type: 3,
         position: 7,
-        plainTextTitle: '示例填空题甲（ ）万平方公里。',
+        plainTextTitle: '示例填空题能力（ ）。',
         optionDtos: [],
         stdAnswer: null,
       },
@@ -230,7 +230,7 @@ describe('题库补答案（resolveAnswers）', () => {
           { id: 302, answer: true },
         ],
       },
-      { id: 9002, type: 3, testId: TID, position: 1, stdAnswer: '示例选项辛' },
+      { id: 9002, type: 3, testId: TID, position: 1, stdAnswer: '示例答案甲##%_YZPRLFH_%##示例答案乙' },
     ];
 
     target.objectiveQList = resolveAnswers(target.objectiveQList ?? [], bank, TID);
@@ -244,7 +244,7 @@ describe('题库补答案（resolveAnswers）', () => {
         qid: 22,
         type: 3,
         optIds: null,
-        content: { content: '自卫', attachments: null },
+        content: { content: '示例答案甲', attachments: null },
         time: expect.any(Number),
       },
     ]);

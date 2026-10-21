@@ -73,7 +73,7 @@ describe('课程结构的未登录形态', () => {
     const client = clientWith({
       'getLastLearnedMocTermDto': { code: 0, message: '', result: null },
     });
-    const result = await getCourseStructure(client, 9000000026);
+    const result = await getCourseStructure(client, 1400000001);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('auth');
   });
@@ -83,10 +83,10 @@ describe('课程结构的未登录形态', () => {
       'getLastLearnedMocTermDto': {
         code: 0,
         message: '',
-        result: { mocTermDto: { id: 9000000026, chapters: [], exams: [] } },
+        result: { mocTermDto: { id: 1400000001, chapters: [], exams: [] } },
       },
     });
-    const result = await getCourseStructure(client, 9000000026);
+    const result = await getCourseStructure(client, 1400000001);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.works).toEqual([]);
   });

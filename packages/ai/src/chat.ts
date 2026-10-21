@@ -1,7 +1,8 @@
 /**
  * OpenAI 兼容的对话调用。
  *
- * 只认一种协议：`POST {baseUrl}/v1/chat/completions`，`Authorization: Bearer <密钥>`，
+ * 只认一种协议：`POST {baseUrl}/chat/completions`（地址末尾已带 `/v<N>` 时直接接上，
+ * 否则补 `/v1`，见 endpoint.ts），`Authorization: Bearer <密钥>`，
  * 取 `choices[0].message.content`。
  *
  * 三个入参里只有**模型与密钥**来自用户在设置页填的那两格；`baseUrl` 不是用户填的——

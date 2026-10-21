@@ -71,8 +71,11 @@ export interface MoocRuntime {
 /**
  * 当前勾选参与任务的课程。
  *
- * 只取已勾选且带完整定位信息的：拼跳转地址需要 courseId 与 schoolShortName，
- * 缺了它们的课程能读但点不进去，列出来只会让用户多点一次空链接。
+ * 只取已勾选且已选课的：平台只对已选课给结构（见 structure.ts）。
+ * 旧记录没有 hasEnroll 字段，按 true 处理。定位字段（courseId /
+ * schoolShortName）不在这里筛：结构读取只认 termId，而 v2/v4 的存量课
+ * 可能只存了 termId——筛掉它等于删掉用户的勾选。缺定位字段时跳转地址
+ * 拼不完整，按 config/index.ts 的校验说明留给显示层。
  */
 export function selectedCourses(settings: Settings): InspectCourse[] {
   return settings.mooc.courses

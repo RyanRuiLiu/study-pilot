@@ -29,7 +29,7 @@ const OBJECT_OK = [
   '//#DWR-INSERT',
   '//#DWR-REPLY',
   'var s0={};var s1={};var s4={};s1.needEvaluateHomework=s4;',
-  's4.testId=9000000021;s4.name="\\u4F5C\\u4E1A";',
+  's4.testId=1258000000;s4.name="\\u4F5C\\u4E1A";',
   "dwr.engine._remoteHandleCallback('456','0',{latestUnit:s0,upcoming:s1});",
   '',
 ].join('\r\n');

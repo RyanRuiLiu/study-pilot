@@ -659,7 +659,7 @@ describe('runReview：自动完成一份作业的互评', () => {
     expect(result.detail).toBe('取待评答卷失败：分配接口 500');
   });
 
-  it('取待评答卷失败、已评了一部分：算 done，并说明后续失败', async () => {
+  it('取待评答卷失败、已评了一部分：failed，但 detail 记下已评几份', async () => {
     readyToReview({ required: 3, completed: 0, remaining: 3 });
     vi.mocked(nextSubmission)
       .mockResolvedValueOnce(ok(nextOf(11)))
@@ -684,7 +684,7 @@ describe('runReview：自动完成一份作业的互评', () => {
     expect(result.detail).toBe('提交互评失败：评分接口 400');
   });
 
-  it('提交互评失败、已评了一部分：算 done，并说明后续失败', async () => {
+  it('提交互评失败、已评了一部分：failed，但 detail 记下已评几份', async () => {
     readyToReview({ required: 3, completed: 0, remaining: 3 });
     vi.mocked(nextSubmission)
       .mockResolvedValueOnce(ok(nextOf(11)))
