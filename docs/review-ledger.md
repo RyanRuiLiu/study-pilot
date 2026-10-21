@@ -96,8 +96,8 @@
 | apps/extension/src/features/mooc/quiz/actions.ts | 已读 |
 | apps/extension/src/features/mooc/quiz/data.ts | 已读 |
 | apps/extension/src/features/mooc/quiz/index.ts | 已读 |
-| apps/extension/src/features/mooc/quiz/options.ts | 待读 |
-| apps/extension/src/features/mooc/quiz/panel.ts | 待读 |
+| apps/extension/src/features/mooc/quiz/options.ts | 已读 |
+| apps/extension/src/features/mooc/quiz/panel.ts | 已读 |
 | apps/extension/src/features/mooc/selectors.ts | 待读 |
 | apps/extension/src/keys.ts | 已读 |
 | apps/extension/src/messages.ts | 已读 |
@@ -127,6 +127,7 @@
 | apps/extension/test/tabs.test.ts | 已读 |
 | apps/extension/test/run-once.test.ts | 已读 |
 | apps/extension/test/run-state.test.ts | 已读 |
+| apps/extension/test/panel-info.test.ts | 已读 |
 | apps/extension/test/node-live.test.ts | 待读 |
 | apps/extension/test/options.test.ts | 待读 |
 | apps/extension/test/popup-status.test.ts | 待读 |
@@ -306,4 +307,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：296 个文件；已读 86，部分 22，待读 188。
+合计：297 个文件；已读 89，部分 22，待读 186。

@@ -281,7 +281,13 @@ export async function loadPanelInfo(panel: ActivePanel): Promise<void> {
   if (panel.infoLoaded) return;
   panel.infoLoaded = true;
 
-  const info = await loadQuizInfo(panel.options.quizId);
+  let info: QuizInfo | null;
+  try {
+    info = await loadQuizInfo(panel.options.quizId);
+  } catch {
+    // 信息行是附加信息（总分），取不到就不显示：不让一次 reject 变成未处理异常
+    return;
+  }
   if (info === null) return;
   if (!document.getElementById(PANEL_ID)) return;
 
