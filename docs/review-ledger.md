@@ -207,7 +207,7 @@
 | packages/platform-mooc/src/endpoints.ts | 已读 |
 | packages/platform-mooc/src/evaluation-items.ts | 已读 |
 | packages/platform-mooc/src/homework-read.ts | 已读 |
-| packages/platform-mooc/src/index.ts | 待读 |
+| packages/platform-mooc/src/index.ts | 已读 |
 | packages/platform-mooc/src/paper-types.ts | 已读 |
 | packages/platform-mooc/src/policy/assembly.ts | 部分 |
 | packages/platform-mooc/src/policy/course-selection.ts | 已读 |
@@ -232,7 +232,7 @@
 | packages/platform-mooc/src/quiz.ts | 已读 |
 | packages/platform-mooc/src/review.ts | 已读 |
 | packages/platform-mooc/src/structure.ts | 待读 |
-| packages/platform-mooc/src/types.ts | 待读 |
+| packages/platform-mooc/src/types.ts | 已读 |
 | packages/platform-mooc/src/work-status.ts | 已读 |
 | packages/platform-mooc/test/answer-submit.test.ts | 待读 |
 | packages/platform-mooc/test/course-selection.test.ts | 待读 |
@@ -310,4 +310,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：300 个文件；已读 158，部分 17，待读 125。
+合计：300 个文件；已读 160，部分 17，待读 123。

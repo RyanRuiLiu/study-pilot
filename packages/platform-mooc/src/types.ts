@@ -188,7 +188,7 @@ export interface CourseStructure {
 export interface WorkFlags {
   /** 支持互评：`enableEvaluation === true` 且 `evaluateJudgeType != null` */
   reviewable: boolean;
-  /** 已提交过：`usedTryCount > 0` 或 `userScore != null` */
+  /** 已提交过：`usedTryCount > 0`、`userSubmitStatus > 0`（考试用）或已有得分 */
   submitted: boolean;
   /** 互评窗口尚未关闭 */
   reviewOpen: boolean;
