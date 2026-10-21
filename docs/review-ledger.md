@@ -137,6 +137,10 @@
 | apps/extension/test/tokens-parity.test.ts | 已读 |
 | apps/extension/test/zhs-course-tasks.test.ts | 已读 |
 | apps/extension/test/zhs-quizzes.test.ts | 已读 |
+| apps/extension/test/courseware-rows.test.ts | 已读 |
+| apps/extension/test/popup-stop.test.ts | 已读 |
+| apps/extension/test/quiz-fill.test.ts | 已读 |
+| apps/extension/test/zhs-task-rows.test.ts | 已读 |
 | apps/extension/tsconfig.json | 已读 |
 | apps/extension/vitest.config.ts | 已读 |
 | apps/extension/wxt.config.ts | 已读 |
@@ -310,7 +314,7 @@
 | scripts/probe/probe.mjs | 已读 |
 | tsconfig.base.json | 已读 |
 
-合计：300 个文件；已读 300，部分 0，待读 0。
+合计：304 个文件；已读 304，部分 0，待读 0。
 
 `pnpm-lock.yaml` 是生成的产物，没有「逐行读」的语义；它的核对方式是
 `pnpm install --frozen-lockfile`（锁文件与各 package.json 的 workspace 边一致、

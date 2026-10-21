@@ -54,6 +54,8 @@ function doc(): Document {
 
 beforeEach(() => {
   initToast(doc().getElementById('toast') as unknown as HTMLElement);
+  const status = doc().getElementById('ai-status');
+  if (status) status.textContent = '';
   for (const fn of Object.values(bridge)) fn.mockReset();
   bridge.getSettings.mockResolvedValue(SETTINGS);
   bridge.updateSettings.mockResolvedValue(SETTINGS);
@@ -75,6 +77,40 @@ describe('设置页的写失败', () => {
     await vi.waitFor(() =>
       expect(doc().getElementById('toast')?.textContent).toContain('未能保存评语'),
     );
+  });
+
+  it('保存成功：把规范化后的值写回输入框（空模型退回默认）', async () => {
+    await renderParams();
+    const normalized = {
+      ...SETTINGS,
+      ai: { ...SETTINGS.ai, model: 'glm-4-flash' },
+    };
+    bridge.updateSettings.mockResolvedValueOnce(normalized);
+    const model = doc().getElementById('ai-model') as unknown as HTMLInputElement;
+    model.value = '';
+    model.dispatchEvent(new window.Event('change'));
+
+    await vi.waitFor(() => expect(model.value).toBe('glm-4-flash'));
+  });
+
+  it('保存期间用户又改了模型：回包不覆盖新输入', async () => {
+    await renderParams();
+    let resolve!: (value: unknown) => void;
+    const pending = new Promise((ok) => {
+      resolve = ok;
+    });
+    bridge.updateSettings.mockReturnValueOnce(pending as never);
+    const model = doc().getElementById('ai-model') as unknown as HTMLInputElement;
+
+    model.value = 'first';
+    model.dispatchEvent(new window.Event('change'));
+    model.value = 'second';
+
+    resolve({ ...SETTINGS, ai: { ...SETTINGS.ai, model: 'first' } });
+    // 让 saveAi 的 await 与回写分支跑完
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(model.value).toBe('second');
   });
 
   it('AI 设置保存失败：状态位说「未能保存 AI 设置」', async () => {

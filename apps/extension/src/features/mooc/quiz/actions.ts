@@ -19,7 +19,7 @@
 import { sendToBackground } from '../../../messages.ts';
 import { loadFillAnswers } from './data.ts';
 import { collectQuestions, optionIdOf } from './options.ts';
-import { setBusy, type ActivePanel } from './panel.ts';
+import { PANEL_ID, setBusy, type ActivePanel } from './panel.ts';
 
 /**
  * 两次写之间的安全间隔，单位为毫秒。
@@ -35,6 +35,17 @@ const WRITE_GAP_MS = 300;
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => window.setTimeout(resolve, ms));
+
+/**
+ * 这次动作还是否对着同一份卷、面板还在页面上。
+ *
+ * 取答案与逐题写都隔着网络/间隔；期间用户可能换了测验（hash 路由不重载文档）
+ * 或离开了作答页。不检查就会把上一份卷的答案点进新页面，或者对着已经拆掉的
+ * 面板继续写状态。
+ */
+function stillOnQuiz(panel: ActivePanel, quizId: number): boolean {
+  return panel.options.quizId === quizId && document.getElementById(PANEL_ID) !== null;
+}
 
 /**
  * 把答案写进填空题的 textarea，返回是否真的写进去了。
@@ -75,6 +86,7 @@ export async function fill(panel: ActivePanel): Promise<void> {
 
   try {
     const loaded = await loadFillAnswers(quizId, termId);
+    if (!stillOnQuiz(panel, quizId)) return;
     if (!loaded.ok) {
       // 取数失败如实说（例如平台限流）：不吞错、不伪装成「没有答案」
       panel.handle.setStatus(`读取答案失败：${loaded.message}`);
@@ -83,6 +95,7 @@ export async function fill(panel: ActivePanel): Promise<void> {
     const { options, blanks } = loaded.value;
 
     let clicked = 0;
+    let kept = 0;
     let typed = 0;
     let unrecognized = 0;
     let blankCursor = 0;
@@ -91,6 +104,9 @@ export async function fill(panel: ActivePanel): Promise<void> {
     const total = questions.length;
 
     for (const [i, question] of questions.entries()) {
+      // 换卷/离开作答页：立刻停手，别把上一份卷的答案写进新页面
+      if (!stillOnQuiz(panel, quizId)) return;
+
       // 填空题：答案按显示顺序对（页面是 textarea，没有 id 可查）
       if (question.inputs.length === 0 && question.blank !== null) {
         const answer = blanks[blankCursor] ?? null;
@@ -126,7 +142,11 @@ export async function fill(panel: ActivePanel): Promise<void> {
 
       panel.handle.setStatus(`正在作答：第 ${i + 1} / ${total} 题`);
       for (const input of correct) {
-        if (input.checked) continue;
+        if (!stillOnQuiz(panel, quizId)) return;
+        if (input.checked) {
+          kept++;
+          continue;
+        }
         input.click();
         clicked++;
         // 页面会为这次点击发起一次保存，间隔足够才能避开服务端的时间窗口
@@ -134,7 +154,12 @@ export async function fill(panel: ActivePanel): Promise<void> {
       }
     }
 
-    const parts = [`共 ${total} 题`, `已选中 ${clicked} 项`];
+    /*
+     * 已经选中的正确项也算「选好了」。只报新点击的次数，在第二次点填充时
+     * 会显示「已选中 0 项」——看起来像什么都没发生，而题目其实已经答好。
+     */
+    const selected = clicked + kept;
+    const parts = [`共 ${total} 题`, `已选中 ${selected} 项${kept > 0 ? `（其中 ${kept} 项原本已选）` : ''}`];
     if (typed > 0) parts.push(`已填 ${typed} 个填空`);
     if (failed.length > 0) parts.push(`第 ${failed.join('、')} 题填空没写进去`);
     if (missing.length > 0) parts.push(`第 ${missing.join('、')} 题没有答案`);
@@ -170,6 +195,8 @@ export async function submit(panel: ActivePanel): Promise<void> {
 
   try {
     const outcome = await sendToBackground({ type: 'MOOC_QUIZ_SUBMIT', tid: quizId, termId });
+    // 请求已经发出（不可撤回），但页面若已换卷/离开，就不该再刷新当前页面
+    if (!stillOnQuiz(panel, quizId)) return;
     if (outcome.status !== 'ok') {
       panel.handle.setStatus(outcome.message);
       return;

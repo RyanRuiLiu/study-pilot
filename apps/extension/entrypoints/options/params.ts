@@ -60,10 +60,14 @@ export async function renderParams(): Promise<void> {
    * 不该进存储——那是每次互评都会提交出去的措辞。
    */
   comment.addEventListener('change', () => {
-    void updateSettings({ mooc: { reviewComment: comment.value } })
+    const sent = comment.value;
+    void updateSettings({ mooc: { reviewComment: sent } })
       .then((next) => {
-        // 留空会退回默认评语（normalize 的兜底），把兜底后的值写回输入框
-        comment.value = next.mooc.reviewComment;
+        /*
+         * 留空会退回默认评语（normalize 的兜底），把兜底后的值写回输入框。
+         * 只在这期间用户没再改过时回写——否则会把刚输入的新字擦掉。
+         */
+        if (comment.value === sent) comment.value = next.mooc.reviewComment;
         toast('评语已保存');
       })
       .catch((error: unknown) => {
@@ -73,16 +77,34 @@ export async function renderParams(): Promise<void> {
   });
 
   /** 保存 AI 三项；失败写进状态位并返回 null（调用方据此中止后续动作）。 */
+  let saveErrorShown = false;
   const saveAi = async () => {
+    const sent = {
+      enabled: enabled.checked,
+      model: model.value.trim(),
+      apiKey: apiKey.value.trim(),
+    };
     try {
-      return await updateSettings({
-        ai: {
-          enabled: enabled.checked,
-          model: model.value.trim(),
-          apiKey: apiKey.value.trim(),
-        },
-      });
+      const next = await updateSettings({ ai: sent });
+      /*
+       * 写回落库后的值：normalize 会 trim、空模型退回默认。不回写的话输入框
+       * 显示的是「空」，而实际存的是默认模型——下次打开设置页又变回来，
+       * 中间这段界面与存储说的不是一件事。
+       *
+       * 逐格只在用户没改过时才回写：请求期间他可能已经在另一个框里输入了
+       * 下一笔，整份覆盖会把它擦掉。
+       */
+      if (enabled.checked === sent.enabled) enabled.checked = next.ai.enabled;
+      if (model.value.trim() === sent.model) model.value = next.ai.model;
+      if (apiKey.value.trim() === sent.apiKey) apiKey.value = next.ai.apiKey;
+      // 上一次没存上的提示不能继续挂着——这次已经存上了
+      if (saveErrorShown) {
+        saveErrorShown = false;
+        setStatus('', false);
+      }
+      return next;
     } catch (error) {
+      saveErrorShown = true;
       setStatus(`未能保存 AI 设置：${errorText(error)}`, true);
       return null;
     }

@@ -2,7 +2,8 @@
  * 扩展弹窗（入口）。
  *
  * 数据来源：
- *   状态行   后台的 getTaskState（本地状态，不联网）+ 运行状态的推送——全局，不分 tab
+ *   状态行   后台的 getTaskState（本地状态，不联网）+ 运行状态的推送；
+ *            按当前 tab 的平台呈现（两家的状态互相独立）
  *   待办     当前 tab 的平台现读现算：能替你做的那部分标出来，其余交给你
  *
  * 平台 tab（慕课/智慧树）由 src/ui/tabs.ts 装配：打开只读默认平台的那一家，
@@ -40,12 +41,23 @@ import { renderZhsTodo } from './zhihuishu-todo.ts';
 
 /** 当前 tab 的平台（'mooc' / 'zhihuishu'）：执行范围与收尾重读都按它分流。 */
 let currentPlatform = 'mooc';
+/** 别家跑完、但这家的清单还没重读（切回去时补一次，不拿运行前的数据充数）。 */
+const dirty = new Set<string>();
+
+function renderFor(platformId: string): void {
+  void (platformId === 'zhihuishu' ? renderZhsTodo() : renderTodo());
+}
 
 async function init(): Promise<void> {
   watchRunState();
-  // 执行结束后重读当前 tab 的清单（切过 tab 就以新 tab 为准）
-  setFollowIdleHandler(() => {
-    void (currentPlatform === 'zhihuishu' ? renderZhsTodo() : renderTodo());
+  /*
+   * 执行结束后重读**跑完的那一家**的清单。别处发起的轮次可能在当前 tab 之外
+   * （开着弹窗切去看另一家，这一家跑完了）——那时记成脏，切回去再读；
+   * 只重读当前 tab 会把另一家的旧清单留在页面上。
+   */
+  setFollowIdleHandler((platformId) => {
+    if (platformId === currentPlatform) renderFor(platformId);
+    else dirty.add(platformId);
   });
 
   /*
@@ -57,8 +69,8 @@ async function init(): Promise<void> {
 
   await initTabs({
     onFirstActivate: (id) => {
-      if (id === 'mooc') void renderTodo();
-      if (id === 'zhihuishu') void renderZhsTodo();
+      dirty.delete(id);
+      if (id === 'mooc' || id === 'zhihuishu') renderFor(id);
     },
     onActivate: (id) => {
       if (id === 'mooc' || id === 'zhihuishu') currentPlatform = id;
@@ -66,6 +78,15 @@ async function init(): Promise<void> {
       setStatusPlatform(currentPlatform);
       // 「全部执行」作用于当前 tab 的平台；两个平台都已有可执行内容
       setRunScope(id === 'mooc' || id === 'zhihuishu');
+      /*
+       * 切回一个「别家跑完时记脏」的平台：补一次重读。
+       * 放进微任务——首次激活时 onFirstActivate 紧跟着同步执行，会自己读一遍；
+       * 这里等它先清掉脏标记，避免同一份数据读两次。
+       */
+      const target = id;
+      queueMicrotask(() => {
+        if (dirty.delete(target)) renderFor(target);
+      });
     },
   });
 
@@ -80,16 +101,18 @@ async function init(): Promise<void> {
      *   智慧树：不套慕课的「待办/课件」二分（设计文档 §3 模块 5），只点名平台；
      *     它的待办现在有两类（教程视频与单元测试），两类都该被这一轮做掉。
      */
-    const scope =
-      currentPlatform === 'zhihuishu'
-        ? { platformId: 'zhihuishu' }
-        : { platformId: 'mooc', kinds: PENDING_KINDS };
+    /*
+     * 平台在点击这一刻定下：执行到一半切走 tab 时，结果句与收尾重读仍要归
+     * 发起的那一家（`currentPlatform` 在完成时可能已经变了）。
+     */
+    const platform = currentPlatform === 'zhihuishu' ? 'zhihuishu' : 'mooc';
+    const scope = platform === 'zhihuishu' ? { platformId: 'zhihuishu' } : { platformId: 'mooc', kinds: PENDING_KINDS };
     // 结果只写回发起平台的状态行（切走 tab 后那行归那家管；见 statusWriterFor）
     void runNow(
       {
-        setStatus: statusWriterFor(currentPlatform),
-        setEnabled: (enabled) => setRunning(!enabled),
-        refresh: () => (currentPlatform === 'zhihuishu' ? renderZhsTodo() : renderTodo()),
+        setStatus: statusWriterFor(platform),
+        setEnabled: (enabled) => setRunning(!enabled, platform),
+        refresh: () => (platform === 'zhihuishu' ? renderZhsTodo() : renderTodo()),
       },
       scope,
     );

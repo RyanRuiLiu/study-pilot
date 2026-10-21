@@ -97,10 +97,16 @@ export function matchQuestions(
   const everyQuestionNumbered = questions.every((question) => typeof question.position === 'number');
   const pageHasNumbers = items.some((item) => positionOf(item) !== null);
 
-  if (everyQuestionNumbered && pageHasNumbers) {
+  /*
+   * 页面有题号：只按题号配。接口那边个别题缺 position 时**不退回下标**——
+   * 那正是「一半按号、一半按顺序」的来源，会把某题的依据安到另一题上。
+   * 缺号的那几道这一轮先不注入，等页面/接口补齐后由下一次评估再对。
+   */
+  if (pageHasNumbers) {
     const byNumber = new Map<number, PaperQuestion>();
     for (const question of questions) {
-      byNumber.set((question.position as number) + 1, question);
+      if (typeof question.position !== 'number') continue;
+      byNumber.set(question.position + 1, question);
     }
 
     for (const item of items) {
@@ -113,6 +119,7 @@ export function matchQuestions(
     return matched;
   }
 
+  // 页面完全没有题号：退回展示顺序（接口带 position 时按它排序，不依赖数组顺序）
   const ordered = everyQuestionNumbered
     ? [...questions].sort((a, b) => (a.position as number) - (b.position as number))
     : questions;

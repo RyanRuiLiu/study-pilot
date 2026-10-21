@@ -3,10 +3,11 @@
  *
  * 「参与」是任务的范围：弹窗的待办与课程任务卡都只算勾选过的课程。
  *
- * 与慕课那张卡的差别：课程行没有学期时间轴可显示，课程名也不做站外链接——
- * 平台的课程入口参数（secret）只在库内使用，学习页 URL 随课程世代而异
- * （新旧两代前端域名不同），在没核实到统一形态之前不给用户一个可能打不开的链接。
- * 行内给的是平台当前进度文案（如 27.2%），那是读取时如实取回的事实。
+ * 与慕课那张卡同一形状：课程名链到平台上的页面（这里是成绩分析页），
+ * 行内给学校与开课区间。学习页入口（secret）只在库内使用、URL 随课程世代而异
+ * （新旧两代前端域名不同），因此列表里不拿它拼一个可能打不开的链接。
+ * 平台给的进度文案（如 27.2%）也不在这里转述：它与四张板块卡的组件口径时常
+ * 打架，原文只在成绩分析页有解释（见课程任务卡的对齐说明）。
  *
  * 状态行语义与慕课一致：卡头右侧只放加载完成后的状态（见 zhihuishu-status-line.ts），
  * 未登录指引与读取失败都落在列表区里说。
@@ -62,12 +63,18 @@ function buildRow(course: ZhihuishuCourse): HTMLElement {
   check.addEventListener('change', () => {
     const next = check.checked;
     row.classList.toggle('is-off', !next);
-    void toggle(course.courseId, next).catch((error: unknown) => {
-      // 与慕课同一处置：写配置失败就退回勾选并说一句
-      check.checked = !next;
-      row.classList.toggle('is-off', next);
-      toast(`未能更新参与范围：${errorText(error)}`);
-    });
+    // 与慕课同一条：读改写期间锁住，避免两次勾选交错后旧值盖掉新值
+    check.disabled = true;
+    void toggle(course.courseId, next)
+      .catch((error: unknown) => {
+        // 与慕课同一处置：写配置失败就退回勾选并说一句
+        check.checked = !next;
+        row.classList.toggle('is-off', next);
+        toast(`未能更新参与范围：${errorText(error)}`);
+      })
+      .finally(() => {
+        check.disabled = false;
+      });
   });
 
   return row;

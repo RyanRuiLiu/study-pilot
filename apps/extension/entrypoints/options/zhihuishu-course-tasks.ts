@@ -40,9 +40,18 @@ const EXEC_TITLE = '执行：完成这门课余下的待办';
 /** 运行期间的按钮集合：跑的时候全部禁掉（后台也会拒并发，这里只是别让人白点）。 */
 const buttons: HTMLButtonElement[] = [];
 
-/** 每门课那卡里的「正在执行」小字与按钮，按课程名索引；重画时整体换新。 */
-const currents = new Map<string, HTMLElement>();
-const buttonsOfCourse = new Map<string, HTMLButtonElement>();
+/**
+ * 每门课 × 板块那一行里的「正在执行」小字与按钮，按 `courseId:board` 索引；重画时整体换新。
+ *
+ * 不用课程名：同名课程（同一门课的不同学期）会让后一行覆盖前一行。
+ * 运行快照里只有课程名，匹配时仍按名字 + 板块（同名课程都在这一轮的范围里）。
+ */
+const currents = new Map<string, { courseName: string; board: string; el: HTMLElement }>();
+const buttonsOfCourse = new Map<string, { courseName: string; board: string; button: HTMLButtonElement }>();
+
+function rowKey(courseId: number, board: string): string {
+  return `${courseId}:${board}`;
+}
 
 function setStatus(text: string, tone: 'idle' | 'busy' | 'error'): void {
   if (tone === 'busy' || text === '') return;
@@ -100,7 +109,16 @@ async function renderZhsFailure(): Promise<void> {
   const actionEl = document.getElementById('zhs-tasks-action');
   if (statusEl === null || !(actionEl instanceof HTMLAnchorElement)) return;
 
-  const status = await getTaskState('zhihuishu');
+  let status: Awaited<ReturnType<typeof getTaskState>>;
+  try {
+    status = await getTaskState('zhihuishu');
+  } catch {
+    // 与课件卡同一条：读不到执行状态就收干净，不拿上一次的留痕冒充现状
+    if (headEl !== null) headEl.hidden = true;
+    statusEl.textContent = '';
+    actionEl.hidden = true;
+    return;
+  }
   const failure =
     status.live === 'running' ? null : (status.state.platforms['zhihuishu']?.failure ?? null);
 
@@ -131,26 +149,27 @@ function watchRun(): void {
 
     // 正在跑的那一项（读取与措辞与弹窗共用同一份；按平台收窄）
     const step = platformRunningItem(state, 'zhihuishu');
+    const runningBoard = step !== null ? boardOfKind(step.kind) : null;
 
-    // 正在跑的那一行 = 这门课 × 它那一项的类别所属板块（一行一门课，键要带板块）
-    const runningKey =
-      step !== null ? `${step.course}:${boardOfKind(step.kind) ?? ''}` : null;
+    const isRunningRow = (courseName: string, board: string): boolean =>
+      running && step !== null && runningBoard !== null && step.course === courseName && runningBoard === board;
 
     // 卡内小字：只有跑的那一行有；停止收尾中冻结（「正在停止…」由点击处写）
-    for (const [key, el] of currents) {
+    for (const entry of currents.values()) {
       if (running && stopping) continue;
-      const onThisRow = running && runningKey !== null && runningKey === key;
-      el.hidden = !onThisRow;
-      el.closest('.ct-row')?.classList.toggle('is-running', onThisRow);
-      if (onThisRow && step !== null) el.textContent = progressLine(step);
+      const onThisRow = isRunningRow(entry.courseName, entry.board);
+      entry.el.hidden = !onThisRow;
+      entry.el.closest('.ct-row')?.classList.toggle('is-running', onThisRow);
+      if (onThisRow && step !== null) entry.el.textContent = progressLine(step);
     }
 
     /*
      * 按钮：跑的那门课把「执行」换成「停止」；一轮在跑期间其余按钮一律禁用
      * （不论这一轮在哪里发起——后台拒并发，别让人白点）；跑完了整区还原。
      */
-    for (const [key, button] of buttonsOfCourse) {
-      if (running && runningKey !== null && key === runningKey) {
+    for (const entry of buttonsOfCourse.values()) {
+      const button = entry.button;
+      if (isRunningRow(entry.courseName, entry.board)) {
         button.dataset.mode = 'stop';
         button.textContent = '停止';
         button.title = '停止：不再发出新的写入请求';
@@ -218,7 +237,11 @@ function buildRow(
   const current = document.createElement('span');
   current.className = 'cw-current';
   current.hidden = true;
-  currents.set(`${entry.courseName}:${input.board}`, current);
+  currents.set(rowKey(entry.courseId, input.board), {
+    courseName: entry.courseName,
+    board: input.board,
+    el: current,
+  });
   group.append(current);
 
   const text = document.createElement('span');
@@ -228,7 +251,11 @@ function buildRow(
 
   row.append(group, text);
   if (input.action !== undefined) {
-    buttonsOfCourse.set(`${entry.courseName}:${input.board}`, input.action);
+    buttonsOfCourse.set(rowKey(entry.courseId, input.board), {
+      courseName: entry.courseName,
+      board: input.board,
+      button: input.action,
+    });
     row.append(input.action);
   }
   return row;
@@ -250,12 +277,16 @@ function buildRunButton(
   button.title = options.title;
   button.dataset.board = board.id;
   button.dataset.empty = options.empty ? 'yes' : 'no';
-  if (options.empty) button.disabled = true;
+  if (options.empty) {
+    button.disabled = true;
+    // 禁用时悬停要回答「为什么不能点」，而不是继续念可执行时的标题
+    button.title = options.emptyTitle;
+  }
 
   buttons.push(button);
 
   button.addEventListener('click', () => {
-    const current = currents.get(`${entry.courseName}:${board.id}`);
+    const current = currents.get(rowKey(entry.courseId, board.id))?.el;
     // 同一枚按钮两种身份：跑着的时候它是「停止」
     if (button.dataset.mode === 'stop') {
       button.disabled = true;
@@ -264,18 +295,29 @@ function buildRunButton(
         current.hidden = false;
         current.textContent = STOPPING_TEXT;
       }
-      void stopRun('zhihuishu').then((result) => {
-        if (result.stopped) {
-          stoppedHere = true;
-          return;
-        }
-        stopping = false;
-        delete button.dataset.mode;
-        button.textContent = '执行';
-        button.disabled = button.dataset.empty === 'yes';
-        button.title = button.dataset.empty === 'yes' ? options.emptyTitle : options.title;
-        if (current) current.hidden = true;
-      });
+      void stopRun('zhihuishu')
+        .then((result) => {
+          if (result.stopped) {
+            stoppedHere = true;
+            return;
+          }
+          stopping = false;
+          delete button.dataset.mode;
+          button.textContent = '执行';
+          button.disabled = button.dataset.empty === 'yes';
+          button.title = button.dataset.empty === 'yes' ? options.emptyTitle : options.title;
+          if (current) current.hidden = true;
+        })
+        .catch((error: unknown) => {
+          // 与课件行同一处置：停止请求失败时把这一行还原，并说出原因
+          stopping = false;
+          delete button.dataset.mode;
+          button.textContent = '执行';
+          button.disabled = button.dataset.empty === 'yes';
+          button.title = button.dataset.empty === 'yes' ? options.emptyTitle : options.title;
+          if (current) current.hidden = true;
+          toast(`停止失败：${errorText(error)}`);
+        });
       return;
     }
     stopping = false;
@@ -420,15 +462,18 @@ export async function renderZhsCourseTasks(
 
 /** 教程视频那一行：进度 + 执行（kind=courseware）。 */
 function videoRow(entry: ZhsCourseTask): HTMLElement | null {
-  const done = entry.video.done === entry.video.total;
+  const none = entry.video.total === 0;
+  const done = !none && entry.video.done === entry.video.total;
   return buildRow(entry, {
-    value: `视频 ${entry.video.done}/${entry.video.total}`,
-    valueTitle: '已完成 / 全部视频单元，口径同平台的成绩分析页',
+    value: none ? '没有视频单元' : `视频 ${entry.video.done}/${entry.video.total}`,
+    valueTitle: none
+      ? '平台结构里这门课没有视频单元'
+      : '已完成 / 全部视频单元，口径同平台的成绩分析页',
     board: ZHS_BOARDS[0].id,
     href: entry.studyUrl,
     action: buildRunButton(entry, ZHS_BOARDS[0], {
-      empty: done,
-      emptyTitle: '这门课的视频都看完了',
+      empty: none || done,
+      emptyTitle: none ? '这门课没有视频单元' : '这门课的视频都看完了',
       title: '执行：完成这门课没看完的视频',
     }),
   });
@@ -441,20 +486,25 @@ function videoRow(entry: ZhsCourseTask): HTMLElement | null {
  */
 function quizRow(entry: ZhsCourseTask): HTMLElement | null {
   const unread = entry.quizUnreadReason !== null;
+  const none = !unread && entry.quiz.total === 0;
   const value = unread
     ? '单元测试未读取到'
-    : `已交 ${entry.quiz.done}/${entry.quiz.total} · 其中 ${entry.quizNotFull} 卷未满分`;
+    : none
+      ? '没有单元测试'
+      : `已交 ${entry.quiz.done}/${entry.quiz.total} · 其中 ${entry.quizNotFull} 卷未满分`;
   return buildRow(entry, {
     value,
     valueTitle: unread
       ? `单元测试读取失败：${entry.quizUnreadReason ?? ''}`
-      : '前一个数是已交的卷数（进度），后一个数是其中还没拿满分的卷数（还能不能做）',
+      : none
+        ? '平台的作业清单里这门课没有单元测试'
+        : '前一个数是已交的卷数（进度），后一个数是其中还没拿满分的卷数（还能不能做）',
     board: ZHS_BOARDS[1].id,
     href: entry.examListUrl,
     action: buildRunButton(entry, ZHS_BOARDS[1], {
       // 「还有没有可做的」执行侧现读现算（未满分的卷还要看剩余重做次数），这里只在能确定全齐时禁用
-      empty: !unread && entry.quiz.done === entry.quiz.total && entry.quizNotFull === 0,
-      emptyTitle: '这门课的单元测试都交了，且都是满分',
+      empty: !unread && (none || (entry.quiz.done === entry.quiz.total && entry.quizNotFull === 0)),
+      emptyTitle: none ? '这门课没有单元测试' : '这门课的单元测试都交了，且都是满分',
       title: '执行：完成这门课没交的单元测试',
     }),
   });

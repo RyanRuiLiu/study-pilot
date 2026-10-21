@@ -45,7 +45,8 @@ function handlingText(entry: PendingEntry): string {
   if (entry.handling === 'auto') {
     // 互评类带进度：还差几份直接关系到会不会影响成绩
     if (entry.kind === 'evaluate-homework' && entry.evaluateTotal !== null && entry.evaluateDone !== null) {
-      const left = entry.evaluateTotal - entry.evaluateDone;
+      // 数据异常时已评份数可能大于配额；界面不报「尚差 -1 份」
+      const left = Math.max(0, entry.evaluateTotal - entry.evaluateDone);
       return `可代为评分，尚差 ${left} 份`;
     }
     return '可代为完成';
@@ -138,7 +139,7 @@ function buildRow(entry: PendingEntry): HTMLElement {
       void runNow(
         {
           setStatus: statusWriterFor('mooc'),
-          setEnabled: (enabled) => setRunning(!enabled),
+          setEnabled: (enabled) => setRunning(!enabled, 'mooc'),
           refresh: () => renderTodo(),
         },
         // 点名平台：这一条属于慕课，别家平台上碰巧同 id 的事项不该被带上

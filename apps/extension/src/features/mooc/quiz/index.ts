@@ -10,8 +10,9 @@
  * 后台无人值守、走纯接口。两者共用同一份「作答并提交」实现（平台包的
  * answerAndSubmitQuiz），判据不允许分叉。
  *
- * 分工：阶段判定见 `../quiz-stage.ts`，选项识别见 `options.ts`，取数与缓存见
- * `data.ts`，两个动作见 `actions.ts`，面板构造见 `panel.ts`；本文件只做装配与生命周期。
+ * 分工：阶段判定见 `../quiz-stage.ts`，选项识别见 `options.ts`，取数见
+ * `data.ts`（它自己没有缓存层——节流与去重归 transport），两个动作见
+ * `actions.ts`，面板构造见 `panel.ts`；本文件只做装配与生命周期。
  */
 
 import { detectQuizStage, probeQuizStage } from '../quiz-stage.ts';
@@ -21,6 +22,7 @@ import {
   applyStage,
   createActivePanel,
   loadPanelInfo,
+  retargetPanel,
   type ActivePanel,
   type QuizHelperOptions,
 } from './panel.ts';
@@ -48,7 +50,7 @@ export function showQuizHelper(options: QuizHelperOptions): void {
       },
     });
   } else {
-    active.options = options;
+    retargetPanel(active, options);
   }
 
   const stage = detectQuizStage(probeQuizStage());

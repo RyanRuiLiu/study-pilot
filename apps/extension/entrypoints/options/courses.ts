@@ -54,12 +54,21 @@ function buildRow(course: SelectedCourse): HTMLElement {
     const next = check.checked;
     // 弱化态跟着勾选走：勾上就不灰，取消就灰（不等重画）
     row.classList.toggle('is-off', !next);
-    void toggle(course.termId, next).catch((error: unknown) => {
-      // 写配置失败：勾选退回原样并说一句——否则界面显示已勾、配置其实没变
-      check.checked = !next;
-      row.classList.toggle('is-off', next);
-      toast(`未能更新参与范围：${errorText(error)}`);
-    });
+    /*
+     * 写盘期间锁住这一格。toggle 是「读整份配置 → 改一条 → 整份写回」，
+     * 连点两下会让两次读改写交错：后落地的旧值可能盖掉新勾选。
+     */
+    check.disabled = true;
+    void toggle(course.termId, next)
+      .catch((error: unknown) => {
+        // 写配置失败：勾选退回原样并说一句——否则界面显示已勾、配置其实没变
+        check.checked = !next;
+        row.classList.toggle('is-off', next);
+        toast(`未能更新参与范围：${errorText(error)}`);
+      })
+      .finally(() => {
+        check.disabled = false;
+      });
   });
 
   return row;

@@ -36,12 +36,17 @@ function todoListOf(platformId: string): HTMLElement | null {
   return todoLists[platformId] ?? null;
 }
 
-let onIdle: (() => void) | null = null;
+let onIdle: ((platformId: string) => void) | null = null;
 let latest: RunState | null = null;
 /** 状态行呈现哪个平台：弹窗按当前 tab（平台状态相互独立，问谁答谁）。 */
 let statusPlatform = 'mooc';
-/** 当前这一轮是不是本弹窗点的（点过执行按钮起，到一轮结束止；设置页叫 localRun，同一含义） */
-let localRun = false;
+/**
+ * 本弹窗点的那一轮属于哪个平台（点过执行按钮起，到一轮结束止）。
+ *
+ * 存平台而不是布尔：切走 tab 之后，收尾与置灰仍要归到发起的那一家——
+ * 布尔分不出「这一轮是我的，但它不是当前 tab」。
+ */
+let localRunPlatform: string | null = null;
 /** 本弹窗按过停止、并确认停到了一轮：{平台, 完成数}——只在**那个平台**的收尾句里消费 */
 let stoppedHere: { platform: string; done: number } | null = null;
 /** 按过停止、目标平台还没收尾：该平台的状态行显示「正在停止」，不再一路报进度 */
@@ -52,6 +57,10 @@ let lastFinished = 0;
 let wasRunning = false;
 /** 推送里上一次见到的运行状态：用来识别「刚刚跑完」这一瞬 */
 let sawRunning = false;
+/** 上一次推送里哪些平台在跑：用来识别**别家**刚刚跑完（当前 tab 之外的那家） */
+let runningPlatforms = new Set<string>();
+/** 每一次 renderState 的序号：晚到的旧响应不许覆盖新响应 */
+let renderGeneration = 0;
 /** 此刻有没有一轮在跑（收口 run 按钮的可用性） */
 let runningNow = false;
 /** 当前 tab 的平台允许执行吗（没有可执行内容的平台为假） */
@@ -108,19 +117,37 @@ export function statusWriterFor(
  */
 stopBtn?.addEventListener('click', () => {
   if (stopBtn === null) return;
+  /*
+   * 记下点的是哪一家。从这里到响应回来隔着一次消息往返，用户完全可能切走 tab；
+   * 用模块里的 statusPlatform 收尾，会把慕课的「已停止」记到智慧树名下。
+   */
+  const platform = statusPlatform;
   stopBtn.disabled = true;
-  stoppingHere = statusPlatform;
+  stoppingHere = platform;
   setText(stateEl, STOPPING_TEXT);
-  void stopRun(statusPlatform).then((result) => {
-    if (result.stopped) {
-      // 完成数取停止那一刻的最后快照；只在**这个平台**的收尾句里消费
-      stoppedHere = { platform: statusPlatform, done: lastFinished };
-      return;
-    }
-    // 没停到（多半是刚好已经跑完）：撤下这句话，让状态行按现状重新落定
-    stoppingHere = null;
-    void renderState();
-  });
+  void stopRun(platform)
+    .then((result) => {
+      if (result.stopped) {
+        // 完成数取停止那一刻的最后快照；只在**这个平台**的收尾句里消费
+        stoppedHere = { platform, done: lastFinished };
+        return;
+      }
+      // 没停到（多半是刚好已经跑完）：撤下这句话，让状态行按现状重新落定
+      if (stoppingHere === platform) stoppingHere = null;
+      if (statusPlatform === platform) void renderState();
+    })
+    .catch((error: unknown) => {
+      /*
+       * 停止请求本身失败（后台重启、端口断了）：不能把按钮永远留在灰上，
+       * 也不能让「正在停止…」一直挂着——那看起来像一轮永远不会结束。
+       */
+      if (stoppingHere === platform) stoppingHere = null;
+      if (statusPlatform === platform) {
+        setText(stateEl, errorText(error));
+        stateLine?.classList.add('is-error');
+      }
+      if (stopBtn) stopBtn.disabled = false;
+    });
 });
 
 /**
@@ -130,23 +157,31 @@ stopBtn?.addEventListener('click', () => {
  * 同时记住「这一轮是本弹窗点的」——结束时的状态行由点击者收尾
  * （runNow 的最后一步写结果），收尾读不抢那一句。
  */
-export function setRunning(running: boolean): void {
+export function setRunning(running: boolean, platformId: string): void {
   runningNow = running;
   applyRunEnabled();
-  // 置灰按平台收窄：跑哪家灰哪家（另一家的「执行」不受影响）
-  todoListOf(statusPlatform)?.classList.toggle('is-running', running);
-  stateLine?.classList.toggle('is-running', running);
+  /*
+   * 置灰按平台收窄：跑哪家灰哪家（另一家的「执行」不受影响）。
+   * 状态行只属于当前 tab——发起之后切走了，就别把新那家的行弄灰。
+   */
+  todoListOf(platformId)?.classList.toggle('is-running', running);
+  if (statusPlatform === platformId) stateLine?.classList.toggle('is-running', running);
   if (running) {
-    stoppingHere = null; // 新一轮：上一轮留下的停止态不该算到它头上
-    if (stopBtn) stopBtn.disabled = false;
-    // 上一轮失败的动作位也让位：这一态的信息是「进度」，不是「下一步」
-    applyStateAction(null);
+    // 新一轮：上一轮留下的停止态不该算到它头上（只清这一家的）
+    if (stoppingHere === platformId) stoppingHere = null;
+    localRunPlatform = platformId;
+    if (statusPlatform === platformId) {
+      if (stopBtn) stopBtn.disabled = false;
+      // 上一轮失败的动作位也让位：这一态的信息是「进度」，不是「下一步」
+      applyStateAction(null);
+    }
+    return;
   }
-  localRun = running;
+  if (localRunPlatform === platformId) localRunPlatform = null;
 }
 
-/** 执行结束后要做什么（重读待办）。由入口注册一次。 */
-export function setFollowIdleHandler(handler: () => void): void {
+/** 执行结束后要做什么（重读那一家的待办）。由入口注册一次。 */
+export function setFollowIdleHandler(handler: (platformId: string) => void): void {
   onIdle = handler;
 }
 
@@ -165,11 +200,22 @@ export function watchRunState(): void {
   subscribeRunState((state) => {
     latest = state;
 
+    /*
+     * 谁刚刚跑完：与上一次推送比，少掉的那些 running 平台。
+     * 当前 tab 之外的平台也要认出来——弹窗开着、人在别的 tab 时，
+     * 那家的待办同样会过期；切回去必须重读，而不是拿运行前的清单充数。
+     */
+    const nowRunning = new Set(
+      state.platforms.filter((platform) => platform.state === 'running').map((platform) => platform.id),
+    );
+    const finished = [...runningPlatforms].filter((platformId) => !nowRunning.has(platformId));
+    runningPlatforms = nowRunning;
+
     if (isPlatformRunning(state, statusPlatform)) {
       sawRunning = true;
       lastFinished = state.platforms.find((platform) => platform.id === statusPlatform)?.finished ?? 0;
       stateLine?.classList.add('is-running');
-      if (!localRun) {
+      if (localRunPlatform !== statusPlatform) {
         // 别处发起：那家的行内「执行」一并禁掉（本弹窗自己点的那轮归 setRunning 管）
         todoListOf(statusPlatform)?.classList.add('is-running');
         runningNow = true;
@@ -185,10 +231,17 @@ export function watchRunState(): void {
     if (sawRunning) {
       sawRunning = false;
       if (stoppingHere === statusPlatform) stoppingHere = null;
-      const own = localRun;
-      void renderState({ settleText: !own }).then(() => {
-        if (!own) onIdle?.();
-      });
+      const own = localRunPlatform === statusPlatform;
+      void renderState({ settleText: !own });
+    }
+
+    /*
+     * 收尾重读：本弹窗发起的那一轮由 runNow 的 refresh 负责（它认发起平台，
+     * 切走也重读对的那一家）；其余情况在这里补一次。当前 tab 的直接刷新，
+     * 别家的由入口记成「脏」，切回去再读。
+     */
+    for (const platformId of finished) {
+      if (platformId !== localRunPlatform) onIdle?.(platformId);
     }
   });
 }
@@ -217,9 +270,14 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
    * renderState 会落定，两份数据不该叠着画。
    */
   const platform = statusPlatform;
+  const generation = ++renderGeneration;
   try {
     const status = await getTaskState(platform);
-    if (statusPlatform !== platform) return false;
+    /*
+     * 两道闸：切走了不画（新那家自己会落定），同一家更晚发起的那次也不许被
+     * 这次晚到的旧响应盖掉（快速切 tab / 连点停止时都可能出现）。
+     */
+    if (statusPlatform !== platform || generation !== renderGeneration) return false;
     const running = status.live === 'running';
     // 失败留痕按平台独立：先看这一家；没有就看外壳自己那条
     // （系统级失败——监听器都注册不上这类，页面级状态行是它唯一能被人看见的地方）
@@ -243,7 +301,7 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
       // 跟在跑的一轮（哪怕不是本弹窗发起的）都该能停
       stateLine?.classList.add('is-running');
       // 别处发起的执行也要把那家行内的「执行」变灰（本弹窗点的那轮归 setRunning 管）
-      if (!localRun) todoListOf(platform)?.classList.add('is-running');
+      if (localRunPlatform !== platform) todoListOf(platform)?.classList.add('is-running');
       // 跑动时动作位让位给「停止」
       applyStateAction(null);
     } else {
@@ -251,7 +309,9 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
       if (stoppingHere === platform) stoppingHere = null;
       stateLine?.classList.remove('is-running');
       // 清全部（自愈）：按平台置灰是收窄的，这里的清必须是宽的，免得留灰
-      if (!localRun) for (const list of Object.values(todoLists)) list?.classList.remove('is-running');
+      if (localRunPlatform !== platform) {
+        for (const list of Object.values(todoLists)) list?.classList.remove('is-running');
+      }
       if (options.settleText ?? true) {
         if (status.live === 'interrupted') {
           setText(stateEl, '上次执行未正常结束，可重新执行');
@@ -278,8 +338,8 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
     applyRunEnabled();
     return running;
   } catch (error) {
-    // 报错也认时机：切走了就不把这一句写到当前那家的行上
-    if (statusPlatform === platform) {
+    // 报错也认时机：切走了（或有更晚的一次渲染）就不把这一句写到当前那家的行上
+    if (statusPlatform === platform && generation === renderGeneration) {
       setText(stateEl, errorText(error));
       stateLine?.classList.add('is-error');
       runningNow = false;

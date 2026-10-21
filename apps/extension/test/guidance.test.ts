@@ -473,6 +473,31 @@ describe('题号与题目的对应', () => {
     expect(blockTextOf(items[1] as Element)).not.toContain('第二题依据');
   });
 
+  it('接口个别题缺题号、页面有题号：不退回数组下标乱配', async () => {
+    info.mockResolvedValue(ok(homeworkInfo(100)));
+    paper.mockResolvedValue(
+      ok({
+        tid: 100,
+        subjectiveQList: [
+          { id: 1, position: 1, score: 10, judgeDtos: [{ id: 1, msg: '<p>第二题依据</p>', maxScore: 10 }] },
+          // 这道没有 position：不知道它对应页面哪一题
+          { id: 2, score: 10, judgeDtos: [{ id: 2, msg: '<p>无题号依据</p>', maxScore: 10 }] },
+        ],
+      }),
+    );
+    mountHomeworkPage(2);
+    setPosition(0, '1');
+    setPosition(1, '2');
+
+    await injectGuidance(load, 100);
+
+    const items = Array.from(currentDocument().querySelectorAll('.u-questionItem'));
+    expect(blockCountOf(items[0] as Element)).toBe(0);
+    expect(blockCountOf(items[1] as Element)).toBe(1);
+    expect(blockTextOf(items[1] as Element)).toContain('第二题依据');
+    expect(currentDocument().body.textContent).not.toContain('无题号依据');
+  });
+
   it('题干还没渲染出来时不把块插到题目之外', async () => {
     info.mockResolvedValue(ok(homeworkInfo(100)));
     paper.mockResolvedValue(ok(homeworkPaper(100, 'A 单元评分标准')));

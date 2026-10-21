@@ -240,6 +240,23 @@ export function createActivePanel(options: QuizHelperOptions, actions: PanelActi
   return panel;
 }
 
+/**
+ * 面板指向另一份测验时，把只属于上一份的状态清掉。
+ *
+ * 学习页是 hash 路由，换测验未必重建文档；面板若还在页面上，infoLoaded
+ * 仍是 true，新的卷就永远取不到总分（旧卷的分数继续挂着）。填充进行到一半
+ * 换卷的情况由 actions 的「同一份卷」检查兜住，这里只负责显示状态。
+ */
+export function retargetPanel(panel: ActivePanel, options: QuizHelperOptions): void {
+  const changed = panel.options.quizId !== options.quizId || panel.options.termId !== options.termId;
+  panel.options = options;
+  if (!changed) return;
+
+  panel.infoLoaded = false;
+  panel.infoSlot.replaceChildren();
+  panel.handle.setStatus('');
+}
+
 export function setBusy(panel: ActivePanel, next: boolean): void {
   panel.busy = next;
   const interactive = panel.stage === 'answering';

@@ -195,7 +195,7 @@ export type ZhsRequest =
   | { type: 'ZHS_REFRESH_COURSES' }
   /** 课程任务：每门课的成绩构成组件进度（只读） */
   | { type: 'ZHS_COURSE_TASKS' }
-  /** 待办：未完成的教程视频、单元测试与期末考试（期末只读展示） */
+  /** 待办：未完成的教程视频、单元测试/见面课测验，以及期末考试（后两类只读展示） */
   | { type: 'ZHS_PENDING_SUMMARY' };
 
 export interface ZhsResponseMap {

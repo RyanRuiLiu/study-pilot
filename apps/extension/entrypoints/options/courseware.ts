@@ -31,9 +31,15 @@ const EXEC_TITLE = '执行：完成这门课余下的课件';
 /** 运行期间的按钮集合：跑的时候全部禁掉（后台也会拒并发，这里只是别让人白点）。 */
 const buttons: HTMLButtonElement[] = [];
 
-/** 每门课那行里的「正在执行」小字与按钮，按课程名索引；重画时整体换新。 */
-const currents = new Map<string, HTMLElement>();
-const buttonsOfCourse = new Map<string, HTMLButtonElement>();
+/**
+ * 每门课那行里的「正在执行」小字与按钮，按 **termId** 索引；重画时整体换新。
+ *
+ * 不用课程名：同一门课可以有多个学期，重选后名字一模一样——按名字索引会让
+ * 后一行覆盖前一行，前一行永远收不到进度、按钮也不会变「停止」。
+ * 运行快照里只有课程名，所以匹配时仍按名字（两行同名时都算这一轮的范围）。
+ */
+const currents = new Map<number, { courseName: string; el: HTMLElement }>();
+const buttonsOfCourse = new Map<number, { courseName: string; button: HTMLButtonElement }>();
 
 /*
  * 运行结果用浮层提示。进度不停在这一层——那是行内小字的事；
@@ -104,7 +110,19 @@ async function renderFailure(): Promise<void> {
   const actionEl = document.getElementById('courseware-action');
   if (statusEl === null || !(actionEl instanceof HTMLAnchorElement)) return;
 
-  const status = await getTaskState('mooc');
+  let status: Awaited<ReturnType<typeof getTaskState>>;
+  try {
+    status = await getTaskState('mooc');
+  } catch {
+    /*
+     * 读不到执行状态（后台重启、端口断了）：把这一行收干净，不挂着上一次的
+     * 失败与动作位——那会让用户以为「上次失败」还成立。异常也不能穿成未处理拒绝。
+     */
+    statusEl.classList.remove('is-error');
+    statusEl.textContent = '';
+    actionEl.hidden = true;
+    return;
+  }
   const failure =
     status.live === 'running' ? null : (status.state.platforms['mooc']?.failure ?? null);
 
@@ -146,9 +164,9 @@ function watchRun(): void {
     const cwStep = step !== null && step.kind === 'courseware' ? step : null;
 
     // 行内小字：只有跑的那门课有；停止收尾中冻结（「正在停止…」由点击处写）
-    for (const [course, el] of currents) {
+    for (const { courseName, el } of currents.values()) {
       if (running && stopping) continue;
-      const text = running && cwStep !== null && cwStep.course === course ? progressLine(cwStep) : undefined;
+      const text = running && cwStep !== null && cwStep.course === courseName ? progressLine(cwStep) : undefined;
       el.hidden = text === undefined;
       el.closest('.cw-row')?.classList.toggle('is-running', text !== undefined);
       if (text !== undefined) el.textContent = text;
@@ -158,8 +176,8 @@ function watchRun(): void {
      * 按钮：跑的那门课把「执行」换成「停止」；一轮在跑期间其余按钮一律禁用
      * （不论这一轮在哪里发起——后台拒并发，别让人白点）；跑完了整区还原。
      */
-    for (const [course, button] of buttonsOfCourse) {
-      if (running && cwStep !== null && course === cwStep.course) {
+    for (const { courseName, button } of buttonsOfCourse.values()) {
+      if (running && cwStep !== null && courseName === cwStep.course) {
         button.dataset.mode = 'stop';
         button.textContent = '停止';
         button.title = '停止：不再发出新的写入请求';
@@ -217,7 +235,7 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
   const current = document.createElement('span');
   current.className = 'cw-current';
   current.hidden = true;
-  currents.set(entry.courseName, current);
+  currents.set(entry.termId, { courseName: entry.courseName, el: current });
 
   group.append(name, current);
 
@@ -252,7 +270,7 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
       entry.total === 0 ? '未读取到这门课的内容' : '这门课的课件已全部完成';
     button.title = button.dataset.emptyTitle;
   }
-  buttonsOfCourse.set(entry.courseName, button);
+  buttonsOfCourse.set(entry.termId, { courseName: entry.courseName, button });
 
   button.addEventListener('click', () => {
     // 同一枚按钮两种身份：跑着的时候它是「停止」
@@ -261,19 +279,30 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
       stopping = true;
       current.hidden = false;
       current.textContent = STOPPING_TEXT;
-      void stopRun('mooc').then((result) => {
-        if (result.stopped) {
-          stoppedHere = true;
-          return;
-        }
-        // 没停到（多半是刚好已经跑完）：整行还原，别挂着「正在停止」
-        stopping = false;
-        delete button.dataset.mode;
-        button.textContent = '执行';
-        button.disabled = button.dataset.empty === 'yes';
-        button.title = button.dataset.emptyTitle ?? EXEC_TITLE;
-        current.hidden = true;
-      });
+      void stopRun('mooc')
+        .then((result) => {
+          if (result.stopped) {
+            stoppedHere = true;
+            return;
+          }
+          // 没停到（多半是刚好已经跑完）：整行还原，别挂着「正在停止」
+          stopping = false;
+          delete button.dataset.mode;
+          button.textContent = '执行';
+          button.disabled = button.dataset.empty === 'yes';
+          button.title = button.dataset.emptyTitle ?? EXEC_TITLE;
+          current.hidden = true;
+        })
+        .catch((error: unknown) => {
+          // 停止请求本身失败：按钮不能永远停在灰掉的「停止」上
+          stopping = false;
+          delete button.dataset.mode;
+          button.textContent = '执行';
+          button.disabled = button.dataset.empty === 'yes';
+          button.title = button.dataset.emptyTitle ?? EXEC_TITLE;
+          current.hidden = true;
+          toast(`停止失败：${errorText(error)}`);
+        });
       return;
     }
     stopping = false; // 新一轮开始：上一轮留下的停止态不该算到它头上

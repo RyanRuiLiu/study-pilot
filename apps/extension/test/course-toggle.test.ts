@@ -105,6 +105,45 @@ beforeEach(() => {
   bridge.updateSettings.mockRejectedValue(new Error('存储写不进去'));
 });
 
+describe('写盘期间锁住勾选框', () => {
+  function pendingWrite(): { promise: Promise<never>; reject: (error: Error) => void } {
+    let reject!: (error: Error) => void;
+    const promise = new Promise<never>((_resolve, fail) => {
+      reject = fail;
+    });
+    bridge.updateSettings.mockReturnValueOnce(promise as never);
+    return { promise, reject };
+  }
+
+  it('慕课：请求未落地时禁用，落地后恢复', async () => {
+    await renderCourses();
+    const box = boxes('course-list')[0]!;
+    const pending = pendingWrite();
+
+    box.checked = true;
+    box.dispatchEvent(new window.Event('change'));
+
+    expect(box.disabled).toBe(true);
+    pending.reject(new Error('写不进去'));
+    await vi.waitFor(() => expect(box.disabled).toBe(false));
+    expect(box.checked).toBe(false);
+  });
+
+  it('智慧树：同一处置', async () => {
+    await renderZhsCourses();
+    const box = boxes('zhs-course-list')[0]!;
+    const pending = pendingWrite();
+
+    box.checked = true;
+    box.dispatchEvent(new window.Event('change'));
+
+    expect(box.disabled).toBe(true);
+    pending.reject(new Error('写不进去'));
+    await vi.waitFor(() => expect(box.disabled).toBe(false));
+    expect(box.checked).toBe(false);
+  });
+});
+
 describe('勾选写失败', () => {
   it('慕课：勾选退回原样并提示', async () => {
     await renderCourses();

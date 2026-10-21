@@ -121,7 +121,7 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
     void runNow(
       {
         setStatus: statusWriterFor('zhihuishu'),
-        setEnabled: (enabled) => setRunning(!enabled),
+        setEnabled: (enabled) => setRunning(!enabled, 'zhihuishu'),
         refresh: () => renderZhsTodo(),
       },
       { platformId: 'zhihuishu', ids: [entry.itemId] },

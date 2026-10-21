@@ -26,7 +26,9 @@ g.window = window;
 g.HTMLElement = window.HTMLElement;
 g.HTMLButtonElement = window.HTMLButtonElement;
 
-const { createActivePanel, loadPanelInfo } = await import('../src/features/mooc/quiz/panel.ts');
+const { createActivePanel, loadPanelInfo, retargetPanel } = await import(
+  '../src/features/mooc/quiz/panel.ts'
+);
 
 function panel() {
   return createActivePanel({ termId: 1, quizId: 2 }, { onFill: () => undefined, onSubmit: () => undefined });
@@ -46,5 +48,19 @@ describe('面板信息行', () => {
     await loadPanelInfo(p);
     expect(p.infoSlot.textContent).toContain('总分：');
     expect(p.infoSlot.textContent).toContain('100 分');
+  });
+
+  it('换到另一份测验：清掉旧卷的总分，重新取新的', async () => {
+    data.loadQuizInfo.mockResolvedValueOnce({ totalScore: 100 });
+    const p = panel();
+    await loadPanelInfo(p);
+    expect(p.infoSlot.textContent).toContain('100 分');
+
+    data.loadQuizInfo.mockResolvedValueOnce({ totalScore: 50 });
+    retargetPanel(p, { termId: 1, quizId: 3 });
+    expect(p.infoSlot.textContent).toBe('');
+
+    await loadPanelInfo(p);
+    expect(p.infoSlot.textContent).toContain('50 分');
   });
 });

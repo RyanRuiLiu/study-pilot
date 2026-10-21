@@ -55,4 +55,17 @@ describe('tab 初始落点', () => {
     expect(selected()).toBe('zhihuishu');
     expect(doc().getElementById('panel-zhihuishu')?.hasAttribute('hidden')).toBe(false);
   });
+
+  it('点已经选中的 tab：不重跑钩子，也不重复写记忆', async () => {
+    bridge.getSettings.mockResolvedValueOnce({ ui: { activeTab: 'mooc' } });
+    const onActivate = vi.fn();
+    await initTabs({ onActivate });
+    expect(onActivate).toHaveBeenCalledTimes(1);
+
+    const active = doc().querySelector<HTMLElement>('.tab[data-tab="mooc"]');
+    active?.dispatchEvent(new window.Event('click', { bubbles: true }));
+
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(bridge.updateSettings).not.toHaveBeenCalled();
+  });
 });

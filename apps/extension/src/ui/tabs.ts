@@ -73,6 +73,8 @@ export async function initTabs(hooks: TabsHooks = {}): Promise<void> {
   function switchTo(tab: HTMLButtonElement): void {
     const id = tab.dataset.tab;
     if (!isTabId(id)) return;
+    // 点已经选中的 tab 不算切换：不重跑钩子（弹窗会因此多发一次状态读取），也不写一遍同样的记忆
+    if (tab.getAttribute('aria-selected') === 'true') return;
     activate(id);
     // 记忆失败不影响这次切换（下次打开回到旧 tab）；这里不为它弹提示，避免每切一次都说一声
     void updateSettings({ ui: { activeTab: id } }).catch(() => undefined);
