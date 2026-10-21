@@ -16,6 +16,8 @@ export const browserCapabilities: HostCapabilities = {
       const cookie = await browser.cookies.get({ url: origin, name });
       return cookie?.value ?? '';
     } catch {
+      // 读 cookie 抛错（权限被收回、宿主异常）：按「没这枚 cookie」处理——
+      // 会话判定据此说未登录，这是此刻唯一能诚实地告诉用户的事
       return '';
     }
   },

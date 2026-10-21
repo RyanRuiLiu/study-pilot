@@ -83,9 +83,9 @@
 | apps/extension/src/background/messages/router.ts | 部分 |
 | apps/extension/src/background/runtime/run-state.ts | 待读 |
 | apps/extension/src/background/runtime/task-state.ts | 待读 |
-| apps/extension/src/browser/capabilities.ts | 待读 |
-| apps/extension/src/browser/net-rules.ts | 待读 |
-| apps/extension/src/browser/run-feed.ts | 待读 |
+| apps/extension/src/browser/capabilities.ts | 已读 |
+| apps/extension/src/browser/net-rules.ts | 已读 |
+| apps/extension/src/browser/run-feed.ts | 已读 |
 | apps/extension/src/browser/run-once.ts | 已读 |
 | apps/extension/src/features/mooc/guidance/block.ts | 已读 |
 | apps/extension/src/features/mooc/guidance/index.ts | 待读 |
@@ -305,4 +305,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：295 个文件；已读 67，部分 23，待读 205。
+合计：295 个文件；已读 70，部分 23，待读 202。

@@ -28,7 +28,8 @@ function ensurePort(): void {
     latest = message as RunState;
     for (const listener of listeners) listener(latest);
   });
-  // 后台被回收时连接会断；下一次有变化前重新连上，界面不会停在旧值上
+  // 后台被回收时连接会断；页面还开着就立刻重连（页面开着意味着要跟随状态），
+  // 界面不会停在旧值上。断线重连不做延迟：再多一层退避只会让状态更新晚一拍。
   port.onDisconnect.addListener(() => {
     port = null;
     if (listeners.size > 0) ensurePort();
