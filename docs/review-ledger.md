@@ -266,7 +266,7 @@
 | packages/platform-zhs/src/meet.ts | 已读 |
 | packages/platform-zhs/src/oracle.ts | 已读 |
 | packages/platform-zhs/src/pages.ts | 已读 |
-| packages/platform-zhs/src/policy/execute-exam.ts | 部分 |
+| packages/platform-zhs/src/policy/execute-exam.ts | 已读 |
 | packages/platform-zhs/src/policy/execute.ts | 已读 |
 | packages/platform-zhs/src/policy/net-rules.ts | 已读 |
 | packages/platform-zhs/src/policy/tasks.ts | 部分 |
@@ -310,4 +310,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：300 个文件；已读 170，部分 14，待读 116。
+合计：300 个文件；已读 171，部分 13，待读 116。
