@@ -93,9 +93,9 @@
 | apps/extension/src/features/mooc/guidance/markers.ts | 待读 |
 | apps/extension/src/features/mooc/guidance/page.ts | 待读 |
 | apps/extension/src/features/mooc/quiz-stage.ts | 已读 |
-| apps/extension/src/features/mooc/quiz/actions.ts | 待读 |
-| apps/extension/src/features/mooc/quiz/data.ts | 待读 |
-| apps/extension/src/features/mooc/quiz/index.ts | 待读 |
+| apps/extension/src/features/mooc/quiz/actions.ts | 已读 |
+| apps/extension/src/features/mooc/quiz/data.ts | 已读 |
+| apps/extension/src/features/mooc/quiz/index.ts | 已读 |
 | apps/extension/src/features/mooc/quiz/options.ts | 待读 |
 | apps/extension/src/features/mooc/quiz/panel.ts | 待读 |
 | apps/extension/src/features/mooc/selectors.ts | 待读 |
@@ -306,4 +306,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：296 个文件；已读 83，部分 22，待读 191。
+合计：296 个文件；已读 86，部分 22，待读 188。
