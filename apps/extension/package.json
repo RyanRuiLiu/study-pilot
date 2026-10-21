@@ -19,7 +19,6 @@
     "@study-pilot/platform-zhs": "workspace:*"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "5.0.4",
     "linkedom": "0.18.13",
     "playwright": "^1.64.0",
     "typescript": "^7.0.2",

@@ -9,23 +9,23 @@
 
 | 文件 | 逐行读 |
 |---|---|
-| .changeset/README.md | 待读 |
+| .changeset/README.md | 已读 |
 | .changeset/config.json | 已读 |
-| .editorconfig | 待读 |
-| .gitattributes | 待读 |
+| .editorconfig | 已读 |
+| .gitattributes | 已读 |
 | .github/workflows/ci.yml | 已读 |
 | .gitignore | 已读 |
-| .npmrc | 待读 |
+| .npmrc | 已读 |
 | .oxlintrc.json | 已读 |
 | CONTRIBUTING.md | 已读 |
-| LICENSE | 待读 |
+| LICENSE | 已读 |
 | PRIVACY.md | 已读 |
 | README.md | 已读 |
-| apps/cli/package.json | 待读 |
+| apps/cli/package.json | 已读 |
 | apps/cli/src/main.ts | 已读 |
 | apps/cli/src/progress.ts | 部分 |
 | apps/cli/test/progress.test.ts | 待读 |
-| apps/cli/tsconfig.json | 待读 |
+| apps/cli/tsconfig.json | 已读 |
 | apps/extension/entrypoints/background.ts | 待读 |
 | apps/extension/entrypoints/mooc.content.ts | 部分 |
 | apps/extension/entrypoints/options/courses.ts | 已读 |
@@ -50,8 +50,8 @@
 | apps/extension/entrypoints/popup/todo-area.ts | 已读 |
 | apps/extension/entrypoints/popup/todo.ts | 已读 |
 | apps/extension/entrypoints/popup/zhihuishu-todo.ts | 已读 |
-| apps/extension/package.json | 待读 |
-| apps/extension/public/_locales/zh_CN/messages.json | 待读 |
+| apps/extension/package.json | 已读 |
+| apps/extension/public/_locales/zh_CN/messages.json | 已读 |
 | apps/extension/src/adapters/mooc/messages/courses.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/courseware-summary.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/deps.ts | 已读 |
@@ -114,7 +114,7 @@
 | apps/extension/src/ui/tabs.ts | 已读 |
 | apps/extension/src/ui/tokens.css | 待读 |
 | apps/extension/src/ui/tokens.ts | 已读 |
-| apps/extension/src/vite-env.d.ts | 待读 |
+| apps/extension/src/vite-env.d.ts | 已读 |
 | apps/extension/test/ai-tasks.test.ts | 待读 |
 | apps/extension/test/boundaries.test.ts | 待读 |
 | apps/extension/test/guidance.test.ts | 待读 |
@@ -137,8 +137,8 @@
 | apps/extension/test/tokens-parity.test.ts | 待读 |
 | apps/extension/test/zhs-course-tasks.test.ts | 待读 |
 | apps/extension/test/zhs-quizzes.test.ts | 待读 |
-| apps/extension/tsconfig.json | 待读 |
-| apps/extension/vitest.config.ts | 待读 |
+| apps/extension/tsconfig.json | 已读 |
+| apps/extension/vitest.config.ts | 已读 |
 | apps/extension/wxt.config.ts | 已读 |
 | docs/adr/0001-ts-source-exports.md | 待读 |
 | docs/adr/0002-result-errors.md | 待读 |
@@ -305,9 +305,9 @@
 | packages/transport/test/throttle.test.ts | 待读 |
 | packages/transport/tsconfig.json | 待读 |
 | pnpm-lock.yaml | 待读 |
-| pnpm-workspace.yaml | 待读 |
+| pnpm-workspace.yaml | 已读 |
 | scripts/e2e-smoke.mjs | 部分 |
 | scripts/probe/probe.mjs | 部分 |
-| tsconfig.base.json | 待读 |
+| tsconfig.base.json | 已读 |
 
-合计：300 个文件；已读 172，部分 12，待读 116。
+合计：300 个文件；已读 186，部分 12，待读 102。
