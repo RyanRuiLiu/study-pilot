@@ -70,7 +70,7 @@
 | apps/extension/src/adapters/zhihuishu/messages/courses.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/messages/deps.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/messages/handlers.ts | 已读 |
-| apps/extension/src/adapters/zhihuishu/messages/payload.ts | 部分 |
+| apps/extension/src/adapters/zhihuishu/messages/payload.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/messages/pending.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/messages/reads.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/messages/refresh-courses.ts | 已读 |
@@ -309,4 +309,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：299 个文件；已读 119，部分 20，待读 160。
+合计：299 个文件；已读 120，部分 19，待读 160。

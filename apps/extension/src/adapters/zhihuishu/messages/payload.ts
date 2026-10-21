@@ -17,7 +17,7 @@ import type { ZhihuishuCourse } from '@study-pilot/application';
  * 按它映射——平台包只负责说「这是哪一类」，不负责怎么称呼它。
  *
  * 与 `PlanItem.kind` 同一套取值（计划里就是这么标的），所以待办与执行范围
- * 天然对得上。智慧树的成绩构成有四类，这里先落前两类可执行的两类。
+ * 天然对得上。智慧树的成绩构成有四类，四类都落成机器值；执行目前只覆盖前两类。
  */
 export type ZhsPendingKind = 'courseware' | 'quiz' | 'meetQuiz' | 'finalExam';
 
@@ -25,7 +25,7 @@ export type ZhsPendingKind = 'courseware' | 'quiz' | 'meetQuiz' | 'finalExam';
 export interface ZhsPendingEntry {
   /** 计划项 id（执行侧的唯一凭据，取名规则在平台包里） */
   itemId: string;
-  /** 类别：教程视频 / 单元测试（组名在弹窗侧映射） */
+  /** 类别：教程视频 / 单元测试 / 见面课测验 / 期末考试（组名在弹窗侧映射） */
   kind: ZhsPendingKind;
   courseName: string;
   chapterName: string;
@@ -91,8 +91,9 @@ export interface ZhsPendingSummary {
  * 设置页按同一套组件报进度——**没有「课件」这个说法**：智慧树的任务不套慕课
  * 那套「课件/待办」二分，它的组件是平台自己给的（成绩分析页的原文口径）。
  *
- * 本期能填的是前两项：教程与测试（模块 1/2 已实现）。见面课与期末要等模块
- * 4/6，**不给空行占位**——摆一行填不出的组件，人会以为那些是零。
+ * 四块都填了实数据：教程与测试接执行（模块 1/2），见面课场次与期末接只读展示
+ * （模块 4/6 的读半）。数据没接上的那一块**不给空行占位**——摆一行填不出的组件，
+ * 人会以为那些是零。
  */
 export interface ZhsCourseTask {
   courseId: number;
@@ -194,7 +195,7 @@ export type ZhsRequest =
   | { type: 'ZHS_REFRESH_COURSES' }
   /** 课程任务：每门课的成绩构成组件进度（只读） */
   | { type: 'ZHS_COURSE_TASKS' }
-  /** 待办：全部未完成的视频单元 */
+  /** 待办：未完成的教程视频、单元测试与期末考试（期末只读展示） */
   | { type: 'ZHS_PENDING_SUMMARY' };
 
 export interface ZhsResponseMap {
