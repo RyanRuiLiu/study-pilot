@@ -24,6 +24,15 @@ import type { Md5HexFn } from '@study-pilot/core';
 export const MOOC_ORIGIN = 'https://www.icourse163.org';
 
 /**
+ * 站点首页：界面上「去登录」的去处（登录入口在首页导航里，没有独立登录页）。
+ *
+ * 与 `MOOC_ORIGIN` 是两个用途：这个带尾斜杠、给人点；那个不带、拼接口前缀用。
+ * 语义不同就不合并——改请求锚点不该顺手改掉界面去处，反之亦然。
+ * 平台地址属平台事实，因此值放在平台包里，载体只转出。
+ */
+export const MOOC_LOGIN_URL = 'https://www.icourse163.org/';
+
+/**
  * 平台按常规浏览器 UA 判来源（非浏览器 UA 会被回绝）。
  *
  * 定义在 transport 的 user-agent.ts（两个平台包共用一份，注释与理由在那里）；

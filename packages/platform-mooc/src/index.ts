@@ -14,6 +14,7 @@
 
 export {
   createMoocClient,
+  MOOC_LOGIN_URL,
   MOOC_ORIGIN,
   BROWSER_USER_AGENT,
   type MoocClient,
