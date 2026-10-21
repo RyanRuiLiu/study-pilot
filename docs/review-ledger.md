@@ -65,7 +65,7 @@
 | apps/extension/src/adapters/mooc/platform.ts | 已读 |
 | apps/extension/src/adapters/mooc/to-messages.ts | 已读 |
 | apps/extension/src/adapters/mooc/work-status.ts | 已读 |
-| apps/extension/src/adapters/zhihuishu/boards.ts | 待读 |
+| apps/extension/src/adapters/zhihuishu/boards.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/messages/course-tasks.ts | 待读 |
 | apps/extension/src/adapters/zhihuishu/messages/courses.ts | 待读 |
 | apps/extension/src/adapters/zhihuishu/messages/deps.ts | 待读 |
@@ -75,8 +75,8 @@
 | apps/extension/src/adapters/zhihuishu/messages/reads.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/messages/refresh-courses.ts | 待读 |
 | apps/extension/src/adapters/zhihuishu/messages/session.ts | 待读 |
-| apps/extension/src/adapters/zhihuishu/pages.ts | 待读 |
-| apps/extension/src/adapters/zhihuishu/platform.ts | 待读 |
+| apps/extension/src/adapters/zhihuishu/pages.ts | 已读 |
+| apps/extension/src/adapters/zhihuishu/platform.ts | 已读 |
 | apps/extension/src/ai/index.ts | 已读 |
 | apps/extension/src/ai/permission.ts | 已读 |
 | apps/extension/src/ai/tasks/discuss-reply.ts | 已读 |
@@ -309,4 +309,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：299 个文件；已读 110，部分 20，待读 169。
+合计：299 个文件；已读 113，部分 20，待读 166。

@@ -19,8 +19,8 @@ export interface ZhsEnv {
 }
 
 export interface ZhsPlatform {
-  /** 与慕课处理器合并进同一条路由；`*` 兜底由合并处补 */
-  handlers: Omit<MessageHandlers, '*'>;
+  /** 与慕课处理器合并进同一条路由；没人认领的 type 由外壳路由回「处理不了」 */
+  handlers: MessageHandlers;
   /** 要跑一轮时的平台实例 */
   tasks: () => PlatformTasks;
   /** 外壳要观察的信号：登录靠 CASLOGC cookie 判（browserCapabilities.readCookie）、无请求头规则 */
