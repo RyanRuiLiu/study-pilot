@@ -39,7 +39,7 @@
 | F 测试 | 已修（收紧五处弱断言） | 全天 615 通过 / 1 显式跳过；无 .only/describe.skip，唯一的跳过是 node-live 的 it.skipIf(!live)。收紧：client 的 status 信封断言具体字段；meet 直接断言开始时刻；tasks 的「计划不开卷」断言产出类别；file-ports 断言坏文件回默认配置的具体形状；options 的 blank 断言控件类型（原先只判非空，收紧后发现 blank 存的是元素不是值，说明这条本来就该写具体）。tokens-parity 的 toBeDefined 保留：它是「每个令牌都能在 CSS 里找到」的存在性判定且带失败说明。变异核对见各批提交 |
 | G 隐私与安全 | 已过 | 无定时触发（全仓无 alarms/setInterval），写只由按钮或 --yes 发起；消息只处理 sender.id === 本扩展 的来源；富文本走白名单净化（允许标签/属性、img 只放行 https、script/iframe/表单类整体丢弃），innerHTML 后同一同步块内净化；密钥只进 Authorization 头，全仓无任何日志语句（生产零 console）；manifest 权限与 host_permissions 与用途逐条对应；PRIVACY 的写清单（课件/单元测验客观题/互评自评/智慧树重做与探路）与代码里五个 zh写了端点 + 慕课四个写路径一一对上 |
 | H 数据与状态 | 已过 | 落盘只有三类：用户配置（settings/cli-config）、运行状态（task-state/run-state/cli-state）、以及本地工具产物（.output、.probe 均不入库）；平台数据不落盘（课程结构、待办、成绩每次现读，配置里的课程条目只是用户的选择与平台元数据，读取时由平台刷新）。配置迁移 2→9 每段一段、按版本串行，settings-migration 覆盖 v2/v4/v6/v7/v8/v9 与脏元素（NaN、非数组、enabled 只认 true）。状态键名各一处（keys.ts），CLI 只写 config/state 两个文件 |
-| I 界面与文案 | 待查 | - |
+| I 界面与文案 | 已过 | 语体：全仓界面串无「您/你」、无「请」（平台原话除外）、失败统一叫失败（本轮把三处「出错」注释改齐）；术语按轴（执行/完成/停止/读取），同一句在弹窗与设置页走同一常量或同一措辞源；空态均给下一步（尚未读取到课程、尚未选择参与任务的课程）。溢出：待办标题单行省略并挂 title（elements.ts）。可访问性：tab 有 role/aria-controls/aria-selected 与左右方向键，aria-live 提示执行中；多处 :focus-visible；tokens.css 记录实测对比度（19:1 / 7.7:1 / 4.8:1）。唯一风险点：富文本 innerHTML 后同块净化，已注释来源与为何不用 DOMParser |
 | J 平台事实 | 待查 | - |
 | K 构建与发布 | 待查 | - |
 | L 工程流程与多端 | 待查 | - |
