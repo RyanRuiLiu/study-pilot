@@ -201,7 +201,7 @@ const ENDPOINT_TABLE = {
     stampInside: true,
   },
   /*
-   * 期末考试族（宿主 taurusexam-api、模块号 5）。
+   * 期末考试族（宿主 taurusexam-api、模块号 3——不是 5，取证见文件头）。
    *
    * 两个事实来源一致：源码 stuExamWeb 的拼法（serectExamT + 斜杠 + taurusExam
    * + 斜杠 + serectPath + /student/getStudentFinalExam，三个常量分别为
@@ -266,11 +266,6 @@ const ENDPOINT_TABLE = {
    * ---- 见面课（stuonline，免签明文；FINDINGS 实测）----
    */
 
-  /**
-   * 见面课场次（模块 4）。body `recruitId=&page.pageNo=&page.pageSize=`。
-   * 每场带：主题/类型/状态（3=已结束、1=未开始）/起止时刻/直播与回放房间地址/
-   * 签到开关/`examH5Url`（见面课测验的 dohomework 入口，尾参 /1）/测验得分。
-   */
   /**
    * 见面课场次（模块 4）。路径与 `?examV2=ss` 都是**抓包读出来的**（2026-10-17 真机：
    * 见面课页 `online.zhihuishu.com/onlineSchool/teachMeeting/stuList` 自己发的就是这条），
