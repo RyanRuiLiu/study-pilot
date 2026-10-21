@@ -13,7 +13,7 @@
  * 因此不需要为了一个类型多引一个包。
  */
 
-import type { SessionFile } from './host.ts';
+import type { SessionFile } from './session-file.ts';
 
 export interface OutboundOptions {
   /** 出站 UA：平台各自的事实（从对应平台包取，别在这里抄字符串） */

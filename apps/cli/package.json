@@ -18,7 +18,8 @@
     "@study-pilot/application": "workspace:*",
     "@study-pilot/core": "workspace:*",
     "@study-pilot/platform-mooc": "workspace:*",
-    "@study-pilot/platform-zhs": "workspace:*"
+    "@study-pilot/platform-zhs": "workspace:*",
+    "@study-pilot/adapters-node": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

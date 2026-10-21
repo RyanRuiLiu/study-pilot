@@ -36,11 +36,15 @@ import {
   BROWSER_USER_AGENT as ZHS_USER_AGENT,
   createZhsRuntime,
 } from '@study-pilot/platform-zhs';
-import { createFileConfigStore } from './config-store.ts';
-import { createHeaderFetch } from './fetch.ts';
-import { createCookieFileHost, readSessions, type Sessions } from './host.ts';
+import {
+  createCookieFileHost,
+  createFileConfigStore,
+  createFileTaskStore,
+  createHeaderFetch,
+  readSessions,
+  type Sessions,
+} from '@study-pilot/adapters-node';
 import { createStdoutProgress } from './progress.ts';
-import { createFileTaskStore } from './task-store.ts';
 
 /*
  * 默认的会话/配置/状态路径按**仓库根**解析，不按当前目录。

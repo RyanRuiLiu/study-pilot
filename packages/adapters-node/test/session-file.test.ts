@@ -1,7 +1,7 @@
 /*
- * 会话文件的读取（命令行载体）：一次解析、两家平台各取各的 cookie。
+ * 会话文件的读取（Node 载体）：一次解析、两家平台各取各的 cookie。
  *
- * 域过滤与「同名取域最宽」两条规则是实测口径（见 host.ts 文件头），
+ * 域过滤与「同名取域最宽」两条规则是实测口径（见 src/session-file.ts 文件头），
  * 这里用 storageState 形状的夹具把它们钉住；真机路径由 node-live 类冒烟覆盖。
  */
 
@@ -9,7 +9,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createCookieFileHost, readSessions } from '../src/host.ts';
+import { createCookieFileHost, readSessions } from '../src/session-file.ts';
 
 const dirs: string[] = [];
 

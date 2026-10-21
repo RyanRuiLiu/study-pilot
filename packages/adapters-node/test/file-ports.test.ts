@@ -1,7 +1,7 @@
 /*
- * 命令行载体的两个文件端口：状态文件与进度输出。
+ * Node 载体的两个文件端口：状态文件与配置文件。
  *
- * 只测载体自己的那两件事（落盘/读回、逐行打印）；「跑一轮」的行为在
+ * 只测落盘/读回与坏文件的说法；「跑一轮」的行为在
  * packages/application/test/round.test.ts 里验，不在这里重复。
  */
 
@@ -9,15 +9,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  EMPTY_STATE,
-  beginPlatform,
-  completeItem,
-  enterItem,
-  finishPlatform,
-  type RunState,
-} from '@study-pilot/application';
-import { createStdoutProgress } from '../src/progress.ts';
+import { EMPTY_STATE } from '@study-pilot/application';
+import { createFileConfigStore } from '../src/config-store.ts';
 import { createFileTaskStore } from '../src/task-store.ts';
 
 const dirs: string[] = [];
@@ -68,32 +61,6 @@ describe('状态文件', () => {
   });
 });
 
-describe('进度输出', () => {
-  it('开始、逐项、收尾各一行；同一份进度推两次不重复打印', async () => {
-    const lines: string[] = [];
-    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
-      lines.push(args.join(' '));
-    });
-    const progress = createStdoutProgress();
-    const platform = { id: 'mooc', name: '中国大学 MOOC' };
-
-    let state: RunState = { platforms: [] };
-    state = beginPlatform(state, platform, 1, 1);
-    await progress.publish(state);
-    state = enterItem(state, platform, { course: '测试课程', title: '单元 A', kind: 'quiz' }, 2);
-    await progress.publish(state);
-    state = completeItem(state, platform, { course: '测试课程', title: '单元 A', kind: 'quiz' }, 'done', '已学完', 3);
-    await progress.publish(state);
-    await progress.publish(state);
-    state = finishPlatform(state, platform);
-    await progress.publish(state);
-
-    expect(lines.some((line) => line.includes('▶') && line.includes('本轮 1 项'))).toBe(true);
-    expect(lines.filter((line) => line.includes('单元 A') && line.includes('✓')).length).toBe(1);
-    expect(lines.some((line) => line.includes('■') && line.includes('共完成 1 项'))).toBe(true);
-  });
-});
-
 /*
  * 两个文件端口对「坏文件」的说话方式。
  *
@@ -116,7 +83,6 @@ describe('坏文件的说法', () => {
     const file = join(dir, 'cli-config.json');
     writeFileSync(file, 'const x = 1;');
 
-    const { createFileConfigStore } = await import('../src/config-store.ts');
     await expect(createFileConfigStore(file).read()).rejects.toThrow(
       /配置文件不是合法 JSON.*cli-config\.json/,
     );
@@ -128,7 +94,6 @@ describe('坏文件的说法', () => {
     const file = join(dir, 'cli-config.json');
     writeFileSync(file, JSON.stringify({ mooc: { keepOverdueDays: 9 } }));
 
-    const { createFileConfigStore } = await import('../src/config-store.ts');
     const settings = await createFileConfigStore(file).read();
 
     expect(settings.mooc.keepOverdueDays).toBe(9);
@@ -141,7 +106,6 @@ describe('坏文件的说法', () => {
     const file = join(dir, 'cli-config.json');
     writeFileSync(file, 'null');
 
-    const { createFileConfigStore } = await import('../src/config-store.ts');
     // 坏文件回默认配置（不是抛错，也不是把 null 当配置交下去）
     await expect(createFileConfigStore(file).read()).resolves.toMatchObject({ ai: { enabled: false } });
   });

@@ -131,6 +131,8 @@ PRIVACY.md 会同步改写。已经能自动做的客观题测验里，智慧树
 
     packages/
       core/          小工具（md5、Result 等）
+      adapters-node/ Node 载体的现成端口实现：文件配置/状态、会话文件、按平台设头的 fetch；
+                     第三个 Node 载体只装配，不重写端口
       transport/     HTTP 协议层共用件：浏览器 UA、节流、出站超时、错误分类（慕课的签名与 DWR 也在这）
       platform-mooc/ 慕课一个包，两半：接口层（读课程/作业/测验、取卷、提交、评分）
                      与策略层 policy/（会话、读取、计划、执行、厂商装配）
