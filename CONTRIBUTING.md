@@ -100,6 +100,12 @@
    （`apps/extension/.output/store/`，440x280 必填、1400x560 精选位）。
 6. 上传 zip 到开发者后台；同一份 zip 归档到 `apps/extension/releases/`（git 忽略，只作回看）。
 
+**GitHub Release**：把版本抬好、主分支门禁绿了之后，推一个 `v<版本>` 标签即可
+（例：`git tag -a v0.3.4 -m "v0.3.4" && git push origin v0.3.4`）。
+`.github/workflows/release.yml` 会在标签上重跑 lint / typecheck / 全部测试 /
+构建 / 无头冒烟，用仓库自带的 `GITHUB_TOKEN` 建 Release，并附上扩展 zip 与
+CLI 单文件；标签版本与 `apps/extension/package.json` 不一致时发布会直接失败。
+
 商店后台还有三样**仓库不生成、必须人工准备**的材料：
 
 - 至少一张截图（1280x800 或 640x400），展示弹窗/设置页的真实内容（要登录态）；

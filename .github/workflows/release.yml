@@ -1,0 +1,85 @@
+# 推一个 v* 标签即发版：重新跑一遍门禁，构建两个载体的产物，
+# 用仓库自带的 GITHUB_TOKEN 建 Release 并附上扩展 zip 与 CLI 单文件。
+# 不在本地保存任何发布凭证；令牌权限只给 contents: write。
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # 标签版本必须与扩展清单的版本同源，避免发出去的包和 release 名对不上
+      - name: 核对标签与版本
+        run: |
+          version="$(node -p "require('./apps/extension/package.json').version")"
+          test "${GITHUB_REF_NAME#v}" = "$version" || {
+            echo "标签 ${GITHUB_REF_NAME} 与扩展版本 $version 不一致" >&2
+            exit 1
+          }
+
+      - run: pnpm lint
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+
+      - run: pnpm build
+      - run: pnpm --filter @study-pilot/extension zip
+      - run: pnpm --filter @study-pilot/cli build
+
+      - name: 扩展冒烟
+        run: |
+          pnpm exec playwright install chromium
+          pnpm e2e
+
+      - name: 整理发布素材
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cp "apps/extension/.output/study-pilot-extension-${version}-chrome.zip" "study-pilot-extension-${GITHUB_REF_NAME}-chrome.zip"
+          cp apps/cli/.output/main.mjs "study-pilot-cli-${GITHUB_REF_NAME}.mjs"
+
+      - name: 创建 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > release-notes.md <<'EOF'
+          学习平台辅助工具（中国大学 MOOC / 智慧树），两个发布渠道：
+
+          - **扩展包**：`study-pilot-extension-<标签>-chrome.zip`。Chrome / Edge
+            解压后通过「加载已解压的扩展程序」安装；最低 Chrome 96。
+          - **命令行**：`study-pilot-cli-<标签>.mjs`。Node 22.18+ 可直接运行，
+            用法见仓库 README 的「命令行」一节。
+
+          本轮内容：界面整页状态去重（未登录指引只出现一次）、停止/状态读取的
+          归属与乱序保护、同名课程按条目 id 执行、CLI 勾选语义与跨进程锁；
+          平台回包的日期溢出、分页截断、畸形条目防护。
+
+          构建自提交 $GITHUB_SHA；发布前已跑 lint / typecheck / 全部测试 /
+          构建 / 无头 Chromium 冒烟。完整说明与变更记录见仓库。
+          EOF
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Study Pilot $GITHUB_REF_NAME" \
+            --notes-file release-notes.md \
+            "study-pilot-extension-${GITHUB_REF_NAME}-chrome.zip" \
+            "study-pilot-cli-${GITHUB_REF_NAME}.mjs"
