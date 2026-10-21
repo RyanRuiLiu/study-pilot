@@ -58,6 +58,7 @@ beforeEach(() => {
   resetArea('todo-text');
   resetArea('zhs-todo-text');
   for (const fn of Object.values(bridge)) fn.mockReset();
+  bridge.getZhsSession.mockResolvedValue({ loggedIn: true });
   bridge.getSettings.mockResolvedValue({
     mooc: { courses: [{ enabled: true }] },
     zhihuishu: { courses: [{ enabled: true }] },
@@ -75,5 +76,33 @@ describe('待办区的取数出口', () => {
     bridge.getZhsSession.mockRejectedValueOnce(new Error('后台断了'));
     await renderZhsTodo();
     expect(textOf('zhs-todo-text')).toContain('读取失败：后台断了');
+  });
+
+  it('见面课测验进待办时只给「需手动完成」，不给执行按钮', async () => {
+    bridge.getZhsPending.mockResolvedValueOnce({
+      status: 'ok',
+      value: {
+        entries: [
+          {
+            itemId: 'meet-1',
+            kind: 'meetQuiz',
+            courseName: '示例课程甲',
+            chapterName: '',
+            name: '第一次见面课',
+            status: '未提交',
+            href: 'https://example.com/',
+            deadline: null,
+            sec: 0,
+            opensAt: null,
+          },
+        ],
+        unreadCourses: [],
+      },
+    });
+    await renderZhsTodo();
+    const document = (globalThis as unknown as { document: Document }).document;
+    const el = document.getElementById('zhs-todo-text');
+    expect(el?.textContent).toContain('需手动完成');
+    expect(el?.querySelectorAll('button.todo-run')).toHaveLength(0);
   });
 });
