@@ -86,7 +86,7 @@
 | apps/extension/src/browser/capabilities.ts | 待读 |
 | apps/extension/src/browser/net-rules.ts | 待读 |
 | apps/extension/src/browser/run-feed.ts | 待读 |
-| apps/extension/src/browser/run-once.ts | 待读 |
+| apps/extension/src/browser/run-once.ts | 已读 |
 | apps/extension/src/features/mooc/guidance/block.ts | 已读 |
 | apps/extension/src/features/mooc/guidance/index.ts | 待读 |
 | apps/extension/src/features/mooc/guidance/loader.ts | 待读 |
@@ -113,7 +113,7 @@
 | apps/extension/src/ui/scopes.ts | 已读 |
 | apps/extension/src/ui/tabs.ts | 已读 |
 | apps/extension/src/ui/tokens.css | 待读 |
-| apps/extension/src/ui/tokens.ts | 待读 |
+| apps/extension/src/ui/tokens.ts | 已读 |
 | apps/extension/src/vite-env.d.ts | 待读 |
 | apps/extension/test/ai-tasks.test.ts | 待读 |
 | apps/extension/test/boundaries.test.ts | 待读 |
@@ -125,6 +125,7 @@
 | apps/extension/test/params.test.ts | 已读 |
 | apps/extension/test/format.test.ts | 已读 |
 | apps/extension/test/tabs.test.ts | 已读 |
+| apps/extension/test/run-once.test.ts | 已读 |
 | apps/extension/test/node-live.test.ts | 待读 |
 | apps/extension/test/options.test.ts | 待读 |
 | apps/extension/test/popup-status.test.ts | 待读 |
@@ -304,4 +305,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：294 个文件；已读 64，部分 23，待读 207。
+合计：295 个文件；已读 67，部分 23，待读 205。

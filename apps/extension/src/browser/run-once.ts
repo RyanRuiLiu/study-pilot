@@ -31,7 +31,6 @@ export interface RunScope {
   platformId?: string;
 }
 
-/** 执行期间要写状态、控按钮、结束后让入口重读清单，因此由入口传进来。 */
 /**
  * 失败项的「为什么」：取各条的 detail（执行层给的原话），去掉「上报失败：」
  * 这层包装、去重，最多两条——只说「N 项未完成 / 失败：某某」而不给原因，
@@ -48,6 +47,7 @@ function failureReasons(items: Array<{ detail?: string }>): string[] {
   ].slice(0, 2);
 }
 
+/** 执行期间要写状态、控按钮、结束后让入口重读清单，因此由入口传进来。 */
 export interface RunHandles {
   setStatus: (text: string, tone: Tone) => void;
   setEnabled: (enabled: boolean) => void;
@@ -142,6 +142,15 @@ export async function runNow(handles: RunHandles, scope?: RunScope): Promise<voi
    * 按钮的复位仍等重读完成——那一小段时间里别让第二个动作挤进来。
    */
   handles.setStatus(text, tone);
-  await handles.refresh();
-  handles.setEnabled(true);
+  try {
+    await handles.refresh();
+  } catch {
+    /*
+     * 重读失败不动结果句（结果已经说过），也不把这一轮算成失败：
+     * 数字停在旧值，下次打开会重新读。但按钮必须复位——否则页面看起来
+     * 永远在执行中，只能重开。
+     */
+  } finally {
+    handles.setEnabled(true);
+  }
 }
