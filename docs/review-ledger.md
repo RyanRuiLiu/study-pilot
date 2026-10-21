@@ -222,9 +222,9 @@
 | packages/platform-mooc/src/policy/plan/types.ts | 已读 |
 | packages/platform-mooc/src/policy/plan/work.ts | 已读 |
 | packages/platform-mooc/src/policy/read/courseware.ts | 已读 |
-| packages/platform-mooc/src/policy/read/index.ts | 待读 |
-| packages/platform-mooc/src/policy/read/inspect.ts | 待读 |
-| packages/platform-mooc/src/policy/read/types.ts | 待读 |
+| packages/platform-mooc/src/policy/read/index.ts | 已读 |
+| packages/platform-mooc/src/policy/read/inspect.ts | 已读 |
+| packages/platform-mooc/src/policy/read/types.ts | 已读 |
 | packages/platform-mooc/src/policy/recovery.ts | 已读 |
 | packages/platform-mooc/src/policy/session.ts | 已读 |
 | packages/platform-mooc/src/policy/sync.ts | 已读 |
@@ -310,4 +310,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：300 个文件；已读 145，部分 18，待读 137。
+合计：300 个文件；已读 148，部分 18，待读 134。
