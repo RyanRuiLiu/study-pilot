@@ -75,7 +75,7 @@ export function probeQuizStage(root: ParentNode = document): QuizStageProbe {
 
 /** 阶段对应的界面说明。 */
 export const STAGE_DESCRIPTIONS: Record<QuizStage, string> = {
-  'before-start': '尚未开始测验。请在页面上点击开始测验后再使用本面板。',
+  'before-start': '尚未开始测验。先在页面上点击开始测验，再使用本面板。',
   answering: '可以填充答案。逐题点击页面选项，每次点击之间留出间隔。',
   graded: '本单元测验已批改，答案已展示在页面上。',
   loading: '页面尚未加载完成。',

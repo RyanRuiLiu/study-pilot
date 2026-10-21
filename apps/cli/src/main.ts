@@ -168,7 +168,7 @@ function reportRound(result: RoundResult, configPath: string): number {
       console.error('正在执行：状态文件说上一轮还没结束（等一会儿，或删掉状态文件重试）');
       return 4;
     case 'not-logged-in':
-      console.error('未登录：会话 cookie 已失效，请重新导出（pnpm probe state export）');
+      console.error('未登录：会话 cookie 已失效，重新导出一次（pnpm probe state export）');
       return 2;
     case 'no-course':
       console.error(`没有勾选课程：先跑 courses --select <id>（配置：${configPath}）`);
@@ -327,7 +327,7 @@ async function main(): Promise<number> {
         return 1;
       }
       if (hits.length > 1) {
-        console.error(`\nid=${select} 在两家平台的列表里都有——请加 --platform 指明是哪家`);
+        console.error(`\nid=${select} 在两家平台的列表里都有，加 --platform 指明是哪家`);
         return 1;
       }
 
