@@ -269,7 +269,7 @@
 | packages/platform-zhs/src/policy/execute-exam.ts | 已读 |
 | packages/platform-zhs/src/policy/execute.ts | 已读 |
 | packages/platform-zhs/src/policy/net-rules.ts | 已读 |
-| packages/platform-zhs/src/policy/tasks.ts | 部分 |
+| packages/platform-zhs/src/policy/tasks.ts | 已读 |
 | packages/platform-zhs/src/report.ts | 已读 |
 | packages/platform-zhs/src/runtime.ts | 待读 |
 | packages/platform-zhs/src/session.ts | 部分 |
@@ -310,4 +310,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：300 个文件；已读 171，部分 13，待读 116。
+合计：300 个文件；已读 172，部分 12，待读 116。
