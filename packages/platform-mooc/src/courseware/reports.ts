@@ -45,7 +45,7 @@ export async function postLearnInfo(
   return ok(undefined);
 }
 
-/** 只报完成的报文。文本、讨论用它；文档在拿不到页数时也退回它。 */
+/** 只报完成的报文。文本与讨论用它；文档不走这条（拿不到页数时如实失败，见 document.ts）。 */
 export function completionDto(unit: CourseUnit): Record<string, unknown> {
   return { ...baseDto(unit), finished: true };
 }

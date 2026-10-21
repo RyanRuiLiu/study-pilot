@@ -194,15 +194,15 @@
 | packages/platform-mooc/src/client.ts | 部分 |
 | packages/platform-mooc/src/course-url.ts | 已读 |
 | packages/platform-mooc/src/courses.ts | 待读 |
-| packages/platform-mooc/src/courseware/behavior.ts | 待读 |
-| packages/platform-mooc/src/courseware/discuss.ts | 部分 |
-| packages/platform-mooc/src/courseware/document.ts | 待读 |
-| packages/platform-mooc/src/courseware/index.ts | 待读 |
-| packages/platform-mooc/src/courseware/reports.ts | 待读 |
-| packages/platform-mooc/src/courseware/resource.ts | 部分 |
-| packages/platform-mooc/src/courseware/text.ts | 待读 |
-| packages/platform-mooc/src/courseware/unit-quiz.ts | 待读 |
-| packages/platform-mooc/src/courseware/video.ts | 待读 |
+| packages/platform-mooc/src/courseware/behavior.ts | 已读 |
+| packages/platform-mooc/src/courseware/discuss.ts | 已读 |
+| packages/platform-mooc/src/courseware/document.ts | 已读 |
+| packages/platform-mooc/src/courseware/index.ts | 已读 |
+| packages/platform-mooc/src/courseware/reports.ts | 已读 |
+| packages/platform-mooc/src/courseware/resource.ts | 已读 |
+| packages/platform-mooc/src/courseware/text.ts | 已读 |
+| packages/platform-mooc/src/courseware/unit-quiz.ts | 已读 |
+| packages/platform-mooc/src/courseware/video.ts | 已读 |
 | packages/platform-mooc/src/dwr-parse.ts | 待读 |
 | packages/platform-mooc/src/endpoints.ts | 待读 |
 | packages/platform-mooc/src/evaluation-items.ts | 待读 |
@@ -309,4 +309,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：299 个文件；已读 120，部分 19，待读 160。
+合计：299 个文件；已读 129，部分 17，待读 153。
