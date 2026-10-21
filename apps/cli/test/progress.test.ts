@@ -38,4 +38,27 @@ describe('进度输出', () => {
     expect(lines.filter((line) => line.includes('单元 A') && line.includes('✓')).length).toBe(1);
     expect(lines.some((line) => line.includes('■') && line.includes('共完成 1 项'))).toBe(true);
   });
+
+  it('同名单元在两门课里同刻完成：两条都打印（去重键带课程）', async () => {
+    const lines: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      lines.push(args.join(' '));
+    });
+    const progress = createStdoutProgress();
+    const platform = { id: 'mooc', name: '中国大学 MOOC' };
+    const item = { title: '第一章单元测试', kind: 'quiz' };
+
+    let state: RunState = beginPlatform({ platforms: [] }, platform, 2, 1);
+    await progress.publish(state);
+    state = enterItem(state, platform, { ...item, course: '甲课' }, 2);
+    await progress.publish(state);
+    state = completeItem(state, platform, { ...item, course: '甲课' }, 'done', '已提交', 3);
+    await progress.publish(state);
+    state = enterItem(state, platform, { ...item, course: '乙课' }, 3);
+    await progress.publish(state);
+    state = completeItem(state, platform, { ...item, course: '乙课' }, 'done', '已提交', 3);
+    await progress.publish(state);
+
+    expect(lines.filter((line) => line.includes('第一章单元测试') && line.includes('✓'))).toHaveLength(2);
+  });
 });

@@ -47,8 +47,9 @@ PRIVACY.md 会同步改写。已经能自动做的客观题测验里，智慧树
 
     node apps/cli/src/main.ts courses
         # 去两个平台各读一次课程列表（同一个会话文件里两家的 cookie 都有）；
-        # 加 --select <id> 把那门课勾进配置：慕课是 termId（单选，勾上它即取消其余），
-        # 智慧树是 courseId（逐门切换，再跑一次即反向）；可加 --platform 只读一家
+        # 加 --select <id> 切换那门课的参与状态：慕课是 termId、智慧树是 courseId，
+        # 两家都是逐门切换（再跑一次即反向，与设置页的勾选框同一语义）；
+        # 可加 --platform 只读一家
     node apps/cli/src/main.ts pending
         # 读一遍并算出要做什么（可自动 / 需人工），不改平台上的任何数据；--platform 收窄
     node apps/cli/src/main.ts run
@@ -156,6 +157,9 @@ PRIVACY.md 会同步改写。已经能自动做的客观题测验里，智慧树
       test/           测试（boundaries.test.ts 是分层的机械核对）
     apps/cli/        载体二：命令行（两个平台都接）
       src/progress.ts      执行进度打到标准输出（本载体自己的那一件）
+      src/select.ts        courses --select 的逐门切换（与设置页同一语义）
+      src/report.ts        一轮结局的收尾句（停止的一轮要明说）
+      src/run-lock.ts      跨进程执行锁（状态文件旁的 .lock，按 PID 判活）
       src/main.ts          命令：courses / pending / run（run 默认预演，--yes 才写）
       # 配置/状态/会话文件与按平台设头的 fetch 在 packages/adapters-node（见上）
     scripts/probe/   真机调试唯一入口（pnpm probe；见「真机调试」一节）

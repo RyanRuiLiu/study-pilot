@@ -5,7 +5,7 @@
  * 命令行打到标准输出，逐行报「开始 / 某项结果 / 收尾」。
  *
  * 进程内留一份最新快照：用例是「读一份 → 迁移 → 写一份」的写法，每一步都要能读回当前状态。
- * 逐项只打印一次（按 平台|标题|状态|时刻 去重），因为 publish 收到的是整份快照，不是增量。
+ * 逐项只打印一次（按 平台|课程|标题|状态|时刻 去重），因为 publish 收到的是整份快照，不是增量。
  */
 
 import {
@@ -42,7 +42,8 @@ export function createStdoutProgress(): ProgressPort {
           console.log(`▶ ${platform.name}：本轮 ${platform.total} 项`);
         }
         for (const item of platform.items) {
-          const key = `${platform.id}|${item.title}|${item.status}|${item.at}`;
+          // 键里必须带课程：同名单元在两门课里很常见，同一毫秒完成时只按标题去重会吞掉一条
+          const key = `${platform.id}|${item.course}|${item.title}|${item.status}|${item.at}`;
           if (printed.has(key)) continue;
           printed.add(key);
           console.log(itemLine(platform, item));

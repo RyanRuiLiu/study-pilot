@@ -119,7 +119,8 @@ async function init(): Promise<void> {
   });
 
   settingsBtn?.addEventListener('click', () => {
-    void browser.runtime.openOptionsPage();
+    // 打开失败（扩展正在重载）没有可显示的地方；别让它落成未处理拒绝
+    void browser.runtime.openOptionsPage().catch(() => undefined);
     window.close();
   });
 }

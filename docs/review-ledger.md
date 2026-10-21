@@ -23,8 +23,14 @@
 | README.md | 已读 |
 | apps/cli/package.json | 已读 |
 | apps/cli/src/main.ts | 已读 |
+| apps/cli/src/report.ts | 已读 |
+| apps/cli/src/run-lock.ts | 已读 |
+| apps/cli/src/select.ts | 已读 |
 | apps/cli/src/progress.ts | 已读 |
 | apps/cli/test/progress.test.ts | 已读 |
+| apps/cli/test/report.test.ts | 已读 |
+| apps/cli/test/run-lock.test.ts | 已读 |
+| apps/cli/test/select.test.ts | 已读 |
 | apps/cli/tsconfig.json | 已读 |
 | apps/extension/entrypoints/background.ts | 已读 |
 | apps/extension/entrypoints/mooc.content.ts | 已读 |
@@ -315,7 +321,7 @@
 | scripts/probe/probe.mjs | 已读 |
 | tsconfig.base.json | 已读 |
 
-合计：305 个文件；已读 305，部分 0，待读 0。
+合计：311 个文件；已读 311，部分 0，待读 0。
 
 `pnpm-lock.yaml` 是生成的产物，没有「逐行读」的语义；它的核对方式是
 `pnpm install --frozen-lockfile`（锁文件与各 package.json 的 workspace 边一致、

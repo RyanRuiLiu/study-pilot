@@ -13,7 +13,7 @@
  * `--platform` 收窄。
  *
  * 命令：
- *   courses [--platform <id>] [--select <id>]   去平台读课程列表；--select 勾上那门课（写进配置）
+ *   courses [--platform <id>] [--select <id>]   去平台读课程列表；--select 切换那门课的参与状态（写进配置）
  *   pending [--platform <id>]                   读一遍并算出「要做什么」（可自动 / 需人工），只读
  *   run [--platform <id>] [--yes]               预演这一轮会做什么；**加 --yes 才真的执行**（会写平台）
  *
@@ -47,6 +47,9 @@ import {
   type Sessions,
 } from '@study-pilot/adapters-node';
 import { createStdoutProgress } from './progress.ts';
+import { finishedLine } from './report.ts';
+import { acquireRunLock } from './run-lock.ts';
+import { toggleCourse } from './select.ts';
 
 /*
  * 默认的会话/配置/状态路径按**仓库根**解析，不按当前目录。
@@ -72,7 +75,7 @@ function findRepoRoot(): string {
 
 const USAGE = `study-pilot（命令行载体）
 
-  courses [--platform <id>] [--select <id>]   去平台读课程列表；--select 勾上那门课（写进配置）
+  courses [--platform <id>] [--select <id>]   去平台读课程列表；--select 切换那门课的参与状态（写进配置）
   pending [--platform <id>]                   读一遍并算出要做什么（能做 / 需人工），只读
   run [--platform <id>] [--yes]               预演这一轮；加 --yes 才真的执行（会写平台）
 
@@ -179,7 +182,7 @@ function reportRound(result: RoundResult, configPath: string): number {
       console.log('没有可执行的事项');
       return 0;
     case 'finished': {
-      console.log(`完成 ${result.done} 项，需手动处理 ${result.manual} 项`);
+      console.log(finishedLine(result));
       for (const failure of result.failed) console.error(`  ✗ ${failure.name}：${failure.detail}`);
       return result.failed.length > 0 ? 1 : 0;
     }
@@ -334,35 +337,31 @@ async function main(): Promise<number> {
       }
 
       /*
-       * 勾选的落点各平台各说各的：
-       *   慕课   —— 单选模型（课程卡片上一次只有一门参与），勾上这门即取消其余；
-       *   智慧树 —— 多选模型（每门课一个开关），--select 是**切换**（再跑一次即反向），
-       *             这是命令行里唯一能同时表达「勾上」与「取消」的动作。
-       * 写回都只动自己那一段配置，不整份回写。
+       * 两个平台同一套语义：多选模型，--select 是**切换**（再跑一次即反向）。
+       * 命令行的参数模型表达不了「只勾这一门、其余取消」，也没有必要——
+       * 扩展的设置页就是每门课一个开关；两个渠道必须对同一份配置说同一件事。
+       * 写回只动自己那一段配置，不整份回写。
        */
       const current = await config.read();
       if (hits[0][0] === 'mooc') {
-        const courses = current.mooc.courses.map((course) => ({
-          ...course,
-          enabled: course.termId === select,
-        }));
-        if (!courses.some((course) => course.enabled)) {
+        const next = toggleCourse(current.mooc.courses, (course) => course.termId === select);
+        if (!next.found) {
           console.error(`\n配置里没有 termId=${select}`);
           return 1;
         }
-        await config.update({ mooc: { courses } });
-        console.log(`\n已把 termId=${select} 写进 ${args.config}`);
+        await config.update({ mooc: { courses: next.courses } });
+        console.log(`\n已${next.enabled ? '勾选' : '取消勾选'} termId=${select}（再跑一次 --select 可反向切换）`);
       } else {
-        const course = current.zhihuishu.courses.find((entry) => entry.courseId === select);
-        if (course === undefined) {
+        const next = toggleCourse(
+          current.zhihuishu.courses,
+          (course) => course.courseId === select,
+        );
+        if (!next.found) {
           console.error(`\n配置里没有 courseId=${select}`);
           return 1;
         }
-        const courses = current.zhihuishu.courses.map((entry) =>
-          entry.courseId === select ? { ...entry, enabled: !entry.enabled } : entry,
-        );
-        await config.update({ zhihuishu: { courses } });
-        console.log(`\n已${course.enabled ? '取消勾选' : '勾选'} courseId=${select}（再跑一次 --select 可反向切换）`);
+        await config.update({ zhihuishu: { courses: next.courses } });
+        console.log(`\n已${next.enabled ? '勾选' : '取消勾选'} courseId=${select}（再跑一次 --select 可反向切换）`);
       }
       return 0;
     }
@@ -531,7 +530,23 @@ async function main(): Promise<number> {
         tasks: createFileTaskStore(args.state),
         progress: createStdoutProgress(),
       });
-      return reportRound(await runner.runRound(selection), args.config);
+
+      /*
+       * 进程锁：应用层的 runningSince 在「读 → 判 → 写」之间仍有窗口，
+       * 两个命令行进程可能同时判成空闲。拿不到锁按「上一轮还没结束」处理（退出码 4）。
+       */
+      let release: () => void;
+      try {
+        release = acquireRunLock(args.state);
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
+        return 4;
+      }
+      try {
+        return reportRound(await runner.runRound(selection), args.config);
+      } finally {
+        release();
+      }
     }
 
     default:

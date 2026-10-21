@@ -45,12 +45,25 @@ async function saveSettings(next: Settings): Promise<Settings> {
  */
 let writeQueue: Promise<unknown> = Promise.resolve();
 
+/**
+ * 跨页面上下文也串行：打开两个设置页（或设置页与后台同时改配置）时，
+ * 各自模块里的 writeQueue 互不相识。Web Locks 在同一扩展源的所有上下文之间
+ * 互斥，把「读-改-写」整体罩住；浏览器不支持时退化为单上下文队列。
+ */
+async function withWriteLock<T>(run: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
+  if (locks === undefined) return run();
+  return (await locks.request('study-pilot-settings-write', run)) as T;
+}
+
 /** 局部更新：传入的部分结构会深合并到当前配置上。写入串行，不丢更新。 */
 export async function updateSettings(patch: unknown): Promise<Settings> {
-  const next = writeQueue.then(async () => {
-    const current = await getSettings();
-    return saveSettings(mergeWithBase(current, patch));
-  });
+  const next = writeQueue.then(() =>
+    withWriteLock(async () => {
+      const current = await getSettings();
+      return saveSettings(mergeWithBase(current, patch));
+    }),
+  );
   // 队列自身吞掉拒绝，免得一次失败卡死后续写入；调用方仍拿到真实的 Promise
   writeQueue = next.catch(() => undefined);
   return next;
