@@ -10,11 +10,12 @@
  * 判定调用是否成功一律基于响应文本，而不是 HTTP 状态码——
  * DWR 即使业务失败也返回 200。
  *
- * 报文结构取自真实抓包（示例课程子第三单元 testId 9000000021）与本轮实测响应。
+ * 报文结构取自真实抓包（一门物理课的第三单元，testId 已脱敏）与本轮实测响应。
  */
 
-import { ok, type Result } from '@study-pilot/core';
+import { err, ok, type Result } from '@study-pilot/core';
 import {
+  apiError,
   DwrEncoder,
   extractDwrPayload,
   isDwrSuccess,
@@ -215,7 +216,7 @@ export async function nextSubmission(
 /**
  * 提交一份互评。写操作。
  *
- * 报文结构取自真实抓包（在示例课程子第三单元的互评页实测）：
+ * 报文结构取自真实抓包（在一门物理课的第三单元互评页实测）：
  *
  *   c0-param0 = Object_Object:{
  *     evaluateId: string:<evaluateId>,
@@ -278,8 +279,12 @@ export async function submitEvaluation(
     ],
   );
   if (!response.ok) return response;
-
-  return ok(isDwrSuccess(response.value.raw));
+  /*
+   * 业务失败要落成 Result 失败：DWR 业务失败也是 HTTP 200，
+   * 只把 isDwrSuccess 塞进 value 的话，调用方按 !result.ok 判断会把这一份记成已评。
+   */
+  if (!isDwrSuccess(response.value.raw)) return err(apiError(-1, '提交评分被平台拒绝'));
+  return ok(true);
 }
 
 // 读取、评分项与 DWR 解析已按域移出，这里保持唯一出口，导入方不受影响

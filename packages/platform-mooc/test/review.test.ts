@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { buildEvaluationItems, parseDwrObjectVariables } from '../src/review.ts';
+import { buildEvaluationItems, parseDwrObjectVariables, submitEvaluation } from '../src/review.ts';
 import type { PaperQuestion } from '../src/types.ts';
 
 /** 取下一份待评答卷的真实响应。 */
@@ -116,5 +116,35 @@ describe('buildEvaluationItems', () => {
     for (const item of items) {
       expect(typeof item.jid).toBe('string');
     }
+  });
+});
+
+describe('submitEvaluation 的业务成败', () => {
+  const ITEMS = [
+    { qid: 1, jid: '9', qscore: 6, jscore: 6, comment: '按点给分', answerCanViewComment: true },
+  ];
+
+  /** 只回答一份 DWR 原始回包，够验成败判定。 */
+  const dwrClient = (raw: string) =>
+    ({ dwr: { call: async () => ({ ok: true, value: { raw } }) } }) as never;
+
+  it('业务异常（_remoteHandleException）→ Result 失败，不能记成已评', async () => {
+    const result = await submitEvaluation(
+      dwrClient("dwr.engine._remoteHandleException('1','0','java.lang.RuntimeException');"),
+      1,
+      2,
+      ITEMS,
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it('正常回包 → ok(true)', async () => {
+    const result = await submitEvaluation(
+      dwrClient("dwr.engine._remoteHandleCallback('1','0',true);"),
+      1,
+      2,
+      ITEMS,
+    );
+    expect(result).toEqual({ ok: true, value: true });
   });
 });
