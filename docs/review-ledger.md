@@ -262,13 +262,13 @@
 | packages/platform-zhs/src/exam-list.ts | 已读 |
 | packages/platform-zhs/src/exam-paper.ts | 已读 |
 | packages/platform-zhs/src/final-exam.ts | 部分 |
-| packages/platform-zhs/src/index.ts | 待读 |
+| packages/platform-zhs/src/index.ts | 已读 |
 | packages/platform-zhs/src/meet.ts | 已读 |
 | packages/platform-zhs/src/oracle.ts | 已读 |
 | packages/platform-zhs/src/pages.ts | 已读 |
 | packages/platform-zhs/src/policy/execute-exam.ts | 部分 |
 | packages/platform-zhs/src/policy/execute.ts | 已读 |
-| packages/platform-zhs/src/policy/net-rules.ts | 待读 |
+| packages/platform-zhs/src/policy/net-rules.ts | 已读 |
 | packages/platform-zhs/src/policy/tasks.ts | 部分 |
 | packages/platform-zhs/src/report.ts | 已读 |
 | packages/platform-zhs/src/runtime.ts | 待读 |
@@ -310,4 +310,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：300 个文件；已读 167，部分 14，待读 119。
+合计：300 个文件；已读 170，部分 14，待读 116。

@@ -16,7 +16,7 @@
  *     路径上（stuExamWeb.js:106-118 与各端点定义处）。**用 5 会被网关回 404**
  *     （Tomcat 错误页）——实测：在浏览器里发一条假密文同样 404，所以这与
  *     Origin/Referer 无关，是密文解不开。2026-10-17 之前记录里的「404 卡点」即此。
- *   - `id` / `examId` 是**字符串**（实测 `5JEbmXP3` / `wDlL1OAw`），别按数字处理。
+ *   - `id` / `examId` 是**字符串**（实测形态为 8 位字母数字，脱敏样例 `A1b2C3d4` / `E5f6G7h8`），别按数字处理。
  */
 
 import type { ZhsClient } from './client.ts';
