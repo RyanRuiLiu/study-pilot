@@ -17,7 +17,9 @@ export function sessionCommand(deps: MoocMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
     const session = await ensureSession(deps.host, deps.client.send, deps.client.origin);
     if (!session.loggedIn) {
-      sendResponse(session satisfies MoocResponseMap['MOOC_SESSION']);
+      // 未登录这一支不带 token（payload 的 MoocSessionResponse 注释就是这条约定）：
+      // 界面只读 loggedIn / userId，凭证不离开后台
+      sendResponse({ loggedIn: false, userId: session.userId } satisfies MoocResponseMap['MOOC_SESSION']);
       return;
     }
 
@@ -43,6 +45,6 @@ export function sessionCommand(deps: MoocMessageDeps): MessageHandler {
       }
     }
 
-    sendResponse({ loggedIn: false, userId: 0, token: session.token } satisfies MoocResponseMap['MOOC_SESSION']);
+    sendResponse({ loggedIn: false, userId: 0 } satisfies MoocResponseMap['MOOC_SESSION']);
   };
 }

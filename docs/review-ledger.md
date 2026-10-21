@@ -52,19 +52,19 @@
 | apps/extension/entrypoints/popup/zhihuishu-todo.ts | 已读 |
 | apps/extension/package.json | 待读 |
 | apps/extension/public/_locales/zh_CN/messages.json | 待读 |
-| apps/extension/src/adapters/mooc/messages/courses.ts | 待读 |
+| apps/extension/src/adapters/mooc/messages/courses.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/courseware-summary.ts | 待读 |
 | apps/extension/src/adapters/mooc/messages/deps.ts | 待读 |
 | apps/extension/src/adapters/mooc/messages/handlers.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/homework-paper.ts | 已读 |
-| apps/extension/src/adapters/mooc/messages/payload.ts | 部分 |
-| apps/extension/src/adapters/mooc/messages/pending.ts | 待读 |
+| apps/extension/src/adapters/mooc/messages/payload.ts | 已读 |
+| apps/extension/src/adapters/mooc/messages/pending.ts | 已读 |
 | apps/extension/src/adapters/mooc/messages/quiz-helper.ts | 已读 |
-| apps/extension/src/adapters/mooc/messages/refresh-courses.ts | 待读 |
-| apps/extension/src/adapters/mooc/messages/session.ts | 待读 |
+| apps/extension/src/adapters/mooc/messages/refresh-courses.ts | 已读 |
+| apps/extension/src/adapters/mooc/messages/session.ts | 已读 |
 | apps/extension/src/adapters/mooc/platform.ts | 待读 |
-| apps/extension/src/adapters/mooc/to-messages.ts | 待读 |
-| apps/extension/src/adapters/mooc/work-status.ts | 待读 |
+| apps/extension/src/adapters/mooc/to-messages.ts | 已读 |
+| apps/extension/src/adapters/mooc/work-status.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/boards.ts | 待读 |
 | apps/extension/src/adapters/zhihuishu/messages/course-tasks.ts | 待读 |
 | apps/extension/src/adapters/zhihuishu/messages/courses.ts | 待读 |
@@ -128,6 +128,7 @@
 | apps/extension/test/run-once.test.ts | 已读 |
 | apps/extension/test/run-state.test.ts | 已读 |
 | apps/extension/test/panel-info.test.ts | 已读 |
+| apps/extension/test/session-command.test.ts | 已读 |
 | apps/extension/test/node-live.test.ts | 待读 |
 | apps/extension/test/options.test.ts | 待读 |
 | apps/extension/test/popup-status.test.ts | 待读 |
@@ -307,4 +308,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：297 个文件；已读 97，部分 21，待读 179。
+合计：298 个文件；已读 105，部分 20，待读 173。
