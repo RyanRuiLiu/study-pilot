@@ -100,5 +100,3 @@ export async function getHomeworkPaper(
     },
   );
 }
-
-// ---------- 互评评分项 ----------

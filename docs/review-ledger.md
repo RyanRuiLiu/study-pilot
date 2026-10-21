@@ -191,9 +191,9 @@
 | packages/core/test/result.test.ts | 待读 |
 | packages/core/tsconfig.json | 待读 |
 | packages/platform-mooc/package.json | 待读 |
-| packages/platform-mooc/src/client.ts | 部分 |
+| packages/platform-mooc/src/client.ts | 已读 |
 | packages/platform-mooc/src/course-url.ts | 已读 |
-| packages/platform-mooc/src/courses.ts | 待读 |
+| packages/platform-mooc/src/courses.ts | 已读 |
 | packages/platform-mooc/src/courseware/behavior.ts | 已读 |
 | packages/platform-mooc/src/courseware/discuss.ts | 已读 |
 | packages/platform-mooc/src/courseware/document.ts | 已读 |
@@ -203,12 +203,12 @@
 | packages/platform-mooc/src/courseware/text.ts | 已读 |
 | packages/platform-mooc/src/courseware/unit-quiz.ts | 已读 |
 | packages/platform-mooc/src/courseware/video.ts | 已读 |
-| packages/platform-mooc/src/dwr-parse.ts | 待读 |
-| packages/platform-mooc/src/endpoints.ts | 待读 |
-| packages/platform-mooc/src/evaluation-items.ts | 待读 |
-| packages/platform-mooc/src/homework-read.ts | 待读 |
+| packages/platform-mooc/src/dwr-parse.ts | 已读 |
+| packages/platform-mooc/src/endpoints.ts | 已读 |
+| packages/platform-mooc/src/evaluation-items.ts | 已读 |
+| packages/platform-mooc/src/homework-read.ts | 已读 |
 | packages/platform-mooc/src/index.ts | 待读 |
-| packages/platform-mooc/src/paper-types.ts | 待读 |
+| packages/platform-mooc/src/paper-types.ts | 已读 |
 | packages/platform-mooc/src/policy/assembly.ts | 部分 |
 | packages/platform-mooc/src/policy/course-selection.ts | 已读 |
 | packages/platform-mooc/src/policy/execute/courseware.ts | 已读 |
@@ -233,7 +233,7 @@
 | packages/platform-mooc/src/review.ts | 已读 |
 | packages/platform-mooc/src/structure.ts | 待读 |
 | packages/platform-mooc/src/types.ts | 待读 |
-| packages/platform-mooc/src/work-status.ts | 待读 |
+| packages/platform-mooc/src/work-status.ts | 已读 |
 | packages/platform-mooc/test/answer-submit.test.ts | 待读 |
 | packages/platform-mooc/test/course-selection.test.ts | 待读 |
 | packages/platform-mooc/test/courseware-summary.test.ts | 待读 |
@@ -310,4 +310,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：300 个文件；已读 150，部分 18，待读 132。
+合计：300 个文件；已读 158，部分 17，待读 125。

@@ -68,5 +68,3 @@ export function buildEvaluationItems(
 
   return items;
 }
-
-// ---------- DWR 调用 ----------
