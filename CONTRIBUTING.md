@@ -86,6 +86,30 @@
   构建缓存**（删 apps/extension/.output 与 .wxt 再 build）——实测过期产物会把新代码漏编
   （2026-10-17：做题助手整块没进 content script，表现为「面板时有时无」）。
 
+## 扩展发版（Chrome Web Store）
+
+技术产物可以重复生成，步骤固定：
+
+1. `pnpm changeset` 选 `@study-pilot/extension` 并写一句变更；合并后 `pnpm changeset version`
+   抬版本。版本号同时进 manifest 与 zip 文件名（zip 名前缀钉在 `wxt.config.ts`）。
+2. `pnpm install --frozen-lockfile && pnpm lint && pnpm -r typecheck && pnpm -r test`。
+3. `pnpm build && pnpm --filter @study-pilot/extension zip` →
+   `apps/extension/.output/study-pilot-extension-<版本>-chrome.zip`，manifest.json 在压缩包根目录。
+4. `pnpm e2e`：无头 Chromium 装载 `chrome-mv3/`，确认 service worker、popup、options 无页面异常。
+5. `pnpm probe icon --check` 核对图标未过期；`pnpm probe store` 生成两张商店磁贴
+   （`apps/extension/.output/store/`，440x280 必填、1400x560 精选位）。
+6. 上传 zip 到开发者后台；同一份 zip 归档到 `apps/extension/releases/`（git 忽略，只作回看）。
+
+商店后台还有三样**仓库不生成、必须人工准备**的材料：
+
+- 至少一张截图（1280x800 或 640x400），展示弹窗/设置页的真实内容（要登录态）；
+- 隐私政策的**公开 URL**（内容用本仓 `PRIVACY.md`，放 Pages 或可公开访问的地址）；
+- 单一用途说明、权限逐项理由（cookies / storage / declarativeNetRequestWithHostAccess，
+  三家 host permissions 的用途见 `wxt.config.ts` 注释）与数据使用声明
+  （只读平台数据、密钥只存本机、不上传、无远程代码）。
+
+`minimum_chrome_version: 96` 由 `declarativeNetRequestWithHostAccess` 决定，不要下调。
+
 ## 平台接入标准（新平台照这条流程走）
 
 1. 逆向与抓包先做透：结论写进 `.probe` 的 FINDINGS（本地），**证据齐了再落代码**；
