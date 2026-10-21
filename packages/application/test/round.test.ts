@@ -194,6 +194,34 @@ describe('一轮的前置条件', () => {
     expect(second).toEqual({ status: 'rejected', reason: 'ALREADY_RUNNING' });
   });
 
+  it('两家平台的一轮可以同时在飞：一家在跑不占另一家的门，状态写不互相覆盖', async () => {
+    // 「平台相互独立」的两半：认领按平台、状态读改写串行。少任何一半，这条都会红。
+    let releaseMooc: () => void = () => {};
+    const moocGate = new Promise<void>((resolve) => {
+      releaseMooc = resolve;
+    });
+    let moocRunning = false;
+    const mooc = platform('mooc', { items: [item('m1', 'auto')] });
+    mooc.run = async () => {
+      moocRunning = true;
+      await moocGate;
+      return { status: 'done' };
+    };
+    const zhs = platform('zhihuishu', { items: [item('z1', 'auto')] });
+    const { runner, tasks } = setup([mooc, zhs]);
+
+    const first = runner.runRound({ platformId: 'mooc' });
+    await vi.waitFor(() => expect(moocRunning).toBe(true));
+    const second = await runner.runRound({ platformId: 'zhihuishu' });
+    releaseMooc();
+
+    expect(await first).toMatchObject({ status: 'finished', done: 1 });
+    expect(second).toMatchObject({ status: 'finished', done: 1 });
+    const state = tasks.current();
+    expect(state.platforms['mooc']?.lastFinishedAt).not.toBeNull();
+    expect(state.platforms['zhihuishu']?.lastFinishedAt).not.toBeNull();
+  });
+
   it('一轮抛错：收尾、记下失败、也把消息交回给调用方', async () => {
     /*
      * 两条都要留，它们服务两个时刻：状态里那份给界面（下次打开时还看得见
