@@ -187,15 +187,42 @@ export function parsePlatformTime(value: unknown): number | null {
   if (typeof value !== 'string') return null;
   const matched = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(value.trim());
   if (matched === null) return null;
-  const [, year, month, day, hour, minute, second] = matched;
-  const parsed = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-    Number(second),
-  ).getTime();
+  const [, rawYear, rawMonth, rawDay, rawHour, rawMinute, rawSecond] = matched;
+  const year = Number(rawYear);
+  const month = Number(rawMonth);
+  const day = Number(rawDay);
+  const hour = Number(rawHour);
+  const minute = Number(rawMinute);
+  const second = Number(rawSecond);
+
+  /*
+   * 正则只保证「两位数字」，不保证日期存在。`new Date(2027, 1, 30)` 会
+   * 静默滚到 3 月 2 日——把平台给的畸形时间解释成另一个确定时刻，比留空更糟。
+   * 构造后逐项核对回来，防止溢出（也会拦下夏令时跳变这类本地时间不存在的值）。
+   */
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59
+  ) {
+    return null;
+  }
+  const date = new Date(year, month - 1, day, hour, minute, second);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hour ||
+    date.getMinutes() !== minute ||
+    date.getSeconds() !== second
+  ) {
+    return null;
+  }
+  const parsed = date.getTime();
   return Number.isFinite(parsed) ? parsed : null;
 }
 

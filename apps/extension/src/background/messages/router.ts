@@ -69,6 +69,20 @@ export function registerMessageHandler(deps: RouterDeps): void {
      */
     if (sender.id !== browser.runtime.id) return false;
 
+    /*
+     * 页面可能在处理器跑完之前被关掉；那一刻 sendResponse 会抛
+     * 「message port closed」。不接住的话，catch 分支再回一次又抛，
+     * 最终落成 service worker 里的未处理拒绝。响应发不出去就算了——
+     * 请求方已经不在，没有第二个人需要这句话。
+     */
+    const respond: AnySendResponse = (response) => {
+      try {
+        sendResponse(response);
+      } catch {
+        // 端口已关闭：无人接收
+      }
+    };
+
     const request = message as AppRequest | undefined;
 
     void (async () => {
@@ -79,13 +93,13 @@ export function registerMessageHandler(deps: RouterDeps): void {
           platformId !== undefined || kinds !== undefined || group !== undefined || ids !== undefined
             ? { platformId, kinds, group, ids }
             : undefined;
-        sendResponse(respondToRound(await deps.runner.runRound(selection)));
+        respond(respondToRound(await deps.runner.runRound(selection)));
         return;
       }
       if (request?.type === 'STOP_RUN') {
         // 只置一个标记；项间循环与长动作的安全点都会看它（见 Runner.stop）。
         // 按平台：一家的停止不打断另一家。
-        sendResponse({ stopped: deps.runner.stop(request.platformId) });
+        respond({ stopped: deps.runner.stop(request.platformId) });
         return;
       }
 
@@ -93,10 +107,10 @@ export function registerMessageHandler(deps: RouterDeps): void {
       // 兜底归外壳，不在任何平台的表里（见 protocol.ts 的说明）
       const handler = request === undefined ? undefined : deps.handlers[request.type];
       if (handler === undefined) {
-        sendResponse(undefined);
+        respond(undefined);
         return;
       }
-      await handler(request as AppRequest, sendResponse as AnySendResponse);
+      await handler(request as AppRequest, respond);
     })().catch((error: unknown) => {
       /*
        * 兜底响应只能报「失败」，不能报「未登录」。
@@ -105,7 +119,7 @@ export function registerMessageHandler(deps: RouterDeps): void {
        * 会让界面显示「尚未登录」，用户于是去重复登录——症状被替换成了另一个
        * 错误答案。未登录只能由明确判定它的分支返回。
        */
-      sendResponse({ ok: false, reason: 'FETCH_FAILED', message: String(error) });
+      respond({ ok: false, reason: 'FETCH_FAILED', message: String(error) });
     });
 
     // 异步响应，保持消息通道打开

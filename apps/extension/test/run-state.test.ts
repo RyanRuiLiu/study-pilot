@@ -27,6 +27,19 @@ beforeEach(() => {
 });
 
 describe('进度推送', () => {
+  it('连接时读存储失败：不落成未处理拒绝，端口也不卡住', async () => {
+    store.get.mockRejectedValueOnce(new Error('storage unavailable'));
+    const postMessage = vi.fn();
+    const port = { name: 'run-state', postMessage, onDisconnect: { addListener: vi.fn() } };
+
+    expect(() => attachRunStatePort(port)).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // 这一份快照没送到；之后的发布仍会推到它
+    await progressStore.publish(STATE as never);
+    expect(postMessage).toHaveBeenCalledWith(STATE);
+  });
+
   it('端口在推送时抛错：丢掉它，不把异常带进执行', async () => {
     const postMessage = vi
       .fn()

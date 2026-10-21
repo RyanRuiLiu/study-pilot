@@ -189,17 +189,17 @@ export async function getCourseStructure(
   if (payload.value?.mocTermDto == null) return err(unauthenticatedError());
 
   const dto = payload.value.mocTermDto;
-  const chapters = dto.chapters ?? [];
+  const chapters = arr(dto.chapters, 'chapters');
   const works: CourseWork[] = [];
   const units: CourseUnit[] = [];
 
   chapters.forEach((chapter, index) => {
-    for (const node of chapter.quizs ?? []) {
-      const work = toWork(node, 'quiz', chapter, index);
+    for (const node of arr(chapter.quizs, 'quizs')) {
+      const work = toWork(node, 'quiz', chapter as unknown as RawChapter, index);
       if (work) works.push(work);
     }
-    for (const node of chapter.homeworks ?? []) {
-      const work = toWork(node, 'homework', chapter, index);
+    for (const node of arr(chapter.homeworks, 'homeworks')) {
+      const work = toWork(node, 'homework', chapter as unknown as RawChapter, index);
       if (work) works.push(work);
     }
     /*
@@ -209,8 +209,8 @@ export async function getCourseStructure(
      * 客观题还是主观题，按客观题处理——它至少能挂上做题助手，
      * 而主观题的处理依赖 eid 拼地址，这里拿不到。
      */
-    if (chapter.exam) {
-      const work = toWork(chapter.exam, 'exam-objective', chapter, index);
+    if (isRecord(chapter.exam)) {
+      const work = toWork(chapter.exam, 'exam-objective', chapter as unknown as RawChapter, index);
       if (work) works.push(work);
     }
 
@@ -218,22 +218,22 @@ export async function getCourseStructure(
      * 课件单元。位置是 lessons[].units[]，不在章节下——写成 chapters[].units[]
      * 会一个单元都读不到，而界面上的表现只是「没有未完成的课件」。
      */
-    for (const lesson of chapter.lessons ?? []) {
+    for (const lesson of arr(chapter.lessons, 'lessons')) {
       const lessonId = Number(lesson.id ?? 0);
-      for (const node of lesson.units ?? []) {
-        const unit = toUnit(node, lesson, lessonId, Number(dto.id ?? termId));
+      for (const node of arr(lesson.units, 'units')) {
+        const unit = toUnit(node, lesson as unknown as RawLesson, lessonId, Number(dto.id ?? termId));
         if (unit) units.push(unit);
       }
     }
   });
 
-  for (const exam of dto.exams ?? []) {
-    if (exam.objectTest) {
-      const work = examToWork(exam.objectTest, exam, true);
+  for (const exam of arr(dto.exams, 'exams')) {
+    if (isRecord(exam.objectTest)) {
+      const work = examToWork(exam.objectTest as unknown as WorkTest, exam as unknown as RawExam, true);
       if (work) works.push(work);
     }
-    if (exam.subjectTest) {
-      const work = examToWork(exam.subjectTest, exam, false);
+    if (isRecord(exam.subjectTest)) {
+      const work = examToWork(exam.subjectTest as unknown as WorkTest, exam as unknown as RawExam, false);
       if (work) works.push(work);
     }
   }
@@ -287,3 +287,19 @@ function toUnit(
  */
 export * from './work-status.ts';
 
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * 列表字段（可选）：缺失/null 是空表；**不是数组**说明平台形态变了，抛错而不是静默少读；
+ * 数组里的 null/非对象条目跳过——那条数据做不了任何事，但不该连累整门课。
+ */
+function arr(value: unknown, field: string): Array<Record<string, unknown>> {
+  if (value === null || value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`课程结构：${field} 不是数组（平台回的形状与预期不符）`);
+  }
+  return value.filter(isRecord);
+}

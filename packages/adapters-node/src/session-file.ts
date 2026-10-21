@@ -48,23 +48,43 @@ export function readSessions(file: string): Sessions {
   const parsed = JSON.parse(readFileSync(file, 'utf8')) as { cookies?: StorageStateCookie[] };
   const list = Array.isArray(parsed.cookies) ? parsed.cookies : [];
 
-  const moocCookies: Record<string, string> = {};
-  // 同名取域最宽的一份：域越短越靠根（.zhihuishu.com 短于 a.zhihuishu.com）
+  /*
+   * 同名 cookie 出现在父子域时取**域最宽**的一份（域越短越靠根：
+   * `.zhihuishu.com` 短于 `a.zhihuishu.com`）。浏览器的发送顺序也是域宽的在前；
+   * 两家平台用同一条规则——慕课早先是「后出现者赢」，同一枚 cookie 在
+   * `www.` 与根域各有一份时会随机挑到其中一份，值可能不同。
+   */
+  const moocByName = new Map<string, { domain: string; value: string }>();
   const zhsByName = new Map<string, { domain: string; value: string }>();
+  const remember = (
+    table: Map<string, { domain: string; value: string }>,
+    name: string,
+    domain: string,
+    value: string,
+  ): void => {
+    const prev = table.get(name);
+    if (prev === undefined || domain.length < prev.domain.length) {
+      table.set(name, { domain, value });
+    }
+  };
   for (const cookie of list) {
     if (typeof cookie?.name !== 'string' || typeof cookie?.value !== 'string') continue;
     const domain = String(cookie.domain ?? '').trim().toLowerCase();
     // 域匹配必须两端锚定：endsWith('icourse163.org') 会放过 evil-icourse163.org 这类伪造域
-    if (/^(.*\.)?icourse163\.org$/.test(domain)) moocCookies[cookie.name] = cookie.value;
+    if (/^(.*\.)?icourse163\.org$/.test(domain)) {
+      remember(moocByName, cookie.name, domain, cookie.value);
+    }
     if (/(^|\.)zhihuishu\.com$/.test(domain)) {
-      const prev = zhsByName.get(cookie.name);
-      if (prev === undefined || domain.length < prev.domain.length) {
-        zhsByName.set(cookie.name, { domain, value: cookie.value });
-      }
+      remember(zhsByName, cookie.name, domain, cookie.value);
     }
   }
-  const zhsCookies: Record<string, string> = {};
-  for (const [name, entry] of zhsByName) zhsCookies[name] = entry.value;
+  const toRecord = (table: Map<string, { value: string }>): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const [name, entry] of table) out[name] = entry.value;
+    return out;
+  };
+  const moocCookies = toRecord(moocByName);
+  const zhsCookies = toRecord(zhsByName);
 
   if (Object.keys(moocCookies).length === 0 && Object.keys(zhsCookies).length === 0) {
     throw new Error(

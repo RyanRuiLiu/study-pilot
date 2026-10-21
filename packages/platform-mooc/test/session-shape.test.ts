@@ -66,6 +66,69 @@ describe('课程列表的未登录形态', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('api');
   });
+
+  it('内层 result 不是数组：归 parse，不抛 TypeError', async () => {
+    const client = clientWith({
+      'getMyLearnedCoursePanelList': {
+        code: 0,
+        message: '',
+        result: { pagination: { total: 0 }, result: { not: 'a list' } },
+      },
+    });
+    const result = await getCourses(client, { courseType: COURSE_TYPE.MOOC });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('parse');
+  });
+
+  it('课程超过一页时继续取下一页，不把第一页当全部', async () => {
+    const pages: number[] = [];
+    const client = createMoocClient({
+      fetch: (async (_url: string, init?: RequestInit) => {
+        const page = (JSON.parse(String(init?.body ?? '{}')) as { p?: number }).p ?? 0;
+        pages.push(page);
+        const rows =
+          page === 1
+            ? Array.from({ length: 50 }, (_, index) => ({
+                id: index + 1,
+                name: `课程 ${index + 1}`,
+                termPanel: { id: 1000 + index },
+              }))
+            : [{ id: 51, name: '课程 51', termPanel: { id: 1051 } }];
+        return new Response(
+          JSON.stringify({
+            code: 0,
+            result: { pagination: { total: 51 }, result: rows },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }) as never,
+      getToken: () => TOKEN,
+      md5: md5hex,
+      minGapMs: 0,
+    });
+
+    const result = await getCourses(client, { courseType: COURSE_TYPE.MOOC });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toHaveLength(51);
+    expect(pages).toEqual([1, 2]);
+  });
+
+  it('列表里的 null / 非对象条目跳过，其余照常返回', async () => {
+    const client = clientWith({
+      'getMyLearnedCoursePanelList': {
+        code: 0,
+        message: '',
+        result: {
+          pagination: { total: 3 },
+          result: [null, 'x', { id: 1, name: '示例课程', termPanel: { id: 2 } }],
+        },
+      },
+    });
+    const result = await getCourses(client, { courseType: COURSE_TYPE.MOOC });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.map((course) => course.termId)).toEqual([2]);
+  });
 });
 
 describe('课程结构的未登录形态', () => {

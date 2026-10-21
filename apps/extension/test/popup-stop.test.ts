@@ -148,6 +148,21 @@ describe('别家跑完的通知', () => {
   });
 });
 
+describe('状态读取失败', () => {
+  it('不再摆着上一次的运行态：收回停止按钮并说出原因', async () => {
+    const { mod, listener } = await load();
+    listener(runningMooc(2));
+    expect(element('state-line').classList.contains('is-running')).toBe(true);
+
+    bridge.getTaskState.mockRejectedValueOnce(new Error('存储坏了'));
+    mod.setStatusPlatform('mooc');
+    await flush();
+
+    expect(element('state-line').classList.contains('is-running')).toBe(false);
+    expect(element('state-text').textContent).toContain('存储坏了');
+  });
+});
+
 describe('状态读取的时序', () => {
   it('旧响应晚到：不许覆盖同一平台更新的那一份', async () => {
     const { mod } = await load();

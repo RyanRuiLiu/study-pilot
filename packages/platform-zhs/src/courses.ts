@@ -28,30 +28,62 @@ export interface ZhsCourseBrief {
 }
 
 /** 读一次共享课（进行中）。分页给足一页——课程列表按「门」算，几十门封顶。 */
+const PAGE_SIZE = 50;
+/** 分页上限（1000 门课）：超过就报错，不静默截断。 */
+const MAX_PAGES = 20;
+
 export async function getShareCourses(client: ZhsClient): Promise<ZhsCourseBrief[]> {
-  const body = (await client.call('shareCourses', { status: 0, pageNo: 1, pageSize: 50 })) as {
-    result?: { courseOpenDtos?: Array<Record<string, unknown>> | null } | null;
-  };
-  /*
-   * 没有这个列表就抛错，不交空表：空表的意思会被读成「这账号一门共享课都没选」，
-   * 而它更可能是平台回了别的形状。课程列表是刷新流程的第一步，这里静默下来
-   * 后面每一步都建立在「没有课」这个假事实之上（同一口径见 meet.ts）。
-   */
-  const list = body.result?.courseOpenDtos;
-  if (!Array.isArray(list)) {
-    throw new Error('共享课列表：响应里没有 courseOpenDtos 列表（平台回的形状与预期不符）');
+  const courses: ZhsCourseBrief[] = [];
+  const seen = new Set<number>();
+  let fetched = 0;
+
+  for (let pageNo = 1; pageNo <= MAX_PAGES; pageNo += 1) {
+    const body = (await client.call('shareCourses', { status: 0, pageNo, pageSize: PAGE_SIZE })) as {
+      result?: {
+        courseOpenDtos?: Array<Record<string, unknown>> | null;
+        totalCount?: unknown;
+      } | null;
+    };
+    /*
+     * 没有这个列表就抛错，不交空表：空表的意思会被读成「这账号一门共享课都没选」，
+     * 而它更可能是平台回了别的形状。课程列表是刷新流程的第一步，这里静默下来
+     * 后面每一步都建立在「没有课」这个假事实之上（同一口径见 meet.ts）。
+     */
+    const list = body.result?.courseOpenDtos;
+    if (!Array.isArray(list)) {
+      throw new Error('共享课列表：响应里没有 courseOpenDtos 列表（平台回的形状与预期不符）');
+    }
+    fetched += list.length;
+    for (const entry of list) {
+      if (
+        entry === null ||
+        typeof entry !== 'object' ||
+        typeof entry.courseId !== 'number' ||
+        !Number.isFinite(entry.courseId) ||
+        typeof entry.recruitId !== 'number' ||
+        !Number.isFinite(entry.recruitId) ||
+        seen.has(entry.courseId)
+      ) {
+        continue;
+      }
+      seen.add(entry.courseId);
+      courses.push({
+        courseId: entry.courseId,
+        recruitId: entry.recruitId,
+        secret: typeof entry.secret === 'string' ? entry.secret : '',
+        name: typeof entry.courseName === 'string' ? entry.courseName : '',
+        schoolName: typeof entry.schoolName === 'string' ? entry.schoolName : '',
+        startTime: typeof entry.courseStartTime === 'number' ? entry.courseStartTime : 0,
+        endTime: typeof entry.courseEndTime === 'number' ? entry.courseEndTime : 0,
+      });
+    }
+
+    const total = body.result?.totalCount;
+    if (list.length < PAGE_SIZE) return courses;
+    if (typeof total === 'number' && Number.isFinite(total) && fetched >= total) return courses;
   }
-  return list
-    .filter((entry) => typeof entry.courseId === 'number' && typeof entry.recruitId === 'number')
-    .map((entry) => ({
-      courseId: entry.courseId as number,
-      recruitId: entry.recruitId as number,
-      secret: typeof entry.secret === 'string' ? entry.secret : '',
-      name: typeof entry.courseName === 'string' ? entry.courseName : '',
-      schoolName: typeof entry.schoolName === 'string' ? entry.schoolName : '',
-      startTime: typeof entry.courseStartTime === 'number' ? entry.courseStartTime : 0,
-      endTime: typeof entry.courseEndTime === 'number' ? entry.courseEndTime : 0,
-    }));
+
+  throw new Error(`共享课列表超过 ${MAX_PAGES} 页，未取全`);
 }
 
 /**

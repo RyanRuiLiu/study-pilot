@@ -103,6 +103,15 @@ let sawRun = false;
  * 它不落在任何一张板块卡的卡头：失败是按平台记的，四张卡里没有哪一张独占它。
  * 跑动中不呈现——那一路的状态是板块行里的运行明细。
  */
+function clearZhsFailure(): void {
+  const headEl = document.getElementById('zhs-tasks-head');
+  const statusEl = document.getElementById('zhs-tasks-status');
+  const actionEl = document.getElementById('zhs-tasks-action');
+  if (headEl !== null) headEl.hidden = true;
+  if (statusEl !== null) statusEl.textContent = '';
+  if (actionEl instanceof HTMLAnchorElement) actionEl.hidden = true;
+}
+
 async function renderZhsFailure(): Promise<void> {
   const headEl = document.getElementById('zhs-tasks-head');
   const statusEl = document.getElementById('zhs-tasks-status');
@@ -114,9 +123,7 @@ async function renderZhsFailure(): Promise<void> {
     status = await getTaskState('zhihuishu');
   } catch {
     // 与课件卡同一条：读不到执行状态就收干净，不拿上一次的留痕冒充现状
-    if (headEl !== null) headEl.hidden = true;
-    statusEl.textContent = '';
-    actionEl.hidden = true;
+    clearZhsFailure();
     return;
   }
   const failure =
@@ -435,8 +442,10 @@ export async function renderZhsCourseTasks(
       /*
        * 未登录的指引只在「账号与课程」卡里出现一次（那里才有「前往登录」与
        * 读取按钮）。这里再放一份就在卡片外重复了同一句话——页面已经明说，
-       * 课程任务区留空即可，登录后重读会自己填回来。
+       * 课程任务区留空即可，登录后重读会自己填回来。同一时刻的失败留痕
+       * （多半也是会话类）一并收起，避免两处都在说登录。
        */
+      clearZhsFailure();
       return;
     }
     listEl.append(note(`读取失败：${outcome.message}`, true));

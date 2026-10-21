@@ -81,6 +81,58 @@ describe('readCourseChapters', () => {
       readCourseChapters(ok.client, { recruitAndCourseId: 'abc', recruitId: 1 }),
     ).resolves.toEqual([]);
   });
+
+  it('列表里的 null / 非对象条目跳过，不让空指针炸掉整门课', async () => {
+    const dirty = fakeClient({
+      videoList: {
+        code: 200,
+        data: {
+          videoChapterDtos: [
+            null,
+            'not-an-object',
+            {
+              id: 1,
+              name: '第一章',
+              videoLessons: [
+                null,
+                'x',
+                // 没有课时 id / 没有视频 id 的节点做不了上报，跳过
+                { id: 0, name: '无 id', videoId: 9, videoSec: 1 },
+                { id: 3, name: '无视频', videoId: 0, videoSec: 1 },
+                {
+                  id: 2,
+                  name: '课',
+                  videoId: 3,
+                  videoSec: 10,
+                  videoSmallLessons: [null, { id: 4, name: '子', videoId: 5, videoSec: 6 }],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      studyInfo: { data: { lesson: {}, lv: {} } },
+    });
+
+    const chapters = await readCourseChapters(dirty.client, { recruitAndCourseId: 'abc', recruitId: 1 });
+    expect(chapters).toHaveLength(1);
+
+    const units = await getCourseUnits(dirty.client, { recruitAndCourseId: 'abc', recruitId: 1 }, chapters);
+    expect(units).toHaveLength(1);
+    expect(units[0]).toMatchObject({ lessonId: 2, smallLessonId: 4, videoId: 5 });
+    expect(chapterExams([...chapters, null as never, 'x' as never])).toEqual([]);
+  });
+
+  it('列表字段不是数组：抛错并点名字段，不静默读成空', async () => {
+    const dirty = fakeClient({ studyInfo: { data: { lesson: {}, lv: {} } } });
+    await expect(
+      getCourseUnits(
+        dirty.client,
+        { recruitAndCourseId: 'abc', recruitId: 1 },
+        [{ id: 1, name: '第一章', videoLessons: 'not-an-array' }],
+      ),
+    ).rejects.toThrow(/videoLessons/);
+  });
 });
 
 describe('getCourseUnits', () => {

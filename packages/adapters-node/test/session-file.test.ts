@@ -55,6 +55,16 @@ describe('readSessions', () => {
     expect(sessions.zhihuishu.cookies.CASLOGC).toBe('wider');
   });
 
+  it('慕课同名 cookie 同样取域最宽的那份，不按文件里的先后', () => {
+    const sessions = readSessions(
+      sessionFile([
+        { name: 'NTESSTUDYSI', value: 'root', domain: '.icourse163.org' },
+        { name: 'NTESSTUDYSI', value: 'sub', domain: 'www.icourse163.org' },
+      ]),
+    );
+    expect(sessions.mooc.cookies.NTESSTUDYSI).toBe('root');
+  });
+
   it('一家没登录不影响另一家（不抛错，那一家只是空 cookie）', () => {
     const sessions = readSessions(sessionFile([{ name: 'CASLOGC', value: 'z', domain: '.zhihuishu.com' }]));
     expect(sessions.mooc.cookies).toEqual({});

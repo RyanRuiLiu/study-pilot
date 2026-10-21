@@ -341,7 +341,13 @@ export async function renderState(options: { settleText?: boolean } = {}): Promi
     // 报错也认时机：切走了（或有更晚的一次渲染）就不把这一句写到当前那家的行上
     if (statusPlatform === platform && generation === renderGeneration) {
       setText(stateEl, errorText(error));
+      /*
+       * 读不到状态时不能再摆「正在执行」与停止按钮：那是上一次读到的旧事实，
+       * 现在连后台都问不到，留着会让人以为还能停。
+       */
+      stateLine?.classList.remove('is-running', 'is-busy');
       stateLine?.classList.add('is-error');
+      applyStateAction(null);
       runningNow = false;
       applyRunEnabled();
     }

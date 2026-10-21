@@ -200,5 +200,51 @@ describe('存储归一', () => {
     expect(normalizeTaskState(null)).toEqual({ platforms: {} });
     expect(normalizeTaskState({})).toEqual({ platforms: {} });
     expect(normalizeTaskState({ platforms: null })).toEqual({ platforms: {} });
+    expect(normalizeTaskState({ platforms: [] })).toEqual({ platforms: {} });
+    expect(normalizeTaskState('x')).toEqual({ platforms: {} });
+  });
+
+  it('畸形平台条目与字段值：跳过或归空，不把脏值当时间/失败', () => {
+    const state = normalizeTaskState({
+      platforms: {
+        mooc: {
+          runningSince: '昨天',
+          heartbeatAt: Number.POSITIVE_INFINITY,
+          lastFinishedAt: -1,
+          failure: { message: 123, action: null, at: NaN },
+        },
+        zhihuishu: {
+          runningSince: 5,
+          heartbeatAt: 6,
+          lastFinishedAt: 7,
+          // 动作形状不完整：当没有，不造半个按钮
+          failure: { message: '要验证', action: { platformId: 'zhihuishu', label: '打开' }, at: 8 },
+        },
+        broken: null,
+        array: [],
+      },
+    });
+
+    expect(state.platforms.mooc).toEqual({
+      runningSince: null,
+      heartbeatAt: null,
+      lastFinishedAt: null,
+      failure: null,
+    });
+    expect(state.platforms.zhihuishu?.failure).toEqual({
+      message: '要验证',
+      action: null,
+      at: 8,
+    });
+    expect('broken' in state.platforms).toBe(false);
+    expect('array' in state.platforms).toBe(false);
+  });
+
+  it('__proto__ 这类键不写进平台表（也不污染原型）', () => {
+    const state = normalizeTaskState(
+      JSON.parse('{"platforms":{"__proto__":{"runningSince":5},"mooc":{}}}') as unknown,
+    );
+    expect(Object.keys(state.platforms)).toEqual(['mooc']);
+    expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
   });
 });

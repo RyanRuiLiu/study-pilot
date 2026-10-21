@@ -15,7 +15,7 @@
  */
 
 import { ok, err, type Result } from '@study-pilot/core';
-import { unauthenticatedError, type TransportError } from '@study-pilot/transport';
+import { parseError, unauthenticatedError, type TransportError } from '@study-pilot/transport';
 import type { MoocClient } from './client.ts';
 import { COURSE_TYPE, ENDPOINTS, type CourseType } from './endpoints.ts';
 import type { CourseSummary } from './types.ts';
@@ -51,6 +51,8 @@ interface RawCourse {
 
 interface CourseListPayload {
   result?: RawCourse[];
+  /** 总数（分页用）：只做「还要不要下一页」的判断，不参与课程字段 */
+  pagination?: { total?: number | null } | null;
 }
 
 export interface GetCoursesOptions {
@@ -93,6 +95,9 @@ function authedCourseList(
   payload: CourseListPayload,
 ): Result<RawCourse[], TransportError> {
   if (payload?.result == null) return err(unauthenticatedError());
+  if (!Array.isArray(payload.result)) {
+    return err(parseError('课程列表：result 不是数组（平台回的形状与预期不符）'));
+  }
   return ok(payload.result);
 }
 
@@ -101,25 +106,55 @@ function authedCourseList(
  *
  * 只返回带 `termId` 的课程——没有学期 id 的课程在本项目的所有后续接口里都用不了。
  */
+/** 分页上限：一页 50、最多 20 页（1000 门课）。超过就报错，不静默截断。 */
+const MAX_PAGES = 20;
+
 export async function getCourses(
   client: MoocClient,
   options: GetCoursesOptions = {},
 ): Promise<Result<CourseSummary[], TransportError>> {
-  const payload = await client.rpc.call<CourseListPayload>(
-    ENDPOINTS.courseList.bean,
-    ENDPOINTS.courseList.method,
-    {
-      type: 30,
-      p: 1,
-      psize: options.pageSize ?? 50,
-      courseType: options.courseType ?? COURSE_TYPE.MOOC,
-    },
-  );
+  const pageSize = options.pageSize ?? 50;
+  const courses: CourseSummary[] = [];
+  const seen = new Set<number>();
+  let fetched = 0;
 
-  if (!payload.ok) return payload;
-  const list = authedCourseList(payload.value);
-  if (!list.ok) return list;
-  return ok(list.value.map(toSummary).filter((course) => course.termId > 0));
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const payload = await client.rpc.call<CourseListPayload>(
+      ENDPOINTS.courseList.bean,
+      ENDPOINTS.courseList.method,
+      {
+        type: 30,
+        p: page,
+        psize: pageSize,
+        courseType: options.courseType ?? COURSE_TYPE.MOOC,
+      },
+    );
+
+    if (!payload.ok) return payload;
+    const list = authedCourseList(payload.value);
+    if (!list.ok) return list;
+
+    // 列表本身对了，个别条目可能不是对象：跳过，不让空指针炸掉整个列表
+    const rows = list.value.filter((raw): raw is RawCourse => raw !== null && typeof raw === 'object');
+    fetched += rows.length;
+    for (const raw of rows) {
+      const course = toSummary(raw);
+      if (!Number.isFinite(course.termId) || course.termId <= 0) continue;
+      if (seen.has(course.termId)) continue;
+      seen.add(course.termId);
+      courses.push(course);
+    }
+
+    /*
+     * 不足一页＝没有下一页（实测结论之外的保单）。满页时看总数：
+     * 总数不可用时宁可多取一页空页，也不把第一页当成全部。
+     */
+    const total = payload.value?.pagination?.total;
+    if (rows.length < pageSize) return ok(courses);
+    if (typeof total === 'number' && Number.isFinite(total) && fetched >= total) return ok(courses);
+  }
+
+  return err(parseError(`课程列表超过 ${MAX_PAGES} 页，未取全`));
 }
 
 /** 同时取 MOOC 与 SPOC 两边的课程。 */

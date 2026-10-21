@@ -69,5 +69,9 @@ export function attachRunStatePort(port: RunStatePort): void {
   port.onDisconnect.addListener(() => {
     ports.delete(port);
   });
-  void getRunState().then((state) => push(port, state));
+  // 存储读失败（后台刚启动、存储不可用）时只是这一份快照没送到；
+  // 之后的 publish 仍会推。不让它落成 service worker 里的未处理拒绝。
+  void getRunState()
+    .then((state) => push(port, state))
+    .catch(() => undefined);
 }

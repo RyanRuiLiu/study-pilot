@@ -19,7 +19,7 @@ import { getCourseware, getTaskState, runNow, stopRun, subscribeRunState } from 
 import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge.ts';
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
-import { loginNote, note, MOOC_LOGIN_URL } from './note.ts';
+import { note } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
 import { renderStatusLine } from './status-line.ts';
 import { toast } from './toast.ts';
@@ -104,6 +104,16 @@ let sawRun = false;
  * 跑动中不呈现——那一路的状态是课件行里的运行明细。与智慧树那份同构
  * （zhihuishu-course-tasks.ts 的 renderZhsFailure）。
  */
+function clearFailure(): void {
+  const statusEl = document.getElementById('courseware-status');
+  const actionEl = document.getElementById('courseware-action');
+  if (statusEl !== null) {
+    statusEl.classList.remove('is-error');
+    statusEl.textContent = '';
+  }
+  if (actionEl instanceof HTMLAnchorElement) actionEl.hidden = true;
+}
+
 async function renderFailure(): Promise<void> {
   const statusEl = document.getElementById('courseware-status');
   const actionEl = document.getElementById('courseware-action');
@@ -117,9 +127,7 @@ async function renderFailure(): Promise<void> {
      * 读不到执行状态（后台重启、端口断了）：把这一行收干净，不挂着上一次的
      * 失败与动作位——那会让用户以为「上次失败」还成立。异常也不能穿成未处理拒绝。
      */
-    statusEl.classList.remove('is-error');
-    statusEl.textContent = '';
-    actionEl.hidden = true;
+    clearFailure();
     return;
   }
   const failure =
@@ -351,8 +359,12 @@ export async function renderCourseware(
 
   if (outcome.status === 'error') {
     if (outcome.reason === 'NOT_LOGGED_IN') {
-      // 未登录不是「出错」，是少做了一步：给去处，不带责备（与智慧树那份逐字同构）
-      listEl.append(loginNote('未登录，在浏览器登录慕课后执行。', MOOC_LOGIN_URL));
+      /*
+       * 未登录的指引只在「账号与课程」卡里出现一次（那里有「前往登录」与读取按钮）。
+       * 这一块再写一遍，同一页就会有两句「未登录」；留空即可，登录后重读会填回来。
+       * 同一时刻的「上次执行失败」也收起来：会话类失败说的也是同一件事。
+       */
+      clearFailure();
       return;
     }
     listEl.append(note(`读取失败：${outcome.message}`, true));

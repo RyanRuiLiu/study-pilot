@@ -50,6 +50,47 @@ describe('getShareCourses', () => {
     expect(briefs).toEqual([]);
   });
 
+  it('课程超过一页时继续取下一页，不把第一页当全部', async () => {
+    const pages: number[] = [];
+    const client: ZhsClient = {
+      call: async (_name, payload) => {
+        const pageNo = (payload as { pageNo?: number }).pageNo ?? 0;
+        pages.push(pageNo);
+        const courseOpenDtos =
+          pageNo === 1
+            ? Array.from({ length: 50 }, (_, index) => ({
+                courseId: index + 1,
+                recruitId: 100 + index,
+                courseName: `课程 ${index + 1}`,
+              }))
+            : [{ courseId: 51, recruitId: 151, courseName: '课程 51' }];
+        return { code: 200, result: { totalCount: 51, courseOpenDtos } };
+      },
+    };
+
+    const briefs = await getShareCourses(client);
+
+    expect(briefs).toHaveLength(51);
+    expect(pages).toEqual([1, 2]);
+  });
+
+  it('列表里的 null / 非对象条目跳过，不让空指针炸掉整个列表', async () => {
+    const briefs = await getShareCourses(
+      clientReturning({
+        code: 200,
+        result: {
+          courseOpenDtos: [
+            null,
+            'x',
+            { courseId: 1, recruitId: 2, secret: 's', courseName: '示例课程' },
+          ],
+        },
+      }),
+    );
+    expect(briefs).toHaveLength(1);
+    expect(briefs[0]?.courseId).toBe(1);
+  });
+
   it('响应里没有 courseOpenDtos：抛错，不交空表冒充「这账号一门课都没选」', async () => {
     await expect(getShareCourses(clientReturning({ code: 200, result: {} }))).rejects.toThrow(
       /courseOpenDtos/,

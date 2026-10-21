@@ -574,6 +574,69 @@ describe('结构里的课件单元', () => {
       },
     ]);
   });
+
+  it('章节/课时/单元/考试列表里的畸形条目跳过，不让空指针炸掉整门课', async () => {
+    const { client } = clientStub({
+      getLastLearnedMocTermDto: {
+        code: 0,
+        message: '',
+        result: {
+          mocTermDto: {
+            id: 1,
+            chapters: [
+              null,
+              'not-an-object',
+              {
+                id: 1,
+                name: '第一章',
+                quizs: [null, 'x', { test: { id: 5, name: '单元测验' } }],
+                homeworks: null,
+                lessons: [
+                  null,
+                  'x',
+                  {
+                    id: 2,
+                    name: '课时',
+                    units: [null, 'x', { id: 3, name: '单元', contentType: 1 }],
+                  },
+                ],
+              },
+            ],
+            exams: [
+              null,
+              'x',
+              { id: 9, name: '考试', objectTest: null, subjectTest: { id: 10, name: '主观题' } },
+            ],
+          },
+        },
+      },
+    });
+
+    const structure = await getCourseStructure(client, 1);
+
+    expect(structure.ok).toBe(true);
+    if (!structure.ok) return;
+    expect(structure.value.works.map((work) => work.tid).sort((a, b) => a - b)).toEqual([5, 10]);
+    expect(structure.value.units.map((unit) => unit.unitId)).toEqual([3]);
+  });
+
+  it('列表字段不是数组：抛错并点名字段，不静默读成空', async () => {
+    const { client } = clientStub({
+      getLastLearnedMocTermDto: {
+        code: 0,
+        message: '',
+        result: {
+          mocTermDto: {
+            id: 1,
+            chapters: [{ id: 1, name: '第一章', quizs: { not: 'a list' } }],
+            exams: [],
+          },
+        },
+      },
+    });
+
+    await expect(getCourseStructure(client, 1)).rejects.toThrow(/quizs/);
+  });
 });
 
 // ---------- 讨论预取 ----------

@@ -74,24 +74,27 @@ function num(value: unknown): number {
  */
 export function normalizeFinalExam(rt: unknown): ZhsFinalExam[] {
   if (!Array.isArray(rt)) throw new Error('期末考试：响应不是列表（平台回的形状与预期不符）');
-  return rt.map((raw) => {
-    const item = (raw ?? {}) as Record<string, unknown>;
-    return {
-      id: str(item.id),
-      examId: str(item.examId),
-      examName: str(item.examName),
-      state: num(item.state),
-      courseId: num(item.courseId),
-      courseName: str(item.courseName),
-      problemNum: num(item.problemNum),
-      totalScore: str(item.totalScore),
-      limitTime: num(item.limitTime),
-      startAt: parsePlatformTime(item.startTime),
-      endAt: parsePlatformTime(item.endDate),
-      remainCount: num(item.faStudentExamRemainCount),
-      teacherName: str(item.examUserName),
-    };
-  });
+  return rt
+    .map((raw) => {
+      const item = (raw ?? {}) as Record<string, unknown>;
+      return {
+        id: str(item.id),
+        examId: str(item.examId),
+        examName: str(item.examName),
+        state: num(item.state),
+        courseId: num(item.courseId),
+        courseName: str(item.courseName),
+        problemNum: num(item.problemNum),
+        totalScore: str(item.totalScore),
+        limitTime: num(item.limitTime),
+        startAt: parsePlatformTime(item.startTime),
+        endAt: parsePlatformTime(item.endDate),
+        remainCount: num(item.faStudentExamRemainCount),
+        teacherName: str(item.examUserName),
+      };
+    })
+    // 没有 id 的条目既进不了列表也开不了考：跳过，不拿空行占位
+    .filter((exam) => exam.id !== '');
 }
 
 /** 读这门课的考试形态（1=在线 2=机房 3=线下）。 */

@@ -59,7 +59,8 @@ export async function readCourseChapters(
   if (!Array.isArray(chapters)) {
     throw new Error('课程结构：videolist 响应里没有 videoChapterDtos 列表（平台回的形状与预期不符）');
   }
-  return chapters;
+  // 列表本身对了，个别条目可能不是对象（平台形态变化）：跳过它们，不让一次空指针炸掉整门课
+  return chapters.filter(isRecord);
 }
 
 /** 读结构 + 学情，合并成单元表（章节自然序）。`chapters` 给了就不重复读 videolist。 */
@@ -74,19 +75,25 @@ export async function getCourseUnits(
   const lessonIds: number[] = [];
   const smallLessonIds: number[] = [];
   for (const chapter of nodes) {
+    if (!isRecord(chapter)) continue;
     const chapterId = num(chapter.id);
     const chapterName = str(chapter.name);
-    for (const lesson of arr(chapter.videoLessons)) {
+    for (const lesson of arr(chapter.videoLessons, 'videoLessons')) {
       const lessonId = num(lesson.id);
+      // 没有课时 id 的节点做不了任何上报（prelearningNote/上报都要它），不排进计划
+      if (lessonId === 0) continue;
       // 每个父课时都进 lessonIds——含有子节的也进（与站点一致，金样本 59/59）
       lessonIds.push(lessonId);
-      const kids = arr(lesson.videoSmallLessons);
+      const kids = arr(lesson.videoSmallLessons, 'videoSmallLessons');
       if (kids.length > 0) {
         for (const child of kids) {
           const childId = num(child.id);
+          const videoId = num(child.videoId);
+          // 子节/视频 id 缺失：这条数据做不了上报，跳过而不是每轮失败
+          if (childId === 0 || videoId === 0) continue;
           smallLessonIds.push(childId);
           units.push({
-            videoId: num(child.videoId),
+            videoId,
             lessonId,
             smallLessonId: childId,
             chapterId,
@@ -98,8 +105,10 @@ export async function getCourseUnits(
           });
         }
       } else {
+        const videoId = num(lesson.videoId);
+        if (videoId === 0) continue;
         units.push({
-          videoId: num(lesson.videoId),
+          videoId,
           lessonId,
           smallLessonId: 0,
           chapterId,
@@ -182,6 +191,7 @@ export interface ZhsChapterExam {
 export function chapterExams(chapters: readonly ZhsChapterNode[]): ZhsChapterExam[] {
   const exams: ZhsChapterExam[] = [];
   for (const chapter of chapters) {
+    if (!isRecord(chapter)) continue;
     const dto = chapter.studentExamDto as Record<string, unknown> | null | undefined;
     if (dto === null || dto === undefined) continue;
 
@@ -190,7 +200,7 @@ export function chapterExams(chapters: readonly ZhsChapterNode[]): ZhsChapterExa
     const route = parseHomeworkRoute(str(dto.examUrl));
     if (stuExamId === 0 || examId === 0 || route === null) continue;
 
-    const firstLesson = arr(chapter.videoLessons)[0];
+    const firstLesson = arr(chapter.videoLessons, 'videoLessons')[0];
     const lessonId = num(firstLesson?.id);
     if (lessonId === 0) continue; // 没有课时就没有可用的弹题通道入口——跳过，不猜
 
@@ -240,6 +250,18 @@ function str(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function arr(value: unknown): Array<Record<string, unknown>> {
-  return Array.isArray(value) ? (value as Array<Record<string, unknown>>) : [];
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * 列表字段（可选）：缺失/null 是空表；**不是数组**说明平台形态变了，抛错而不是静默少读；
+ * 数组里的 null/非对象条目跳过——那条数据做不了任何事，但不该连累整门课。
+ */
+function arr(value: unknown, field: string): Array<Record<string, unknown>> {
+  if (value === null || value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`课程结构：${field} 不是数组（平台回的形状与预期不符）`);
+  }
+  return value.filter(isRecord);
 }

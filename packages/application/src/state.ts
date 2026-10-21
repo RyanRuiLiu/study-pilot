@@ -38,11 +38,54 @@ const EMPTY_PLATFORM: PlatformRunState = {
  * 平台条目缺字段以空底座补齐。载体只负责把存储里的值原样递进来。
  */
 export function normalizeTaskState(stored: unknown): TaskState {
-  const raw = (stored ?? {}) as { platforms?: Record<string, Partial<PlatformRunState>> };
+  const raw = (stored === null || typeof stored !== 'object' ? {} : stored) as {
+    platforms?: unknown;
+  };
+  const source = raw.platforms;
+  if (source === null || typeof source !== 'object' || Array.isArray(source)) {
+    return { platforms: {} };
+  }
+
+  const time = (value: unknown): number | null =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+  const failure = (value: unknown): PlatformRunState['failure'] => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+    const record = value as Record<string, unknown>;
+    if (typeof record.message !== 'string') return null;
+    const action = record.action;
+    const normalized =
+      action !== null && typeof action === 'object' && !Array.isArray(action)
+        ? (action as Record<string, unknown>)
+        : null;
+    const validAction =
+      normalized !== null &&
+      typeof normalized.platformId === 'string' &&
+      typeof normalized.label === 'string' &&
+      typeof normalized.url === 'string'
+        ? {
+            platformId: normalized.platformId,
+            label: normalized.label,
+            url: normalized.url,
+          }
+        : null;
+    return { message: record.message, action: validAction, at: time(record.at) ?? 0 };
+  };
+
   const platforms: Record<string, PlatformRunState> = {};
-  for (const [id, entry] of Object.entries(raw.platforms ?? {})) {
-    // 存储里的值可能是 null 或非对象（旧版本、手改过），展开非对象不会加进任何键
-    platforms[id] = { ...EMPTY_PLATFORM, ...entry };
+  for (const [id, entry] of Object.entries(source)) {
+    /*
+     * 平台 id 来自代码，但存储可能被手改/污染。`__proto__` 这类键用赋值
+     * 会改掉原型的 setter，不是造一条平台状态；不认识的一律跳过。
+     */
+    if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const record = entry as Record<string, unknown>;
+    platforms[id] = {
+      runningSince: time(record.runningSince),
+      heartbeatAt: time(record.heartbeatAt),
+      lastFinishedAt: time(record.lastFinishedAt),
+      failure: failure(record.failure),
+    };
   }
   return { platforms };
 }

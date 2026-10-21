@@ -64,6 +64,10 @@ describe('normalizeFinalExam', () => {
     expect(exam?.startAt).toBeNull();
   });
 
+  it('没有 id 的条目跳过（开不了考，也不拿空行占位）', () => {
+    expect(normalizeFinalExam([null, {}, 'x', { id: 'x' }])).toHaveLength(1);
+  });
+
   it('形态枚举与实测一致', () => {
     expect(EXAM_FORM).toEqual({ online: 1, room: 2, offline: 3 });
   });

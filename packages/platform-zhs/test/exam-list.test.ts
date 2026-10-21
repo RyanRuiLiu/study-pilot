@@ -60,6 +60,26 @@ describe('normalizeHomeworkList', () => {
     }
   });
 
+  it('日期不存在（月份/日期/时刻溢出）同样给 null，不让 Date 静默滚到别的日子', () => {
+    for (const bad of [
+      '2027-02-29 23:59:59', // 非闰年
+      '2027-13-01 00:00:00',
+      '2027-00-10 00:00:00',
+      '2027-01-32 00:00:00',
+      '2027-01-01 24:00:00',
+      '2027-01-01 00:60:00',
+      '2027-01-01 00:00:60',
+    ]) {
+      const [item] = normalizeHomeworkList({ studentHomeworkList: [{ id: 'a', endDate: bad }] });
+      expect(item!.deadline, bad).toBeNull();
+    }
+    // 闰年的 2 月 29 是真实日子，照常解析
+    const [leap] = normalizeHomeworkList({
+      studentHomeworkList: [{ id: 'a', endDate: '2028-02-29 12:00:00' }],
+    });
+    expect(leap!.deadline).toBe(new Date(2028, 1, 29, 12, 0, 0).getTime());
+  });
+
   it('分值在响应里是字符串（"100"）而状态是数字——两种都要认', () => {
     const [item] = normalizeHomeworkList({
       studentHomeworkList: [{ id: 'a', state: 4, meetCourseType: 0, score: '10', totalScore: '100' }],
