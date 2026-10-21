@@ -78,7 +78,18 @@ export async function renderStatusLine(
   markStatusLineLoading();
 
   const parts = ['已登录', `${enabled} 门课程参与`];
-  const courseware = await (coursewareRead ?? getCourseware());
+  let courseware: QueryOutcome<CoursewareSummary>;
+  try {
+    courseware = await (coursewareRead ?? getCourseware());
+  } catch {
+    /*
+     * 消息通道断了（后台重启、端口失效）走的是 reject，不是 error 结果。
+     * 这条路径先前没有出口：骨架留在卡头，看起来像一直在读。
+     * 与三条早退一样只留本地事实。
+     */
+    settle(parts.join(' · '));
+    return;
+  }
   if (courseware.status === 'ok') {
     const count = courseware.value.pending.auto + courseware.value.pending.manual;
     parts.push(count === 0 ? '暂无待交' : `待交 ${count} 项`);
