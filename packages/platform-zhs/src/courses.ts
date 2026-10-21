@@ -79,7 +79,7 @@ export async function readCourseIsApply(
 /**
  * 把新读到的列表并进用户的选择：已勾的沿用勾选，新课程补进来但不勾。
  *
- * 字段以新读的为准（进度、学校名这些是平台随学期变的），
+ * 字段以新读的为准（开课区间、学校名这些是平台随学期变的），
  * 用户只拥有一个字段：enabled。
  */
 export function mergeCourses(
