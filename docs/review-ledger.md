@@ -107,7 +107,7 @@
 | apps/extension/src/ui-bridge.ts | 部分 |
 | apps/extension/src/ui/components.css | 待读 |
 | apps/extension/src/ui/controls.css | 待读 |
-| apps/extension/src/ui/format.ts | 待读 |
+| apps/extension/src/ui/format.ts | 已读 |
 | apps/extension/src/ui/login.ts | 已读 |
 | apps/extension/src/ui/run-view.ts | 待读 |
 | apps/extension/src/ui/scopes.ts | 待读 |
@@ -123,6 +123,7 @@
 | apps/extension/test/popup-todo.test.ts | 已读 |
 | apps/extension/test/course-toggle.test.ts | 已读 |
 | apps/extension/test/params.test.ts | 已读 |
+| apps/extension/test/format.test.ts | 已读 |
 | apps/extension/test/node-live.test.ts | 待读 |
 | apps/extension/test/options.test.ts | 待读 |
 | apps/extension/test/popup-status.test.ts | 待读 |
@@ -302,4 +303,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：292 个文件；已读 58，部分 24，待读 210。
+合计：293 个文件；已读 60，部分 24，待读 209。

@@ -32,6 +32,11 @@ const WEEKDAY_LABEL = ['周日', '周一', '周二', '周三', '周四', '周五
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** 平台没给时间：约定用 0；非有限值（NaN/Infinity）同样按没给处理，不让它们渲染成 NaN。 */
+function missingTime(timestamp: number): boolean {
+  return !Number.isFinite(timestamp) || timestamp <= 0;
+}
+
 /** 补零到两位。 */
 function pad(value: number): string {
   return String(value).padStart(2, '0');
@@ -43,8 +48,7 @@ function pad(value: number): string {
  * 返回空串表示「平台未提供该时间」（约定用 0 表示）。
  */
 export function formatMonth(timestamp: number): string {
-  // 非有限值（缺失/NaN）与 0 一样按「平台没给」处理——契约就是「未提供给空串」
-  if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
+  if (missingTime(timestamp)) return '';
   const date = new Date(timestamp);
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
 }
@@ -69,7 +73,7 @@ export function formatTermRange(start: number, end: number): string {
  * 用于需要精确到时刻的场合。
  */
 export function formatDateTime(timestamp: number): string {
-  if (timestamp <= 0) return '';
+  if (missingTime(timestamp)) return '';
   const date = new Date(timestamp);
   return `${MONTH_LABEL[date.getMonth() + 1]}${date.getDate()}日 ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
@@ -81,7 +85,7 @@ export function formatDateTime(timestamp: number): string {
  * 这一行用来核对具体是哪天，因此星期比时刻有用。
  */
 export function formatDate(timestamp: number): string {
-  if (timestamp <= 0) return '';
+  if (missingTime(timestamp)) return '';
   const date = new Date(timestamp);
   return `${MONTH_LABEL[date.getMonth() + 1]}${date.getDate()}日 ${WEEKDAY_LABEL[date.getDay()]}`;
 }
@@ -93,7 +97,7 @@ export function formatDate(timestamp: number): string {
  * 而相对说法来自另一个函数。
  */
 export function formatClock(timestamp: number): string {
-  if (timestamp <= 0) return '';
+  if (missingTime(timestamp)) return '';
   const date = new Date(timestamp);
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
@@ -124,7 +128,7 @@ export function daysBetween(from: number, to: number): number {
  * 所以主行放相对说法，确切日期退到副行。
  */
 export function relativeDay(deadline: number): string {
-  if (deadline <= 0) return '无截止时间';
+  if (missingTime(deadline)) return '无截止时间';
   const days = daysBetween(deadline, Date.now());
   if (days < 0) return `已过期 ${-days} 天`;
   if (days === 0) return '今天';
@@ -145,7 +149,7 @@ export function relativeDay(deadline: number): string {
  * 而按 24 小时周期算会被误标成紧急。
  */
 export function isUrgent(deadline: number): boolean {
-  if (deadline <= 0) return false;
+  if (missingTime(deadline)) return false;
   return daysBetween(deadline, Date.now()) <= 0;
 }
 
