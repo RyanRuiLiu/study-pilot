@@ -15,7 +15,8 @@
     "dev": "pnpm --filter @study-pilot/extension dev",
     "probe": "node scripts/probe/probe.mjs",
     "lint": "oxlint --deny-warnings packages apps scripts",
-    "changeset": "changeset"
+    "changeset": "changeset",
+    "e2e": "node scripts/e2e-smoke.mjs"
   },
   "type": "module",
   "repository": {
