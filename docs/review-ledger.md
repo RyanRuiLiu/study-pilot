@@ -82,7 +82,7 @@
 | apps/extension/src/ai/tasks/discuss-reply.ts | 已读 |
 | apps/extension/src/background/messages/router.ts | 部分 |
 | apps/extension/src/background/runtime/run-state.ts | 已读 |
-| apps/extension/src/background/runtime/task-state.ts | 待读 |
+| apps/extension/src/background/runtime/task-state.ts | 已读 |
 | apps/extension/src/browser/capabilities.ts | 已读 |
 | apps/extension/src/browser/net-rules.ts | 已读 |
 | apps/extension/src/browser/run-feed.ts | 已读 |
@@ -99,12 +99,12 @@
 | apps/extension/src/features/mooc/quiz/options.ts | 待读 |
 | apps/extension/src/features/mooc/quiz/panel.ts | 待读 |
 | apps/extension/src/features/mooc/selectors.ts | 待读 |
-| apps/extension/src/keys.ts | 待读 |
-| apps/extension/src/messages.ts | 待读 |
+| apps/extension/src/keys.ts | 已读 |
+| apps/extension/src/messages.ts | 已读 |
 | apps/extension/src/protocol.ts | 已读 |
 | apps/extension/src/settings/index.ts | 已读 |
 | apps/extension/src/settings/storage.ts | 已读 |
-| apps/extension/src/ui-bridge.ts | 部分 |
+| apps/extension/src/ui-bridge.ts | 已读 |
 | apps/extension/src/ui/components.css | 待读 |
 | apps/extension/src/ui/controls.css | 待读 |
 | apps/extension/src/ui/format.ts | 已读 |
@@ -306,4 +306,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：296 个文件；已读 78，部分 23，待读 195。
+合计：296 个文件；已读 82，部分 22，待读 192。
