@@ -13,11 +13,16 @@
  * 本身是活的）。故改为读 cookie，与站点的机制对齐，不再向服务端做「谁在登录」
  * 的推测式提问。
  *
- * cookie 作用域是 `.zhihuishu.com`（任何子域读到的是同一枚），这里以 www 页
- * 作为读取锚点；读不到返回空串——宿主能力的约定，见扩展侧 capabilities.ts。
+ * cookie 作用域通常是 `.zhihuishu.com`（任何子域读到的是同一枚），但浏览器也
+ * 可能把某枚会话 cookie 落在**裸域**（host-only `zhihuishu.com`）上；cookies API
+ * 按 URL 精确匹配，只问 www 会漏。两个 origin 都问，读不到返回空串——宿主能力
+ * 的约定，见扩展侧 capabilities.ts。
  */
 
 import { ZHS_SITE_ORIGIN } from './pages.ts';
+
+/** 查询 cookie 的两个锚点：先 www（站点日常入口），再裸域（host-only cookie）。 */
+const COOKIE_ORIGINS = [ZHS_SITE_ORIGIN, 'https://zhihuishu.com'] as const;
 
 export type CookieReader = (origin: string, name: string) => Promise<string>;
 
@@ -45,8 +50,11 @@ export interface ZhsSession {
  *     → 未登录（不拿别的字段凑数）。
  */
 export async function readSession(readCookie: CookieReader): Promise<ZhsSession> {
-  // 锚点用站点源即可：cookie 落在 `.zhihuishu.com`，任何子域读到的是同一枚（源定义在 pages.ts，一处）
-  const raw = await readCookie(ZHS_SITE_ORIGIN, 'CASLOGC');
+  let raw = '';
+  for (const origin of COOKIE_ORIGINS) {
+    raw = await readCookie(origin, 'CASLOGC');
+    if (raw !== '') break;
+  }
   if (raw === '') return { loggedIn: false, uuid: '', userId: null };
   let text = raw;
   try {

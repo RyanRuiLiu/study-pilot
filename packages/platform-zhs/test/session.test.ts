@@ -25,6 +25,17 @@ describe('readSession', () => {
     expect(session).toEqual({ loggedIn: false, uuid: '', userId: null });
   });
 
+  it('cookie 落在裸域（host-only）而 www 上读不到：两个 origin 都问', async () => {
+    const value = JSON.stringify({ uuid: 'TESTuuid1', userId: 900000009 });
+    const reader: CookieReader = async (origin) =>
+      origin === 'https://zhihuishu.com' ? value : '';
+    await expect(readSession(reader)).resolves.toEqual({
+      loggedIn: true,
+      uuid: 'TESTuuid1',
+      userId: 900000009,
+    });
+  });
+
   it('没有 uuid 视为未登录（不拿别的字段凑数）', async () => {
     const session = await readSession(cookieReturning(JSON.stringify({ realName: '某人', userId: 1 })));
     expect(session).toEqual({ loggedIn: false, uuid: '', userId: null });
