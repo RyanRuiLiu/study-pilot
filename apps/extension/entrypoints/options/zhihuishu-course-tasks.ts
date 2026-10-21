@@ -466,7 +466,9 @@ function quizRow(entry: ZhsCourseTask): HTMLElement | null {
  *
  * **没有「执行」**：这条路要先接场次（`examH5Url` 才是它的答卷入口，与单元测试
  * 的入口参数不同），执行侧没验过之前不摆按钮——按钮在那儿就等于许诺能做掉。
- * 场次与考勤（看直播/回放满 80% 得考勤分）是模块 4，接口形态还没定。
+ * 场次与测验计数已经接上**只读**（`meetSessions` 来自见面课页自己的接口，
+ * 测验与单元测试同一份作业清单）；还没接的是考勤分（看直播/回放满 80% 那一路）
+ * 与执行入口，属于模块 4 的剩余部分。
  */
 function meetRow(entry: ZhsCourseTask): HTMLElement {
   const unread = entry.quizUnreadReason !== null;

@@ -97,7 +97,7 @@ let sawRun = false;
  * TaskState.platforms），这里只呈现慕课自己那条；平台给了「下一步」动作时
  * 卡头右侧给一个跳转钮（新标签页，与「读取课程列表」同一个按钮位）。
  * 跑动中不呈现——那一路的状态是课件行里的运行明细。与智慧树那份同构
- * （zhihuishu-courseware.ts 的 renderZhsFailure）。
+ * （zhihuishu-course-tasks.ts 的 renderZhsFailure）。
  */
 async function renderFailure(): Promise<void> {
   const statusEl = document.getElementById('courseware-status');

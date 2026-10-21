@@ -29,7 +29,7 @@
 | apps/extension/entrypoints/background.ts | 待读 |
 | apps/extension/entrypoints/mooc.content.ts | 部分 |
 | apps/extension/entrypoints/options/courses.ts | 待读 |
-| apps/extension/entrypoints/options/courseware.ts | 待读 |
+| apps/extension/entrypoints/options/courseware.ts | 已读 |
 | apps/extension/entrypoints/options/index.html | 待读 |
 | apps/extension/entrypoints/options/main.ts | 待读 |
 | apps/extension/entrypoints/options/note.ts | 待读 |
@@ -39,7 +39,7 @@
 | apps/extension/entrypoints/options/status-line.ts | 待读 |
 | apps/extension/entrypoints/options/style.css | 待读 |
 | apps/extension/entrypoints/options/toast.ts | 待读 |
-| apps/extension/entrypoints/options/zhihuishu-course-tasks.ts | 待读 |
+| apps/extension/entrypoints/options/zhihuishu-course-tasks.ts | 已读 |
 | apps/extension/entrypoints/options/zhihuishu-courses.ts | 待读 |
 | apps/extension/entrypoints/options/zhihuishu-status-line.ts | 待读 |
 | apps/extension/entrypoints/popup/elements.ts | 待读 |
@@ -298,4 +298,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：288 个文件；已读 34，部分 24，待读 230。
+合计：288 个文件；已读 36，部分 24，待读 228。
