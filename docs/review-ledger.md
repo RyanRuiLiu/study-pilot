@@ -211,16 +211,16 @@
 | packages/platform-mooc/src/paper-types.ts | 待读 |
 | packages/platform-mooc/src/policy/assembly.ts | 部分 |
 | packages/platform-mooc/src/policy/course-selection.ts | 待读 |
-| packages/platform-mooc/src/policy/execute/courseware.ts | 待读 |
-| packages/platform-mooc/src/policy/execute/index.ts | 待读 |
-| packages/platform-mooc/src/policy/execute/types.ts | 待读 |
-| packages/platform-mooc/src/policy/execute/work.ts | 待读 |
+| packages/platform-mooc/src/policy/execute/courseware.ts | 已读 |
+| packages/platform-mooc/src/policy/execute/index.ts | 已读 |
+| packages/platform-mooc/src/policy/execute/types.ts | 已读 |
+| packages/platform-mooc/src/policy/execute/work.ts | 已读 |
 | packages/platform-mooc/src/policy/net-rules.ts | 待读 |
-| packages/platform-mooc/src/policy/plan/courseware.ts | 待读 |
-| packages/platform-mooc/src/policy/plan/index.ts | 待读 |
-| packages/platform-mooc/src/policy/plan/order.ts | 待读 |
-| packages/platform-mooc/src/policy/plan/types.ts | 待读 |
-| packages/platform-mooc/src/policy/plan/work.ts | 待读 |
+| packages/platform-mooc/src/policy/plan/courseware.ts | 已读 |
+| packages/platform-mooc/src/policy/plan/index.ts | 已读 |
+| packages/platform-mooc/src/policy/plan/order.ts | 已读 |
+| packages/platform-mooc/src/policy/plan/types.ts | 已读 |
+| packages/platform-mooc/src/policy/plan/work.ts | 已读 |
 | packages/platform-mooc/src/policy/read/courseware.ts | 已读 |
 | packages/platform-mooc/src/policy/read/index.ts | 待读 |
 | packages/platform-mooc/src/policy/read/inspect.ts | 待读 |
@@ -309,4 +309,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：299 个文件；已读 129，部分 17，待读 153。
+合计：299 个文件；已读 138，部分 17，待读 144。
