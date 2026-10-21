@@ -162,9 +162,9 @@ PRIVACY.md 会同步改写。已经能自动做的客观题测验里，智慧树
       src/progress.ts      执行进度打到标准输出
       src/main.ts          命令：courses / pending / run（run 默认预演，--yes 才写）
     scripts/probe/   真机调试唯一入口（pnpm probe；见「真机调试」一节）
-    docs/            设计记录：zhs-task-modules-design.md（智慧树二期的考试/见面课/报告设计，
-                     内含一节「落地状态」逐条写明哪些已接进执行、哪些只是设计）——
-                     已实现且不再需要留档的设计不进仓库（规则在代码注释里，历史在 git）
+    docs/            设计记录与决策：zhs-task-modules-design.md（智慧树二期设计，内含
+                     「落地状态」逐条写明哪些已接进执行）、adr/（跨端决策，只记为什么与
+                     何时重审）。已实现且不再需要留档的设计不进仓库（规则在代码注释里，历史在 git）
 
 ## 新人从哪读起
 
