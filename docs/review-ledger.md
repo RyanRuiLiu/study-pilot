@@ -66,15 +66,15 @@
 | apps/extension/src/adapters/mooc/to-messages.ts | 已读 |
 | apps/extension/src/adapters/mooc/work-status.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/boards.ts | 已读 |
-| apps/extension/src/adapters/zhihuishu/messages/course-tasks.ts | 待读 |
-| apps/extension/src/adapters/zhihuishu/messages/courses.ts | 待读 |
-| apps/extension/src/adapters/zhihuishu/messages/deps.ts | 待读 |
+| apps/extension/src/adapters/zhihuishu/messages/course-tasks.ts | 已读 |
+| apps/extension/src/adapters/zhihuishu/messages/courses.ts | 已读 |
+| apps/extension/src/adapters/zhihuishu/messages/deps.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/messages/handlers.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/messages/payload.ts | 部分 |
-| apps/extension/src/adapters/zhihuishu/messages/pending.ts | 待读 |
+| apps/extension/src/adapters/zhihuishu/messages/pending.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/messages/reads.ts | 已读 |
-| apps/extension/src/adapters/zhihuishu/messages/refresh-courses.ts | 待读 |
-| apps/extension/src/adapters/zhihuishu/messages/session.ts | 待读 |
+| apps/extension/src/adapters/zhihuishu/messages/refresh-courses.ts | 已读 |
+| apps/extension/src/adapters/zhihuishu/messages/session.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/pages.ts | 已读 |
 | apps/extension/src/adapters/zhihuishu/platform.ts | 已读 |
 | apps/extension/src/ai/index.ts | 已读 |
@@ -309,4 +309,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：299 个文件；已读 113，部分 20，待读 166。
+合计：299 个文件；已读 119，部分 20，待读 160。
