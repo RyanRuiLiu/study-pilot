@@ -70,7 +70,17 @@ export async function renderZhsStatusLine(
   markZhsStatusLineLoading();
 
   const parts = ['已登录', `${enabled} 门课程参与`];
-  const tasks = await (tasksRead ?? getZhsCourseTasks());
+  let tasks: QueryOutcome<ZhsCourseTaskSummary>;
+  try {
+    tasks = await (tasksRead ?? getZhsCourseTasks());
+  } catch {
+    /*
+     * 消息通道断了（后台重启、端口失效）是 reject，不是 error 结果；
+     * 这条路径没有出口的话骨架会留在卡头。与慕课那份同一处置：只留本地事实。
+     */
+    settle(parts.join(' · '));
+    return;
+  }
   if (tasks.status === 'ok' && tasks.value.pendingTotal !== null) {
     const pending = tasks.value.pendingTotal;
     /*
