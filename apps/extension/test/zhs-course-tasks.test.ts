@@ -93,7 +93,14 @@ const CHAPTERS = {
           { id: 11, name: '课一', videoId: 1, videoSec: 100, videoSmallLessons: null },
           { id: 12, name: '课二', videoId: 2, videoSec: 200, videoSmallLessons: null },
         ],
-        studentExamDto: null,
+        studentExamDto: {
+          id: 6200000001,
+          state: 1,
+          exam: { id: 61000002, type: 1 },
+          // 路由段 t1 = 清单条目 id（下面的 pending 用 b 对上它）
+          examUrl:
+            '//onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/470001/b/z/1000009999/1001/0',
+        },
       },
     ],
   },
@@ -147,6 +154,9 @@ describe('zhsCourseTasksCommand', () => {
     // 视频未看 1 + 测试未交 1
     expect(course!.pending).toBe(2);
     expect(course!.quizUnreadReason).toBeNull();
+    // 执行范围按 id 收窄：视频只剩第二节；测试是未交且章节对得上的那一条
+    expect(course!.videoItemIds).toEqual(['zhs-unit-2-0']);
+    expect(course!.quizItemIds).toEqual(['zhs-quiz-b']);
   });
 
   it('测试那两页签读不成：视频照常报数，测试给原因，不拿 0/0 冒充', async () => {
@@ -156,6 +166,8 @@ describe('zhsCourseTasksCommand', () => {
     expect(course!.quizUnreadReason).toBe('平台拒绝了这次读取');
     // 待完成里只算视频那半——少算的部分由 quizUnreadReason 明说
     expect(course!.pending).toBe(1);
+    expect(course!.videoItemIds).toEqual(['zhs-unit-2-0']);
+    expect(course!.quizItemIds).toEqual([]);
   });
 
   it('每门课都给出两行各自的落点（读不到结构也给，那门课的页面仍打得开）', async () => {

@@ -84,6 +84,7 @@ export {
  * 接口层是「怎么把请求发出去」，策略层是「请求什么、拿到之后怎么判断」。
  * 这里只做转发：导入方从包的门进来，不必知道内部怎么分层。
  */
+export * from './ids.ts';
 export * from './policy/read/index.ts';
 export * from './policy/plan/index.ts';
 export * from './policy/execute/index.ts';

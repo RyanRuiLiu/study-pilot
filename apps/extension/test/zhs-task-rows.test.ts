@@ -47,7 +47,9 @@ function course(courseId: number) {
     recruitId: courseId + 100,
     courseName: '同名课程',
     video: { done: 0, total: 1 },
+    videoItemIds: [`zhs-unit-${courseId}`],
     quiz: { done: 0, total: 1 },
+    quizItemIds: [`zhs-quiz-${courseId}`],
     quizNotFull: 0,
     meet: { done: 0, total: 0 },
     meetSessions: null,
@@ -88,21 +90,44 @@ function runningQuiz() {
   };
 }
 
+/* 订阅只建立一次（模块里的 watching 门闩），回调接在外面供各用例复用。 */
+let listener: (state: unknown) => void = () => undefined;
+
 beforeEach(() => {
   const document = (globalThis as unknown as { document: Document }).document;
   document.getElementById('zhs-tasks-list')?.replaceChildren();
   initToast(document.getElementById('toast') as unknown as HTMLElement);
   for (const fn of Object.values(bridge)) fn.mockReset();
   bridge.getTaskState.mockResolvedValue({ live: 'idle', state: { platforms: {} } });
+  bridge.subscribeRunState.mockImplementation((fn: (state: unknown) => void) => {
+    listener = fn;
+    return () => undefined;
+  });
 });
 
 describe('同名课程的两行', () => {
-  it('单元测试板块的进度同时落到两门同名课，而不是只更新最后一行', async () => {
-    let listener: (state: unknown) => void = () => undefined;
-    bridge.subscribeRunState.mockImplementation((fn: (state: unknown) => void) => {
-      listener = fn;
-      return () => undefined;
+  it('单元测试行的执行只发这一门课的条目 id，不发课程名', async () => {
+    bridge.getZhsCourseTasks.mockResolvedValueOnce({
+      status: 'ok',
+      value: { courses: [course(1), course(2)], pendingTotal: 2 },
     });
+    await renderZhsCourseTasks();
+
+    const document = (globalThis as unknown as { document: Document }).document;
+    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).filter(
+      (button) => button.dataset.board === 'quiz',
+    );
+    buttons[0]?.dispatchEvent(new window.Event('click', { bubbles: true }));
+
+    expect(bridge.runNow).toHaveBeenCalledTimes(1);
+    expect(bridge.runNow.mock.calls[0]?.[1]).toEqual({
+      platformId: 'zhihuishu',
+      group: '同名课程',
+      ids: ['zhs-quiz-1'],
+    });
+  });
+
+  it('单元测试板块的进度同时落到两门同名课，而不是只更新最后一行', async () => {
     bridge.getZhsCourseTasks.mockResolvedValueOnce({
       status: 'ok',
       value: { courses: [course(1), course(2)], pendingTotal: 2 },
@@ -123,7 +148,9 @@ describe('同名课程的两行', () => {
     bridge.getZhsCourseTasks.mockResolvedValueOnce({
       status: 'ok',
       value: {
-        courses: [{ ...course(1), quiz: { done: 0, total: 0 }, quizNotFull: 0 }],
+        courses: [
+          { ...course(1), quiz: { done: 0, total: 0 }, quizItemIds: [], quizNotFull: 0 },
+        ],
         pendingTotal: 1,
       },
     });

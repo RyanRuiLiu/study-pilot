@@ -1,11 +1,13 @@
 /*
- * 执行范围的分类：哪些类别归「待办」，哪些归「课件」。界面共用这一处。
+ * 执行范围的分类：待办页发哪些类别。界面共用这一处。
  *
- * 类别字符串由平台定义（慕课是 quiz / review / self / homework / exam /
- * courseware），核心只做字符串比较（见 application 的 round.ts）。
- * 界面这一侧需要回答的问题是「待办页发哪些、课件页发哪些」——
- * 新增一个计划类别时，必须在这里表态它属于哪边；不说的话它会两边都不进，
- * 点执行时静默消失。全项目只有这一处做这个分派。
+ * 类别字符串由平台定义（慕课是 quiz / review / self / homework / exam），
+ * 核心只做字符串比较（见 application 的 round.ts）。新增一个待办类别时，
+ * 必须在这里表态它归「待办」；不说的话它会不进弹窗的「全部执行」，
+ * 点执行时静默消失。
+ *
+ * 课件页不在这里：它的「执行」按这门课的**条目 id** 收窄（见 options/courseware.ts）——
+ * 同名课程（重选后的另一个学期）不能靠类别名或课程名分开。
  */
 
 /**
@@ -13,6 +15,3 @@
  * 弹窗的「全部执行」按它发范围；「需手动完成」的计数也只数这些。
  */
 export const PENDING_KINDS: string[] = ['quiz', 'review', 'self', 'homework', 'exam'];
-
-/** 课件那几类：设置页课件区的「执行」按它发范围。 */
-export const COURSEWARE_KINDS: string[] = ['courseware'];

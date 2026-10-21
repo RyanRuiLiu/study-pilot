@@ -53,7 +53,16 @@ describe('课件进度计数', () => {
     ];
 
     expect(summarizeCourseware(snapshotOf(units), false)).toEqual([
-      { termId: 1, courseName: '示例课程甲', done: 1, total: 5, pending: 2, cannot: 2, needsAi: 0 },
+      {
+        termId: 1,
+        courseName: '示例课程甲',
+        done: 1,
+        total: 5,
+        pending: 2,
+        itemIds: ['courseware-2', 'courseware-3'],
+        cannot: 2,
+        needsAi: 0,
+      },
     ]);
   });
 
@@ -63,11 +72,13 @@ describe('课件进度计数', () => {
     // 「只差 AI」单独标出来：界面据此给出「去配 AI」这句可行动的话
     expect(summarizeCourseware(snapshotOf(units), false)[0]).toMatchObject({
       pending: 0,
+      itemIds: [],
       cannot: 1,
       needsAi: 1,
     });
     expect(summarizeCourseware(snapshotOf(units), true)[0]).toMatchObject({
       pending: 1,
+      itemIds: ['courseware-1'],
       cannot: 0,
       needsAi: 0,
     });

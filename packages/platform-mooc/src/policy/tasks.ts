@@ -13,6 +13,7 @@ import type { MoocClient } from '../client.ts';
 import type { CoursewareContext } from '../courseware/index.ts';
 import type { ConfigPort, HostCapabilities, RunControl, RunSelection, Settings } from '@study-pilot/application';
 import { hasTextGenerator } from '@study-pilot/application';
+import { coursewareItemId, manualItemId, workItemId } from '../ids.ts';
 import { ensureSession, SessionExpiredError } from './session.ts';
 import { withSessionRecovery } from './recovery.ts';
 import type { PlanItem, PlanResult, PlatformTasks, RunOutcome } from '@study-pilot/application';
@@ -59,21 +60,6 @@ export interface MoocRunDeps {
  * 界面会把同份作业的互评与自评合成一行、两条 id 一起发回：那是有意
  * 一起做（把「这一阶段」当成一件事）；id 仍各自唯一，逐项结果才分得开。
  */
-
-/** 工作项（测验/互评/自评）。 */
-export function workItemId(tid: number, kind: string): string {
-  return `work-${tid}-${kind}`;
-}
-
-/** 课件单元。 */
-export function coursewareItemId(unitId: number): string {
-  return `courseware-${unitId}`;
-}
-
-/** 人工项（作业/考试/过期）。 */
-export function manualItemId(tid: number, reason: string): string {
-  return `manual-${tid}-${reason}`;
-}
 
 function idOf(action: Plan['auto'][number]): string {
   return action.kind === 'courseware'

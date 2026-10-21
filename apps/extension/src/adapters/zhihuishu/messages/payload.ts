@@ -103,6 +103,11 @@ export interface ZhsCourseTask {
   /** 学习进度·教程：已完成的视频单元 / 全部视频单元 */
   video: { done: number; total: number };
   /**
+   * 这一行「执行」要做的课件项 id（未完成的视频单元，取名规则在平台包）。
+   * 按 id 而不是课程名收窄：同名课程（重选/不同报名）会把另一门一起做掉。
+   */
+  videoItemIds: string[];
+  /**
    * 学习进度·测试：已交单元测试 / 全部单元测试。
    *
    * 总数是**未交与已交两页签合计**——只在未交页签里数会把交过的那些漏掉，
@@ -110,6 +115,11 @@ export interface ZhsCourseTask {
    * 别拿 state 猜，见 exam-list.ts）。
    */
   quiz: { done: number; total: number };
+  /**
+   * 这一行「执行」要做的单元测试项 id：未交页签里我们接手的 + 已交未满分的重做卷，
+   * 且章节对得上（与计划同一条门槛）。同样按 id 收窄，避免同名课程串到别家。
+   */
+  quizItemIds: string[];
   /**
    * 已交单元测试里**未满分**的卷数。
    *

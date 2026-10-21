@@ -268,7 +268,7 @@ function buildRow(
 function buildRunButton(
   entry: ZhsCourseTask,
   board: (typeof ZHS_BOARDS)[number],
-  options: { empty: boolean; emptyTitle: string; title: string },
+  options: { ids: string[]; empty: boolean; emptyTitle: string; title: string },
 ): HTMLButtonElement {
   const button = document.createElement('button');
   button.className = 'btn ghost';
@@ -329,10 +329,10 @@ function buildRunButton(
         refresh: refreshZhsTaskViews,
       },
       /*
-       * 按板块授权：只做这一类的待办（教程视频 = courseware、单元测试 = quiz）。
-       * 类别取值由平台包定义，这里原样传，不解释。
+       * 读计划先按课程名收窄，执行**按条目 id**：同名课程（重选/不同报名）
+       * 只按名字会把另一门一起做掉。
        */
-      { platformId: 'zhihuishu', group: entry.courseName, kinds: [...board.kinds] },
+      { platformId: 'zhihuishu', group: entry.courseName, ids: options.ids },
     );
   });
 
@@ -463,7 +463,7 @@ export async function renderZhsCourseTasks(
 /** 教程视频那一行：进度 + 执行（kind=courseware）。 */
 function videoRow(entry: ZhsCourseTask): HTMLElement | null {
   const none = entry.video.total === 0;
-  const done = !none && entry.video.done === entry.video.total;
+  const ids = entry.videoItemIds;
   return buildRow(entry, {
     value: none ? '没有视频单元' : `视频 ${entry.video.done}/${entry.video.total}`,
     valueTitle: none
@@ -472,8 +472,9 @@ function videoRow(entry: ZhsCourseTask): HTMLElement | null {
     board: ZHS_BOARDS[0].id,
     href: entry.studyUrl,
     action: buildRunButton(entry, ZHS_BOARDS[0], {
-      empty: none || done,
-      emptyTitle: none ? '这门课没有视频单元' : '这门课的视频都看完了',
+      ids,
+      empty: ids.length === 0,
+      emptyTitle: none ? '这门课没有视频单元' : '这门课没有待完成的视频',
       title: '执行：完成这门课没看完的视频',
     }),
   });
@@ -487,6 +488,7 @@ function videoRow(entry: ZhsCourseTask): HTMLElement | null {
 function quizRow(entry: ZhsCourseTask): HTMLElement | null {
   const unread = entry.quizUnreadReason !== null;
   const none = !unread && entry.quiz.total === 0;
+  const ids = entry.quizItemIds;
   const value = unread
     ? '单元测试未读取到'
     : none
@@ -502,10 +504,18 @@ function quizRow(entry: ZhsCourseTask): HTMLElement | null {
     board: ZHS_BOARDS[1].id,
     href: entry.examListUrl,
     action: buildRunButton(entry, ZHS_BOARDS[1], {
-      // 「还有没有可做的」执行侧现读现算（未满分的卷还要看剩余重做次数），这里只在能确定全齐时禁用
-      empty: !unread && (none || (entry.quiz.done === entry.quiz.total && entry.quizNotFull === 0)),
-      emptyTitle: none ? '这门课没有单元测试' : '这门课的单元测试都交了，且都是满分',
-      title: '执行：完成这门课没交的单元测试',
+      ids,
+      /*
+       * 剩余重做次数这类执行前才读得到的门槛不在这一层判——ids 为空才禁用。
+       * 读失败（unread）时 ids 也为空，但提示要说「先刷新」，不要说「没有待处理」。
+       */
+      empty: unread || ids.length === 0,
+      emptyTitle: unread
+        ? '单元测试未读取到，先刷新课程列表'
+        : none
+          ? '这门课没有单元测试'
+          : '这门课没有待处理的单元测试',
+      title: '执行：处理这门课待处理的单元测试',
     }),
   });
 }

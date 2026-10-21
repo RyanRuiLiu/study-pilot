@@ -212,6 +212,7 @@
 | packages/platform-mooc/src/evaluation-items.ts | 已读 |
 | packages/platform-mooc/src/homework-read.ts | 已读 |
 | packages/platform-mooc/src/index.ts | 已读 |
+| packages/platform-mooc/src/ids.ts | 已读 |
 | packages/platform-mooc/src/paper-types.ts | 已读 |
 | packages/platform-mooc/src/policy/assembly.ts | 已读 |
 | packages/platform-mooc/src/policy/course-selection.ts | 已读 |
@@ -314,7 +315,7 @@
 | scripts/probe/probe.mjs | 已读 |
 | tsconfig.base.json | 已读 |
 
-合计：304 个文件；已读 304，部分 0，待读 0。
+合计：305 个文件；已读 305，部分 0，待读 0。
 
 `pnpm-lock.yaml` 是生成的产物，没有「逐行读」的语义；它的核对方式是
 `pnpm install --frozen-lockfile`（锁文件与各 package.json 的 workspace 边一致、

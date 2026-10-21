@@ -5,8 +5,8 @@
  * 显示的可做数就是点下去会做的数。
  *
  * 点「执行」就是对那门课课件动手的授权。它写平台、不可撤销，
- * 因此按钮文案直说做了什么，类别也只发课件（COURSEWARE_KINDS）——
- * 不会碰到任何要交的东西。
+ * 因此按钮文案直说做了什么，范围只发这门课的课件项 id——
+ * 不会碰到任何要交的东西，也不会把同名学期一起做掉。
  *
  * 执行期间进度与「停止」都在这门课自己那行：行内小字报「正在执行 6/40 · 单元」，
  * 按钮就地变身「停止」。结果用底部浮层（toast）提示——一句话可能很长，
@@ -19,7 +19,6 @@ import { getCourseware, getTaskState, runNow, stopRun, subscribeRunState } from 
 import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge.ts';
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
-import { COURSEWARE_KINDS } from '../../src/ui/scopes.ts';
 import { loginNote, note, MOOC_LOGIN_URL } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
 import { renderStatusLine } from './status-line.ts';
@@ -313,8 +312,12 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
         setEnabled,
         refresh: refreshCourseViews,
       },
-      // 点名平台：两平台共存后类别名不保证互斥，这一次点击只作用于慕课
-      { platformId: 'mooc', kinds: COURSEWARE_KINDS, group: entry.courseName },
+      /*
+       * 读计划时先按课程名收窄（同名的另一学期也读，但只读不写），
+       * 执行时**按条目 id** 收窄：同一门课重选后有两个学期、名字一模一样，
+       * 只按名字会把另一学期的课件一起做掉。
+       */
+      { platformId: 'mooc', group: entry.courseName, ids: entry.itemIds },
     );
   });
 

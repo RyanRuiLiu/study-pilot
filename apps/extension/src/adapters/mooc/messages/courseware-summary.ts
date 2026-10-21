@@ -67,6 +67,7 @@ export function coursewareSummaryCommand(deps: MoocMessageDeps): MessageHandler 
             done: 0,
             total: 0,
             pending: 0,
+            itemIds: [],
             cannot: 0,
             needsAi: 0,
             unread: true,

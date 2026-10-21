@@ -20,10 +20,18 @@
 
 import type { MessageHandler, QueryOutcome } from '../../../protocol.ts';
 import type { ZhihuishuCourse } from '@study-pilot/application';
-import { readSession, selectedCourses } from '@study-pilot/platform-zhs';
+import {
+  chapterExams,
+  getMeetSessions,
+  HOMEWORK_STATE,
+  needsWork,
+  quizItemId,
+  readSession,
+  selectedCourses,
+  unitItemId,
+} from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsCourseTask, ZhsCourseTaskSummary, ZhsResponseMap } from './payload.ts';
-import { getMeetSessions } from '@study-pilot/platform-zhs';
 import { collectUnits, countMeetQuizzes, countNotFullUnitTests, countUnitTests, readCourseExams, readFinalExam } from './reads.ts';
 import { examListUrl, studyPageUrl } from '../pages.ts';
 
@@ -40,7 +48,9 @@ async function unreadCourse(course: ZhihuishuCourse): Promise<ZhsCourseTask> {
     recruitId: course.recruitId,
     courseName: course.name,
     video: { done: 0, total: 0 },
+    videoItemIds: [],
     quiz: { done: 0, total: 0 },
+    quizItemIds: [],
     quizNotFull: 0,
     meet: { done: 0, total: 0 },
     meetSessions: null,
@@ -90,8 +100,11 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
         }
 
         const videoDone = entry.units.filter((unit) => unit.done).length;
+        // 与计划同一条判据：没看完的视频单元都进课件项（id 取名规则在平台包里）
+        const videoItemIds = entry.units.filter((unit) => !unit.done).map(unitItemId);
 
         let quiz = { done: 0, total: 0 };
+        let quizItemIds: string[] = [];
         let quizNotFull = 0;
         let meet = { done: 0, total: 0 };
         let quizUnreadReason: string | null = null;
@@ -100,6 +113,24 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
           quiz = countUnitTests(tabs);
           quizNotFull = countNotFullUnitTests(tabs);
           meet = countMeetQuizzes(tabs);
+          /*
+           * 这一行的「执行」按条目 id 收窄（按课程名会把同名学期一起做）。
+           * id 集合必须与计划一致：未交页签里我们接手的，加上已交未满分的重做卷；
+           * 两处都要求章节对得上（拿不到数字卷号的不做）。
+           */
+          const known = new Set(chapterExams(entry.chapters).map((exam) => exam.listId));
+          const actionable = [
+            ...tabs.pending.filter((item) => known.has(item.id) && needsWork(item)),
+            ...tabs.submitted.filter(
+              (item) =>
+                known.has(item.id) &&
+                item.state === HOMEWORK_STATE.submitted &&
+                item.score !== null &&
+                item.totalScore !== null &&
+                item.score < item.totalScore,
+            ),
+          ];
+          quizItemIds = [...new Set(actionable.map(quizItemId))];
         } catch (error) {
           quizUnreadReason = error instanceof Error ? error.message : String(error);
           partial = true;
@@ -164,7 +195,9 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
           recruitId: course.recruitId,
           courseName: course.name,
           video: { done: videoDone, total: entry.units.length },
+          videoItemIds,
           quiz,
+          quizItemIds,
           quizNotFull,
           meet,
           meetSessions,

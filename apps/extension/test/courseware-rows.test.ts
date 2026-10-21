@@ -49,6 +49,7 @@ function course(termId: number) {
     done: 0,
     total: 2,
     pending: 2,
+    itemIds: [`courseware-${termId}01`, `courseware-${termId}02`],
     cannot: 0,
     needsAi: 0,
   };
@@ -81,21 +82,45 @@ function runningState() {
   };
 }
 
+/*
+ * 订阅只建立一次（模块里的 watching 门闩）：把回调接在外面，
+ * 后面的用例复用同一份，而不是每次重设 mock 却再也等不到订阅。
+ */
+let listener: (state: unknown) => void = () => undefined;
+
 beforeEach(() => {
   const document = (globalThis as unknown as { document: Document }).document;
   document.getElementById('courseware-list')?.replaceChildren();
   initToast(document.getElementById('toast') as unknown as HTMLElement);
   for (const fn of Object.values(bridge)) fn.mockReset();
   bridge.getTaskState.mockResolvedValue({ live: 'idle', state: { platforms: {} } });
+  bridge.subscribeRunState.mockImplementation((fn: (state: unknown) => void) => {
+    listener = fn;
+    return () => undefined;
+  });
 });
 
 describe('同名课程的两行', () => {
-  it('运行进度同时落到两行，而不是只更新最后一行', async () => {
-    let listener: (state: unknown) => void = () => undefined;
-    bridge.subscribeRunState.mockImplementation((fn: (state: unknown) => void) => {
-      listener = fn;
-      return () => undefined;
+  it('点其中一行的执行：只发这一门课的条目 id，不发课程名', async () => {
+    bridge.getCourseware.mockResolvedValueOnce({
+      status: 'ok',
+      value: { courses: [course(1), course(2)], pending: { auto: 0, manual: 0 } },
     });
+    await renderCourseware();
+
+    const document = (globalThis as unknown as { document: Document }).document;
+    const first = document.querySelector<HTMLButtonElement>('#courseware-list .cw-row .btn');
+    first?.dispatchEvent(new window.Event('click', { bubbles: true }));
+
+    expect(bridge.runNow).toHaveBeenCalledTimes(1);
+    expect(bridge.runNow.mock.calls[0]?.[1]).toEqual({
+      platformId: 'mooc',
+      group: '同名课程',
+      ids: ['courseware-101', 'courseware-102'],
+    });
+  });
+
+  it('运行进度同时落到两行，而不是只更新最后一行', async () => {
     bridge.getCourseware.mockResolvedValueOnce({
       status: 'ok',
       value: { courses: [course(1), course(2)], pending: { auto: 0, manual: 0 } },
