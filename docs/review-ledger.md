@@ -42,7 +42,7 @@
 | apps/extension/entrypoints/options/zhihuishu-course-tasks.ts | 已读 |
 | apps/extension/entrypoints/options/zhihuishu-courses.ts | 待读 |
 | apps/extension/entrypoints/options/zhihuishu-status-line.ts | 已读 |
-| apps/extension/entrypoints/popup/elements.ts | 待读 |
+| apps/extension/entrypoints/popup/elements.ts | 已读 |
 | apps/extension/entrypoints/popup/index.html | 待读 |
 | apps/extension/entrypoints/popup/main.ts | 待读 |
 | apps/extension/entrypoints/popup/status.ts | 已读 |
@@ -300,4 +300,4 @@
 | scripts/probe/probe.mjs | 部分 |
 | tsconfig.base.json | 待读 |
 
-合计：290 个文件；已读 44，部分 24，待读 222。
+合计：290 个文件；已读 45，部分 24，待读 221。
