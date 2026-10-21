@@ -69,7 +69,15 @@ function readCookie(host: HostCapabilities, name: string): Promise<string> {
 
 /** 解析 STUDY_INFO 得到用户 id。格式不符时返回 0。 */
 function parseUserId(studyInfo: string): number {
-  const parts = decodeURIComponent(studyInfo).split('|');
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(studyInfo);
+  } catch {
+    // cookie 值被改坏时 decodeURIComponent 会抛 URIError：按「格式不符」处理，
+    // 不让一条坏 cookie 变成整个会话读取的失败
+    return 0;
+  }
+  const parts = decoded.split('|');
   const id = Number(parts[2]);
   return Number.isFinite(id) && id > 0 ? id : 0;
 }
