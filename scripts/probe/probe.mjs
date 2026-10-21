@@ -43,6 +43,13 @@ import {
 // 下载源码用的 UA 也取自正源（相对路径 + .ts，同上）。这里曾自己抄了一份逐字节相同的串：
 // UA 要跟着真实浏览器版本走，两处各改必然漂移，而漂移的表现是平台按 UA 把我们认成非浏览器。
 import { BROWSER_USER_AGENT as SRC_USER_AGENT } from '../../packages/transport/src/user-agent.ts';
+// 慕课的签名件同样取自正源；本脚本只做 .rpc 调试。
+// 智慧树的签名是另一套协议，在 packages/platform-zhs/src/sign.ts。
+import {
+  JSON_CONTENT_TYPE,
+  SIGN_SALT,
+  SIGN_SYSTEM,
+} from '../../packages/transport/src/sign.ts';
 
 const ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const PROFILE = path.join(ROOT, '.probe', 'profile');
@@ -97,11 +104,6 @@ const ZHS_WRITE_ENDPOINTS = new Set([
   'examSubmit',
   'examApplyRedo',
 ]);
-/** 签名盐值与协议版本——出处是 packages/transport/src/sign.ts（按线上源码还原；
- * 本文件只用于慕课的 .rpc 调试；智慧树的签名在 packages/platform-zhs/src/sign.ts，是另一套协议）。
- * 正源是 packages/transport/src/sign.ts 导出的 `SIGN_SALT`，这里是它的一份复制：那边改了必须同步改这里，
- * 盐随平台前端发版会变，两处一漂移，call 签出的 Auth-Signature 就与真机对不上。 */
-const SIGN_SALT = 'fu2s2kxcswgn5hqanx7asmlogyr5wu29';
 /** 只读方法前缀白名单：写方法直接拦截，这是硬约束不是建议（账号数据不可逆）。 */
 const READONLY_PREFIXES = ['get', 'list', 'search', 'query', 'has', 'is', 'can', 'check', 'page', 'find'];
 
@@ -344,7 +346,8 @@ async function stateExport(context) {
    * 全量快照，不按平台裁剪：探测浏览器只有一只、一个登录身份，
    * 慕课与智慧树（以及将来的平台）的登录态都在同一个 storageState 里，
    * 快照就应完整——回注时（injectMissingCookies）才补得全。
-   * 各消费方自己按域选：stateCheck 只看 icourse163，CLI 也按域过滤（host.ts）。
+   * 各消费方自己按域选：stateCheck 只看 icourse163，命令行按域过滤
+   * （packages/adapters-node/src/session-file.ts）。
    */
   const state = await context.storageState();
   mkdirSync(path.dirname(SESSION), { recursive: true });
@@ -539,9 +542,9 @@ async function rpcCall(opts) {
     const headers = {
       Timestamp: String(timestamp),
       Nonce: String(nonce),
-      System: 'v1',
+      System: SIGN_SYSTEM,
       'Auth-Signature': signature,
-      'Content-Type': 'application/json;charset=UTF-8',
+      'Content-Type': JSON_CONTENT_TYPE,
     };
     const result = await page.evaluate(
       async ({ bean, method, headers, body }) => {
@@ -630,8 +633,7 @@ async function zhsCall(opts) {
   if (!ep) die(`端点表里没有「${name}」——新接口要先加进 packages/platform-zhs/src/endpoints.ts（--list 看现有清单）`);
   if (ZHS_WRITE_ENDPOINTS.has(name) && !opts['allow-write']) {
     die(
-      `已拦截：${name} 是写端点（会改账号上的学习记录）。
-` +
+      `已拦截：${name} 是写端点（会改账号上的学习记录）。\n` +
         '  确需写入时加 --allow-write，并确认该操作不可逆的后果可以接受。',
     );
   }
@@ -645,7 +647,7 @@ async function zhsCall(opts) {
       /(^|\.)zhihuishu\.com$/.test(String(c.domain)),
     );
     if (cookies.length === 0) die('浏览器里没有 zhihuishu 的 cookie——先在探测浏览器里登录智慧树');
-    // 同名取域最宽的一份（与 CLI host.ts 同一口径；浏览器发送顺序的近似）
+    // 同名取域最宽的一份（与 adapters-node 的 session-file.ts 同一口径；浏览器发送顺序的近似）
     const byName = new Map();
     for (const c of cookies) {
       const prev = byName.get(c.name);

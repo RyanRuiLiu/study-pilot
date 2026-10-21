@@ -82,23 +82,28 @@ describe('collectQuizzes', () => {
     expect(result!.items.map((item) => item.examName)).toEqual(['第三章单元测试']);
   });
 
-  it('已交 / 状态非 1 / 见面课测验都不列', async () => {
-    const client: ZhsClient = {
-      call: async (name) => {
-        if (name === 'videoList') return CHAPTERS;
-        return {
-          rt: {
-            studentHomeworkList: [
-              ITEM({ id: 'a', state: 4 }),
-              ITEM({ id: 'b', state: 5 }),
-              ITEM({ id: 'c', meetCourseType: 1 }),
-            ],
-          },
-        };
-      },
+  it('判据与执行侧同源：已交（state=4）不列，重做已申请（state=5）照列，见面课测验同判据', async () => {
+    /*
+     * 这一组曾经把三条都断言成「不列」，而它们只是 **id 对不上章节** 才没进表——
+     * 标题说的判据一条都没被验到。state=5 是「重做已申请、新答卷未交」，
+     * `needsWork` 收它、计划也收它；见面课测验与单元测试在同一个清单、同一套
+     * state 里，执行侧从不按题型分（见 tasks.ts ① 的注释）。这里逐条钉死，
+     * 夹具的 id 都取章节表里的那一个，避免再被「对不上章节」掩盖。
+     */
+    const itemsOf = async (over: Record<string, unknown>) => {
+      const client: ZhsClient = {
+        call: async (name) => {
+          if (name === 'videoList') return CHAPTERS;
+          return { rt: { studentHomeworkList: [ITEM(over)] } };
+        },
+      };
+      const [result] = await collectQuizzes(client, [await oneCourse(client)]);
+      return result!.items;
     };
-    const [result] = await collectQuizzes(client, [await oneCourse(client)]);
-    expect(result!.items).toEqual([]);
+
+    expect(await itemsOf({ state: 4 })).toEqual([]);
+    expect(await itemsOf({ state: 5 })).toHaveLength(1);
+    expect(await itemsOf({ meetCourseType: 1 })).toHaveLength(1);
   });
 
   it('对不上章节的条目不列（拿不到数字卷号就执行不了，列出来是空头支票）', async () => {

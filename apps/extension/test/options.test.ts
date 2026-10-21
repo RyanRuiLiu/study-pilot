@@ -26,20 +26,20 @@ function inputAt(index: number): HTMLInputElement {
 beforeEach(() => {
   mount(`
     <div class="u-questionItem">
-      <input type="radio" id="op_3373856520_2604308845837051792175000000" name="op_33738565201792175000000">
-      <input type="radio" id="op_3373856520_3604308845837051792175000000" name="op_33738565201792175000000">
+      <input type="radio" id="op_3373000000_2600000000000011792175000000" name="op_33730000001792175000000">
+      <input type="radio" id="op_3373000000_3600000000000021792175000000" name="op_33730000001792175000000">
     </div>
     <div class="u-questionItem">
-      <input type="checkbox" id="op_3373856521_2604308845837061792175000001" name="op_33738565211792175000001">
+      <input type="checkbox" id="op_3373000001_2600000000000031792175000001" name="op_33730000011792175000001">
     </div>
   `);
 });
 
 describe('optionIdOf', () => {
   it('从 id 里剥掉加载时间戳，得到选项 id', () => {
-    expect(optionIdOf(inputAt(0))).toBe('260430884583705');
-    expect(optionIdOf(inputAt(1))).toBe('360430884583705');
-    expect(optionIdOf(inputAt(2))).toBe('260430884583706');
+    expect(optionIdOf(inputAt(0))).toBe('260000000000001');
+    expect(optionIdOf(inputAt(1))).toBe('360000000000002');
+    expect(optionIdOf(inputAt(2))).toBe('260000000000003');
   });
 
   it('格式不是 op_ 开头时返回 null，不猜', () => {

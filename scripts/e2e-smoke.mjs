@@ -10,9 +10,11 @@
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-const extDir = new URL('../apps/extension/.output/chrome-mv3', import.meta.url).pathname;
+// fileURLToPath 而不是 .pathname：Windows 上 pathname 是 /C:/...，拿它去 join 找不到产物
+const extDir = fileURLToPath(new URL('../apps/extension/.output/chrome-mv3', import.meta.url));
 if (!existsSync(join(extDir, 'manifest.json'))) {
   console.error(`找不到构建产物：${extDir}（先跑 pnpm build）`);
   process.exit(1);
@@ -55,7 +57,7 @@ try {
     if (!optionsText.includes(label)) problems.push(`options 缺少「${label}」分区`);
   }
 
-  // 消息往返：popup 里点一下「读取课程」类入口不应抛页面异常（未登录时是如实报错）
+  // 留一拍给页面把初始异步读取跑完（未登录时如实报错）；期间任何页面异常都已记入 problems
   await popup.waitForTimeout(500);
 } finally {
   await context.close();

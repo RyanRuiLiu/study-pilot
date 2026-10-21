@@ -27,7 +27,7 @@
 | apps/cli/test/progress.test.ts | 已读 |
 | apps/cli/tsconfig.json | 已读 |
 | apps/extension/entrypoints/background.ts | 已读 |
-| apps/extension/entrypoints/mooc.content.ts | 部分 |
+| apps/extension/entrypoints/mooc.content.ts | 已读 |
 | apps/extension/entrypoints/options/courses.ts | 已读 |
 | apps/extension/entrypoints/options/courseware.ts | 已读 |
 | apps/extension/entrypoints/options/index.html | 已读 |
@@ -80,7 +80,7 @@
 | apps/extension/src/ai/index.ts | 已读 |
 | apps/extension/src/ai/permission.ts | 已读 |
 | apps/extension/src/ai/tasks/discuss-reply.ts | 已读 |
-| apps/extension/src/background/messages/router.ts | 部分 |
+| apps/extension/src/background/messages/router.ts | 已读 |
 | apps/extension/src/background/runtime/run-state.ts | 已读 |
 | apps/extension/src/background/runtime/task-state.ts | 已读 |
 | apps/extension/src/browser/capabilities.ts | 已读 |
@@ -115,10 +115,10 @@
 | apps/extension/src/ui/tokens.css | 已读 |
 | apps/extension/src/ui/tokens.ts | 已读 |
 | apps/extension/src/vite-env.d.ts | 已读 |
-| apps/extension/test/ai-tasks.test.ts | 待读 |
-| apps/extension/test/boundaries.test.ts | 待读 |
-| apps/extension/test/guidance.test.ts | 待读 |
-| apps/extension/test/net-rules.test.ts | 待读 |
+| apps/extension/test/ai-tasks.test.ts | 已读 |
+| apps/extension/test/boundaries.test.ts | 已读 |
+| apps/extension/test/guidance.test.ts | 已读 |
+| apps/extension/test/net-rules.test.ts | 已读 |
 | apps/extension/test/status-line.test.ts | 已读 |
 | apps/extension/test/popup-todo.test.ts | 已读 |
 | apps/extension/test/course-toggle.test.ts | 已读 |
@@ -130,22 +130,22 @@
 | apps/extension/test/panel-info.test.ts | 已读 |
 | apps/extension/test/session-command.test.ts | 已读 |
 | apps/extension/test/courseware-summary-command.test.ts | 已读 |
-| apps/extension/test/node-live.test.ts | 待读 |
-| apps/extension/test/options.test.ts | 待读 |
-| apps/extension/test/popup-status.test.ts | 待读 |
-| apps/extension/test/quiz-stage.test.ts | 待读 |
-| apps/extension/test/tokens-parity.test.ts | 待读 |
-| apps/extension/test/zhs-course-tasks.test.ts | 待读 |
-| apps/extension/test/zhs-quizzes.test.ts | 待读 |
+| apps/extension/test/node-live.test.ts | 已读 |
+| apps/extension/test/options.test.ts | 已读 |
+| apps/extension/test/popup-status.test.ts | 已读 |
+| apps/extension/test/quiz-stage.test.ts | 已读 |
+| apps/extension/test/tokens-parity.test.ts | 已读 |
+| apps/extension/test/zhs-course-tasks.test.ts | 已读 |
+| apps/extension/test/zhs-quizzes.test.ts | 已读 |
 | apps/extension/tsconfig.json | 已读 |
 | apps/extension/vitest.config.ts | 已读 |
 | apps/extension/wxt.config.ts | 已读 |
-| docs/adr/0001-ts-source-exports.md | 待读 |
-| docs/adr/0002-result-errors.md | 待读 |
-| docs/adr/0003-platform-independence.md | 待读 |
-| docs/adr/0004-message-layer-shape.md | 待读 |
-| docs/adr/0005-no-coverage-threshold.md | 待读 |
-| docs/adr/0006-no-app-facade-yet.md | 待读 |
+| docs/adr/0001-ts-source-exports.md | 已读 |
+| docs/adr/0002-result-errors.md | 已读 |
+| docs/adr/0003-platform-independence.md | 已读 |
+| docs/adr/0004-message-layer-shape.md | 已读 |
+| docs/adr/0005-no-coverage-threshold.md | 已读 |
+| docs/adr/0006-no-app-facade-yet.md | 已读 |
 | docs/review-checklist.md | 已读 |
 | docs/zhs-task-modules-design.md | 已读 |
 | package.json | 已读 |
@@ -304,10 +304,15 @@
 | packages/transport/test/sign.test.ts | 已读 |
 | packages/transport/test/throttle.test.ts | 已读 |
 | packages/transport/tsconfig.json | 已读 |
-| pnpm-lock.yaml | 待读 |
+| pnpm-lock.yaml | 已读 |
 | pnpm-workspace.yaml | 已读 |
-| scripts/e2e-smoke.mjs | 部分 |
-| scripts/probe/probe.mjs | 部分 |
+| scripts/e2e-smoke.mjs | 已读 |
+| scripts/probe/probe.mjs | 已读 |
 | tsconfig.base.json | 已读 |
 
-合计：300 个文件；已读 278，部分 4，待读 18。
+合计：300 个文件；已读 300，部分 0，待读 0。
+
+`pnpm-lock.yaml` 是生成的产物，没有「逐行读」的语义；它的核对方式是
+`pnpm install --frozen-lockfile`（锁文件与各 package.json 的 workspace 边一致、
+可重复安装），并逐条核对过 workspace 依赖边（含 `ai → transport` 这一条）。
+它不是手写文件，改它的唯一正确方式是改 package.json 后让 pnpm 重算。
