@@ -48,35 +48,38 @@ export async function collectUnits(
   client: ZhsClient,
   courses: ZhihuishuCourse[],
 ): Promise<CourseUnits[]> {
-  const results: CourseUnits[] = [];
-  for (const course of courses) {
-    if (course.secret.length === 0) {
-      results.push({ course, units: [], chapters: [], unreadReason: '缺少课程入口参数，先读取课程列表' });
-      continue;
-    }
-    try {
-      const chapters = await readCourseChapters(client, {
-        recruitAndCourseId: course.secret,
-        recruitId: course.recruitId,
-      });
-      const units = await getCourseUnits(
-        client,
-        { recruitAndCourseId: course.secret, recruitId: course.recruitId },
-        chapters,
-      );
-      results.push({ course, units, chapters, unreadReason: null });
-    } catch (error) {
-      // 登录失效是账号级的事实：不按「这门课读不成」记，抛给上层按未登录回话
-      if (error instanceof ZhsAuthError) throw error;
-      results.push({
-        course,
-        units: [],
-        chapters: [],
-        unreadReason: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-  return results;
+  /*
+   * 逐课**并行**：每门课各读各的结构，互不依赖；串行会让「读 5 门课」
+   * 变成 5 倍的等待。列表顺序由 Promise.all 保持，与传入一致。
+   */
+  return Promise.all(
+    courses.map(async (course): Promise<CourseUnits> => {
+      if (course.secret.length === 0) {
+        return { course, units: [], chapters: [], unreadReason: '缺少课程入口参数，先读取课程列表' };
+      }
+      try {
+        const chapters = await readCourseChapters(client, {
+          recruitAndCourseId: course.secret,
+          recruitId: course.recruitId,
+        });
+        const units = await getCourseUnits(
+          client,
+          { recruitAndCourseId: course.secret, recruitId: course.recruitId },
+          chapters,
+        );
+        return { course, units, chapters, unreadReason: null };
+      } catch (error) {
+        // 登录失效是账号级的事实：不按「这门课读不成」记，抛给上层按未登录回话
+        if (error instanceof ZhsAuthError) throw error;
+        return {
+          course,
+          units: [],
+          chapters: [],
+          unreadReason: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }),
+  );
 }
 
 /** 按课程分组的单元条目（待办与课程任务共用的形状）。 */
@@ -91,59 +94,50 @@ export interface CourseQuiz {
   unreadReason: string | null;
 }
 
-/**
- * 收集每门课的**未做单元测试**。
- *
- * 判据与执行侧同源（`needsWork`：未交页签里没动过的与重做已申请的），所以列出来的
- * 就是执行会动的那一批；章节结构用来确认这卷能被执行（拿不到数字卷号的
- * 不做，与 `plan()` 同一条门槛）。
- *
- * 读不成不牵连其他课（与 `collectUnits` 同一条边界），但**读不成这件事本身
- * 要如实带回去**——课程可能视频读得到、测验读不到，那时只有这里知道。
- */
 export async function collectQuizzes(
   client: ZhsClient,
   collected: readonly CourseUnits[],
 ): Promise<CourseQuiz[]> {
-  const results: CourseQuiz[] = [];
-  for (const { course, chapters, unreadReason } of collected) {
-    // 视频那一遍就没读成的课，这里也没什么可做的（原因已由那一遍报出）
-    if (unreadReason !== null) {
-      results.push({ course, items: [], unreadReason: null });
-      continue;
-    }
-    try {
-      const known = new Set(chapterExams(chapters).map((exam) => exam.listId));
-      const page = await getExamList(client, {
-        recruitId: course.recruitId,
-        courseId: course.courseId,
-        submitted: false,
-      });
-      // 取不全与读不成同等对待：半份清单列出来的待办是**假的待办**（少列的那些不会自己说话）
-      if (!page.complete) throw new Error('作业清单超过一页，未取全');
-      results.push({
-        course,
-        /*
-         * 两类**同一判据、同一处**：单元测试（`meetCourseType=0`）与见面课测验（`=1`）
-         * 本来就在同一个列表、同一个页签、同一套 state（FINDINGS §二十一），
-         * 而且平台的**重做**也只按 `examId` 判、不分题型
-         * （源码 `9.c58d…js:11803`：`getIsObject(examId)` ＋ `3 - redoNum(examId).rt > 0`，
-         *  全流程没有任何 meetCourseType 分支）。既然平台不分，我们也不分。
-         * `known` 那道闸与 `plan()` 用的是同一个键（章节路由段），两页才会列一样的卷。
-         */
-        items: page.items.filter((item) => known.has(item.id) && needsWork(item)),
-        unreadReason: null,
-      });
-    } catch (error) {
-      if (error instanceof ZhsAuthError) throw error;
-      results.push({
-        course,
-        items: [],
-        unreadReason: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-  return results;
+  /*
+   * 逐课**并行**（与 collectUnits 同一条规则）：每门课只读一次未交页签，
+   * 互不依赖；串行会让 N 门课变成 N 倍的等待。顺序由 Promise.all 保持。
+   */
+  return Promise.all(
+    collected.map(async ({ course, chapters, unreadReason }): Promise<CourseQuiz> => {
+      // 视频那一遍就没读成的课，这里也没什么可做的（原因已由那一遍报出）
+      if (unreadReason !== null) return { course, items: [], unreadReason: null };
+      try {
+        const known = new Set(chapterExams(chapters).map((exam) => exam.listId));
+        const page = await getExamList(client, {
+          recruitId: course.recruitId,
+          courseId: course.courseId,
+          submitted: false,
+        });
+        // 取不全与读不成同等对待：半份清单列出来的待办是**假的待办**（少列的那些不会自己说话）
+        if (!page.complete) throw new Error('作业清单超过一页，未取全');
+        return {
+          course,
+          /*
+           * 两类**同一判据、同一处**：单元测试（`meetCourseType=0`）与见面课测验（`=1`）
+           * 本来就在同一个列表、同一个页签、同一套 state（FINDINGS §二十一），
+           * 而且平台的**重做**也只按 `examId` 判、不分题型
+           * （源码 `9.c58d…js:11803`：`getIsObject(examId)` ＋ `3 - redoNum(examId).rt > 0`，
+           *  全流程没有任何 meetCourseType 分支）。既然平台不分，我们也不分。
+           * `known` 那道闸与 `plan()` 用的是同一个键（章节路由段），两页才会列一样的卷。
+           */
+          items: page.items.filter((item) => known.has(item.id) && needsWork(item)),
+          unreadReason: null,
+        };
+      } catch (error) {
+        if (error instanceof ZhsAuthError) throw error;
+        return {
+          course,
+          items: [],
+          unreadReason: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }),
+  );
 }
 
 /** 单元测试条目的计划项 id（与执行侧同一份取名规则）。 */

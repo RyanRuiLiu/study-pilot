@@ -22,6 +22,7 @@ import type { Md5HexFn } from '@study-pilot/core';
 import { err, type Result } from '@study-pilot/core';
 import type { TransportError } from '@study-pilot/transport';
 import { MOOC_SESSION_EXPIRED, sessionExpired } from './auth.ts';
+import { ENDPOINTS } from './endpoints.ts';
 
 /** 站点 origin。所有接口路径都相对它拼接。 */
 export const MOOC_ORIGIN = 'https://www.icourse163.org';
@@ -69,17 +70,19 @@ export interface MoocClient {
 
 export function createMoocClient(options: MoocClientOptions): MoocClient {
   const origin = options.origin ?? MOOC_ORIGIN;
-  const throttle = createThrottle({
-    minGapMs: options.minGapMs ?? DEFAULT_MIN_GAP_MS,
-  });
-
-  const rpc = createRpcClient({
-    origin,
-    fetch: options.fetch,
-    getToken: options.getToken,
-    md5: options.md5,
-    throttle,
-  });
+  /*
+   * 节奏按端点表的 `pace` 分两桶（2026-10-23 实测）：读 50ms/并发 4，
+   * 写 200ms/串行。分类只在端点表一处，这里按名字查表选桶。
+   */
+  const readThrottle = createThrottle({ minGapMs: options.minGapMs ?? 50, concurrency: 4 });
+  const writeThrottle = createThrottle({ minGapMs: options.minGapMs ?? DEFAULT_MIN_GAP_MS, concurrency: 1 });
+  const paceOf = new Map<string, 'read' | 'write'>();
+  for (const endpoint of Object.values(ENDPOINTS) as Array<{ bean: string; method: string; pace?: 'read' | 'write' }>) {
+    paceOf.set(`${endpoint.bean}.${endpoint.method}`, endpoint.pace ?? 'read');
+  }
+  const base = { origin, fetch: options.fetch, getToken: options.getToken, md5: options.md5 };
+  const rpcRead = createRpcClient({ ...base, throttle: readThrottle });
+  const rpcWrite = createRpcClient({ ...base, throttle: writeThrottle });
 
   return {
     origin,
@@ -92,9 +95,10 @@ export function createMoocClient(options: MoocClientOptions): MoocClient {
      * 界面、命令行）拿到的就是同一句「登录已失效，需重新登录慕课」。
      */
     rpc: {
-      ...rpc,
+      ...rpcRead,
       call: async <T>(bean: string, method: string, body: Record<string, unknown> = {}) => {
-        const result = await rpc.call<T>(bean, method, body);
+        const chosen = paceOf.get(`${bean}.${method}`) === 'write' ? rpcWrite : rpcRead;
+        const result = await chosen.call<T>(bean, method, body);
         if (!result.ok && result.error.kind === 'auth') {
           return err({ ...result.error, message: MOOC_SESSION_EXPIRED });
         }
@@ -105,13 +109,13 @@ export function createMoocClient(options: MoocClientOptions): MoocClient {
       origin,
       fetch: options.fetch,
       getToken: options.getToken,
-      throttle,
+      throttle: writeThrottle,
     }),
   };
 }
 
 /**
- * 读类 RPC 的统一入口： 但 `result` 为空 ＝ 未登录形态（实测 2026-10-03）。
+ * 读类 RPC 的统一入口：code = 0 但 `result` 为空 ＝ 未登录形态（实测 2026-10-03）。
  *
  * 为什么要一个入口：`.rpc` 的 `call()` 直接返回 `result`，取到 null 的读取点
  * 要么崩在属性访问上、要么把 null 当成空数据继续走（界面显示「暂无」而不是去登录）。

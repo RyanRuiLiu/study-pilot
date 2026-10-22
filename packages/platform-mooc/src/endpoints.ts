@@ -18,6 +18,12 @@
 export interface Endpoint {
   bean: string;
   method: string;
+  /**
+   * 出站节奏的类别（缺省 read）：读用「50ms / 并发 4」，写用「200ms / 串行」。
+   * 依据（2026-10-23 实测）：只读端点 0ms 连续 20 次、并发 8 全部成功；
+   * 写侧没有新实测，沿用历史上写爆发触发 -12 对应的保守值。
+   */
+  pace?: 'read' | 'write';
 }
 
 export const ENDPOINTS = {
@@ -56,16 +62,16 @@ export const ENDPOINTS = {
    * [写操作] 把一个课件单元标记为已学。参数 {dto}，dto 的形状按单元类型而定。
    * 报文与取值来源均取自实测
    */
-  completeUnit: { bean: 'courseRpcBean', method: 'saveMocContentLearn' }, // [实测]
+  completeUnit: { bean: 'courseRpcBean', method: 'saveMocContentLearn', pace: 'write' }, // [实测]
 
   /** 取作业答卷（含参考答案）。参数 {tid, aid, evaluateId, withStdAnswerAndAnalyse, phase} */
   homeworkPaper: { bean: 'mocQuizRpcBean', method: 'getOpenHomeworkPaperDto' }, // [有样本]
 
   /** [写操作] 保存测验草稿。参数 {paperDto, preview}。实测草稿写入在真实账号上不生效，提交不依赖它 */
-  saveDraft: { bean: 'mocQuizRpcBean', method: 'saveDraftAnswers' },
+  saveDraft: { bean: 'mocQuizRpcBean', method: 'saveDraftAnswers', pace: 'write' },
 
   /** [写操作] 提交测验。参数 {paperDto, preview}，其中 answers 原样保留、submitType 为 1 */
-  submitQuiz: { bean: 'mocQuizRpcBean', method: 'submitAnswers' },
+  submitQuiz: { bean: 'mocQuizRpcBean', method: 'submitAnswers', pace: 'write' },
 } as const satisfies Record<string, Endpoint>;
 
 /**

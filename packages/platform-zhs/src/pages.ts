@@ -26,10 +26,11 @@ export const ZHS_SITE_ORIGIN = 'https://www.zhihuishu.com';
  *
  * 不再指向首页：首页会用 localStorage 里的 userId 画出「已登录」，哪怕服务端
  * 会话已经失效——用户在那里既看不出问题，也找不到登录入口。
- * 实测：`passport.zhihuishu.com/login` 与 `onlineweb.zhihuishu.com` 都会 302 到
- * 这里（登录中心，账号密码与扫码都在）；直接给终点，少一次跳转。
+ * 取值（2026-10-23 Ryan 定）：学生首页 `onlineweb.zhihuishu.com/onlinestuh5`。
+ * 实测该页在未登录时会 302 到登录中心，登录后就是学生首页（课程与见面课都在这里）；
+ * 首页与登录中心二选一时选它：用户落地即看到自己的课，而不是一个中转页。
  */
-export const ZHS_LOGIN_URL = 'https://login.zhihuishu.com/?origin=zhs';
+export const ZHS_LOGIN_URL = 'https://onlineweb.zhihuishu.com/onlinestuh5';
 
 /** 学习页：教程视频那几行的落点，也是撞门时的去处（账号级挂起在那儿过一次验证）。 */
 export function studyPageUrl(recruitAndCourseId: string): string {

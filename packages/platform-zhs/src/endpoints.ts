@@ -61,6 +61,13 @@ export interface ZhsEndpoint {
   stampField?: StampField;
   /** 时间戳是否也进密文载荷（仅签名端点；学习族 true、首页族 false） */
   stampInside?: boolean;
+  /**
+   * 出站节奏的类别（缺省 read）：读用「50ms / 并发 4」，写用「200ms / 串行」。
+   * 依据（2026-10-23 实测）：只读端点 0ms 连续 20 次、并发 8 全部成功；
+   * 写侧没有新实测，沿用历史上 -12 门对应的 200ms 串行。
+   * 分类只写在这里一处；客户端按它选节流桶，业务代码不写数字。
+   */
+  pace?: 'read' | 'write';
 }
 
 const ENDPOINT_TABLE = {
@@ -132,6 +139,7 @@ const ENDPOINT_TABLE = {
   },
   /** 进度上报（落库通道；缓存通道 saveCacheIntervalTimeV2 本工具不用，不发） */
   saveStudyInterval: {
+    pace: 'write',
     host: 'study',
     path: '/gateway/t/v1/learning/saveDatabaseIntervalTimeV2',
     method: 'POST',
@@ -170,6 +178,7 @@ const ENDPOINT_TABLE = {
   },
   /** 开卷：**调用即建答卷，无二次确认**——只在执行动作里发，绝不探测性打开 */
   examDoHomework: {
+    pace: 'write',
     host: 'exam',
     path: '/studentExam/gateway/t/v1/student/doHomework',
     method: 'POST',
@@ -186,6 +195,7 @@ const ENDPOINT_TABLE = {
   },
   /** 逐题作答（一题一次，真实客户端也是逐题保存） */
   examSaveAnswer: {
+    pace: 'write',
     host: 'exam',
     path: '/studentExam/gateway/t/v1/answer/saveStudentAnswer',
     method: 'POST',
@@ -194,6 +204,7 @@ const ENDPOINT_TABLE = {
   },
   /** 交卷（不可逆：即刻计分） */
   examSubmit: {
+    pace: 'write',
     host: 'exam',
     path: '/studentExam/gateway/t/v1/answer/submit',
     method: 'POST',
@@ -256,6 +267,7 @@ const ENDPOINT_TABLE = {
   },
   /** 申请重做（分数覆盖原分数；平台自己会先弹确认框） */
   examApplyRedo: {
+    pace: 'write',
     host: 'exam',
     path: '/studentExam/gateway/t/v1/student/saveCourseTran',
     method: 'POST',

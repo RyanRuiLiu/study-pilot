@@ -18,7 +18,6 @@
 import {
   BROWSER_USER_AGENT,
   createThrottle,
-  DEFAULT_MIN_GAP_MS,
   DEFAULT_TIMEOUT_MS,
   startOutboundTimeout,
   timeoutMessage,
@@ -159,7 +158,15 @@ export interface ZhsClient {
 }
 
 export function createZhsClient(options: ZhsClientOptions): ZhsClient {
-  const throttle = createThrottle({ minGapMs: options.minGapMs ?? DEFAULT_MIN_GAP_MS });
+  /*
+   * 节奏按端点表里的 `pace` 分两桶（2026-10-23 实测）：
+   *   read  50ms 间隔、并发 4 —— 只读端点 0ms 连续 20 次、并发 8 全部成功；
+   *   write 200ms 间隔、串行 —— 写侧没有新实测，沿用历史 -12 门对应的保守值。
+   * 分类只写在端点表一处；这里只是按它选桶，业务代码不写数字。
+   * 测试传 `minGapMs: 0` 时两桶都按 0（测的是行为，不是节奏）。
+   */
+  const readThrottle = createThrottle({ minGapMs: options.minGapMs ?? 50, concurrency: 4 });
+  const writeThrottle = createThrottle({ minGapMs: options.minGapMs ?? 200, concurrency: 1 });
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const now = options.now ?? Date.now;
   const recoverKey = options.recoverKey ?? recoverCKey;
@@ -196,7 +203,7 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
         const uid = await rsaPublicEncrypt(
           new TextEncoder().encode(JSON.stringify({ module })),
         );
-        const body = await throttle.run(() =>
+        const body = await readThrottle.run(() =>
           sendJson(`${ZHS_HOSTS.key}${ZHS_ENDPOINTS.keyFetch.path}?uid=${encodeURIComponent(uid)}`, {
             method: 'GET',
             headers: { accept: 'application/json', 'user-agent': BROWSER_USER_AGENT },
@@ -276,7 +283,8 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
         }
       }
 
-      const body = await throttle.run(() => sendJson(requestUrl, init));
+      const paceThrottle = endpoint.pace === 'write' ? writeThrottle : readThrottle;
+      const body = await paceThrottle.run(() => sendJson(requestUrl, init));
 
       const parsed = body as {
         code?: unknown;
