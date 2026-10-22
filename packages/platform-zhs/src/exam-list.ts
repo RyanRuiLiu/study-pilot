@@ -91,19 +91,22 @@ export interface ZhsExamListItem {
 /**
  * 把 `student/getStudentHomework` 的响应归一成条目表。
  *
- * 形状不对（`rt` 不是对象、`studentHomeworkList` 不是数组）时**抛错**，不返回空表：
- * 空表的意思是「这门课一张卷都没有」，那是结论，不能拿它冒充「我没读懂平台回了什么」
- * （与 `normalizeMeetSessions` 同一条口径，见 meet.ts 的说明）。计划那边拿空表就会
- * 判成「无事可做」——平台变形这件事从此不会自己冒出来，而用户看到的是假象。
- * 真·空数组（`studentHomeworkList: []`）才给空表。
+ * 三种形状分开（2026-10-23 真机对照，同一账号两门课）：
+ *   · 有任务：`rt = { result: 'success', next: -1, studentHomeworkList: [...] }`；
+ *   · **没有这类任务**：`rt = { next: -1 }`，字段整段缺省——这是「没有」，不是读不懂；
+ *   · 形态不对：`rt` 不是对象，或字段存在却不是数组 → **抛错**，不拿空表冒充结论。
+ * 计划那边拿空表会判成「无事可做」，所以「没有」与「没读懂」必须分开：
+ * 前者是结论，后者是故障。
  */
 export function normalizeHomeworkList(rt: unknown): ZhsExamListItem[] {
-  const holder = (rt === null || typeof rt !== 'object' ? undefined : rt) as
-    | { studentHomeworkList?: unknown }
-    | undefined;
-  const list = holder?.studentHomeworkList;
+  if (rt === null || typeof rt !== 'object') {
+    throw new Error('作业清单：响应里没有 rt 对象（平台回的形状与预期不符）');
+  }
+  const list = (rt as { studentHomeworkList?: unknown }).studentHomeworkList;
+  // 字段缺省 = 这门课没有这类任务（实测形态 rt 只有 next）；没有就是没有。
+  if (list === undefined) return [];
   if (!Array.isArray(list)) {
-    throw new Error('作业清单：响应里没有 studentHomeworkList 列表（平台回的形状与预期不符）');
+    throw new Error('作业清单：studentHomeworkList 不是数组（平台回的形状与预期不符）');
   }
 
   const items: ZhsExamListItem[] = [];

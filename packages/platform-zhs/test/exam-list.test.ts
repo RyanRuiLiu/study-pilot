@@ -35,10 +35,12 @@ describe('normalizeHomeworkList', () => {
   it('形态不符抛错：不拿空表冒充「我没读懂平台回了什么」', () => {
     // 空表会被计划读成「无事可做」，平台变形从此不会自己冒出来
     expect(() => normalizeHomeworkList({ studentHomeworkList: null })).toThrow(/studentHomeworkList/);
-    expect(() => normalizeHomeworkList({})).toThrow(/studentHomeworkList/);
-    expect(() => normalizeHomeworkList(null)).toThrow(/studentHomeworkList/);
-    expect(() => normalizeHomeworkList('x')).toThrow(/studentHomeworkList/);
+    expect(() => normalizeHomeworkList(null)).toThrow(/rt/);
+    expect(() => normalizeHomeworkList('x')).toThrow(/rt/);
     expect(() => normalizeHomeworkList({ studentHomeworkList: 'x' })).toThrow(/studentHomeworkList/);
+    // 字段整段缺省 = 这门课没有这类任务（实测 rt 只有 next），是结论而不是故障
+    expect(normalizeHomeworkList({ next: -1 })).toEqual([]);
+    expect(normalizeHomeworkList({})).toEqual([]);
   });
 
   it('没有 id 的条目跳过——lookHomework 认 id，缺了就用不了', () => {
