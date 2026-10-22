@@ -49,3 +49,25 @@ describe('MOOC_SESSION 的响应形状', () => {
     expect('token' in response).toBe(false);
   });
 });
+
+describe('cookie 在、服务端不认', () => {
+  it('续期也没救回来：loggedIn false 且带 expired，界面据此说「登录已失效」', async () => {
+    const expiredDeps = {
+      ...DEPS,
+      client: {
+        ...DEPS.client,
+        rpc: {
+          call: async () => ({ ok: false, error: { kind: 'auth', message: '登录已失效，需重新登录慕课' } }),
+          callEnvelope: async () => ({ ok: false, error: { kind: 'auth', message: '登录已失效，需重新登录慕课' } }),
+        },
+      },
+      renew: async () => false,
+    } as unknown as MoocMessageDeps;
+
+    const response = await new Promise((resolve) => {
+      void sessionCommand(expiredDeps)({ type: 'MOOC_SESSION' } as never, ((value: Record<string, unknown>) =>
+        resolve(value)) as never);
+    });
+    expect(response).toEqual({ loggedIn: false, userId: 0, expired: true });
+  });
+});

@@ -192,6 +192,8 @@ export interface ZhsCourseTaskSummary {
 /** 登录态（界面只需要知道能不能读）。 */
 export interface ZhsSessionView {
   loggedIn: boolean;
+  /** 有 cookie 但服务端不认（401/403）：界面上说「登录已失效」，不说「未登录」 */
+  expired?: true;
 }
 
 // ---------- 本平台的命令 ----------

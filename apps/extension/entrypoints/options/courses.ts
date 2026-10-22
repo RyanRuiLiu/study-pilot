@@ -7,7 +7,7 @@
  * 新出现的课程一律不勾——不然刷新一下就把用户没同意过的课拖进了任务范围。
  */
 
-import { coursePageUrl } from '@study-pilot/platform-mooc';
+import { coursePageUrl, MOOC_SESSION_EXPIRED } from '@study-pilot/platform-mooc';
 import { getCourses, getSession, getSettings, refreshCourses, updateSettings } from '../../src/ui-bridge.ts';
 import type { Settings } from '../../src/ui-bridge.ts';
 import { errorText, formatTermRange } from '../../src/ui/format.ts';
@@ -86,7 +86,19 @@ async function toggle(termId: number, enabled: boolean): Promise<void> {
   void refreshCourseViews();
 }
 
-export async function renderCourses(): Promise<void> {
+/**
+ * 课程区唯一的渲染状态：与「读取课程列表」的结果无关的那部分留空。
+ *
+ * 首次加载与刷新走**同一个函数**：之前刷新失败/未登录时把整块列表换掉，
+ * 刷新页面又回到「配置行 + 指引」，同一件事两种长相；现在永远是
+ * 「至多一行状态 ＋ 课程行」，状态只是这次读取的结论。
+ */
+export type CourseListStatus =
+  | { kind: 'expired' }
+  | { kind: 'failed'; message: string }
+  | null;
+
+export async function renderCourses(status: CourseListStatus = null): Promise<void> {
   const listEl = document.getElementById('course-list');
   if (listEl === null) return;
 
@@ -118,14 +130,22 @@ export async function renderCourses(): Promise<void> {
    * 其余一切（未登录指引、读不到、空列表）都在这块内容区里说。
    */
   listEl.replaceChildren();
+  /*
+   * 状态至多一行，行永远保留：课程行是用户自己的选择（配置），不因为一次读取失败
+   * 就消失——那会让「点了读取但没读成」看起来像「课程被删了」。
+   */
   if (!session.loggedIn) {
-    listEl.append(loginNote('未登录，在浏览器登录慕课后读取课程列表。', MOOC_LOGIN_URL));
-    if (rows.length > 0) listEl.append(...rows);
-    return;
-  }
-  if (rows.length === 0) {
+    listEl.append(
+      session.expired
+        ? loginNote(`${MOOC_SESSION_EXPIRED}。`, MOOC_LOGIN_URL)
+        : loginNote('未登录，在浏览器登录慕课后读取课程列表。', MOOC_LOGIN_URL),
+    );
+  } else if (status?.kind === 'expired') {
+    listEl.append(loginNote(`${MOOC_SESSION_EXPIRED}。`, MOOC_LOGIN_URL));
+  } else if (status?.kind === 'failed') {
+    listEl.append(note(`读取失败：${status.message}`, true));
+  } else if (rows.length === 0) {
     listEl.append(note('尚未读取到课程，点击「读取课程列表」获取并勾选要参与的课程。'));
-    return;
   }
   listEl.append(...rows);
 }
@@ -136,15 +156,15 @@ export async function renderCourses(): Promise<void> {
  * 进入等待：点击那一刻，课程列表、卡头状态行、课件区三块同时换骨架
  * （整块慕课数据的刷新入口，等待从同一刻开始）。
  *
- * 落定与首次加载同一套长相：
- *   成功   → 列表落定为新内容（合并写回之后）；状态行与课件区随后重读落定
+ * 落定与首次加载走**同一个渲染函数**（renderCourses），所以两条路径的长相一致：
+ *   成功   → 重新渲染新内容（合并写回之后）；状态行与课件区随后重读落定
  *            （写先于读：提前发起会按旧范围算）；
- *   未登录 → 列表落定为「未登录」指引（少做了一步，给去处，不带责备）；
- *   失败   → 列表落定为错误行「读取失败：<原因>」——如实落在区域里。
+ *   未登录 → 状态行换成「登录已失效，需重新登录慕课」，**课程行保留**；
+ *   失败   → 状态行换成「读取失败：<原因>」，**课程行保留**。
  *
- * 失败不回落旧列表、不另弹失败 toast：那两种做法都会让「点了读取但没读成」
- * 看起来像「什么都没发生」（Ryan 指出与首次加载不一致）。toast 只留动作回执
- * （已读取 N 门）。
+ * 课程行是用户自己的选择（配置），不因为一次读取失败就消失——把整块列表换成
+ * 一行字，会让「点了读取但没读成」看起来像「课程被删了」，刷新页面又变回来。
+ * toast 只留动作回执（已读取 N 门）。
  */
 export function initCourseActions(): void {
   const button = document.getElementById('refresh-courses');
@@ -161,14 +181,14 @@ export function initCourseActions(): void {
           toast(`已读取 ${result.courses.length} 门课程`);
           void renderCourses();
         } else if (result.reason === 'NOT_LOGGED_IN') {
-          listEl?.replaceChildren(loginNote('未登录，在浏览器登录慕课后读取课程列表。', MOOC_LOGIN_URL));
+          void renderCourses({ kind: 'expired' });
         } else {
-          listEl?.replaceChildren(note(`读取失败：${result.message ?? result.reason}`, true));
+          void renderCourses({ kind: 'failed', message: result.message ?? result.reason });
         }
         void refreshCourseViews();
       })
       .catch((error: unknown) => {
-        listEl?.replaceChildren(note(`读取失败：${errorText(error)}`, true));
+        void renderCourses({ kind: 'failed', message: errorText(error) });
         void refreshCourseViews();
       })
       .finally(() => {

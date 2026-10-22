@@ -1,7 +1,8 @@
 /* 会话读取的形态核对（假 cookie 读取器，直接喂 cookie 值）。 */
 
 import { describe, expect, it } from 'vitest';
-import { readSession, type CookieReader } from '../src/session.ts';
+import { probeSession, readSession, type CookieReader } from '../src/session.ts';
+import { ZhsApiError, ZhsAuthError, type ZhsClient } from '../src/client.ts';
 
 function cookieReturning(value: string): CookieReader {
   return async () => value;
@@ -64,5 +65,39 @@ describe('readSession', () => {
       expect(session.userId).toBeNull();
       expect(session.loggedIn).toBe(true);
     }
+  });
+});
+
+describe('probeSession：服务端还认不认这份会话', () => {
+  it('探问成功 → ok', async () => {
+    const client: ZhsClient = { call: async () => ({ code: 0, data: {} }) };
+    expect(await probeSession(client)).toBe('ok');
+  });
+
+  it('平台回 401/403 → auth（cookie 还在也不代表会话活着）', async () => {
+    const client: ZhsClient = {
+      call: async () => {
+        throw new ZhsAuthError(401);
+      },
+    };
+    expect(await probeSession(client)).toBe('auth');
+  });
+
+  it('信封层 code:403 → 同样算 auth（实测 loginUserInfo 的未登录形状）', async () => {
+    const client: ZhsClient = {
+      call: async () => {
+        throw new ZhsApiError(403, '未登录');
+      },
+    };
+    expect(await probeSession(client)).toBe('auth');
+  });
+
+  it('网络/超时等其它失败 → unknown，由调用方保留 cookie 的结论', async () => {
+    const client: ZhsClient = {
+      call: async () => {
+        throw new Error('请求超过 20 秒未返回');
+      },
+    };
+    expect(await probeSession(client)).toBe('unknown');
   });
 });

@@ -19,6 +19,7 @@
  * 的约定，见扩展侧 capabilities.ts。
  */
 
+import { ZhsApiError, ZhsAuthError, type ZhsClient } from './client.ts';
 import { ZHS_SITE_ORIGIN } from './pages.ts';
 
 /** 查询 cookie 的两个锚点：先 www（站点日常入口），再裸域（host-only cookie）。 */
@@ -75,4 +76,29 @@ export async function readSession(readCookie: CookieReader): Promise<ZhsSession>
     // 解码后仍不是 JSON：按未登录处理
   }
   return { loggedIn: false, uuid: '', userId: null };
+}
+
+/**
+ * 服务端是否还认这份会话。
+ *
+ * cookie 只能证明「曾经登录」。用一次免签只读调用问服务端：`loginUserInfo`
+ * 不需要签名、没有副作用；失效时实测回 **403 + 「未登录」**（2026-10-21；
+ * 同一时刻签名网关回 401）。
+ *
+ * 三种结论：成功 → ok；平台明确拒绝（401/403）→ auth；其余（网络、超时、
+ * 信封里的其他失败）→ unknown，由调用方保留 cookie 的结论——不能把网络问题
+ * 说成「登录失效」。
+ */
+export type SessionProbe = 'ok' | 'auth' | 'unknown';
+
+export async function probeSession(client: ZhsClient): Promise<SessionProbe> {
+  try {
+    await client.call('loginUserInfo');
+    return 'ok';
+  } catch (error) {
+    // 401/403 两种到法都算：网关层是 HTTP 状态，信封层是 code（实测 loginUserInfo 回 code:403）
+    if (error instanceof ZhsAuthError) return 'auth';
+    if (error instanceof ZhsApiError && (error.code === 401 || error.code === 403)) return 'auth';
+    return 'unknown';
+  }
 }

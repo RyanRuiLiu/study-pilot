@@ -44,7 +44,8 @@ describe('登录态消息', () => {
     platform.renewSession.mockResolvedValueOnce({ renewed: false, session: { loggedIn: true, userId: 7, token: 'x' } });
 
     const response = await ask();
-    expect(response).toEqual({ loggedIn: false, userId: 0 });
+    // expired 是给界面的：有 cookie 但服务端不认时说「登录已失效」，不说「未登录」
+    expect(response).toEqual({ loggedIn: false, userId: 0, expired: true });
     expect(JSON.stringify(response)).not.toContain('secret-token');
   });
 

@@ -46,6 +46,7 @@ export function sessionCommand(deps: MoocMessageDeps): MessageHandler {
       }
     }
 
-    sendResponse({ loggedIn: false, userId: 0 } satisfies MoocResponseMap['MOOC_SESSION']);
+    // 走到这里是「cookie 说登录、服务端说不认，续期也没救回来」：
+    sendResponse({ loggedIn: false, userId: 0, expired: true } satisfies MoocResponseMap['MOOC_SESSION']);
   };
 }

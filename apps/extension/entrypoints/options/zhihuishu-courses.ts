@@ -16,6 +16,7 @@
 import { getZhsCourses, getZhsSession, refreshZhsCourses, updateSettings, getSettings } from '../../src/ui-bridge.ts';
 import type { ZhihuishuCourse } from '../../src/ui-bridge.ts';
 import { errorText, formatTermRange } from '../../src/ui/format.ts';
+import { ZHS_SESSION_EXPIRED } from '@study-pilot/platform-zhs';
 import { reportPageUrl } from '../../src/adapters/zhihuishu/pages.ts';
 import { markZhsTasksLoading, refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
 import { loginNote, note, ZHS_LOGIN_URL } from './note.ts';
@@ -92,7 +93,15 @@ async function toggle(courseId: number, enabled: boolean): Promise<void> {
   void refreshZhsTaskViews();
 }
 
-export async function renderZhsCourses(): Promise<void> {
+/**
+ * 课程区的唯一渲染状态；首次加载与刷新走同一个函数（理由见慕课那张卡的注释）。
+ */
+export type ZhsCourseListStatus =
+  | { kind: 'expired' }
+  | { kind: 'failed'; message: string }
+  | null;
+
+export async function renderZhsCourses(status: ZhsCourseListStatus = null): Promise<void> {
   const listEl = document.getElementById('zhs-course-list');
   if (listEl === null) return;
 
@@ -113,14 +122,19 @@ export async function renderZhsCourses(): Promise<void> {
   }
 
   listEl.replaceChildren();
+  // 状态至多一行，课程行永远保留（见慕课那张卡的同一段注释）
   if (!session.loggedIn) {
-    listEl.append(loginNote('未登录，在浏览器登录智慧树后读取课程列表。', ZHS_LOGIN_URL));
-    if (rows.length > 0) listEl.append(...rows);
-    return;
-  }
-  if (rows.length === 0) {
+    listEl.append(
+      session.expired
+        ? loginNote(`${ZHS_SESSION_EXPIRED}。`, ZHS_LOGIN_URL)
+        : loginNote('未登录，在浏览器登录智慧树后读取课程列表。', ZHS_LOGIN_URL),
+    );
+  } else if (status?.kind === 'expired') {
+    listEl.append(loginNote(`${ZHS_SESSION_EXPIRED}。`, ZHS_LOGIN_URL));
+  } else if (status?.kind === 'failed') {
+    listEl.append(note(`读取失败：${status.message}`, true));
+  } else if (rows.length === 0) {
     listEl.append(note('尚未读取到课程，点击「读取课程列表」获取并勾选要参与的课程。'));
-    return;
   }
   listEl.append(...rows);
 }
@@ -129,9 +143,9 @@ export async function renderZhsCourses(): Promise<void> {
  * 「读取课程列表」按钮：**把首次加载原样再跑一遍**（与慕课同一条交互标准）。
  *
  * 进入等待：点击那一刻，课程列表、卡头状态行、课程任务卡三块同时换骨架；
- * 落定与首次加载同一套长相：成功 → 列表落定为新内容，状态行与课程任务卡随后重读；
- * 未登录 → 列表落为未登录指引；失败 → 列表落为错误行——不回落旧列表、
- * 不另弹失败 toast（那都会让「点了没读成」看起来像什么都没发生）。
+ * 落定与首次加载走同一个渲染函数（renderZhsCourses）：成功 → 重新渲染新内容；
+ * 未登录 / 失效 / 失败 → 状态行换成对应说法，**课程行保留**（理由见慕课那张卡）。
+ * 不另弹失败 toast：toast 只留动作回执（已读取 N 门）。
  */
 export function initZhsCourseActions(): void {
   const button = document.getElementById('zhs-refresh-courses');
@@ -147,14 +161,14 @@ export function initZhsCourseActions(): void {
           toast(`已读取 ${result.courses.length} 门课程`);
           void renderZhsCourses();
         } else if (result.reason === 'NOT_LOGGED_IN') {
-          listEl?.replaceChildren(loginNote('未登录，在浏览器登录智慧树后读取课程列表。', ZHS_LOGIN_URL));
+          void renderZhsCourses({ kind: 'expired' });
         } else {
-          listEl?.replaceChildren(note(`读取失败：${result.message ?? result.reason}`, true));
+          void renderZhsCourses({ kind: 'failed', message: result.message ?? result.reason });
         }
         void refreshZhsTaskViews();
       })
       .catch((error: unknown) => {
-        listEl?.replaceChildren(note(`读取失败：${errorText(error)}`, true));
+        void renderZhsCourses({ kind: 'failed', message: errorText(error) });
         void refreshZhsTaskViews();
       })
       .finally(() => {

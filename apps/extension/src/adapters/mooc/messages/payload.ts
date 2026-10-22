@@ -112,7 +112,10 @@ export interface PendingSummary {
  * `NTESSTUDYSI` 在访客状态下也有值，把它送出去只是多一份凭证离开后台；
  * 早先的 `satisfies` 只校验形状、不裁剪字段，登录态下曾把 token 一并送回前台。
  */
-export type MoocSessionResponse = Omit<MoocSession, 'token'>;
+export type MoocSessionResponse = Omit<MoocSession, 'token'> & {
+  /** 有 cookie 但服务端不认（再续期也没救回来）：界面上说「登录已失效」 */
+  expired?: true;
+};
 
 // ---------- 本平台的命令 ----------
 
