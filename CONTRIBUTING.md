@@ -59,6 +59,8 @@
 ## 测试与提交标准
 
 - 收工前 `pnpm -r typecheck` 与 `pnpm -r test` 必须全绿；改界面后 `pnpm build` 一遍。
+- 改完扩展就重载调试浏览器：`pnpm build` → `pnpm probe ext reload`，然后**读页面**核对
+  （CDP 里取 DOM 文字；不截图猜）。调试浏览器常驻（`pnpm probe open`），重载后才跑的是新代码。
 - **默认门禁不碰网络、不需要登录态**。唯一真连平台的用例是 `node-live.test.ts`，要
   `STUDY_PILOT_LIVE=1` 显式开启（服务端会话过期是常态，让它挂在默认门禁上只会教人忽略红灯）。
   其余冒烟同理：假的 `browser` 代理与假端口跑完策略层，真账号只在显式命令里出现。
