@@ -19,8 +19,9 @@ import {
   type TokenProvider,
 } from '@study-pilot/transport';
 import type { Md5HexFn } from '@study-pilot/core';
-import { err } from '@study-pilot/core';
-import { MOOC_SESSION_EXPIRED } from './auth.ts';
+import { err, type Result } from '@study-pilot/core';
+import type { TransportError } from '@study-pilot/transport';
+import { MOOC_SESSION_EXPIRED, sessionExpired } from './auth.ts';
 
 /** 站点 origin。所有接口路径都相对它拼接。 */
 export const MOOC_ORIGIN = 'https://www.icourse163.org';
@@ -107,4 +108,26 @@ export function createMoocClient(options: MoocClientOptions): MoocClient {
       throttle,
     }),
   };
+}
+
+/**
+ * 读类 RPC 的统一入口： 但 `result` 为空 ＝ 未登录形态（实测 2026-10-03）。
+ *
+ * 为什么要一个入口：`.rpc` 的 `call()` 直接返回 `result`，取到 null 的读取点
+ * 要么崩在属性访问上、要么把 null 当成空数据继续走（界面显示「暂无」而不是去登录）。
+ * 判定放在这一处，新增读取点默认就是对的。
+ *
+ * **写类不走这里**：写接口的成功形状没有逐个实测过（`saveDraft` / `submitQuiz`
+ * 没有抓到成功样本），拿「result 为空」去判它们的登录态可能是误判。
+ */
+export async function callRead<T>(
+  client: MoocClient,
+  bean: string,
+  method: string,
+  body: Record<string, unknown> = {},
+): Promise<Result<T, TransportError>> {
+  const result = await client.rpc.call<T>(bean, method, body);
+  if (!result.ok) return result;
+  if (result.value === null || result.value === undefined) return err(sessionExpired());
+  return result;
 }

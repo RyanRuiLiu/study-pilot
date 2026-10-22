@@ -33,7 +33,7 @@
  */
 
 import { err, ok, type Result } from '@study-pilot/core';
-import { networkError, timeoutError, type TransportError } from './errors.ts';
+import { httpError, networkError, parseError, timeoutError, type TransportError } from './errors.ts';
 import { createThrottle, type Throttle } from './throttle.ts';
 import { startOutboundTimeout } from './timeout.ts';
 import { DEFAULT_TIMEOUT_MS } from './rpc.ts';
@@ -41,11 +41,13 @@ import type { FetchLike, TokenProvider } from './rpc.ts';
 
 export const DWR_CONTENT_TYPE = 'text/plain';
 
-/** DWR 响应：原始文本加元信息。DWR 没有结构化错误码，判定靠正则匹配回调。 */
+/**
+ * DWR 响应：原始文本加元信息。DWR 没有结构化错误码，业务判定靠正则匹配回调。
+ *
+ * 到这里的一定是「HTTP 2xx，且响应里有回调或回调异常」——不是 DWR 响应的东西
+ * 由客户端直接归成 parse 错误，不会伪装成一份空数据。
+ */
 export interface DwrResponse {
-  ok: boolean;
-  /** HTTP 是否 2xx（不代表业务成功） */
-  httpOk: boolean;
   /** 本次调用的 batchId */
   batchId: number;
   /** 原始响应体，业务判定一律基于它 */
@@ -199,12 +201,19 @@ export function createDwrClient(options: DwrClientOptions): DwrClient {
           });
           // 读完体才算完：只罩住「发出请求」的话，卡在读体依然没有上界
           const raw = await response.text();
-          return ok<DwrResponse>({
-            ok: response.ok,
-            httpOk: response.ok,
-            batchId,
-            raw,
-          });
+          /*
+           * 两种「不是业务结论」的响应在这里就挡住，不交给调用方当成空数据：
+           *   · HTTP 非 2xx：平台/网关层面的失败；
+           *   · 既没有回调也没有异常：这不是 DWR 响应（最常见是会话失效被重定向到
+           *     登录页，拿回一段 HTML）。调用方拿空载荷往下走，会把「没登录」
+           *     读成「这份卷还没有评分项」——静默的错数据比失败更贵。
+           * 回调里带异常（_remoteHandleException）仍交给调用方按业务失败处理。
+           */
+          if (!response.ok) return err(httpError(response.status, raw));
+          if (!isDwrSuccess(raw) && !raw.includes('_remoteHandleException')) {
+            return err(parseError(raw));
+          }
+          return ok<DwrResponse>({ batchId, raw });
         } catch (cause) {
           return err(timeout.timedOut() ? timeoutError(timeoutMs) : networkError(cause));
         } finally {

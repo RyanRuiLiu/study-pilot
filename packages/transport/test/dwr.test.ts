@@ -187,3 +187,31 @@ describe('createDwrClient', () => {
     if (!result.ok) expect(result.error.message).toContain('权限被撤');
   });
 });
+
+describe('不是 DWR 响应时不伪装成空数据', () => {
+  it('登录页 HTML（HTTP 200）：归 parse 失败，调用方不会把它读成「没有评分项」', async () => {
+    const { client } = makeDwr(
+      () => new Response('<!DOCTYPE html><title>登录</title>', { status: 200 }),
+    );
+    const result = await client.call('reviewBean', 'getLatest', []);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('parse');
+  });
+
+  it('HTTP 非 2xx：归 http 失败（带状态码），不当业务结果', async () => {
+    const { client } = makeDwr(() => new Response('gateway error', { status: 502 }));
+    const result = await client.call('reviewBean', 'getLatest', []);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('http');
+      expect(result.error.status).toBe(502);
+    }
+  });
+
+  it('回调里带异常仍是「有效的 DWR 响应」：交给调用方按业务失败判', async () => {
+    const { client } = makeDwr(() => new Response(EXCEPTION, { status: 200 }));
+    const result = await client.call('reviewBean', 'getLatest', []);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(isDwrSuccess(result.value.raw)).toBe(false);
+  });
+});

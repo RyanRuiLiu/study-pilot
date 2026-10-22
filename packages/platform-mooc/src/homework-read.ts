@@ -6,7 +6,7 @@
 
 import type { Result } from '@study-pilot/core';
 import type { TransportError } from '@study-pilot/transport';
-import type { MoocClient } from './client.ts';
+import { callRead, type MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
 import type { HomeworkInfo, HomeworkPaper } from './types.ts';
 
@@ -56,7 +56,8 @@ export async function getHomeworkInfo(
   client: MoocClient,
   tid: number,
 ): Promise<Result<HomeworkInfo, TransportError>> {
-  return client.rpc.call<HomeworkInfo>(
+  return callRead<HomeworkInfo>(
+    client,
     ENDPOINTS.homeworkInfo.bean,
     ENDPOINTS.homeworkInfo.method,
     { tid, isDraft: false },
@@ -88,7 +89,8 @@ export async function getHomeworkPaper(
 ): Promise<Result<HomeworkPaper, TransportError>> {
   const phase = options.phase ?? currentEvaluatePhase(options.timing ?? {});
 
-  return client.rpc.call<HomeworkPaper>(
+  return callRead<HomeworkPaper>(
+    client,
     ENDPOINTS.homeworkPaper.bean,
     ENDPOINTS.homeworkPaper.method,
     {

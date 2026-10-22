@@ -67,9 +67,16 @@ function clientStub(responses: Record<string, unknown> = {}) {
       const key = Object.keys(responses).find((candidate) => path.includes(candidate));
       const payload = key ? responses[key] : { code: 0, message: '', result: true };
       if (isDwr) {
+        /*
+         * 夹具里的字符串是 DWR 的**变量赋值段**；真实响应还带一行 callback。
+         * 客户端现在拒收「既没有回调也没有异常」的响应体，所以这里按真实形态包起来——
+         * 夹具要长得像真响应，判定测的才是生产路径。
+         */
         const raw =
           typeof payload === 'string'
-            ? payload
+            ? payload.includes('_remoteHandleCallback')
+              ? payload
+              : `//#DWR-REPLY\n${payload}\ndwr.engine._remoteHandleCallback('1','0',true);\n`
             : `//#DWR-REPLY\ndwr.engine._remoteHandleCallback('1','0',true);\n`;
         return new Response(raw, { status: 200, headers: { 'content-type': 'text/plain' } });
       }

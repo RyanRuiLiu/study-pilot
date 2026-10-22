@@ -388,7 +388,16 @@ async function main(): Promise<number> {
         try {
           const plan = await target.tasks().plan(Date.now());
           if (plan.needsLogin === true) {
-            console.error(`未登录：${target.name}（会话 cookie 已失效，重新导出：pnpm probe state export）`);
+            /*
+             * 两种状态说两句：会话文件里根本没有 cookie 是「未登录」，
+             * 有 cookie 但平台不认（401/403、未登录形态）是「登录已失效」。
+             * 混成一句会让刚导过会话的人以为导出没生效。
+             */
+            console.error(
+              target.hasCookies
+                ? `登录已失效，需重新登录${target.name}（本机只能重新导出：pnpm probe state export）`
+                : `未登录：${target.name}（会话文件里没有该平台的 cookie，先跑 pnpm probe state export）`,
+            );
             continue;
           }
           allNeedsLogin = false;

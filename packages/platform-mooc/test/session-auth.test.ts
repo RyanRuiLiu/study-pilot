@@ -13,6 +13,7 @@ import type { FetchLike } from '@study-pilot/transport';
 import { createMoocClient } from '../src/client.ts';
 import { getCourses } from '../src/courses.ts';
 import { MOOC_SESSION_EXPIRED } from '../src/auth.ts';
+import { getQuizInfo } from '../src/quiz.ts';
 
 function clientWith(fetchImpl: FetchLike) {
   return createMoocClient({
@@ -42,6 +43,21 @@ describe('会话失效的说法', () => {
         }),
     );
     const result = await getCourses(client);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('auth');
+    expect(result.error.message).toBe(MOOC_SESSION_EXPIRED);
+  });
+
+  it('读类接口（取测验信息）遇 result 为 null：同一句话，而不是崩在属性访问上', async () => {
+    const client = clientWith(
+      async () =>
+        new Response(JSON.stringify({ code: 0, result: null }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+    const result = await getQuizInfo(client, 1);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe('auth');

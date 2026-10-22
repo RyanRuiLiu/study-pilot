@@ -31,7 +31,7 @@
 
 import { err, ok, type Result } from '@study-pilot/core';
 import { apiError, type TransportError } from '@study-pilot/transport';
-import type { MoocClient } from './client.ts';
+import { callRead, type MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
 import type { PaperAnswer, PaperQuestion, QuizInfo, QuizPaper } from './types.ts';
 
@@ -41,7 +41,7 @@ export async function getQuizInfo(
   client: MoocClient,
   tid: number,
 ): Promise<Result<QuizInfo, TransportError>> {
-  return client.rpc.call<QuizInfo>(ENDPOINTS.quizInfo.bean, ENDPOINTS.quizInfo.method, {
+  return callRead<QuizInfo>(client, ENDPOINTS.quizInfo.bean, ENDPOINTS.quizInfo.method, {
     tid,
     targetAid: null,
     isDraft: false,
@@ -63,7 +63,7 @@ export async function getQuizPaper(
    * withStdAnswerAndAnalyse: true —— 答案随卷面下发（选项正确标记 + 填空 stdAnswer）。
    * 固定 true 是取超集：实测存在只有 true 才给填空 stdAnswer 的卷（2026-10-17 实测）。
    */
-  return client.rpc.call<QuizPaper>(ENDPOINTS.quizPaper.bean, ENDPOINTS.quizPaper.method, {
+  return callRead<QuizPaper>(client, ENDPOINTS.quizPaper.bean, ENDPOINTS.quizPaper.method, {
     tid,
     aid,
     withStdAnswerAndAnalyse: true,
@@ -91,7 +91,8 @@ export async function getQuizBank(
   client: MoocClient,
   termId: number,
 ): Promise<Result<PaperQuestion[], TransportError>> {
-  const payload = await client.rpc.call<PaperQuestion[]>(
+  const payload = await callRead<PaperQuestion[]>(
+    client,
     ENDPOINTS.quizBank.bean,
     ENDPOINTS.quizBank.method,
     { termId },
