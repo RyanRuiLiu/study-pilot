@@ -85,16 +85,17 @@ function setEnabled(enabled: boolean): void {
  */
 export async function refreshZhsTaskViews(
   read?: Promise<QueryOutcome<ZhsCourseTaskSummary>>,
+  knownSession?: Awaited<ReturnType<typeof getZhsSession>>,
 ): Promise<void> {
   const fresh = read ?? getZhsCourseTasks();
-  if (!(await getZhsSession()).loggedIn) {
+  if (!((knownSession ?? (await getZhsSession())).loggedIn)) {
     void fresh.catch(() => undefined);
     document.getElementById('zhs-tasks-list')?.replaceChildren();
     clearZhsFailure();
     return;
   }
   markZhsTasksLoading();
-  await Promise.all([renderZhsStatusLine(fresh), renderZhsCourseTasks(fresh)]);
+  await Promise.all([renderZhsStatusLine(fresh, knownSession), renderZhsCourseTasks(fresh)]);
 }
 
 let watching = false;

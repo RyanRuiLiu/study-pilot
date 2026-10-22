@@ -27,6 +27,7 @@ export function markZhsStatusLineLoading(): void {
 
 export async function renderZhsStatusLine(
   tasksRead?: Promise<QueryOutcome<ZhsCourseTaskSummary>>,
+  knownSession?: Awaited<ReturnType<typeof getZhsSession>>,
 ): Promise<void> {
   const el = document.getElementById('zhs-session-text');
   if (el === null) return;
@@ -47,7 +48,10 @@ export async function renderZhsStatusLine(
   let loggedIn = false;
   let enabled = 0;
   try {
-    const [session, settings] = await Promise.all([getZhsSession(), getSettings()]);
+    const [session, settings] = await Promise.all([
+      knownSession ?? getZhsSession(),
+      getSettings(),
+    ]);
     loggedIn = session.loggedIn;
     enabled = settings.zhihuishu.courses.filter((course) => course.enabled).length;
   } catch {

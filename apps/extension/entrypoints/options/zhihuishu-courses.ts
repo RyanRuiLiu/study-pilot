@@ -113,11 +113,20 @@ const zhsCoursesScope = createRenderScope();
  * 首次加载与点「读取课程列表」走同一个函数——两条路径的差别只剩「有没有先写一次
  * 配置」，页面上的内容不会再各写一套。
  */
+/**
+ * @param status  这次读取的结论（点「读取课程列表」时给出）
+ * 会话只读一次：账号卡、状态行、四板块的会话判定共用同一份结果，
+ * 不为一句话里的同一件事各发一次探问。
+ */
 export async function renderZhsView(status: ZhsCourseListStatus = null): Promise<void> {
-  await Promise.all([renderZhsCourses(status), refreshZhsTaskViews()]);
+  const session = await getZhsSession();
+  await Promise.all([renderZhsCourses(status, session), refreshZhsTaskViews(undefined, session)]);
 }
 
-export async function renderZhsCourses(status: ZhsCourseListStatus = null): Promise<void> {
+export async function renderZhsCourses(
+  status: ZhsCourseListStatus = null,
+  knownSession?: Awaited<ReturnType<typeof getZhsSession>>,
+): Promise<void> {
   const listEl = document.getElementById('zhs-course-list');
   if (listEl === null) return;
 
@@ -130,7 +139,7 @@ export async function renderZhsCourses(status: ZhsCourseListStatus = null): Prom
   let session: Awaited<ReturnType<typeof getZhsSession>>;
   let rows: HTMLElement[];
   try {
-    const [readSession, courses] = await Promise.all([getZhsSession(), getZhsCourses()]);
+    const [readSession, courses] = await Promise.all([knownSession ?? getZhsSession(), getZhsCourses()]);
     session = readSession;
     rows = courses.map(buildRow);
   } catch (error) {
