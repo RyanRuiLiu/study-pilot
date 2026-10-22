@@ -28,6 +28,7 @@ import {
   networkError,
   parseError,
   timeoutError,
+  unauthenticatedError,
   type TransportError,
 } from './errors.ts';
 import { buildAuthHeaders } from './sign.ts';
@@ -163,7 +164,15 @@ export function createRpcClient(options: RpcClientOptions): RpcClient {
         return err(failure(cause));
       }
 
-      if (!response.ok) return err(httpError(response.status, text));
+      if (!response.ok) {
+        /*
+         * HTTP 401 是标准里的「未认证」，平台用它表示会话不认人了：
+         * 归到 auth（而不是 http），处置路径才会走到「续期 → 重读 → 仍不行才报登录」。
+         * 403 不并进来：它也可能是权限/风控，语义不是「换个登录就好」。
+         */
+        if (response.status === 401) return err(unauthenticatedError(text));
+        return err(httpError(response.status, text));
+      }
 
       try {
         return ok(JSON.parse(text) as RpcEnvelope<T>);

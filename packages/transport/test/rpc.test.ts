@@ -147,6 +147,14 @@ describe('响应分类', () => {
     }
   });
 
+  it('HTTP 401 归为 auth（未认证是标准语义，处置要走到重新登录那条）', async () => {
+    const { client } = makeClient(() => new Response('unauthorized', { status: 401 }));
+    const result = await client.call('aBean', 'getA');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('auth');
+  });
+
   it('返回 HTML（登录态失效被重定向）归为 parse 错误', async () => {
     const { client } = makeClient(
       () => new Response('<!DOCTYPE html><title>登录</title>', { status: 200 }),

@@ -266,12 +266,14 @@ async function main(): Promise<number> {
       const refreshed = new Map<string, number[]>();
       /** 读不到的家数。一家读不到不把另一家一起带走，但退出码要如实反映 */
       let unreadable = 0;
+      /** 有平台确认是「登录失效/未登录」。退出码 2 比 1 更 actionable：先导一次会话 */
+      let needsLogin = false;
 
       for (const target of targets) {
         if (multi) console.log(`${target.name}：`);
         if (!target.hasCookies) {
           console.log('  未登录（会话文件里没有该平台的 cookie，先跑 pnpm probe state export）');
-          unreadable += 1;
+          needsLogin = true;
           continue;
         }
         /*
@@ -304,7 +306,8 @@ async function main(): Promise<number> {
             const result = await zhihuishu.refreshCourses();
             if (!result.ok) {
               console.log(`  ${result.message}`);
-              unreadable += 1;
+              if (result.reason === 'auth') needsLogin = true;
+              else unreadable += 1;
               continue;
             }
             // 智慧树的刷新直接返回合并后的课程（含 enabled），标记取它即可
@@ -314,16 +317,18 @@ async function main(): Promise<number> {
             }
           }
         } catch (error) {
-          console.log(
-            error instanceof SessionExpiredError
-              ? '  平台会话已失效（服务端已不认这份登录态），重新导出一次：pnpm probe state export'
-              : `  读取失败：${error instanceof Error ? error.message : String(error)}`,
-          );
-          unreadable += 1;
+          if (error instanceof SessionExpiredError) {
+            // 与界面上同一句：先给结论，再给这一台机器上唯一的出路
+            console.log('  登录已失效，需重新登录慕课（本机只能重新导出：pnpm probe state export）');
+            needsLogin = true;
+          } else {
+            console.log(`  读取失败：${error instanceof Error ? error.message : String(error)}`);
+            unreadable += 1;
+          }
         }
       }
 
-      if (args.select === undefined) return unreadable > 0 ? 1 : 0;
+      if (args.select === undefined) return needsLogin ? 2 : unreadable > 0 ? 1 : 0;
 
       const select = args.select;
       const hits = [...refreshed.entries()].filter(([, ids]) => ids.includes(select));

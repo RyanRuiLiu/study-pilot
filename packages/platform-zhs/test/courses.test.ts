@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { getShareCourses, mergeCourses, readCourseIsApply, refreshCourses } from '../src/courses.ts';
+import { ZHS_SESSION_EXPIRED, ZhsAuthError } from '../src/client.ts';
 import type { ZhsClient } from '../src/client.ts';
 import type { ConfigPort, Settings, ZhihuishuCourse } from '@study-pilot/application';
 
@@ -205,6 +206,18 @@ describe('refreshCourses', () => {
     ]);
     // 只动 zhihuishu.courses 一段，不整份回写
     expect(updates).toEqual([{ zhihuishu: { courses: result.courses } }]);
+  });
+
+  it('登录失效：reason=auth、文案是那句用户话，且一个字节都不写配置', async () => {
+    const { config, updates } = trackingConfig();
+    const failing: ZhsClient = {
+      call: async () => {
+        throw new ZhsAuthError(401);
+      },
+    };
+    const result = await refreshCourses(failing, config);
+    expect(result).toEqual({ ok: false, reason: 'auth', message: ZHS_SESSION_EXPIRED });
+    expect(updates).toEqual([]);
   });
 
   it('平台没返回课程：如实报 no-courses，且一个字节都不写配置', async () => {

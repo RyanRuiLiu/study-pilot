@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ConfigPort, PlanItem, Settings } from '@study-pilot/application';
 import type { ZhsClient } from '../src/client.ts';
-import { ZhsApiError } from '../src/client.ts';
+import { ZhsApiError, ZhsAuthError } from '../src/client.ts';
 import { createZhsTasks, unitItemId } from '../src/policy/tasks.ts';
 import { ZhsRoundHalt } from '../src/policy/execute.ts';
 import type { CookieReader } from '../src/session.ts';
@@ -101,6 +101,19 @@ describe('plan', () => {
       config,
       client: fakeClient({}),
       readCookie: readCookieLoggedOut,
+    });
+    expect(await tasks.plan(0)).toEqual({ items: [], needsLogin: true });
+  });
+
+  it('登录失效（401）→ needsLogin，而不是抛错或空计划', async () => {
+    const tasks = createZhsTasks({
+      config,
+      client: fakeClient({
+        videoList: () => {
+          throw new ZhsAuthError(401);
+        },
+      }),
+      readCookie: readCookieLoggedIn,
     });
     expect(await tasks.plan(0)).toEqual({ items: [], needsLogin: true });
   });

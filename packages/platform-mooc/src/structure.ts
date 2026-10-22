@@ -28,7 +28,8 @@
  */
 
 import { ok, err, type Result } from '@study-pilot/core';
-import { unauthenticatedError, type TransportError } from '@study-pilot/transport';
+import type { TransportError } from '@study-pilot/transport';
+import { sessionExpired } from './auth.ts';
 import type { MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
 import type {
@@ -186,7 +187,7 @@ export async function getCourseStructure(
    * 同一时刻用浏览器当前会话读同一门课能拿到完整内容。这类 null 重新导出
    * cookies 即恢复；排查时先跑 pnpm probe state check 核对。
    */
-  if (payload.value?.mocTermDto == null) return err(unauthenticatedError());
+  if (payload.value?.mocTermDto == null) return err(sessionExpired());
 
   const dto = payload.value.mocTermDto;
   const chapters = arr(dto.chapters, 'chapters');

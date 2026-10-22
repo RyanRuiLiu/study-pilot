@@ -12,7 +12,7 @@
  */
 
 import type { ConfigPort, RunSelection, Settings, ZhihuishuCourse } from '@study-pilot/application';
-import type { ZhsClient } from './client.ts';
+import { ZhsAuthError, type ZhsClient } from './client.ts';
 
 /** 平台给出的课程事实（读取那一刻的样子）。 */
 export interface ZhsCourseBrief {
@@ -139,7 +139,8 @@ export function mergeCourses(
  *
  * 两个载体（扩展的消息处理器、命令行的 courses 命令）共用这一份实现；
  * 失败原因分两类返回，调用方原样翻成自己的说法（界面是 reason 码，命令行是一句话）：
- *   fetch-failed —— 读平台失败（网络、会话过期等，message 带平台给的措辞）；
+ *   fetch-failed —— 读平台失败（网络、平台异常等，message 带平台给的措辞）；
+ *   auth         —— 平台不认这次登录（HTTP 401/403，message 是「需要重新登录」那句）；
  *   no-courses   —— 读通了但平台没返回课程（此时**不写配置**：空列表会把
  *                   用户已勾的课清掉，且那不是「课程列表变了」而是「这次没读到」）。
  *
@@ -152,12 +153,15 @@ export async function refreshCourses(
   config: ConfigPort,
 ): Promise<
   | { ok: true; courses: ZhihuishuCourse[] }
-  | { ok: false; reason: 'fetch-failed' | 'no-courses'; message: string }
+  | { ok: false; reason: 'fetch-failed' | 'no-courses' | 'auth'; message: string }
 > {
   let fresh: ZhsCourseBrief[];
   try {
     fresh = await getShareCourses(client);
   } catch (error) {
+    if (error instanceof ZhsAuthError) {
+      return { ok: false, reason: 'auth', message: error.message };
+    }
     return {
       ok: false,
       reason: 'fetch-failed',

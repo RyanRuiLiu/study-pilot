@@ -77,6 +77,29 @@ export class ZhsTimeoutError extends Error {
   }
 }
 
+/** 会话失效对用户的那句话（CONTRIBUTING 常用句；平台名随包）。全包只此一处。 */
+export const ZHS_SESSION_EXPIRED = '登录已失效，需重新登录智慧树';
+
+/**
+ * 平台拒绝这次登录：HTTP 401 与 403。
+ *
+ * 两个都有实测：2026-10-21 会话过期后，签名网关回 **401**，
+ * `loginUserInfo` 回 **403 + `{"code":403,"message":"未登录"}`**；同年 10-17
+ * 考试族遇到 SSO 过期时则是 302 到 passport、拿回一段 HTML（按非 JSON 解析失败处理）。
+ * 归成一个类型，处置才只有一条：停轮、引导重新登录。
+ *
+ * 消息直接用那句话：读取路径把 `error.message` 原样呈现给用户，
+ * 这里若留「智慧树接口 HTTP 401」，界面上就只有协议状态码。
+ */
+export class ZhsAuthError extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super(ZHS_SESSION_EXPIRED);
+    this.name = 'ZhsAuthError';
+    this.status = status;
+  }
+}
+
 export interface ZhsClientOptions {
   fetch: FetchLike;
   /** 出站请求最小间隔。只有测试才需要改它 */
@@ -142,14 +165,19 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
   const recoverKey = options.recoverKey ?? recoverCKey;
 
   /**
-   * 发一次请求并把 JSON 响应体读回来。超时同时罩住「发出」与「读体」——
+   * 发一次请求，返回解析后的 JSON。超时同时罩住「发出」与「读体」——
    * 只罩前一步的话，卡在读体照样没有上界。
+   *
+   * 状态码先判、再解析：非 200 的响应体常常不是 JSON（302 到登录页就是一段 HTML），
+   * 先解析会把「401 未登录」变成一句 `Unexpected token '<'`。
    */
-  async function sendJson(url: string, init: RequestInit): Promise<{ status: number; body: unknown }> {
+  async function sendJson(url: string, init: RequestInit): Promise<unknown> {
     const timeout = startOutboundTimeout(timeoutMs);
     try {
       const response = await options.fetch(url, { ...init, signal: timeout.signal });
-      return { status: response.status, body: await response.json() };
+      if (response.status === 401 || response.status === 403) throw new ZhsAuthError(response.status);
+      if (response.status !== 200) throw new ZhsHttpError(response.status);
+      return await response.json();
     } catch (cause) {
       if (timeout.timedOut()) throw new ZhsTimeoutError(timeoutMs);
       throw cause;
@@ -168,14 +196,13 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
         const uid = await rsaPublicEncrypt(
           new TextEncoder().encode(JSON.stringify({ module })),
         );
-        const { status, body } = await throttle.run(() =>
+        const body = await throttle.run(() =>
           sendJson(`${ZHS_HOSTS.key}${ZHS_ENDPOINTS.keyFetch.path}?uid=${encodeURIComponent(uid)}`, {
             method: 'GET',
             headers: { accept: 'application/json', 'user-agent': BROWSER_USER_AGENT },
             credentials: 'include',
           }),
         );
-        if (status !== 200) throw new ZhsHttpError(status);
         const sl = (body as { rt?: { sl?: unknown } }).rt?.sl;
         if (typeof sl !== 'string' || sl.length === 0) {
           throw new ZhsApiError(-1, '取钥失败：c/has 未返回 sl');
@@ -249,8 +276,7 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
         }
       }
 
-      const { status, body } = await throttle.run(() => sendJson(requestUrl, init));
-      if (status !== 200) throw new ZhsHttpError(status);
+      const body = await throttle.run(() => sendJson(requestUrl, init));
 
       const parsed = body as {
         code?: unknown;

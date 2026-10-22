@@ -15,7 +15,8 @@
  */
 
 import { ok, err, type Result } from '@study-pilot/core';
-import { parseError, unauthenticatedError, type TransportError } from '@study-pilot/transport';
+import { parseError, type TransportError } from '@study-pilot/transport';
+import { sessionExpired } from './auth.ts';
 import type { MoocClient } from './client.ts';
 import { COURSE_TYPE, ENDPOINTS, type CourseType } from './endpoints.ts';
 import type { CourseSummary } from './types.ts';
@@ -94,7 +95,7 @@ function toSummary(raw: RawCourse): CourseSummary {
 function authedCourseList(
   payload: CourseListPayload,
 ): Result<RawCourse[], TransportError> {
-  if (payload?.result == null) return err(unauthenticatedError());
+  if (payload?.result == null) return err(sessionExpired());
   if (!Array.isArray(payload.result)) {
     return err(parseError('课程列表：result 不是数组（平台回的形状与预期不符）'));
   }

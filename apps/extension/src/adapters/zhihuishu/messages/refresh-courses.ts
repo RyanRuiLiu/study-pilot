@@ -26,7 +26,16 @@ export function zhsRefreshCoursesCommand(deps: ZhsMessageDeps): MessageHandler {
     if (!result.ok) {
       sendResponse({
         ok: false,
-        reason: result.reason === 'no-courses' ? 'NO_SELECTED_COURSE' : 'FETCH_FAILED',
+        /*
+         * auth 走「未登录」那一条：界面上的处置是同一个（给出登录指引），
+         * 差的是说法——「登录已失效，需重新登录智慧树」比「读取失败」更接近事实。
+         */
+        reason:
+          result.reason === 'no-courses'
+            ? 'NO_SELECTED_COURSE'
+            : result.reason === 'auth'
+              ? 'NOT_LOGGED_IN'
+              : 'FETCH_FAILED',
         message: result.message,
       } satisfies ZhsResponseMap['ZHS_REFRESH_COURSES']);
       return;

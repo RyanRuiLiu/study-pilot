@@ -32,6 +32,7 @@ export {
 export * from './types.ts';
 
 export { getCourses, getAllCourses, type GetCoursesOptions } from './courses.ts';
+export { MOOC_SESSION_EXPIRED, sessionExpired } from './auth.ts';
 
 export {
   getCourseStructure,

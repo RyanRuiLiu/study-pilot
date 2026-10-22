@@ -20,7 +20,7 @@ import type {
   RunSelection,
 } from '@study-pilot/application';
 import type { ZhihuishuCourse } from '@study-pilot/application';
-import type { ZhsClient } from '../client.ts';
+import { ZhsAuthError, type ZhsClient } from '../client.ts';
 import { readCourseIsApply, selectedCourses } from '../courses.ts';
 import { getExamList, HOMEWORK_STATE, needsWork, type ZhsExamListItem } from '../exam-list.ts';
 import { readSession, type CookieReader } from '../session.ts';
@@ -99,94 +99,100 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
       if (!session.loggedIn) return { items: [], needsLogin: true };
 
       const items: PlanItem[] = [];
-      for (const course of selected) {
-        // 每门课一次结构读取：同一份章节表喂视频单元与章节测验条目（见 structure.ts）
-        const chapters = await readCourseChapters(deps.client, {
-          recruitAndCourseId: course.secret,
-          recruitId: course.recruitId,
-        });
-        const units = await getCourseUnits(
-          deps.client,
-          { recruitAndCourseId: course.secret, recruitId: course.recruitId },
-          chapters,
-        );
-        for (const unit of units) {
-          if (unit.done) continue;
-          items.push({
-            id: unitItemId(unit),
-            group: course.name,
-            title: unit.name,
-            mode: 'auto',
-            kind: 'courseware',
-            payload: { course, unit } satisfies UnitPayload,
+      try {
+        for (const course of selected) {
+          // 每门课一次结构读取：同一份章节表喂视频单元与章节测验条目（见 structure.ts）
+          const chapters = await readCourseChapters(deps.client, {
+            recruitAndCourseId: course.secret,
+            recruitId: course.recruitId,
           });
-        }
+          const units = await getCourseUnits(
+            deps.client,
+            { recruitAndCourseId: course.secret, recruitId: course.recruitId },
+            chapters,
+          );
+          for (const unit of units) {
+            if (unit.done) continue;
+            items.push({
+              id: unitItemId(unit),
+              group: course.name,
+              title: unit.name,
+              mode: 'auto',
+              kind: 'courseware',
+              payload: { course, unit } satisfies UnitPayload,
+            });
+          }
 
-        /*
-         * 单元测试：判据是 `needsWork`（**与待办同一个**）——未交页签里
-         * 「没动过」与「重做已申请」的都进计划，只是进法不同（见 `ExamEnter`）。
-         * 其余状态（4 已交且已满分）由已交那一条覆盖。
-         *
-         * 对上章节靠的是**路由段**：清单条目的 `id` ＝ 该章 `studentExamDto.examUrl`
-         * 里 dohomework/checkHomework 之后的第一个 token（`chapterExams` 叫它 `listId`）。
-         * 对不上就不排（那条数字卷号与神谕入参都拿不到）。`cpOrderNumber` 只是章节名，
-         * 用来给人看的，不参与匹配。
-         */
-        const chapterByListId = new Map(chapterExams(chapters).map((exam) => [exam.listId, exam]));
-        const pendingPage = await getExamList(deps.client, {
-          recruitId: course.recruitId,
-          courseId: course.courseId,
-          submitted: false,
-        });
-        const historyPage = await getExamList(deps.client, {
-          recruitId: course.recruitId,
-          courseId: course.courseId,
-          submitted: true,
-        });
-        /*
-         * 没取全就**不排这一轮**：半份清单排出来的计划会漏掉该做的卷，
-         * 而漏掉的那些不会自己说话。整轮停下来说清原因，比默默少做几张便宜。
-         * 这与「一页取全」的实测结论配套——结论写死在 EXAM_LIST_PAGE_SIZE 上。
-         */
-        if (!pendingPage.complete || !historyPage.complete) {
-          throw new Error('读取失败：作业清单超过一页未取全');
-        }
-        const pending = pendingPage.items;
-        const history = historyPage.items;
-
-        const pushQuiz = (item: ZhsExamListItem, totalScore: number | null, enter: ExamEnter): void => {
-          const chapter = chapterByListId.get(item.id);
-          if (chapter === undefined) return; // 对不上章节就不做（拿不到数字卷号，神谕也用不了）
-          items.push({
-            id: quizItemId(item),
-            group: course.name,
-            title: item.examName,
-            mode: 'auto',
-            kind: 'quiz',
-            payload: { course, item, chapter, totalScore, enter } satisfies QuizPayload,
+          /*
+           * 单元测试：判据是 `needsWork`（**与待办同一个**）——未交页签里
+           * 「没动过」与「重做已申请」的都进计划，只是进法不同（见 `ExamEnter`）。
+           * 其余状态（4 已交且已满分）由已交那一条覆盖。
+           *
+           * 对上章节靠的是**路由段**：清单条目的 `id` ＝ 该章 `studentExamDto.examUrl`
+           * 里 dohomework/checkHomework 之后的第一个 token（`chapterExams` 叫它 `listId`）。
+           * 对不上就不排（那条数字卷号与神谕入参都拿不到）。`cpOrderNumber` 只是章节名，
+           * 用来给人看的，不参与匹配。
+           */
+          const chapterByListId = new Map(chapterExams(chapters).map((exam) => [exam.listId, exam]));
+          const pendingPage = await getExamList(deps.client, {
+            recruitId: course.recruitId,
+            courseId: course.courseId,
+            submitted: false,
           });
-        };
+          const historyPage = await getExamList(deps.client, {
+            recruitId: course.recruitId,
+            courseId: course.courseId,
+            submitted: true,
+          });
+          /*
+           * 没取全就**不排这一轮**：半份清单排出来的计划会漏掉该做的卷，
+           * 而漏掉的那些不会自己说话。整轮停下来说清原因，比默默少做几张便宜。
+           * 这与「一页取全」的实测结论配套——结论写死在 EXAM_LIST_PAGE_SIZE 上。
+           */
+          if (!pendingPage.complete || !historyPage.complete) {
+            throw new Error('读取失败：作业清单超过一页未取全');
+          }
+          const pending = pendingPage.items;
+          const history = historyPage.items;
 
-        /*
-         * ① 未交页签里我们接手的那些。**单元测试与见面课测验同一判据、同一处**：
-         * 平台的「重做」只按 `examId` 判，不分题型（源码 `9.c58d…js:11803`：
-         * `getIsObject(examId)` ＋ `3 - redoNum(examId).rt > 0`，全流程无 meetCourseType
-         * 分支），所以这里也不分——平台不分，我们分了就是自造分歧。
-         */
-        for (const item of pending) {
-          if (!needsWork(item)) continue;
-          pushQuiz(item, item.totalScore, item.state === HOMEWORK_STATE.redone ? 'redoOpen' : 'fresh');
+          const pushQuiz = (item: ZhsExamListItem, totalScore: number | null, enter: ExamEnter): void => {
+            const chapter = chapterByListId.get(item.id);
+            if (chapter === undefined) return; // 对不上章节就不做（拿不到数字卷号，神谕也用不了）
+            items.push({
+              id: quizItemId(item),
+              group: course.name,
+              title: item.examName,
+              mode: 'auto',
+              kind: 'quiz',
+              payload: { course, item, chapter, totalScore, enter } satisfies QuizPayload,
+            });
+          };
+
+          /*
+           * ① 未交页签里我们接手的那些。**单元测试与见面课测验同一判据、同一处**：
+           * 平台的「重做」只按 `examId` 判，不分题型（源码 `9.c58d…js:11803`：
+           * `getIsObject(examId)` ＋ `3 - redoNum(examId).rt > 0`，全流程无 meetCourseType
+           * 分支），所以这里也不分——平台不分，我们分了就是自造分歧。
+           */
+          for (const item of pending) {
+            if (!needsWork(item)) continue;
+            pushQuiz(item, item.totalScore, item.state === HOMEWORK_STATE.redone ? 'redoOpen' : 'fresh');
+          }
+          /*
+           * ② 已交但没满分的（Ryan 口径：直接走第二次——收割建键是只读的，不用重打第一枪）。
+           * 同样不分题型：门槛由 `getIsObject` ＋ 剩余次数在**执行侧**把（见 remainingGate），
+           * 那里是一处，别在这儿按题型再判一遍。
+           */
+          for (const item of history) {
+            if (item.state !== HOMEWORK_STATE.submitted) continue;
+            if (item.score === null || item.totalScore === null || item.score >= item.totalScore) continue;
+            pushQuiz(item, item.totalScore, 'submitted');
+          }
         }
-        /*
-         * ② 已交但没满分的（Ryan 口径：直接走第二次——收割建键是只读的，不用重打第一枪）。
-         * 同样不分题型：门槛由 `getIsObject` ＋ 剩余次数在**执行侧**把（见 remainingGate），
-         * 那里是一处，别在这儿按题型再判一遍。
-         */
-        for (const item of history) {
-          if (item.state !== HOMEWORK_STATE.submitted) continue;
-          if (item.score === null || item.totalScore === null || item.score >= item.totalScore) continue;
-          pushQuiz(item, item.totalScore, 'submitted');
-        }
+      } catch (error) {
+        // 登录失效是账号级的事实：整份计划作废，按未登录交回去（与慕课 plan 同一形状）
+        if (error instanceof ZhsAuthError) return { items: [], needsLogin: true };
+        throw error;
       }
       return { items };
     },

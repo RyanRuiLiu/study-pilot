@@ -26,7 +26,7 @@
  */
 
 import type { RunControl, RunOutcome } from '@study-pilot/application';
-import { ZhsApiError, ZhsHttpError, type ZhsClient } from '../client.ts';
+import { ZHS_SESSION_EXPIRED, ZhsApiError, ZhsAuthError, ZhsHttpError, type ZhsClient } from '../client.ts';
 import {
   answerKeyFromPopupExam,
   matchPaper,
@@ -94,17 +94,20 @@ export interface ExamRunInput {
 }
 
 /**
- * SSO 过期时考试族 `302 → passport`，浏览器里表现为「拿到了一个不是 JSON 的东西」。
- * 这不是业务失败，是「要人重新登录一次」——按整轮中止处理并给出动作位。
+ * 会话失效的三种实测形态，都按整轮中止处理并给出登录动作位：
+ *   1. HTTP 401 / 403（客户端已归成 `ZhsAuthError`，2026-10-21 实测）；
+ *   2. SSO 过期时考试族 `302 → passport`，表现为「拿到了一个不是 JSON 的东西」
+ *      （`SyntaxError`，2026-10-17 实测）。
+ * `ZhsApiError` / 普通 `ZhsHttpError` 是信封码与其他 HTTP 失败，不是登录问题。
  */
 function isSessionFailure(error: unknown): boolean {
+  if (error instanceof ZhsAuthError) return true;
   if (error instanceof ZhsApiError || error instanceof ZhsHttpError) return false;
   return error instanceof SyntaxError;
 }
 
 function sessionHalt(): ZhsRoundHalt {
-  // 文案照抄 CONTRIBUTING「常用句」：「登录已失效，需重新登录慕课。」智慧树同句换平台名
-  return new ZhsRoundHalt('登录已失效，需重新登录智慧树', {
+  return new ZhsRoundHalt(ZHS_SESSION_EXPIRED, {
     platformId: 'zhihuishu',
     label: '打开登录页',
     url: ZHS_SITE_ORIGIN, // 去处是站点首页：登录入口在导航里，站点没有独立登录页

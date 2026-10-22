@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createZhsClient, ZhsApiError, ZhsHttpError, ZhsTimeoutError } from '../src/client.ts';
+import { createZhsClient, ZHS_SESSION_EXPIRED, ZhsApiError, ZhsAuthError, ZhsHttpError, ZhsTimeoutError } from '../src/client.ts';
 import type { FetchLike } from '@study-pilot/transport';
 
 const FIXED_KEY = new Uint8Array(16).fill(7);
@@ -277,5 +277,44 @@ describe('出站超时', () => {
       .catch((thrown: unknown) => thrown as Error);
     expect(error).toBeInstanceOf(ZhsTimeoutError);
     expect((error as Error).message).toContain('秒未返回');
+  });
+});
+
+describe('登录失效的识别', () => {
+  const authClient = (status: number, body = '') =>
+    createZhsClient({
+      fetch: async () => new Response(body, { status }),
+      minGapMs: 0,
+      recoverKey: async () => FIXED_KEY,
+    });
+
+  it('HTTP 401 归成 ZhsAuthError，文案是那句用户话（不是协议状态码）', async () => {
+    const error = await authClient(401).call('shareCourses', {}).catch((thrown: unknown) => thrown);
+    expect(error).toBeInstanceOf(ZhsAuthError);
+    expect((error as Error).message).toBe(ZHS_SESSION_EXPIRED);
+    expect((error as ZhsAuthError).status).toBe(401);
+  });
+
+  it('HTTP 403 同样算登录问题（实测登录失效时回 403 + 未登录）', async () => {
+    const error = await authClient(403, '{"code":403,"message":"未登录"}')
+      .call('meetSessions', { recruitId: 1 })
+      .catch((thrown: unknown) => thrown);
+    expect(error).toBeInstanceOf(ZhsAuthError);
+  });
+
+  it('先判状态码再解析：401 带一段 HTML 也不会变成「Unexpected token <」', async () => {
+    const error = await authClient(401, '<!DOCTYPE html><title>登录</title>')
+      .call('shareCourses', {})
+      .catch((thrown: unknown) => thrown);
+    expect(error).toBeInstanceOf(ZhsAuthError);
+  });
+
+  it('500 带 HTML 归 http 错误，正文不参与解析', async () => {
+    const error = await authClient(500, '<html>gateway error</html>')
+      .call('shareCourses', {})
+      .catch((thrown: unknown) => thrown);
+    expect(error).toBeInstanceOf(ZhsHttpError);
+    expect(error).not.toBeInstanceOf(ZhsAuthError);
+    expect((error as ZhsHttpError).status).toBe(500);
   });
 });

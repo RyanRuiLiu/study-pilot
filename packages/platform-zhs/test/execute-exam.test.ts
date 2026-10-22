@@ -8,8 +8,9 @@
 import { describe, expect, it } from 'vitest';
 import { NEVER_STOPPED, type RunControl } from '@study-pilot/application';
 import { executeExam, type ExamRunInput, type ExamTarget } from '../src/policy/execute-exam.ts';
+import { ZhsRoundHalt } from '../src/policy/execute.ts';
 import type { AnswerKey } from '../src/exam-answers.ts';
-import { ZhsApiError, type ZhsClient } from '../src/client.ts';
+import { ZHS_SESSION_EXPIRED, ZhsApiError, ZhsAuthError, type ZhsClient } from '../src/client.ts';
 
 const TARGET: ExamTarget = {
   recruitId: 470001,
@@ -96,6 +97,20 @@ function input(overrides: Partial<ExamRunInput> = {}): ExamRunInput {
 }
 
 describe('有键路径', () => {
+  it('开卷回 401 → ZhsRoundHalt：报「登录已失效」并给出登录动作位', async () => {
+    const { client } = recordingClient({});
+    const authClient: ZhsClient = {
+      call: async (name, payload) => {
+        if (name === 'examDoHomework') throw new ZhsAuthError(401);
+        return client.call(name, payload);
+      },
+    };
+    const error = await executeExam(authClient, input(), NEVER_STOPPED).catch((thrown: unknown) => thrown);
+    expect(error).toBeInstanceOf(ZhsRoundHalt);
+    expect((error as Error).message).toBe(ZHS_SESSION_EXPIRED);
+    expect((error as ZhsRoundHalt).action).toMatchObject({ platformId: 'zhihuishu', label: '打开登录页' });
+  });
+
   it('开卷 → 逐题作答 → 神谕 → 交卷（顺序固定）', async () => {
     const { client, names } = recordingClient({
       examDoHomework: { rt: PAPER },

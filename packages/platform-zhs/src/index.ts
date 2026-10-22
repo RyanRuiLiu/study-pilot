@@ -39,6 +39,8 @@ export {
   ZhsHttpError,
   ZhsApiError,
   ZhsTimeoutError,
+  ZhsAuthError,
+  ZHS_SESSION_EXPIRED,
   type ZhsClient,
   type ZhsClientOptions,
 } from './client.ts';

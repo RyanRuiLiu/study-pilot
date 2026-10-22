@@ -19,6 +19,8 @@ import {
   type TokenProvider,
 } from '@study-pilot/transport';
 import type { Md5HexFn } from '@study-pilot/core';
+import { err } from '@study-pilot/core';
+import { MOOC_SESSION_EXPIRED } from './auth.ts';
 
 /** 站点 origin。所有接口路径都相对它拼接。 */
 export const MOOC_ORIGIN = 'https://www.icourse163.org';
@@ -70,16 +72,34 @@ export function createMoocClient(options: MoocClientOptions): MoocClient {
     minGapMs: options.minGapMs ?? DEFAULT_MIN_GAP_MS,
   });
 
+  const rpc = createRpcClient({
+    origin,
+    fetch: options.fetch,
+    getToken: options.getToken,
+    md5: options.md5,
+    throttle,
+  });
+
   return {
     origin,
     send: options.fetch,
-    rpc: createRpcClient({
-      origin,
-      fetch: options.fetch,
-      getToken: options.getToken,
-      md5: options.md5,
-      throttle,
-    }),
+    /*
+     * auth 类失败统一换成平台那句话再交出去。
+     *
+     * transport 只判「这是未认证」（kind: 'auth'），它不知道平台名；
+     * 每个读取点自己拼句子又会拼出几种说法。这里一次换掉，下游（续期编排、
+     * 界面、命令行）拿到的就是同一句「登录已失效，需重新登录慕课」。
+     */
+    rpc: {
+      ...rpc,
+      call: async <T>(bean: string, method: string, body: Record<string, unknown> = {}) => {
+        const result = await rpc.call<T>(bean, method, body);
+        if (!result.ok && result.error.kind === 'auth') {
+          return err({ ...result.error, message: MOOC_SESSION_EXPIRED });
+        }
+        return result;
+      },
+    },
     dwr: createDwrClient({
       origin,
       fetch: options.fetch,
