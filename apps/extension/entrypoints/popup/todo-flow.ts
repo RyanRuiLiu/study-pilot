@@ -29,6 +29,16 @@ export interface TodoFlow<TEntry, TValue extends { entries: TEntry[] }> {
   show: (value: TValue) => void;
 }
 
+/** "需要登录"那一格的统一写法：弹窗首帧与流程内共用（同一对句子）。 */
+export function showTodoLogin<TEntry>(
+  area: TodoArea<TEntry>,
+  session: { loggedIn: boolean; expired?: true },
+  missingText: string,
+  expiredText: string,
+): void {
+  area.loginPrompt(session.expired ? expiredText : missingText);
+}
+
 export async function renderTodoFlow<TEntry, TValue extends { entries: TEntry[] }>(
   area: TodoArea<TEntry>,
   flow: TodoFlow<TEntry, TValue>,
@@ -48,7 +58,7 @@ export async function renderTodoFlow<TEntry, TValue extends { entries: TEntry[] 
    * 顺序反了会把人指向一个他到了也做不成事的地方。
    */
   if (!session.loggedIn) {
-    area.loginPrompt(session.expired ? flow.loginExpiredText : flow.loginMissingText);
+    showTodoLogin(area, session, flow.loginMissingText, flow.loginExpiredText);
     return;
   }
 

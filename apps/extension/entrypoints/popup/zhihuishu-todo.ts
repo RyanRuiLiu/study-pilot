@@ -16,16 +16,24 @@
  */
 
 import { getSettings, getZhsPending, getZhsSession, runNow } from '../../src/ui-bridge.ts';
-import type { Settings, ZhsPendingEntry } from '../../src/ui-bridge.ts';
+import type { Settings, ZhsPendingEntry, ZhsPendingKind } from '../../src/ui-bridge.ts';
 import { boardOrder } from '../../src/adapters/zhihuishu/boards.ts';
 import { formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { ZHS_LOGIN_URL } from '../../src/ui/login.ts';
 import { zhsTodoEl } from './elements.ts';
-import { renderTodoFlow } from './todo-flow.ts';
+import { renderTodoFlow, showTodoLogin } from './todo-flow.ts';
 import { createTodoArea } from './todo-area.ts';
 import { setRunning, statusWriterFor } from './status.ts';
 
 /** 时长文案：分钟为主，不足一分钟明确说，不四舍五入成「0 分钟」。 */
+/** 每类待办对应什么（aria 标签与慕课同一句式：只说明点进去打开哪类页面）。 */
+const KIND_TEXT: Record<ZhsPendingKind, string> = {
+  courseware: '教程视频',
+  quiz: '单元测试',
+  meetQuiz: '见面课测验',
+  finalExam: '期末考试',
+};
+
 function durationText(sec: number): string {
   if (sec < 60) return '不足 1 分钟';
   return `约 ${Math.round(sec / 60)} 分钟`;
@@ -48,12 +56,8 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
   open.href = entry.href;
   open.target = '_blank';
   open.rel = 'noreferrer';
-  open.setAttribute('aria-label', `打开${entry.name}页面`);
+  open.setAttribute('aria-label', `打开${KIND_TEXT[entry.kind]}页面`);
   item.append(open);
-
-  item.title = [entry.chapterName, entry.name, entry.sec > 0 ? durationText(entry.sec) : '']
-    .filter((part) => part !== '')
-    .join(' · ');
 
   // 行 1：单元名 + 「未学习」徽标
   const line = document.createElement('span');
@@ -162,14 +166,24 @@ const area = createTodoArea<ZhsPendingEntry>({
 });
 
 /** 渲染智慧树待办。 */
+export const ZHS_LOGIN_TEXTS = {
+  missing: '未登录，在浏览器登录智慧树后执行。',
+  expired: '登录已失效，需重新登录智慧树。',
+} as const;
+
+/** 与慕课同一个理由：首帧落定登录态，切换 tab 不闪骨架。 */
+export function showZhsLogin(session: { loggedIn: boolean; expired?: true }): void {
+  showTodoLogin(area, session, ZHS_LOGIN_TEXTS.missing, ZHS_LOGIN_TEXTS.expired);
+}
+
 export async function renderZhsTodo(): Promise<void> {
   await renderTodoFlow(area, {
     readSession: getZhsSession,
     readSettings: getSettings,
     hasSelectedCourses: (settings) => (settings as Settings).zhihuishu.courses.some((course) => course.enabled),
     readPending: getZhsPending,
-    loginMissingText: '未登录，在浏览器登录智慧树后执行。',
-    loginExpiredText: '登录已失效，需重新登录智慧树。',
+    loginMissingText: ZHS_LOGIN_TEXTS.missing,
+    loginExpiredText: ZHS_LOGIN_TEXTS.expired,
     show: (value) => {
       /*
        * 一层归拢：**只按课程分组**，与慕课同一层（见 todo-area 的 buildGroup 与慕课那份）。

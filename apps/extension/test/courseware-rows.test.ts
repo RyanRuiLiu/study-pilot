@@ -14,6 +14,7 @@ const bridge = vi.hoisted(() => ({
   subscribeRunState: vi.fn(),
   runNow: vi.fn(),
   stopRun: vi.fn(),
+  getSession: vi.fn(),
 }));
 
 vi.mock('../src/ui-bridge.ts', () => bridge);
@@ -94,6 +95,8 @@ beforeEach(() => {
   initToast(document.getElementById('toast') as unknown as HTMLElement);
   for (const fn of Object.values(bridge)) fn.mockReset();
   bridge.getTaskState.mockResolvedValue({ live: 'idle', state: { platforms: {} } });
+  // 渲染先判会话（有登录态才亮出这张卡），测试要给出这个前提
+  bridge.getSession.mockResolvedValue({ loggedIn: true, userId: 1 });
   bridge.subscribeRunState.mockImplementation((fn: (state: unknown) => void) => {
     listener = fn;
     return () => undefined;

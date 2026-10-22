@@ -23,7 +23,7 @@
 import '../../src/ui/tokens.css';
 import './style.css';
 
-import { runNow } from '../../src/ui-bridge.ts';
+import { getSession, getZhsSession, runNow } from '../../src/ui-bridge.ts';
 import { PENDING_KINDS } from '../../src/ui/scopes.ts';
 import { initTabs } from '../../src/ui/tabs.ts';
 import { runBtn, settingsBtn } from './elements.ts';
@@ -36,13 +36,26 @@ import {
   statusWriterFor,
   watchRunState,
 } from './status.ts';
-import { renderTodo } from './todo.ts';
-import { renderZhsTodo } from './zhihuishu-todo.ts';
+import { renderTodo, showMoocLogin } from './todo.ts';
+import { renderZhsTodo, showZhsLogin } from './zhihuishu-todo.ts';
 
 /** 当前 tab 的平台（'mooc' / 'zhihuishu'）：执行范围与收尾重读都按它分流。 */
 let currentPlatform = 'mooc';
 /** 别家跑完、但这家的清单还没重读（切回去时补一次，不拿运行前的数据充数）。 */
 const dirty = new Set<string>();
+
+/**
+ * 首帧把两个 tab 的登录态落定。
+ *
+ * 弹窗一次只读当前 tab 的待办（规格第 13 节），另一家的骨架会留到第一次切换——
+ * 那时才换成「未登录」，看起来像闪了一下。这里只读会话（cookie ＋ 必要的服务端
+ * 探问），不读待办；未登录的那家当场换成指引。
+ */
+async function settleLoginStates(): Promise<void> {
+  const [mooc, zhs] = await Promise.all([getSession(), getZhsSession()]);
+  if (!mooc.loggedIn) showMoocLogin(mooc);
+  if (!zhs.loggedIn) showZhsLogin(zhs);
+}
 
 function renderFor(platformId: string): void {
   void (platformId === 'zhihuishu' ? renderZhsTodo() : renderTodo());
@@ -66,6 +79,7 @@ async function init(): Promise<void> {
    * 网络往返，拉两遍纯属浪费。数据到达前那三条骨架就是给这段等待的。
    */
   await renderState();
+  await settleLoginStates();
 
   await initTabs({
     onFirstActivate: (id) => {

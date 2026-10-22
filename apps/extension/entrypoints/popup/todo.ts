@@ -18,7 +18,7 @@ import type { PendingEntry, Settings } from '../../src/ui-bridge.ts';
 import { formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { MOOC_LOGIN_URL } from '../../src/ui/login.ts';
 import { todoEl } from './elements.ts';
-import { renderTodoFlow } from './todo-flow.ts';
+import { renderTodoFlow, showTodoLogin } from './todo-flow.ts';
 import { createTodoArea } from './todo-area.ts';
 import { setRunning, statusWriterFor } from './status.ts';
 
@@ -186,14 +186,24 @@ function groupByCourse(entries: PendingEntry[]): Map<string, PendingEntry[]> {
 }
 
 /** 渲染待办。 */
+export const MOOC_LOGIN_TEXTS = {
+  missing: '未登录，在浏览器登录慕课后执行。',
+  expired: '登录已失效，需重新登录慕课。',
+} as const;
+
+/** 首帧就把"未登录"落定：切到这个 tab 时不会先露骨架再换成指引。 */
+export function showMoocLogin(session: { loggedIn: boolean; expired?: true }): void {
+  showTodoLogin(area, session, MOOC_LOGIN_TEXTS.missing, MOOC_LOGIN_TEXTS.expired);
+}
+
 export async function renderTodo(): Promise<void> {
   await renderTodoFlow(area, {
     readSession: getSession,
     readSettings: getSettings,
     hasSelectedCourses: (settings) => (settings as Settings).mooc.courses.some((course) => course.enabled),
     readPending: getPending,
-    loginMissingText: '未登录，在浏览器登录慕课后执行。',
-    loginExpiredText: '登录已失效，需重新登录慕课。',
+    loginMissingText: MOOC_LOGIN_TEXTS.missing,
+    loginExpiredText: MOOC_LOGIN_TEXTS.expired,
     show: (value) => {
       /*
        * 过期项不单独成段：属于哪门课就垫在那门课的最后。

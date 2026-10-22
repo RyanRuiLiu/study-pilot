@@ -15,7 +15,7 @@
  * 停止在下一个安全点生效：不再发新的写请求，正在飞的落地即止。
  */
 
-import { getCourseware, getTaskState, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge.ts';
+import { getCourseware, getSession, getTaskState, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge.ts';
 import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge.ts';
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
@@ -352,6 +352,24 @@ export async function renderCourseware(
   buttonsOfCourse.clear();
 
   const token = nextRenderToken(coursewareScope);
+
+  /*
+   * 首帧先判会话，再决定这张卡存不存在：没有登录态时不该先亮出一张带骨架的卡、
+   * 随后又收起；有登录态才显示卡片并给骨架——加载中要有加载的样子。
+   * 显式刷新（read 已给）时卡片本来就在，保留骨架。
+   */
+  if (read === undefined) {
+    const session = await getSession();
+    if (!isLatest(coursewareScope, token)) return;
+    if (!session.loggedIn) {
+      clearFailure();
+      setCardVisible(listEl, false);
+      return;
+    }
+    setCardVisible(listEl, true);
+    listEl.replaceChildren(skeletonBlock());
+  }
+
   let outcome: QueryOutcome<CoursewareSummary>;
   try {
     outcome = await (read ?? getCourseware());
