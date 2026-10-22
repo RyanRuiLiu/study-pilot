@@ -16,8 +16,8 @@ export interface TodoArea<T> {
   write(children: Node[]): void;
   /** 待办区呈现失败状态。 */
   error(message: string): void;
-  /** 待办区呈现「需要登录」。 */
-  loginPrompt(): void;
+  /** 待办区呈现「需要登录」；措辞可按当前状态覆盖（未登录 / 登录已失效）。 */
+  loginPrompt(text?: string): void;
   /** 按组归拢的一组：组头 + N 项 + 逐行（组头文字由调用方给）。 */
   buildGroup(title: string, entries: T[], buildRow: TodoRowBuilder<T>): HTMLElement;
 }
@@ -67,19 +67,19 @@ export function createTodoArea<T>(options: {
      * 同一形状，也是界面上「一句说明 ＋ 一个去处」的既有形状（见 index.html
      * 的 AI 那条说明）。两平台两页面四处，形状只有这一种。
      */
-    loginPrompt() {
+    loginPrompt(text) {
       const box = document.createElement('div');
       box.className = 'todo-login';
 
-      const text = note('todo-login-text', options.loginText);
+      const line = note('todo-login-text', text ?? options.loginText);
       const link = document.createElement('a');
       link.href = options.loginHref;
       link.target = '_blank';
       link.rel = 'noreferrer';
       link.textContent = '前往登录';
-      text.append(link);
+      line.append(link);
 
-      box.append(text);
+      box.append(line);
       write([box]);
     },
 

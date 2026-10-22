@@ -29,6 +29,8 @@ import {
   readSession,
   selectedCourses,
   unitItemId,
+  ZHS_SESSION_EXPIRED,
+  ZhsAuthError,
 } from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsCourseTask, ZhsCourseTaskSummary, ZhsResponseMap } from './payload.ts';
@@ -212,6 +214,11 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
       }
       respond({ status: 'ok', value: { courses, pendingTotal: partial ? null : pendingTotal } });
     } catch (error) {
+      // 账号级的登录失效：与「账号与课程」卡同一句话、同一个 reason
+      if (error instanceof ZhsAuthError) {
+        respond({ status: 'error', message: ZHS_SESSION_EXPIRED, reason: 'NOT_LOGGED_IN' });
+        return;
+      }
       respond({ status: 'error', message: error instanceof Error ? error.message : String(error) });
     }
   };

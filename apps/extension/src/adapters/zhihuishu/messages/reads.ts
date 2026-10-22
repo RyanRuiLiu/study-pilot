@@ -10,6 +10,7 @@
  */
 
 import type { ZhihuishuCourse } from '@study-pilot/application';
+import { ZhsAuthError } from '@study-pilot/platform-zhs';
 import {
   chapterExams,
   getCourseUnits,
@@ -65,6 +66,8 @@ export async function collectUnits(
       );
       results.push({ course, units, chapters, unreadReason: null });
     } catch (error) {
+      // 登录失效是账号级的事实：不按「这门课读不成」记，抛给上层按未登录回话
+      if (error instanceof ZhsAuthError) throw error;
       results.push({
         course,
         units: [],
@@ -132,6 +135,7 @@ export async function collectQuizzes(
         unreadReason: null,
       });
     } catch (error) {
+      if (error instanceof ZhsAuthError) throw error;
       results.push({
         course,
         items: [],

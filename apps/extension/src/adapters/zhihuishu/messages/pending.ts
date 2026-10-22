@@ -7,7 +7,14 @@
  */
 
 import type { MessageHandler, QueryOutcome } from '../../../protocol.ts';
-import { quizItemId, readSession, selectedCourses, unitItemId } from '@study-pilot/platform-zhs';
+import {
+  quizItemId,
+  readSession,
+  selectedCourses,
+  unitItemId,
+  ZHS_SESSION_EXPIRED,
+  ZhsAuthError,
+} from '@study-pilot/platform-zhs';
 import type { ZhsMessageDeps } from './deps.ts';
 import type { ZhsPendingEntry, ZhsPendingSummary, ZhsResponseMap, ZhsUnreadCourse } from './payload.ts';
 import { readFinalExam, collectQuizzes, collectUnits } from './reads.ts';
@@ -141,6 +148,11 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
         value: { fetchedAt: Date.now(), total: entries.length, entries, unreadCourses },
       });
     } catch (error) {
+      // 账号级的登录失效：与「账号与课程」卡同一句话、同一个 reason
+      if (error instanceof ZhsAuthError) {
+        respond({ status: 'error', message: ZHS_SESSION_EXPIRED, reason: 'NOT_LOGGED_IN' });
+        return;
+      }
       respond({ status: 'error', message: error instanceof Error ? error.message : String(error) });
     }
   };

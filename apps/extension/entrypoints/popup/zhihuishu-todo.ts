@@ -178,7 +178,8 @@ export async function renderZhsTodo(): Promise<void> {
     return;
   }
   if (!session.loggedIn) {
-    area.loginPrompt();
+    // 与慕课同一对句子（见 todo.ts 同位置注释）
+    area.loginPrompt(session.expired ? undefined : '未登录，在浏览器登录智慧树后执行。');
     return;
   }
 

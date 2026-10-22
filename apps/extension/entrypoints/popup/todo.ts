@@ -201,7 +201,8 @@ export async function renderTodo(): Promise<void> {
     return;
   }
   if (!session.loggedIn) {
-    area.loginPrompt();
+    // 两种状态说两句：cookie 不在是「未登录」，有 cookie 但服务端不认是「登录已失效」
+    area.loginPrompt(session.expired ? undefined : '未登录，在浏览器登录慕课后执行。');
     return;
   }
 

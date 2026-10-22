@@ -122,19 +122,26 @@ export async function renderZhsCourses(status: ZhsCourseListStatus = null): Prom
   }
 
   listEl.replaceChildren();
-  // 状态至多一行，课程行永远保留（见慕课那张卡的同一段注释）
+  // 有状态就只显示状态、不列课程（与慕课同一规则，见那边的注释）
   if (!session.loggedIn) {
     listEl.append(
       session.expired
         ? loginNote(`${ZHS_SESSION_EXPIRED}。`, ZHS_LOGIN_URL)
         : loginNote('未登录，在浏览器登录智慧树后读取课程列表。', ZHS_LOGIN_URL),
     );
-  } else if (status?.kind === 'expired') {
+    return;
+  }
+  if (status?.kind === 'expired') {
     listEl.append(loginNote(`${ZHS_SESSION_EXPIRED}。`, ZHS_LOGIN_URL));
-  } else if (status?.kind === 'failed') {
+    return;
+  }
+  if (status?.kind === 'failed') {
     listEl.append(note(`读取失败：${status.message}`, true));
-  } else if (rows.length === 0) {
+    return;
+  }
+  if (rows.length === 0) {
     listEl.append(note('尚未读取到课程，点击「读取课程列表」获取并勾选要参与的课程。'));
+    return;
   }
   listEl.append(...rows);
 }
@@ -143,8 +150,8 @@ export async function renderZhsCourses(status: ZhsCourseListStatus = null): Prom
  * 「读取课程列表」按钮：**把首次加载原样再跑一遍**（与慕课同一条交互标准）。
  *
  * 进入等待：点击那一刻，课程列表、卡头状态行、课程任务卡三块同时换骨架；
- * 落定与首次加载走同一个渲染函数（renderZhsCourses）：成功 → 重新渲染新内容；
- * 未登录 / 失效 / 失败 → 状态行换成对应说法，**课程行保留**（理由见慕课那张卡）。
+ * 落定与首次加载走同一个渲染函数（renderZhsCourses）：成功 → 重新渲染列表；
+ * 未登录 / 失效 / 失败 → 只留那行状态，不列课程（与慕课同一条规则）。
  * 不另弹失败 toast：toast 只留动作回执（已读取 N 门）。
  */
 export function initZhsCourseActions(): void {

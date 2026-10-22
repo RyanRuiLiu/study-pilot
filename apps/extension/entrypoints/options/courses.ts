@@ -131,8 +131,9 @@ export async function renderCourses(status: CourseListStatus = null): Promise<vo
    */
   listEl.replaceChildren();
   /*
-   * 状态至多一行，行永远保留：课程行是用户自己的选择（配置），不因为一次读取失败
-   * 就消失——那会让「点了读取但没读成」看起来像「课程被删了」。
+   * 有状态就只显示状态，不列课程（Ryan 定，2026-10-21）：说未登录却列着课，
+   * 会被读成「课程已经读回来了」，而那几行其实只是保存的选择。
+   * 状态与是否列行绑定后，刷新页面与点「读取课程列表」的长相一致。
    */
   if (!session.loggedIn) {
     listEl.append(
@@ -140,12 +141,19 @@ export async function renderCourses(status: CourseListStatus = null): Promise<vo
         ? loginNote(`${MOOC_SESSION_EXPIRED}。`, MOOC_LOGIN_URL)
         : loginNote('未登录，在浏览器登录慕课后读取课程列表。', MOOC_LOGIN_URL),
     );
-  } else if (status?.kind === 'expired') {
+    return;
+  }
+  if (status?.kind === 'expired') {
     listEl.append(loginNote(`${MOOC_SESSION_EXPIRED}。`, MOOC_LOGIN_URL));
-  } else if (status?.kind === 'failed') {
+    return;
+  }
+  if (status?.kind === 'failed') {
     listEl.append(note(`读取失败：${status.message}`, true));
-  } else if (rows.length === 0) {
+    return;
+  }
+  if (rows.length === 0) {
     listEl.append(note('尚未读取到课程，点击「读取课程列表」获取并勾选要参与的课程。'));
+    return;
   }
   listEl.append(...rows);
 }
@@ -159,11 +167,8 @@ export async function renderCourses(status: CourseListStatus = null): Promise<vo
  * 落定与首次加载走**同一个渲染函数**（renderCourses），所以两条路径的长相一致：
  *   成功   → 重新渲染新内容（合并写回之后）；状态行与课件区随后重读落定
  *            （写先于读：提前发起会按旧范围算）；
- *   未登录 → 状态行换成「登录已失效，需重新登录慕课」，**课程行保留**；
- *   失败   → 状态行换成「读取失败：<原因>」，**课程行保留**。
- *
- * 课程行是用户自己的选择（配置），不因为一次读取失败就消失——把整块列表换成
- * 一行字，会让「点了读取但没读成」看起来像「课程被删了」，刷新页面又变回来。
+ *   未登录 / 失效 / 失败 → 只留那行状态，不列课程（与首次加载同一条规则）；
+ *   成功   → 重新渲染列表。
  * toast 只留动作回执（已读取 N 门）。
  */
 export function initCourseActions(): void {
