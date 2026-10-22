@@ -89,7 +89,8 @@
           它不在弹窗里——课件没有截止时间，属于「想清进度时来一趟」的地方。
           跑起来时进度与「停止」都在它自己那行，结果用底部浮层提示（见 courseware.ts）。
         -->
-        <section class="panel">
+        <!-- 默认收起：没有内容就不出现，避免「先显示一张带骨架的卡、再消失」 -->
+        <section class="panel" id="courseware-card" hidden>
           <div class="panel-head">
             <h2 class="panel-title">课件</h2>
             <!-- 上次执行失败行（按平台独立，见 courseware.ts 的 renderFailure） -->
@@ -97,9 +98,7 @@
             <a class="btn ghost" id="courseware-action" hidden target="_blank" rel="noreferrer"></a>
           </div>
           <!-- 等待平台读取：块状骨架（一块），落定时整体换内容 -->
-          <div id="courseware-list">
-            <span class="skeleton skeleton-block" aria-hidden="true"></span>
-          </div>
+          <div id="courseware-list"></div>
         </section>
 
         <section class="panel">

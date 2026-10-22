@@ -16,11 +16,12 @@
  */
 
 import { getSettings, getZhsPending, getZhsSession, runNow } from '../../src/ui-bridge.ts';
-import type { ZhsPendingEntry } from '../../src/ui-bridge.ts';
+import type { Settings, ZhsPendingEntry } from '../../src/ui-bridge.ts';
 import { boardOrder } from '../../src/adapters/zhihuishu/boards.ts';
-import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
+import { formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { ZHS_LOGIN_URL } from '../../src/ui/login.ts';
 import { zhsTodoEl } from './elements.ts';
+import { renderTodoFlow } from './todo-flow.ts';
 import { createTodoArea } from './todo-area.ts';
 import { setRunning, statusWriterFor } from './status.ts';
 
@@ -162,78 +163,36 @@ const area = createTodoArea<ZhsPendingEntry>({
 
 /** 渲染智慧树待办。 */
 export async function renderZhsTodo(): Promise<void> {
-  /*
-   * **未登录先于「没勾课程」判**：没登录时什么都做不了，而「没勾课程」是下一步的事。
-   * 顺序反了会把人指向一个他到了也做不成事的地方——Ryan 报的正是这个：
-   * 登录已失效时弹窗说的是「尚未选择参与任务的课程」，而真相与课程无关。
-   * 慕课那份同一条次序，两处一起改（ruling 见那边同位置注释）。
-   */
-  let session: Awaited<ReturnType<typeof getZhsSession>>;
-  let settings: Awaited<ReturnType<typeof getSettings>>;
-  try {
-    // 与慕课那句同一个理由：消息通道断时是 reject，护住才不会让待办区空白
-    [session, settings] = await Promise.all([getZhsSession(), getSettings()]);
-  } catch (error) {
-    area.error(errorText(error));
-    return;
-  }
-  if (!session.loggedIn) {
-    // 与慕课同一对句子（见 todo.ts 同位置注释）
-    area.loginPrompt(session.expired ? undefined : '未登录，在浏览器登录智慧树后执行。');
-    return;
-  }
-
-  const courses = settings.zhihuishu.courses.filter((course) => course.enabled);
-  if (courses.length === 0) {
-    area.write([area.note('todo-empty', '尚未选择参与任务的课程，在「更多」中读取并勾选。')]);
-    return;
-  }
-
-  let outcome;
-  try {
-    outcome = await getZhsPending();
-  } catch (error) {
-    area.error(errorText(error));
-    return;
-  }
-
-  if (outcome.status === 'error') {
-    // 未登录与读取失败分开说（与慕课同一规则）
-    if (outcome.reason === 'NOT_LOGGED_IN') area.loginPrompt();
-    else area.error(outcome.message);
-    return;
-  }
-
-  const entries = outcome.value.entries;
-  if (entries.length === 0) {
-    area.write([area.note('todo-empty', '暂无待办。')]);
-    return;
-  }
-
-  /*
-   * 一层归拢：**只按课程分组**，与慕课同一层（见 todo-area 的 buildGroup 与慕课那份）。
-   * 板块是**组内次序**，不是分组轴（Ryan 2026-10-17 定）：教程视频 → 单元测试 →
-   * 见面课 → 期末考试，取值与次序定义在 adapters/zhihuishu/boards.ts——设置页
-   * 四张卡用的是同一份，两处各写一遍迟早漂移成两套顺序。
-   *
-   * 课程的次序按**首次出现**定（后台已按章节自然序给出，这里保持顺序，不重排）；
-   * 类别本身由每一行的名称说清（「第三章单元测试」/「因果图结构」），不另占一层结构。
-   */
-  const grouped = new Map<string, ZhsPendingEntry[]>();
-  for (const entry of entries) {
-    const bucket = grouped.get(entry.courseName);
-    if (bucket) bucket.push(entry);
-    else grouped.set(entry.courseName, [entry]);
-  }
-
-  area.write([]);
-  for (const [courseName, list] of grouped) {
-    // 组内只调次序（按板块），不改变同一板块内的相对位置——sort 是稳定的
-    list.sort((left, right) => boardOrder(left.kind) - boardOrder(right.kind));
-    zhsTodoEl?.append(area.buildGroup(courseName, list, buildRow));
-  }
-  // 读不到的课如实列出——「读不到」与「没有要看的」长得不一样，不能混为一谈
-  for (const unread of outcome.value.unreadCourses) {
-    zhsTodoEl?.append(area.note('todo-error', `${unread.courseName}：读取失败（${unread.reason}），未列入待办。`));
-  }
+  await renderTodoFlow(area, {
+    readSession: getZhsSession,
+    readSettings: getSettings,
+    hasSelectedCourses: (settings) => (settings as Settings).zhihuishu.courses.some((course) => course.enabled),
+    readPending: getZhsPending,
+    loginMissingText: '未登录，在浏览器登录智慧树后执行。',
+    loginExpiredText: '登录已失效，需重新登录智慧树。',
+    show: (value) => {
+      /*
+       * 一层归拢：**只按课程分组**，与慕课同一层（见 todo-area 的 buildGroup 与慕课那份）。
+       * 板块是**组内次序**，不是分组轴：教程视频 → 单元测试 → 见面课 → 期末考试，
+       * 取值与次序定义在 adapters/zhihuishu/boards.ts——设置页四张卡用的是同一份。
+       * 课程的次序按首次出现定（后台已按章节自然序给出），这里保持，不重排。
+       */
+      const grouped = new Map<string, ZhsPendingEntry[]>();
+      for (const entry of value.entries) {
+        const bucket = grouped.get(entry.courseName);
+        if (bucket) bucket.push(entry);
+        else grouped.set(entry.courseName, [entry]);
+      }
+      area.write([]);
+      for (const [courseName, list] of grouped) {
+        // 组内只调次序（按板块），不改变同一板块内的相对位置——sort 是稳定的
+        list.sort((left, right) => boardOrder(left.kind) - boardOrder(right.kind));
+        zhsTodoEl?.append(area.buildGroup(courseName, list, buildRow));
+      }
+      // 读不到的课如实列出——「读不到」与「没有要看的」长得不一样，不能混为一谈
+      for (const unread of value.unreadCourses) {
+        zhsTodoEl?.append(area.note('todo-error', unread.courseName + '：读取失败（' + unread.reason + '），未列入待办。'));
+      }
+    },
+  });
 }

@@ -23,7 +23,7 @@
  * 运行状态的读取按平台收窄（platformRunningItem('zhihuishu')）。
  */
 
-import { getTaskState, getZhsCourseTasks, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge.ts';
+import { getTaskState, getZhsCourseTasks, getZhsSession, runNow, stopRun, subscribeRunState } from '../../src/ui-bridge.ts';
 import type { ZhsCourseTask, ZhsCourseTaskSummary, QueryOutcome } from '../../src/ui-bridge.ts';
 import { errorText, formatDate } from '../../src/ui/format.ts';
 import { ZHS_BOARDS, boardOfKind, type ZhsBoardId } from '../../src/adapters/zhihuishu/boards.ts';
@@ -418,6 +418,16 @@ export async function renderZhsCourseTasks(
 ): Promise<void> {
   const listEl = document.getElementById('zhs-tasks-list');
   if (listEl === null) return;
+
+  /*
+   * 首帧先判会话，再决定画不画骨架：未登录时整块不出现，不会「先画四张卡、
+   * 再整块消失」。显式刷新（read 已给）仍走骨架——那是用户点了按钮，需要进度。
+   */
+  if (read === undefined && !(await getZhsSession()).loggedIn) {
+    listEl.replaceChildren();
+    clearZhsFailure();
+    return;
+  }
 
   // 等待：四张卡先在（读回来只换卡里的内容，版面不跳）
   markZhsTasksLoading();

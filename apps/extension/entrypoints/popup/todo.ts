@@ -14,10 +14,11 @@
  */
 
 import { getPending, getSession, getSettings, runNow } from '../../src/ui-bridge.ts';
-import type { PendingEntry } from '../../src/ui-bridge.ts';
-import { errorText, formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
+import type { PendingEntry, Settings } from '../../src/ui-bridge.ts';
+import { formatClock, formatDate, isUrgent, relativeDay } from '../../src/ui/format.ts';
 import { MOOC_LOGIN_URL } from '../../src/ui/login.ts';
 import { todoEl } from './elements.ts';
+import { renderTodoFlow } from './todo-flow.ts';
 import { createTodoArea } from './todo-area.ts';
 import { setRunning, statusWriterFor } from './status.ts';
 
@@ -186,68 +187,23 @@ function groupByCourse(entries: PendingEntry[]): Map<string, PendingEntry[]> {
 
 /** 渲染待办。 */
 export async function renderTodo(): Promise<void> {
-  /*
-   * **未登录先于「没勾课程」判**：没登录时什么都做不了，而「没勾课程」是下一步的事。
-   * 顺序反了会把人指向一个他到了也做不成事的地方——智慧树那份同一条次序
-   * （Ryan 报的正是这个：登录已失效时弹窗说的是「尚未选择参与任务的课程」）。
-   */
-  let session: Awaited<ReturnType<typeof getSession>>;
-  let settings: Awaited<ReturnType<typeof getSettings>>;
-  try {
-    // 两次读都要护住：消息通道断（后台重启）时是 reject，先前会落成未处理的异常、弹窗空白
-    [session, settings] = await Promise.all([getSession(), getSettings()]);
-  } catch (error) {
-    area.error(errorText(error));
-    return;
-  }
-  if (!session.loggedIn) {
-    // 两种状态说两句：cookie 不在是「未登录」，有 cookie 但服务端不认是「登录已失效」
-    area.loginPrompt(session.expired ? undefined : '未登录，在浏览器登录慕课后执行。');
-    return;
-  }
-
-  const courses = settings.mooc.courses.filter((course) => course.enabled);
-  if (courses.length === 0) {
-    area.write([area.note('todo-empty', '尚未选择参与任务的课程，在「更多」中读取并勾选。')]);
-    return;
-  }
-
-  let outcome;
-  try {
-    /*
-     * 不传课程列表：后台从配置里自己取。
-     * 前台传过去的那份可能比存储里的旧（比如刚在设置页改过），
-     * 而「读哪些课」这种事以配置为准才不会两边不一致。
-     */
-    outcome = await getPending();
-  } catch (error) {
-    area.error(errorText(error));
-    return;
-  }
-
-  if (outcome.status === 'error') {
-    /*
-     * 未登录与读取失败要分开说。未登录不是出错，是少做了一步：
-     * 待办读不到是因为平台不知道该给谁读。
-     */
-    if (outcome.reason === 'NOT_LOGGED_IN') area.loginPrompt();
-    else area.error(outcome.message);
-    return;
-  }
-
-  /*
-   * 过期项不单独成段：属于哪门课就垫在那门课的最后。
-   * 「这门课还剩什么、漏了什么」在一处看完，不用拿课程名在两个列表间对。
-   * 后台已经滤掉三天以上前的过期项（保留天数见设置），因此不会累积。
-   */
-  const entries = outcome.value.entries;
-  if (entries.length === 0) {
-    area.write([area.note('todo-empty', '暂无待办。')]);
-    return;
-  }
-
-  area.write([]);
-  for (const [courseName, list] of groupByCourse(entries)) {
-    todoEl?.append(area.buildGroup(courseName, list, buildRow));
-  }
+  await renderTodoFlow(area, {
+    readSession: getSession,
+    readSettings: getSettings,
+    hasSelectedCourses: (settings) => (settings as Settings).mooc.courses.some((course) => course.enabled),
+    readPending: getPending,
+    loginMissingText: '未登录，在浏览器登录慕课后执行。',
+    loginExpiredText: '登录已失效，需重新登录慕课。',
+    show: (value) => {
+      /*
+       * 过期项不单独成段：属于哪门课就垫在那门课的最后。
+       * 「这门课还剩什么、漏了什么」在一处看完，不用拿课程名在两个列表间对。
+       * 后台已经滤掉三天以上前的过期项（保留天数见设置），因此不会累积。
+       */
+      area.write([]);
+      for (const [courseName, list] of groupByCourse(value.entries)) {
+        todoEl?.append(area.buildGroup(courseName, list, buildRow));
+      }
+    },
+  });
 }
