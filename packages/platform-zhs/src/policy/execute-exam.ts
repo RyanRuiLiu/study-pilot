@@ -45,7 +45,7 @@ import {
 } from '../exam-paper.ts';
 import { askOracle, judge } from '../oracle.ts';
 import { gateAction, gateHaltMessage, ZhsRoundHalt } from './execute.ts';
-import { examListUrl, studyPageUrl, ZHS_SITE_ORIGIN } from '../pages.ts';
+import { examListUrl, studyPageUrl, ZHS_LOGIN_URL } from '../pages.ts';
 
 /** 一张卷的入口参数（清单 + 章节测验条目合成）。 */
 export interface ExamTarget {
@@ -110,7 +110,7 @@ function sessionHalt(): ZhsRoundHalt {
   return new ZhsRoundHalt(ZHS_SESSION_EXPIRED, {
     platformId: 'zhihuishu',
     label: '打开登录页',
-    url: ZHS_SITE_ORIGIN, // 去处是站点首页：登录入口在导航里，站点没有独立登录页
+    url: ZHS_LOGIN_URL, // 登录中心（实测终点；首页会画出假的已登录态）
   });
 }
 

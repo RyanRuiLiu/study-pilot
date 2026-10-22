@@ -88,7 +88,7 @@ export {
 } from './exam-paper.ts';
 
 export { getMeetSessions, normalizeMeetSessions, type ZhsMeetSession } from './meet.ts';
-export { examListUrl, meetPageUrl, reportPageUrl, studyPageUrl, ZHS_SITE_ORIGIN } from './pages.ts';
+export { examListUrl, meetPageUrl, reportPageUrl, studyPageUrl, ZHS_LOGIN_URL, ZHS_SITE_ORIGIN } from './pages.ts';
 export { askOracle, judge, type OracleVerdict } from './oracle.ts';
 
 export { buildStudyReport, type StudyReport, type StudyReportInput } from './report.ts';
