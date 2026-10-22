@@ -8,6 +8,7 @@
 
 import type { MessageHandler, QueryOutcome } from '../../../protocol.ts';
 import {
+  probeSession,
   quizItemId,
   readSession,
   selectedCourses,
@@ -31,6 +32,14 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
     const session = await readSession(deps.readCookie);
     if (!session.loggedIn) {
       respond({ status: 'error', message: '未登录', reason: 'NOT_LOGGED_IN' });
+      return;
+    }
+    /*
+     * 先问服务端再动手读：cookie 在、会话已死时，逐课去读要几秒，读完才整块清空——
+     * 界面上就是「先闪出一堆内容再消失」。判定放在最前，卡片从骨架直接落到终态。
+     */
+    if ((await probeSession(deps.client)) === 'auth') {
+      respond({ status: 'error', message: ZHS_SESSION_EXPIRED, reason: 'NOT_LOGGED_IN' });
       return;
     }
 

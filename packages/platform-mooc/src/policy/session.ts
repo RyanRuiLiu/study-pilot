@@ -156,11 +156,20 @@ export async function ensureSession(
    * 把整个账号判成未登录。
    */
   if (client !== undefined) {
-    try {
-      const probe = await getCourses(client, { courseType: COURSE_TYPE.MOOC, pageSize: 1, maxPages: 1 });
-      if (probe.ok) return { ...session, loggedIn: true };
-    } catch {
-      // 探问失败就保持 cookie 的结论，由调用方照常报未登录/读取失败
+    /*
+     * 探问本身也会输给启动时的时序：service worker 刚醒，第一条出站可能还没等
+     * 请求头规则就绪（实测首帧偶发拿不到结论，卡片因此被误判成未登录并收起）。
+     * 所以失败重试一次；只有**明确的不认**（auth）才算未登录，其余失败仍按
+     * cookie 的结论走——否则一次网络抖动就会把登录态说成「未登录」。
+     */
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const probe = await getCourses(client, { courseType: COURSE_TYPE.MOOC, pageSize: 1, maxPages: 1 });
+        if (probe.ok) return { ...session, loggedIn: true };
+        if (probe.error.kind === 'auth') return session;
+      } catch {
+        // 网络类失败：重试一次
+      }
     }
   }
 

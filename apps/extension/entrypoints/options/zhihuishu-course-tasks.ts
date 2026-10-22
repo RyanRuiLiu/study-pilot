@@ -27,6 +27,7 @@ import { getTaskState, getZhsCourseTasks, runNow, stopRun, subscribeRunState } f
 import type { ZhsCourseTask, ZhsCourseTaskSummary, QueryOutcome } from '../../src/ui-bridge.ts';
 import { errorText, formatDate } from '../../src/ui/format.ts';
 import { ZHS_BOARDS, boardOfKind, type ZhsBoardId } from '../../src/adapters/zhihuishu/boards.ts';
+import { createRenderScope, isLatest, nextRenderToken } from './render-guard.ts';
 import { meetPageUrl } from '../../src/adapters/zhihuishu/pages.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
 import { note } from './note.ts';
@@ -410,6 +411,8 @@ function rowOfUnread(entry: ZhsCourseTask, board: (typeof ZHS_BOARDS)[number]): 
   });
 }
 
+const zhsTasksScope = createRenderScope();
+
 export async function renderZhsCourseTasks(
   read?: Promise<QueryOutcome<ZhsCourseTaskSummary>>,
 ): Promise<void> {
@@ -428,13 +431,16 @@ export async function renderZhsCourseTasks(
   currents.clear();
   buttonsOfCourse.clear();
 
+  const token = nextRenderToken(zhsTasksScope);
   let outcome: QueryOutcome<ZhsCourseTaskSummary>;
   try {
     outcome = await (read ?? getZhsCourseTasks());
   } catch (error) {
+    if (!isLatest(zhsTasksScope, token)) return;
     listEl.replaceChildren(note(errorText(error), true));
     return;
   }
+  if (!isLatest(zhsTasksScope, token)) return;
 
   if (outcome.status === 'error') {
     listEl.replaceChildren();

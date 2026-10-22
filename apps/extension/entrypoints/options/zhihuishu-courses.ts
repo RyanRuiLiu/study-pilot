@@ -11,6 +11,9 @@
  *
  * 状态行语义与慕课一致：卡头右侧只放加载完成后的状态（见 zhihuishu-status-line.ts），
  * 未登录指引与读取失败都落在列表区里说。
+ *
+ * 时序（与慕课同一套）：骨架 → 一次会话判定（cookie ＋ 服务端探问）→ 终态一次渲染。
+ * 判定必须先于任何内容落到页面上，否则会「先闪出一批行、再整块消失」。
  */
 
 import { getZhsCourses, getZhsSession, refreshZhsCourses, updateSettings, getSettings } from '../../src/ui-bridge.ts';
@@ -20,6 +23,7 @@ import { ZHS_SESSION_EXPIRED } from '@study-pilot/platform-zhs';
 import { reportPageUrl } from '../../src/adapters/zhihuishu/pages.ts';
 import { markZhsTasksLoading, refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
 import { loginNote, note, ZHS_LOGIN_URL } from './note.ts';
+import { createRenderScope, isLatest, nextRenderToken } from './render-guard.ts';
 import { markZhsStatusLineLoading } from './zhihuishu-status-line.ts';
 import { skeletonBlock } from './skeleton.ts';
 import { toast } from './toast.ts';
@@ -101,6 +105,8 @@ export type ZhsCourseListStatus =
   | { kind: 'failed'; message: string }
   | null;
 
+const zhsCoursesScope = createRenderScope();
+
 export async function renderZhsCourses(status: ZhsCourseListStatus = null): Promise<void> {
   const listEl = document.getElementById('zhs-course-list');
   if (listEl === null) return;
@@ -110,6 +116,7 @@ export async function renderZhsCourses(status: ZhsCourseListStatus = null): Prom
    * （见 router.ts），那形状不是课程数组——处理放到 try 外的话，.map 会炸在
    * catch 之外，页面就永久停在骨架且不给任何错误。
    */
+  const token = nextRenderToken(zhsCoursesScope);
   let session: Awaited<ReturnType<typeof getZhsSession>>;
   let rows: HTMLElement[];
   try {
@@ -117,9 +124,11 @@ export async function renderZhsCourses(status: ZhsCourseListStatus = null): Prom
     session = readSession;
     rows = courses.map(buildRow);
   } catch (error) {
+    if (!isLatest(zhsCoursesScope, token)) return;
     listEl.replaceChildren(note(errorText(error), true));
     return;
   }
+  if (!isLatest(zhsCoursesScope, token)) return;
 
   listEl.replaceChildren();
   // 有状态就只显示状态、不列课程（与慕课同一规则，见那边的注释）

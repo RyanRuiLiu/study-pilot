@@ -5,6 +5,9 @@
  *
  * 合并规则在平台包里（mergeCourses）：读取时只沿用用户做过的勾选，
  * 新出现的课程一律不勾——不然刷新一下就把用户没同意过的课拖进了任务范围。
+ *
+ * 时序（与智慧树同一套）：骨架 → 一次会话判定（cookie ＋ 服务端表态）→ 终态一次渲染；
+ * 判定先于内容，页面上不会出现「先有行、再整块消失」。
  */
 
 import { coursePageUrl, MOOC_SESSION_EXPIRED } from '@study-pilot/platform-mooc';
@@ -13,6 +16,7 @@ import type { Settings } from '../../src/ui-bridge.ts';
 import { errorText, formatTermRange } from '../../src/ui/format.ts';
 import { refreshCourseViews } from './courseware.ts';
 import { loginNote, note, MOOC_LOGIN_URL } from './note.ts';
+import { createRenderScope, isLatest, nextRenderToken } from './render-guard.ts';
 import { skeletonBlock } from './skeleton.ts';
 import { markStatusLineLoading } from './status-line.ts';
 import { toast } from './toast.ts';
@@ -98,6 +102,8 @@ export type CourseListStatus =
   | { kind: 'failed'; message: string }
   | null;
 
+const coursesScope = createRenderScope();
+
 export async function renderCourses(status: CourseListStatus = null): Promise<void> {
   const listEl = document.getElementById('course-list');
   if (listEl === null) return;
@@ -107,6 +113,7 @@ export async function renderCourses(status: CourseListStatus = null): Promise<vo
    * （见 router.ts），那形状不是课程数组——处理放到 try 外的话，.map 会炸在
    * catch 之外，页面就永久停在骨架且不给任何错误。
    */
+  const token = nextRenderToken(coursesScope);
   let rows: HTMLElement[];
   let session: Awaited<ReturnType<typeof getSession>>;
   let settings: Settings;
@@ -121,9 +128,11 @@ export async function renderCourses(status: CourseListStatus = null): Promise<vo
       .filter((course): course is SelectedCourse => course !== undefined)
       .map(buildRow);
   } catch (error) {
+    if (!isLatest(coursesScope, token)) return;
     listEl.replaceChildren(note(errorText(error), true));
     return;
   }
+  if (!isLatest(coursesScope, token)) return;
 
   /*
    * 状态信息分两处：卡头右侧只放加载完成后的状态（见 status-line.ts），

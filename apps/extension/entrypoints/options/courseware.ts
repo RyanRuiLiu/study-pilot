@@ -19,6 +19,8 @@ import { getCourseware, getTaskState, runNow, stopRun, subscribeRunState } from 
 import type { CoursewareProgress, CoursewareSummary, QueryOutcome } from '../../src/ui-bridge.ts';
 import { errorText } from '../../src/ui/format.ts';
 import { platformRunningItem, progressLine, stoppedLine, STOPPING_TEXT } from '../../src/ui/run-view.ts';
+import { setCardVisible } from './card.ts';
+import { createRenderScope, isLatest, nextRenderToken } from './render-guard.ts';
 import { note } from './note.ts';
 import { skeletonBlock } from './skeleton.ts';
 import { renderStatusLine } from './status-line.ts';
@@ -334,6 +336,8 @@ function buildRow(entry: CoursewareProgress): HTMLElement {
   return row;
 }
 
+const coursewareScope = createRenderScope();
+
 export async function renderCourseware(
   read?: Promise<QueryOutcome<CoursewareSummary>>,
 ): Promise<void> {
@@ -347,13 +351,16 @@ export async function renderCourseware(
   currents.clear();
   buttonsOfCourse.clear();
 
+  const token = nextRenderToken(coursewareScope);
   let outcome: QueryOutcome<CoursewareSummary>;
   try {
     outcome = await (read ?? getCourseware());
   } catch (error) {
+    if (!isLatest(coursewareScope, token)) return;
     listEl.replaceChildren(note(errorText(error), true));
     return;
   }
+  if (!isLatest(coursewareScope, token)) return;
 
   listEl.replaceChildren();
 
@@ -365,12 +372,15 @@ export async function renderCourseware(
        * 同一时刻的「上次执行失败」也收起来：会话类失败说的也是同一件事。
        */
       clearFailure();
+      setCardVisible(listEl, false);
       return;
     }
+    setCardVisible(listEl, true);
     listEl.append(note(`读取失败：${outcome.message}`, true));
     return;
   }
 
+  setCardVisible(listEl, true);
   if (outcome.value.courses.length === 0) {
     listEl.append(note('尚未选择参与任务的课程，见上方「账号与课程」。'));
     return;
