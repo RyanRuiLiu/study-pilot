@@ -358,10 +358,15 @@ export async function renderCourseware(
    * 随后又收起；有登录态才显示卡片并给骨架——加载中要有加载的样子。
    * 显式刷新（read 已给）时卡片本来就在，保留骨架。
    */
+  const pendingRead = read ?? getCourseware();
   if (read === undefined) {
     const session = await getSession();
-    if (!isLatest(coursewareScope, token)) return;
+    if (!isLatest(coursewareScope, token)) {
+      void pendingRead.catch(() => undefined);
+      return;
+    }
     if (!session.loggedIn) {
+      void pendingRead.catch(() => undefined);
       clearFailure();
       setCardVisible(listEl, false);
       return;
@@ -372,7 +377,7 @@ export async function renderCourseware(
 
   let outcome: QueryOutcome<CoursewareSummary>;
   try {
-    outcome = await (read ?? getCourseware());
+    outcome = await pendingRead;
   } catch (error) {
     if (!isLatest(coursewareScope, token)) return;
     listEl.replaceChildren(note(errorText(error), true));

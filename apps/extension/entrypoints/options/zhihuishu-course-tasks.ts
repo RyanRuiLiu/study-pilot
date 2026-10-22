@@ -420,10 +420,13 @@ export async function renderZhsCourseTasks(
   if (listEl === null) return;
 
   /*
-   * 首帧先判会话，再决定画不画骨架：未登录时整块不出现，不会「先画四张卡、
-   * 再整块消失」。显式刷新（read 已给）仍走骨架——那是用户点了按钮，需要进度。
+   * 读先发出去，会话只负责决定「画不画骨架」：骨架的时长就是请求的时长，
+   * 不把会话判定串在读前面白等一轮。未登录时整块不出现（不先画四张卡再消失）；
+   * 显式刷新（read 已给）仍走骨架——那是用户点了按钮，需要进度。
    */
+  const pendingRead = read ?? getZhsCourseTasks();
   if (read === undefined && !(await getZhsSession()).loggedIn) {
+    void pendingRead.catch(() => undefined);
     listEl.replaceChildren();
     clearZhsFailure();
     return;
@@ -444,7 +447,7 @@ export async function renderZhsCourseTasks(
   const token = nextRenderToken(zhsTasksScope);
   let outcome: QueryOutcome<ZhsCourseTaskSummary>;
   try {
-    outcome = await (read ?? getZhsCourseTasks());
+    outcome = await pendingRead;
   } catch (error) {
     if (!isLatest(zhsTasksScope, token)) return;
     listEl.replaceChildren(note(errorText(error), true));

@@ -55,11 +55,15 @@ const settledLoggedOut = new Set<string>();
 
 async function settleLoginStates(): Promise<void> {
   const [mooc, zhs] = await Promise.all([getSession(), getZhsSession()]);
-  if (!mooc.loggedIn) {
+  /*
+   * 只结算**还没露出来**的那个面板：当前 tab 由它自己的流程写，这里再写一遍
+   * 就会把已出现的内容换掉。切走前若结算已完成，切回来时也不会重跑。
+   */
+  if (!mooc.loggedIn && document.getElementById('panel-mooc')?.hidden !== false) {
     showMoocLogin(mooc);
     settledLoggedOut.add('mooc');
   }
-  if (!zhs.loggedIn) {
+  if (!zhs.loggedIn && document.getElementById('panel-zhihuishu')?.hidden !== false) {
     showZhsLogin(zhs);
     settledLoggedOut.add('zhihuishu');
   }
@@ -87,7 +91,8 @@ async function init(): Promise<void> {
    * 网络往返，拉两遍纯属浪费。数据到达前那三条骨架就是给这段等待的。
    */
   await renderState();
-  await settleLoginStates();
+  // 与当前 tab 的取数并行，不占它的等待时间
+  void settleLoginStates();
 
   await initTabs({
     onFirstActivate: (id) => {
