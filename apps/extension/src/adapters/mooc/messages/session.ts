@@ -23,9 +23,9 @@ export function sessionCommand(deps: MoocMessageDeps): MessageHandler {
       return;
     }
 
-    const probe = await getCourses(deps.client, { courseType: COURSE_TYPE.MOOC, pageSize: 1 });
+    const probe = await getCourses(deps.client, { courseType: COURSE_TYPE.MOOC, pageSize: 1, maxPages: 1 });
     if (probe.ok || probe.error.kind !== 'auth') {
-      sendResponse(session satisfies MoocResponseMap['MOOC_SESSION']);
+      sendResponse({ loggedIn: session.loggedIn, userId: session.userId } satisfies MoocResponseMap['MOOC_SESSION']);
       return;
     }
 
@@ -38,9 +38,10 @@ export function sessionCommand(deps: MoocMessageDeps): MessageHandler {
       const afterRenewal = await getCourses(deps.client, {
         courseType: COURSE_TYPE.MOOC,
         pageSize: 1,
+        maxPages: 1,
       });
       if (afterRenewal.ok || afterRenewal.error.kind !== 'auth') {
-        sendResponse(renewedSession satisfies MoocResponseMap['MOOC_SESSION']);
+        sendResponse({ loggedIn: renewedSession.loggedIn, userId: renewedSession.userId } satisfies MoocResponseMap['MOOC_SESSION']);
         return;
       }
     }

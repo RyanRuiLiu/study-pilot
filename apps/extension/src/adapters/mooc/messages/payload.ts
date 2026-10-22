@@ -108,11 +108,11 @@ export interface PendingSummary {
 /**
  * 登录态消息的响应：平台会话，但 token 可以缺席。
  *
- * 未登录那一支不给 token（见 sessionCommand）：`NTESSTUDYSI` 访客状态下也有值，
- * 报「未登录」时把它一起送出既没有消费者——界面只读 loggedIn / userId，
- * 后台自己走 `readToken` 取 csrf 令牌，从不读这份响应——又白多一份凭证离开后台。
+ * **响应里没有 token**：界面只读 loggedIn / userId，后台自己走 `readToken` 取 csrf 令牌。
+ * `NTESSTUDYSI` 在访客状态下也有值，把它送出去只是多一份凭证离开后台；
+ * 早先的 `satisfies` 只校验形状、不裁剪字段，登录态下曾把 token 一并送回前台。
  */
-export type MoocSessionResponse = Omit<MoocSession, 'token'> & { token?: string };
+export type MoocSessionResponse = Omit<MoocSession, 'token'>;
 
 // ---------- 本平台的命令 ----------
 

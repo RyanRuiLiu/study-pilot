@@ -59,6 +59,8 @@ interface CourseListPayload {
 export interface GetCoursesOptions {
   courseType?: CourseType;
   pageSize?: number;
+  /** 最多翻几页（默认取满）。登录探问只要第一页，别为一个「认不认得我」翻完整张表 */
+  maxPages?: number;
 }
 
 /** 把一个原始课程项归一化成 {@link CourseSummary}。 */
@@ -88,14 +90,32 @@ function toSummary(raw: RawCourse): CourseSummary {
 /**
  * 课程列表的未登录形态判定，getCourses 用它。
  *
- * 内层 result 为 `null` 时平台在说「我不认得你」；空数组才是
- * 「认得，但确实没有课程」（实测 2026-10-03）。
- * 吞掉 null 当空列表，失效会话就会被上层当成「确实没有课程」。
+ * 三种响应要分开（2026-10-21 真机实测，页大小 1 翻到第 6 页时暴露）：
+ *   · 整个 `result` 为 `null` → 平台不认得这个会话，**未登录**；
+ *   · `result.result` 为 `null` → **这一页没有数据**（翻到末尾就是这种形状，
+ *     pagination 里 totleCount 仍是真实总数）。旧写法把它也当未登录，于是
+ *     刚登录的账号在翻到空页那一刻被判成「未登录」；
+ *   · `result.result` 是数组 → 正常一页（空数组是「认得但确实没有课程」）。
+ * 吞掉 null 当空列表，失效会话会被上层当成「确实没有课程」；反过来把空页
+ * 当成未登录，会把活着会话判死——两个方向都错。
  */
 function authedCourseList(
-  payload: CourseListPayload,
+  payload: CourseListPayload | null | undefined,
+  page: number,
 ): Result<RawCourse[], TransportError> {
-  if (payload?.result == null) return err(sessionExpired());
+  if (payload == null) return err(sessionExpired());
+  if (payload.result == null) {
+    /*
+     * 内层 result 为 null 有两种含义，靠页码与总数分开（2026-10-21 真机）：
+     *   · 翻到末尾的空页：pagination 里有真实总数（实测第 10 页 totleCount=5），
+     *     或者这已经不是第一页——是「没有下一页」，不是「不认得你」；
+     *   · 第一页且没有任何总数：才是未登录形态（实测 2026-10-03，匿名会话）。
+     * 早先把两者都当未登录，页大小 1 的登录探问翻到空页就把活会话判死了。
+     */
+    const total = payload.pagination?.total;
+    if (page > 1 || (typeof total === 'number' && Number.isFinite(total) && total > 0)) return ok([]);
+    return err(sessionExpired());
+  }
   if (!Array.isArray(payload.result)) {
     return err(parseError('课程列表：result 不是数组（平台回的形状与预期不符）'));
   }
@@ -119,7 +139,8 @@ export async function getCourses(
   const seen = new Set<number>();
   let fetched = 0;
 
-  for (let page = 1; page <= MAX_PAGES; page += 1) {
+  const lastPage = Math.min(options.maxPages ?? MAX_PAGES, MAX_PAGES);
+  for (let page = 1; page <= lastPage; page += 1) {
     const payload = await client.rpc.call<CourseListPayload>(
       ENDPOINTS.courseList.bean,
       ENDPOINTS.courseList.method,
@@ -132,7 +153,7 @@ export async function getCourses(
     );
 
     if (!payload.ok) return payload;
-    const list = authedCourseList(payload.value);
+    const list = authedCourseList(payload.value, page);
     if (!list.ok) return list;
 
     // 列表本身对了，个别条目可能不是对象：跳过，不让空指针炸掉整个列表
@@ -155,6 +176,11 @@ export async function getCourses(
     if (typeof total === 'number' && Number.isFinite(total) && fetched >= total) return ok(courses);
   }
 
+  /*
+   * 两种「翻到上限」：调用方**明确**限定页数（登录探问）时按取到的返回；
+   * 默认上限是保护，撞上它说明表大得超出预期，如实报错，不静默截断。
+   */
+  if (options.maxPages !== undefined) return ok(courses);
   return err(parseError(`课程列表超过 ${MAX_PAGES} 页，未取全`));
 }
 

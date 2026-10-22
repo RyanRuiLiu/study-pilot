@@ -157,7 +157,7 @@ export async function ensureSession(
    */
   if (client !== undefined) {
     try {
-      const probe = await getCourses(client, { courseType: COURSE_TYPE.MOOC, pageSize: 1 });
+      const probe = await getCourses(client, { courseType: COURSE_TYPE.MOOC, pageSize: 1, maxPages: 1 });
       if (probe.ok) return { ...session, loggedIn: true };
     } catch {
       // 探问失败就保持 cookie 的结论，由调用方照常报未登录/读取失败
