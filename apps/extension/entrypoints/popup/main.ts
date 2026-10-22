@@ -51,10 +51,18 @@ const dirty = new Set<string>();
  * 那时才换成「未登录」，看起来像闪了一下。这里只读会话（cookie ＋ 必要的服务端
  * 探问），不读待办；未登录的那家当场换成指引。
  */
+const settledLoggedOut = new Set<string>();
+
 async function settleLoginStates(): Promise<void> {
   const [mooc, zhs] = await Promise.all([getSession(), getZhsSession()]);
-  if (!mooc.loggedIn) showMoocLogin(mooc);
-  if (!zhs.loggedIn) showZhsLogin(zhs);
+  if (!mooc.loggedIn) {
+    showMoocLogin(mooc);
+    settledLoggedOut.add('mooc');
+  }
+  if (!zhs.loggedIn) {
+    showZhsLogin(zhs);
+    settledLoggedOut.add('zhihuishu');
+  }
 }
 
 function renderFor(platformId: string): void {
@@ -84,7 +92,15 @@ async function init(): Promise<void> {
   await initTabs({
     onFirstActivate: (id) => {
       dirty.delete(id);
-      if (id === 'mooc' || id === 'zhihuishu') renderFor(id);
+      /*
+       * 首帧已经落定为「未登录」的 tab 不再重跑一遍：同一份内容写两次，
+       * 会把已经出现的内容再闪一次（结算在启动时、激活时各一次）。
+       * 登录态变了会重开弹窗，那时重新判定。
+       */
+      if (id === 'mooc' || id === 'zhihuishu') {
+        if (settledLoggedOut.has(id)) return;
+        renderFor(id);
+      }
     },
     onActivate: (id) => {
       if (id === 'mooc' || id === 'zhihuishu') currentPlatform = id;
