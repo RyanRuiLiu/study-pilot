@@ -54,19 +54,26 @@ const dirty = new Set<string>();
 const settledLoggedOut = new Set<string>();
 
 async function settleLoginStates(): Promise<void> {
-  const [mooc, zhs] = await Promise.all([getSession(), getZhsSession()]);
   /*
-   * 只结算**还没露出来**的那个面板：当前 tab 由它自己的流程写，这里再写一遍
-   * 就会把已出现的内容换掉。切走前若结算已完成，切回来时也不会重跑。
+   * 两家各自结算、互不等待：一次 Promise.all 会把快的那家拖到慢的那家
+   * （智慧树只读 cookie，慕课还要尝试恢复会话），骨架于是都按慢的算。
+   * 只结算**尚未露出**的面板；当前 tab 由它自己的流程写。
    */
-  if (!mooc.loggedIn && document.getElementById('panel-mooc')?.hidden !== false) {
-    showMoocLogin(mooc);
-    settledLoggedOut.add('mooc');
-  }
-  if (!zhs.loggedIn && document.getElementById('panel-zhihuishu')?.hidden !== false) {
-    showZhsLogin(zhs);
-    settledLoggedOut.add('zhihuishu');
-  }
+  const settle = async (
+    id: 'mooc' | 'zhihuishu',
+    read: () => Promise<{ loggedIn: boolean; expired?: true }>,
+    show: (session: { loggedIn: boolean; expired?: true }) => void,
+  ): Promise<void> => {
+    const session = await read();
+    if (session.loggedIn) return;
+    if (document.getElementById(`panel-${id}`)?.hidden === false) return;
+    show(session);
+    settledLoggedOut.add(id);
+  };
+  await Promise.allSettled([
+    settle('mooc', getSession, showMoocLogin),
+    settle('zhihuishu', getZhsSession, showZhsLogin),
+  ]);
 }
 
 function renderFor(platformId: string): void {

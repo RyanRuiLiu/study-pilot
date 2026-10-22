@@ -77,9 +77,23 @@ function setEnabled(enabled: boolean): void {
  * 重读即是等待：四张卡换成同样的四张、卡里先立骨架（同时把旧范围算出的旧数字
  * 撤下）。卡头状态行自带骨架，见 zhihuishu-status-line.ts。
  */
-export async function refreshZhsTaskViews(): Promise<void> {
+/**
+ * 重读课程任务区。跑完一轮之后、课程勾选变动之后、以及读取课程列表之后都用它。
+ *
+ * **会话判定在这里做一次**，再决定画不画骨架：未登录时整块留空，
+ * 不会「先画出四张骨架卡、再整块消失」。读请求与判定并行，骨架时长就是请求时长。
+ */
+export async function refreshZhsTaskViews(
+  read?: Promise<QueryOutcome<ZhsCourseTaskSummary>>,
+): Promise<void> {
+  const fresh = read ?? getZhsCourseTasks();
+  if (!(await getZhsSession()).loggedIn) {
+    void fresh.catch(() => undefined);
+    document.getElementById('zhs-tasks-list')?.replaceChildren();
+    clearZhsFailure();
+    return;
+  }
   markZhsTasksLoading();
-  const fresh = getZhsCourseTasks();
   await Promise.all([renderZhsStatusLine(fresh), renderZhsCourseTasks(fresh)]);
 }
 
@@ -419,21 +433,8 @@ export async function renderZhsCourseTasks(
   const listEl = document.getElementById('zhs-tasks-list');
   if (listEl === null) return;
 
-  /*
-   * 读先发出去，会话只负责决定「画不画骨架」：骨架的时长就是请求的时长，
-   * 不把会话判定串在读前面白等一轮。未登录时整块不出现（不先画四张卡再消失）；
-   * 显式刷新（read 已给）仍走骨架——那是用户点了按钮，需要进度。
-   */
+  // 骨架由 refreshZhsTaskViews 在那里按会话判定后画；这里只管把数据落进卡里
   const pendingRead = read ?? getZhsCourseTasks();
-  if (read === undefined && !(await getZhsSession()).loggedIn) {
-    void pendingRead.catch(() => undefined);
-    listEl.replaceChildren();
-    clearZhsFailure();
-    return;
-  }
-
-  // 等待：四张卡先在（读回来只换卡里的内容，版面不跳）
-  markZhsTasksLoading();
 
   // 失败留痕与列表走同一条渲染路径（首帧、重读、跑完都会到这里）
   void renderZhsFailure();

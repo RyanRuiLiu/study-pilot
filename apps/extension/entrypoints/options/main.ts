@@ -16,7 +16,7 @@
 import '../../src/ui/tokens.css';
 import './style.css';
 
-import { getCourseware, getZhsCourseTasks } from '../../src/ui-bridge.ts';
+import { getCourseware } from '../../src/ui-bridge.ts';
 import { initTabs } from '../../src/ui/tabs.ts';
 import { initCourseActions, renderCourses } from './courses.ts';
 import { renderCourseware } from './courseware.ts';
@@ -25,8 +25,8 @@ import { watchRunHint } from './run-hint.ts';
 import { renderStatusLine } from './status-line.ts';
 import { initToast } from './toast.ts';
 import { initZhsCourseActions, renderZhsCourses } from './zhihuishu-courses.ts';
-import { renderZhsCourseTasks } from './zhihuishu-course-tasks.ts';
-import { renderZhsStatusLine } from './zhihuishu-status-line.ts';
+import { refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
+
 
 function init(): void {
   const toastEl = document.getElementById('toast');
@@ -59,12 +59,13 @@ function init(): void {
         return;
       }
       if (id === 'zhihuishu') {
-        // 同一条装配规则：智慧树的课程任务也只读一次，状态行与课程任务卡共用
-        const tasks = getZhsCourseTasks();
+        /*
+         * 同一条装配规则：智慧树的课程任务只读一次，状态行与四张卡共用；
+         * 会话判定与骨架、以及那次读取都收在 refreshZhsTaskViews 一处。
+         */
         initZhsCourseActions();
         void renderZhsCourses();
-        void renderZhsStatusLine(tasks);
-        void renderZhsCourseTasks(tasks);
+        void refreshZhsTaskViews();
       }
     },
   });

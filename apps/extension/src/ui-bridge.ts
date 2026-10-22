@@ -36,10 +36,27 @@ export type {
 } from './messages.ts';
 export type { ZhihuishuCourse } from './settings/index.ts';
 
-/** 登录状态（是否登录、用户 id、会话令牌）。 */
-export function getSession() {
-  return sendToBackground({ type: 'MOOC_SESSION' });
+/*
+ * 合并**同时进行**的同一次读取（唯一实现）。
+ *
+ * 同一页里几张卡会同时问会话（账号卡、状态行、课程任务的前置判定）。
+ * 智慧树的问句还要带一次服务端探问——各自发一遍就是几次重复出站。
+ * 只合并并发中的那一次：落地即清空，下一次问仍是新读取（现读现算不变）。
+ */
+function coalesce<R>(read: () => Promise<R>): () => Promise<R> {
+  let inflight: Promise<R> | null = null;
+  return () => {
+    if (inflight === null) {
+      inflight = read().finally(() => {
+        inflight = null;
+      });
+    }
+    return inflight;
+  };
 }
+
+/** 登录状态（是否登录、用户 id、会话令牌）。并发中的重复问句合并成一次。 */
+export const getSession = coalesce(() => sendToBackground({ type: 'MOOC_SESSION' }));
 
 /** 已保存的课程列表（不联网）。 */
 export function getCourses() {
@@ -68,10 +85,8 @@ export function getTaskState(platformId: string) {
 
 // ---------- 智慧树：按平台专有的载荷各透一条 ----------
 
-/** 智慧树登录态（能否读 platform 数据）。 */
-export function getZhsSession() {
-  return sendToBackground({ type: 'ZHS_SESSION' });
-}
+/** 智慧树登录态（能否读 platform 数据）。并发中的重复问句合并成一次。 */
+export const getZhsSession = coalesce(() => sendToBackground({ type: 'ZHS_SESSION' }));
 
 /** 智慧树已保存的课程列表（不联网）。 */
 export function getZhsCourses() {
