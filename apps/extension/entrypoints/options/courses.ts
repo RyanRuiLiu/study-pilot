@@ -17,8 +17,6 @@ import { errorText, formatTermRange } from '../../src/ui/format.ts';
 import { refreshCourseViews } from './courseware.ts';
 import { loginNote, note, MOOC_LOGIN_URL } from './note.ts';
 import { createRenderScope, isLatest, nextRenderToken } from './render-guard.ts';
-import { skeletonBlock } from './skeleton.ts';
-import { markStatusLineLoading } from './status-line.ts';
 import { toast } from './toast.ts';
 
 type SelectedCourse = Settings['mooc']['courses'][number];
@@ -184,11 +182,6 @@ export function initCourseActions(): void {
   const button = document.getElementById('refresh-courses');
   button?.addEventListener('click', () => {
     if (button instanceof HTMLButtonElement) button.disabled = true;
-    const listEl = document.getElementById('course-list');
-    if (listEl !== null) listEl.replaceChildren(skeletonBlock());
-    const coursewareEl = document.getElementById('courseware-list');
-    if (coursewareEl !== null) coursewareEl.replaceChildren(skeletonBlock());
-    markStatusLineLoading();
     void refreshCourses()
       .then((result) => {
         if (result.ok) {

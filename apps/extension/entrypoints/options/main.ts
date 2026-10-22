@@ -24,8 +24,8 @@ import { renderParams } from './params.ts';
 import { watchRunHint } from './run-hint.ts';
 import { renderStatusLine } from './status-line.ts';
 import { initToast } from './toast.ts';
-import { initZhsCourseActions, renderZhsCourses } from './zhihuishu-courses.ts';
-import { refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
+import { initZhsCourseActions, renderZhsView } from './zhihuishu-courses.ts';
+
 
 
 function init(): void {
@@ -64,8 +64,7 @@ function init(): void {
          * 会话判定与骨架、以及那次读取都收在 refreshZhsTaskViews 一处。
          */
         initZhsCourseActions();
-        void renderZhsCourses();
-        void refreshZhsTaskViews();
+        void renderZhsView();
       }
     },
   });

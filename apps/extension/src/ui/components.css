@@ -499,11 +499,9 @@
 /*
  * 等待＝块状骨架：一个列表一块大块。
  * 不逐列镜像、不画细条、也不摆多块（Ryan 拍板：就一块）。
- * 形状：
- *   .skeleton-block           高 124px——设置页的两种列表（≈三行合计）
- *   .skeleton-block.is-tall   高 96px——弹窗的待办列表（≈两条的高度；
- *                             160 在 320 宽的弹窗里太占屏，Ryan 反馈）
- * 卡头状态行的那条小骨架（.head-status.is-loading）是单行文字位，保持守位。
+ * 形状：**一行文字的高度**（Ryan 定，2026-10-23）——骨架只占住内容将要出现的那一行，
+ * 不预支多行的高度：那会让空列表看起来像已经有内容，也让等待显得更久。
+ * 卡头状态行的那条小骨架（.head-status.is-loading）同样是单行文字位。
  */
 .skeleton {
   border-radius: var(--radius-full);
@@ -514,11 +512,7 @@
 .skeleton-block {
   display: block;
   border-radius: var(--radius-sm);
-  height: 124px;
-}
-
-.skeleton-block.is-tall {
-  height: 96px;
+  height: 1.25em;
 }
 
 /* 弹窗加载态：给单块骨架与待办条同一条左右内边距（16），右距不留档 */

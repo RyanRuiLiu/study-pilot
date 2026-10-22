@@ -21,11 +21,11 @@ import type { ZhihuishuCourse } from '../../src/ui-bridge.ts';
 import { errorText, formatTermRange } from '../../src/ui/format.ts';
 import { ZHS_SESSION_EXPIRED } from '@study-pilot/platform-zhs';
 import { reportPageUrl } from '../../src/adapters/zhihuishu/pages.ts';
-import { markZhsTasksLoading, refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
+import { refreshZhsTaskViews } from './zhihuishu-course-tasks.ts';
 import { loginNote, note, ZHS_LOGIN_URL } from './note.ts';
 import { createRenderScope, isLatest, nextRenderToken } from './render-guard.ts';
-import { markZhsStatusLineLoading } from './zhihuishu-status-line.ts';
-import { skeletonBlock } from './skeleton.ts';
+
+
 import { toast } from './toast.ts';
 
 function buildRow(course: ZhihuishuCourse): HTMLElement {
@@ -107,6 +107,16 @@ export type ZhsCourseListStatus =
 
 const zhsCoursesScope = createRenderScope();
 
+/**
+ * 智慧树 tab 的**唯一落地入口**：账号卡与课程任务区一起渲染。
+ *
+ * 首次加载与点「读取课程列表」走同一个函数——两条路径的差别只剩「有没有先写一次
+ * 配置」，页面上的内容不会再各写一套。
+ */
+export async function renderZhsView(status: ZhsCourseListStatus = null): Promise<void> {
+  await Promise.all([renderZhsCourses(status), refreshZhsTaskViews()]);
+}
+
 export async function renderZhsCourses(status: ZhsCourseListStatus = null): Promise<void> {
   const listEl = document.getElementById('zhs-course-list');
   if (listEl === null) return;
@@ -158,34 +168,28 @@ export async function renderZhsCourses(status: ZhsCourseListStatus = null): Prom
 /**
  * 「读取课程列表」按钮：**把首次加载原样再跑一遍**（与慕课同一条交互标准）。
  *
- * 进入等待：点击那一刻，课程列表、卡头状态行、课程任务卡三块同时换骨架；
- * 落定与首次加载走同一个渲染函数（renderZhsCourses）：成功 → 重新渲染列表；
- * 未登录 / 失效 / 失败 → 只留那行状态，不列课程（与慕课同一条规则）。
- * 不另弹失败 toast：toast 只留动作回执（已读取 N 门）。
+ * 不在点击时预画骨架：会话可能已死，预画的骨架会在结果回来时被整块清掉，
+ * 那正是「点了之后闪一下」。骨架交给各块在**自己的请求进行中**去画
+ * （renderZhsView → refreshZhsTaskViews 里按会话判定后画）。
+ * toast 只留动作回执（已读取 N 门）。
  */
 export function initZhsCourseActions(): void {
   const button = document.getElementById('zhs-refresh-courses');
   button?.addEventListener('click', () => {
     if (button instanceof HTMLButtonElement) button.disabled = true;
-    const listEl = document.getElementById('zhs-course-list');
-    if (listEl !== null) listEl.replaceChildren(skeletonBlock());
-    markZhsTasksLoading();
-    markZhsStatusLineLoading();
     void refreshZhsCourses()
-      .then((result) => {
-        if (result.ok) {
-          toast(`已读取 ${result.courses.length} 门课程`);
-          void renderZhsCourses();
-        } else if (result.reason === 'NOT_LOGGED_IN') {
-          void renderZhsCourses({ kind: 'expired' });
-        } else {
-          void renderZhsCourses({ kind: 'failed', message: result.message ?? result.reason });
-        }
-        void refreshZhsTaskViews();
+      .then(async (result) => {
+        if (result.ok) toast(`已读取 ${result.courses.length} 门课程`);
+        await renderZhsView(
+          result.ok
+            ? null
+            : result.reason === 'NOT_LOGGED_IN'
+              ? { kind: 'expired' }
+              : { kind: 'failed', message: result.message ?? result.reason },
+        );
       })
-      .catch((error: unknown) => {
-        void renderZhsCourses({ kind: 'failed', message: errorText(error) });
-        void refreshZhsTaskViews();
+      .catch(async (error: unknown) => {
+        await renderZhsView({ kind: 'failed', message: errorText(error) });
       })
       .finally(() => {
         if (button instanceof HTMLButtonElement) button.disabled = false;
