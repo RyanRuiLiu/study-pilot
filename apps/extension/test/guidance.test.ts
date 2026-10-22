@@ -361,6 +361,7 @@ describe('净化（富文本当作不可信内容）', () => {
                 '<script>window.__pwned = 1</script>' +
                 '<a href="javascript:window.__pwned=2">点我</a>' +
                 '<img src="https://cdn.example.com/a.png" onerror="window.__pwned=3">' +
+                '<img src="http://cdn.example.com/b.png">' +
                 '<img src="javascript:window.__pwned=4">' +
                 '<object data="https://evil.example.com/swf"></object>' +
                 '<form action="https://evil.example.com"><button>提交</button></form>' +
@@ -399,11 +400,12 @@ describe('净化（富文本当作不可信内容）', () => {
     expect(styled.getAttribute('style')).toBeNull();
     expect(styled.getAttribute('onclick')).toBeNull();
 
-    // 图片：协议合法的留下；javascript: 的 src 去掉，但元素与 alt 还在
+    // 图片：http(s) 留下（http 升为 https，避免混合内容）；javascript: 的 src 去掉
     const images = Array.from(block.querySelectorAll('img'));
-    expect(images).toHaveLength(2);
+    expect(images).toHaveLength(3);
     expect(images[0]?.getAttribute('src')).toBe('https://cdn.example.com/a.png');
-    expect(images[1]?.hasAttribute('src')).toBe(false);
+    expect(images[1]?.getAttribute('src')).toBe('https://cdn.example.com/b.png');
+    expect(images[2]?.hasAttribute('src')).toBe(false);
   });
 });
 

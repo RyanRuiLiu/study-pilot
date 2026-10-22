@@ -33,7 +33,7 @@ const ELEMENT_NODE = 1;
  *   名单外、但文字可读的  → 拆掉元素本身，文字留下（链接、未知标签走这条）
  *   整个丢弃            → 代码与控件类元素连内容一起丢（拿出来的只会是代码）
  *   属性                → 除 img 的四个以外一律剥掉（含 style 与 on*）
- *   URL                 → 只放行显式 https:（公式图都在平台 CDN 上）
+ *   URL                 → 只接受 http(s)，http 升为 https（见 safeUrl）
  */
 
 /** 允许保留的元素。其余元素拆掉留字，或按 DROPPED_TAGS 整体丢弃。 */
@@ -58,10 +58,20 @@ const DROPPED_TAGS = new Set([
   'audio', 'video', 'source', 'track', 'canvas', 'svg', 'math',
 ]);
 
-/** 只放行显式 https:。javascript:、data:、vbscript:、协议相对等一概拒绝。 */
+/**
+ * 图片地址只接受 http(s)，并把 http 升为 https。
+ *
+ * 评分点的图片由平台以 `http://edu-image.nosdn.127.net/...` 下发（2026-10-23
+ * 实测），而页面是 https：只放行 https 会把 src 整个剥掉（图片消失），原样
+ * 保留 http 又会被按混合内容处理。同一 CDN 的 http 与 https 返回同一张图
+ * （实测均 200、内容长度相同），因此升级协议既保留内容又不引入混合内容。
+ * 其余协议（javascript:、data:、协议相对等）仍然拒绝。
+ */
 function safeUrl(raw: string): string | null {
   const value = raw.trim();
-  return /^https:\/\//i.test(value) ? value : null;
+  if (/^https:\/\//i.test(value)) return value;
+  if (/^http:\/\//i.test(value)) return `https://${value.slice('http://'.length)}`;
+  return null;
 }
 
 function sanitizeTree(container: HTMLElement): void {
