@@ -152,9 +152,9 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
         }
 
         /*
-         * 见面课场次（模块 4）：只读 + 提醒。考勤的口径是「看直播/回放满 80%」
-         * （Ryan 2026-10-17 给的学校要求），所以这一格报的是「还有几场没开始」，
-         * 签到开关原样带出、不解释。读不到就如实说，不拿 0 场冒充。
+         * 见面课场次（模块 4）：在线观看型自动上报回放进度（满 80% 计考勤，
+         * 2026-10-23 真机闭环）；现场签到与见面课测验不自动。逐场读观看历史，
+         * 界面才说得出「回放已看 x/y」。读不到就如实说，不拿 0 场冒充。
          */
         let meetSessions: ZhsCourseTask['meetSessions'] = null;
         let meetWatchItemIds: string[] = [];
