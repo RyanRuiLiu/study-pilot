@@ -12,6 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatPosition,
+  meetParamSecret,
   rsaPublicEncrypt,
   buildSeries,
   wrapSignedBody,
@@ -130,5 +131,17 @@ describe('wrapSignedBody', () => {
       wrapSignedBody({ x: 1 }, cKey, { field: 'date', value: 1 }),
     ]);
     expect(a).toBe(b);
+  });
+});
+
+describe('meetParamSecret', () => {
+  /*
+   * 见面课观看进度参数：`1;1001;2;60;2;2001` 逐字符与 `zhihuishu` 循环异或，
+   * 两位小写 hex。期望值按这个定义手算并固定在这里——改 key 或分隔符都会让它红。
+   */
+  it('数组按分号拼接后与 zhihuishu 异或，输出两位小写十六进制', () => {
+    expect(meetParamSecret([1, '1001', 2, 60, 2, '2001'])).toBe(
+      '4b5358584558485a4e4c58525a4e5b435844',
+    );
   });
 });
