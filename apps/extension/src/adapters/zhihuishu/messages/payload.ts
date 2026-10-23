@@ -136,7 +136,7 @@ export interface ZhsCourseTask {
    * 考勤按学校口径是「看直播或回放满 80%」（Ryan 2026-10-17），在线观看型
    * 由执行侧上报观看进度；现场签到型不自动。
    */
-  meetSessions: { total: number; upcoming: number; watchable: number } | null;
+  meetSessions: { total: number; upcoming: number; watchable: number; completed: number | null } | null;
   /** 这一行「执行」要做的见面课观看项 id（在线观看 + 已结束 + 有回放）。 */
   meetWatchItemIds: string[];
   /** 场次没读成的原因（读成了是 null） */

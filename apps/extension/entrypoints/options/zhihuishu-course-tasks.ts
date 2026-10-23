@@ -575,25 +575,37 @@ function meetRow(entry: ZhsCourseTask): HTMLElement {
   const parts: string[] = [];
   const sessions = entry.meetSessions;
   if (sessions !== null) {
-    // 考勤按学校口径是「看直播/回放满 80%」——这一格要说的是「还有几场得去看」
-    parts.push(sessions.total === 0 ? '无场次' : `场次 ${sessions.total}`);
-    if (sessions.upcoming > 0) parts.push(`未开始 ${sessions.upcoming}`);
-    if (sessions.watchable > 0) parts.push(`可观看 ${sessions.watchable}`);
+    if (sessions.total === 0) {
+      parts.push('没有见面课');
+    } else {
+      if (sessions.watchable > 0) {
+        parts.push(
+          sessions.completed === null
+            ? `回放 ${sessions.watchable} 场`
+            : `回放已看 ${sessions.completed}/${sessions.watchable}`,
+        );
+      }
+      if (sessions.upcoming > 0) parts.push(`待直播 ${sessions.upcoming}`);
+      const onsite = sessions.total - sessions.watchable - sessions.upcoming;
+      if (onsite > 0) parts.push(`现场 ${onsite}`);
+    }
   }
   if (unread) parts.push('测验未读取到');
-  else if (entry.meet.total > 0) parts.push(`测验 ${entry.meet.done}/${entry.meet.total}`);
 
   return buildRow(entry, {
     board: ZHS_BOARDS[2].id,
     value: parts.length === 0 ? '没有见面课' : parts.join(' · '),
     valueTitle: unread
       ? `作业清单读取失败：${entry.quizUnreadReason ?? ''}`
-      : '场次来自见面课页自己的接口；测验与单元测试同一份作业清单。考勤＝看直播或回放满 80%（学校口径）',
+      : '回放观看满 80% 计考勤；待直播要开播后才能看；现场签到需本人。见面课测验不自动。',
     href: meetPageUrl(entry.recruitId),
     action: buildRunButton(entry, ZHS_BOARDS[2], {
       ids: entry.meetWatchItemIds,
       empty: entry.meetWatchItemIds.length === 0,
-      emptyTitle: '没有可自动观看的回放场次',
+      emptyTitle:
+        sessions !== null && sessions.watchable > 0 && sessions.completed === sessions.watchable
+          ? '回放都已看完'
+          : '没有可自动观看的回放场次',
       title: '执行：观看这门课可回放的见面课',
     }),
   });

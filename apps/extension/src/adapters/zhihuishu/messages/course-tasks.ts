@@ -24,6 +24,7 @@ import {
   chapterExams,
   getMeetSessions,
   HOMEWORK_STATE,
+  readMeetWatchHistory,
   meetItemId,
   needsWork,
   probeSession,
@@ -77,6 +78,7 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
     };
 
     const session = await readSession(deps.readCookie);
+    const zhsUserId = session.userId;
     if (!session.loggedIn) {
       respond({ status: 'error', message: '未登录', reason: 'NOT_LOGGED_IN' });
       return;
@@ -165,12 +167,34 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
               session.status === 3 &&
               session.replayUrl !== null,
           );
+          /*
+           * 逐场读一次观看历史，界面才能说「已看 x/y」而不是把所有回放都算成可看。
+           * 读不到就 completed=null，按钮保留，由执行侧再判；不拿 0 冒充没看。
+           */
+          let completed: number | null = zhsUserId === null ? null : 0;
+          const pendingIds: string[] = [];
+          for (const session of watchable) {
+            let done = false;
+            if (zhsUserId !== null && session.liveCourseId !== null) {
+              try {
+                const history = await readMeetWatchHistory(deps.client, session.liveCourseId, zhsUserId);
+                done = history.split(',').includes('#');
+              } catch {
+                completed = null;
+              }
+            } else {
+              completed = null;
+            }
+            if (completed !== null && done) completed += 1;
+            if (!done) pendingIds.push(meetItemId(session));
+          }
           meetSessions = {
             total: sessions.length,
             upcoming: sessions.filter((session) => session.status === 1).length,
             watchable: watchable.length,
+            completed,
           };
-          meetWatchItemIds = watchable.map(meetItemId);
+          meetWatchItemIds = pendingIds;
         } catch (error) {
           /*
            * **不置 partial**：场次不参与「待完成」那两个数（它只是提醒），
