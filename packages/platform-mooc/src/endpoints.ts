@@ -114,6 +114,8 @@ export const DWR_ENDPOINTS = {
 export const MOBILE_ENDPOINTS = {
   /** 移动端取卷。参数走查询串：testId / isExercise / aId / withStdAnswerAndAnalyse / mob-token */
   paper: { path: '/mob/course/paperDetail/v1' },
+  /** App 登录后用 ursToken 换 mob-token。参数走表单：ursToken / mob-token / appId */
+  ursLogin: { path: '/mob/ucmooc/0/0/passport/ursCellphoneLogin/v1' },
 } as const;
 
 /** 课程类型。getMyLearnedCoursePanelList 的 courseType 取值。 */

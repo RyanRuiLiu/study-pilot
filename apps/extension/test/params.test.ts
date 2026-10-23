@@ -12,13 +12,20 @@ const bridge = vi.hoisted(() => ({
   getSettings: vi.fn(),
   updateSettings: vi.fn(),
 }));
+const messaging = vi.hoisted(() => ({
+  sendToBackground: vi.fn(),
+}));
 
 vi.mock('../src/ui-bridge.ts', () => bridge);
+vi.mock('../src/messages.ts', () => messaging);
 
 const window = parseHTML(
   '<!doctype html><html><body>' +
     '<input id="review-comment" />' +
     '<input id="mooc-mobile-token" type="password" />' +
+    '<input id="mooc-urs-token" type="password" />' +
+    '<button id="mooc-urs-refresh"></button>' +
+    '<p id="mooc-urs-status"></p>' +
     '<input id="ai-enabled" type="checkbox" />' +
     '<input id="ai-model" />' +
     '<input id="ai-api-key" />' +
@@ -46,7 +53,13 @@ const { renderParams } = await import('../entrypoints/options/params.ts');
 
 const SETTINGS = {
   ai: { enabled: false, model: 'glm-4-flash', apiKey: 'k' },
-  mooc: { reviewComment: '默认评语', mobileToken: '', courses: [], keepOverdueDays: 3 },
+  mooc: {
+    reviewComment: '默认评语',
+    mobileToken: '',
+    mobileUrsToken: '',
+    courses: [],
+    keepOverdueDays: 3,
+  },
 };
 
 function doc(): Document {
@@ -58,6 +71,7 @@ beforeEach(() => {
   const status = doc().getElementById('ai-status');
   if (status) status.textContent = '';
   for (const fn of Object.values(bridge)) fn.mockReset();
+  for (const fn of Object.values(messaging)) fn.mockReset();
   bridge.getSettings.mockResolvedValue(SETTINGS);
   bridge.updateSettings.mockResolvedValue(SETTINGS);
 });
@@ -123,6 +137,21 @@ describe('设置页的写失败', () => {
       expect(doc().getElementById('toast')?.textContent).toContain('移动端凭证已保存'),
     );
     expect(bridge.updateSettings).toHaveBeenCalledWith({ mooc: { mobileToken: '  abc  ' } });
+  });
+
+  it('ursToken 换取成功后写回 mob-token 与输入框', async () => {
+    await renderParams();
+    const urs = doc().getElementById('mooc-urs-token') as unknown as HTMLInputElement;
+    const mob = doc().getElementById('mooc-mobile-token') as unknown as HTMLInputElement;
+    urs.value = 'u';
+    messaging.sendToBackground.mockResolvedValue({ status: 'ok', value: { token: 'new-mobile-token' } });
+    bridge.updateSettings.mockResolvedValue({
+      ...SETTINGS,
+      mooc: { ...SETTINGS.mooc, mobileToken: 'new-mobile-token', mobileUrsToken: 'u' },
+    });
+    (doc().getElementById('mooc-urs-refresh') as unknown as HTMLElement).click();
+    await vi.waitFor(() => expect(mob.value).toBe('new-mobile-token'));
+    expect(messaging.sendToBackground).toHaveBeenCalledWith({ type: 'MOOC_MOBILE_REFRESH', ursToken: 'u' });
   });
 
   it('AI 设置保存失败：状态位说「未能保存 AI 设置」', async () => {

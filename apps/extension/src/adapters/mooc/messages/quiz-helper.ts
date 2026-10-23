@@ -11,7 +11,12 @@
  * 后台发出（两边各写会撞平台的并发限制）。
  */
 
-import { answerAndSubmitQuiz, buildFillIndex, getQuizInfo } from '@study-pilot/platform-mooc';
+import {
+  answerAndSubmitQuiz,
+  buildFillIndex,
+  exchangeUrsTokenForMobToken,
+  getQuizInfo,
+} from '@study-pilot/platform-mooc';
 import type { MessageHandler } from '../../../protocol.ts';
 import type { MoocMessageDeps } from './deps.ts';
 import type { MoocResponseMap } from './payload.ts';
@@ -84,5 +89,26 @@ export function quizSubmitCommand(deps: MoocMessageDeps): MessageHandler {
       status: 'ok',
       value: { matched: outcome.matched, total: outcome.total },
     } satisfies MoocResponseMap['MOOC_QUIZ_SUBMIT']);
+  };
+}
+
+export function mobileRefreshCommand(deps: MoocMessageDeps): MessageHandler {
+  return async (request, sendResponse) => {
+    const { ursToken } = request as { ursToken?: unknown };
+    if (typeof ursToken !== 'string' || ursToken.trim() === '') {
+      sendResponse({ status: 'error', message: '请求缺少 ursToken' } satisfies MoocResponseMap['MOOC_MOBILE_REFRESH']);
+      return;
+    }
+
+    const result = await exchangeUrsTokenForMobToken(deps.client, ursToken);
+    if (!result.ok) {
+      sendResponse({
+        status: 'error',
+        message: `换取 mob-token 失败：${result.error.message}`,
+      } satisfies MoocResponseMap['MOOC_MOBILE_REFRESH']);
+      return;
+    }
+
+    sendResponse({ status: 'ok', value: { token: result.value } } satisfies MoocResponseMap['MOOC_MOBILE_REFRESH']);
   };
 }

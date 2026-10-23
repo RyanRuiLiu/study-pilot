@@ -86,6 +86,15 @@ export interface MoocSettings {
    */
   mobileToken: string;
   /**
+   * App 登录后得到的 43 位 `ursToken`（可重复换取 mob-token）。
+   *
+   * 与 `mobileToken` 分开存：`ursToken` 是登录凭证，`mobileToken` 是它换来的
+   * 384 位会话 token。设置页的「换取 token」按钮用前者调
+   * `passport/ursCellphoneLogin/v1`，成功后写回后者；前者也留在本机，便于
+   * token 过期后再点一次，不必重新抓手机。
+   */
+  mobileUrsToken: string;
+  /**
    * 已过截止的事项在待办里保留几天。
    *
    * 过期项的作用是让用户知道自己漏了什么，说一次就够。挂太久会攒出
@@ -101,5 +110,6 @@ export const DEFAULT_MOOC: MoocSettings = {
   courses: [],
   reviewComment: '非常棒，继续努力！',
   mobileToken: '',
+  mobileUrsToken: '',
   keepOverdueDays: 3,
 };

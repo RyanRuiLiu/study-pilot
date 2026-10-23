@@ -129,6 +129,21 @@
             只用于读取测验官方答案，保存在本机，不写日志、不交给 AI。留空即关闭。
             过期后从已登录的手机 App 重新抓一次。
           </p>
+
+          <label class="field">
+            <input
+              id="mooc-urs-token"
+              type="password"
+              aria-label="慕课 ursToken"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="可选：43 位 ursToken（App 登录抓包）"
+            />
+          </label>
+          <button id="mooc-urs-refresh" class="btn ghost" type="button">
+            用 ursToken 换取 mob-token
+          </button>
+          <p class="note" id="mooc-urs-status"></p>
         </section>
       </section>
 

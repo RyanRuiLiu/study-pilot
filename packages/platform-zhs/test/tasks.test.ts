@@ -11,7 +11,7 @@ import type { CookieReader } from '../src/session.ts';
 const SETTINGS: Settings = {
   version: 8,
   ai: { enabled: false, model: '', apiKey: '' },
-  mooc: { courses: [], reviewComment: 'x', mobileToken: '', keepOverdueDays: 3 },
+  mooc: { courses: [], reviewComment: 'x', mobileToken: '', mobileUrsToken: '', keepOverdueDays: 3 },
   zhihuishu: {
     courses: [
       {

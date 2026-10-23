@@ -15,7 +15,12 @@ import { coursewareSummaryCommand } from './courseware-summary.ts';
 import { coursesCommand } from './courses.ts';
 import { homeworkPaperCommand } from './homework-paper.ts';
 import { pendingCommand } from './pending.ts';
-import { quizFillIndexCommand, quizInfoCommand, quizSubmitCommand } from './quiz-helper.ts';
+import {
+  mobileRefreshCommand,
+  quizFillIndexCommand,
+  quizInfoCommand,
+  quizSubmitCommand,
+} from './quiz-helper.ts';
 import { refreshCoursesCommand } from './refresh-courses.ts';
 import { sessionCommand } from './session.ts';
 
@@ -31,5 +36,6 @@ export function moocHandlers(deps: MoocMessageDeps): MessageHandlers {
     MOOC_QUIZ_FILL_INDEX: quizFillIndexCommand(deps),
     MOOC_QUIZ_INFO: quizInfoCommand(deps),
     MOOC_QUIZ_SUBMIT: quizSubmitCommand(deps),
+    MOOC_MOBILE_REFRESH: mobileRefreshCommand(deps),
   } satisfies { [K in keyof MoocResponseMap]: MessageHandler };
 }

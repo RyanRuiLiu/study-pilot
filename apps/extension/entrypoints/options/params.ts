@@ -13,6 +13,7 @@
 import { testAiConnection } from '../../src/ai/index.ts';
 import { hasAiHostPermission } from '../../src/ai/permission.ts';
 import { getSettings, updateSettings } from '../../src/ui-bridge.ts';
+import { sendToBackground } from '../../src/messages.ts';
 import { errorText } from '../../src/ui/format.ts';
 import { toast } from './toast.ts';
 
@@ -23,6 +24,13 @@ function input(id: string): HTMLInputElement | null {
 
 function setStatus(text: string, isError: boolean): void {
   const el = document.getElementById('ai-status');
+  if (el === null) return;
+  el.textContent = text;
+  el.classList.toggle('is-error', isError);
+}
+
+function setUrsStatus(text: string, isError: boolean): void {
+  const el = document.getElementById('mooc-urs-status');
   if (el === null) return;
   el.textContent = text;
   el.classList.toggle('is-error', isError);
@@ -44,12 +52,16 @@ export async function renderParams(): Promise<void> {
 
   const comment = input('review-comment');
   const mobileToken = input('mooc-mobile-token');
+  const ursToken = input('mooc-urs-token');
+  const ursRefresh = document.getElementById('mooc-urs-refresh');
   const enabled = input('ai-enabled');
   const model = input('ai-model');
   const apiKey = input('ai-api-key');
   if (
     comment === null ||
     mobileToken === null ||
+    ursToken === null ||
+    ursRefresh === null ||
     enabled === null ||
     model === null ||
     apiKey === null
@@ -59,6 +71,7 @@ export async function renderParams(): Promise<void> {
 
   comment.value = settings.mooc.reviewComment;
   mobileToken.value = settings.mooc.mobileToken;
+  ursToken.value = settings.mooc.mobileUrsToken;
   enabled.checked = settings.ai.enabled;
   model.value = settings.ai.model;
   apiKey.value = settings.ai.apiKey;
@@ -98,6 +111,41 @@ export async function renderParams(): Promise<void> {
       .catch((error: unknown) => {
         toast(`未能保存移动端凭证：${errorText(error)}`);
       });
+  });
+
+  /* 43 位 ursToken 单独保存；刷新按钮用它换 384 位 mob-token。 */
+  ursToken.addEventListener('change', () => {
+    const sent = ursToken.value.trim();
+    void updateSettings({ mooc: { mobileUrsToken: sent } })
+      .then(() => toast(sent === '' ? '已清除 ursToken' : 'ursToken 已保存'))
+      .catch((error: unknown) => {
+        toast(`未能保存 ursToken：${errorText(error)}`);
+      });
+  });
+
+  ursRefresh.addEventListener('click', () => {
+    void (async () => {
+      const sent = ursToken.value.trim();
+      if (sent === '') {
+        setUrsStatus('请先粘贴 App 登录得到的 43 位 ursToken', true);
+        return;
+      }
+      setUrsStatus('正在换取 mob-token…', false);
+      try {
+        await updateSettings({ mooc: { mobileUrsToken: sent } });
+        const result = await sendToBackground({ type: 'MOOC_MOBILE_REFRESH', ursToken: sent });
+        if (result.status !== 'ok') {
+          setUrsStatus(`换取失败：${result.message}`, true);
+          return;
+        }
+        const next = await updateSettings({ mooc: { mobileToken: result.value.token } });
+        if (mobileToken.value !== next.mooc.mobileToken) mobileToken.value = next.mooc.mobileToken;
+        setUrsStatus(`已换取并保存 mob-token（${next.mooc.mobileToken.length} 位）`, false);
+        toast('移动端凭证已更新');
+      } catch (error) {
+        setUrsStatus(`换取失败：${errorText(error)}`, true);
+      }
+    })();
   });
 
   /** 保存 AI 三项；失败写进状态位并返回 null（调用方据此中止后续动作）。 */
