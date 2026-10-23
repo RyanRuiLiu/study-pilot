@@ -32,7 +32,7 @@ function paper(overrides: Partial<QuizPaper> = {}): QuizPaper {
 /** 记录请求；getOpenQuizPaperDto 回给定卷面，paperDetail 回移动端卷面，其余回成功。 */
 function clientStub(options: {
   paper: QuizPaper | null;
-  mobileToken?: string;
+  mobToken?: string;
   mobilePaper?: QuizPaper;
   submitFails?: boolean;
 }) {
@@ -45,6 +45,12 @@ function clientStub(options: {
       const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
       calls.push({ url: String(url), path, bean, body });
 
+      if (path.includes('/passport/reg/getMobToken.do')) {
+        return new Response(
+          JSON.stringify({ code: 0, message: 'ok', result: options.mobToken ?? '' }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
       if (path.includes('/mob/course/paperDetail/v1')) {
         return new Response(
           JSON.stringify({
@@ -74,7 +80,6 @@ function clientStub(options: {
     getToken: () => TOKEN,
     md5: md5hex,
     minGapMs: 0,
-    getMobileToken: async () => options.mobileToken ?? '',
   });
   return {
     client,
@@ -102,7 +107,7 @@ describe('answerAndSubmitQuiz', () => {
         aid: 42,
         objectiveQList: [{ id: 11, type: 1, optionDtos: [{ id: 101 }, { id: 102 }] }],
       }),
-      mobileToken: 'mobile-token',
+      mobToken: 'a'.repeat(320),
       mobilePaper: {
         tid: TID,
         aid: 42,

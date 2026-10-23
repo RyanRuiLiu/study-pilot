@@ -80,7 +80,7 @@ describe('版本 4 → 5 的设置迁移', () => {
     expect('enabled' in settings).toBe(false);
     expect('schedule' in settings).toBe(false);
     expect('background' in settings.mooc).toBe(false);
-    expect(Object.keys(settings.mooc).sort()).toEqual(['courses', 'keepOverdueDays', 'mobileToken', 'mobileUrsToken', 'reviewComment']);
+    expect(Object.keys(settings.mooc).sort()).toEqual(['courses', 'keepOverdueDays', 'reviewComment']);
   });
 
   it('评语缺失时退回默认那句（与 normalize 的兜底一致）', () => {

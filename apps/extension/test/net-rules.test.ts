@@ -27,7 +27,7 @@ interface Rule {
 let stored: Rule[] = [];
 
 const ORIGIN = 'https://www.icourse163.org';
-const SETS = [{ origin: ORIGIN, paths: ['/web/j/', '/dwr/', '/mob/'] }];
+const SETS = [{ origin: ORIGIN, paths: ['/web/j/', '/dwr/', '/mob/', '/passport/'] }];
 
 function stubDeclarativeNetRequest(): void {
   const dnr = {
@@ -71,11 +71,12 @@ describe('请求头规则安装', () => {
 
     await whenReady(SETS);
 
-    expect(stored.map((rule) => rule.id)).toEqual([1, 2, 3]);
+    expect(stored.map((rule) => rule.id)).toEqual([1, 2, 3, 4]);
     expect(stored.map((rule) => rule.condition.urlFilter)).toEqual([
       'www.icourse163.org/web/j/',
       'www.icourse163.org/dwr/',
       'www.icourse163.org/mob/',
+      'www.icourse163.org/passport/',
     ]);
   });
 
@@ -83,13 +84,13 @@ describe('请求头规则安装', () => {
     stored = [];
     const first = await loadFresh();
     await first(SETS);
-    expect(stored).toHaveLength(3);
+    expect(stored).toHaveLength(4);
 
     // 内存状态清空、浏览器侧规则还在——这就是重启后的局面
     const restarted = await loadFresh();
 
     await expect(restarted(SETS)).resolves.toBeUndefined();
-    expect(stored.map((rule) => rule.id)).toEqual([1, 2, 3]);
+    expect(stored.map((rule) => rule.id)).toEqual([1, 2, 3, 4]);
   });
 
   it('规则多于两条时全部清干净再装，不留旧的', async () => {
@@ -105,6 +106,7 @@ describe('请求头规则安装', () => {
       'www.icourse163.org/web/j/',
       'www.icourse163.org/dwr/',
       'www.icourse163.org/mob/',
+      'www.icourse163.org/passport/',
     ]);
   });
 });

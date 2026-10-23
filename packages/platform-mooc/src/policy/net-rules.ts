@@ -22,5 +22,5 @@ import { MOOC_ORIGIN } from '../client.ts';
 import type { NetRuleSet } from '@study-pilot/application';
 
 export const MOOC_REQUEST_RULES: NetRuleSet[] = [
-  { origin: MOOC_ORIGIN, paths: ['/web/j/', '/dwr/', '/mob/'] },
+  { origin: MOOC_ORIGIN, paths: ['/web/j/', '/dwr/', '/mob/', '/passport/'] },
 ];

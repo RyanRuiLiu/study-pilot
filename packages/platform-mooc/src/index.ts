@@ -17,7 +17,6 @@ export {
   MOOC_LOGIN_URL,
   MOOC_ORIGIN,
   BROWSER_USER_AGENT,
-  type MobileTokenProvider,
   type MoocClient,
   type MoocClientOptions,
 } from './client.ts';
@@ -78,7 +77,7 @@ export {
   type FillAnswers,
 } from './quiz.ts';
 
-export { getMobileQuizPaper, exchangeUrsTokenForMobToken, fetchMobToken, MOBILE_APP_ID } from './mobile-paper.ts';
+export { getMobileQuizPaper, fetchMobToken } from './mobile-paper.ts';
 
 /*
  * 策略层：慕课自己的判断与流程（会话、读取、计划、执行）。

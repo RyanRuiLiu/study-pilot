@@ -24,6 +24,9 @@ describe('移动端答案源接入', () => {
         if (path.includes('getOpenQuizInfo')) {
           return json({ code: 0, message: '', result: { tid: TID, aid: 42 } });
         }
+        if (path.includes('/passport/reg/getMobToken.do')) {
+          return json({ code: 0, message: 'ok', result: 'a'.repeat(320) });
+        }
         if (path.includes('paperDetail')) {
           return json({
             status: { code: 0, message: '' },
@@ -44,7 +47,6 @@ describe('移动端答案源接入', () => {
       getToken: () => 'web-token',
       md5: md5hex,
       minGapMs: 0,
-      getMobileToken: async () => 'mobile-token',
     });
 
     const result = await buildFillIndex(client, TID, TERM_ID);

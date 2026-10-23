@@ -53,22 +53,12 @@ export interface MoocClientOptions {
   origin?: string;
   /** 出站请求最小间隔。只有测试才需要改它 */
   minGapMs?: number;
-  /**
-   * 移动端凭证提供者。没有配置时返回空串；配置读失败也按空串处理，
-   * 由调用方回退到网页取卷，不让一个可选能力挡住原有路径。
-   */
-  getMobileToken?: MobileTokenProvider;
 }
-
-/** 读移动端 `mob-token` 的唯一入口。 */
-export type MobileTokenProvider = () => Promise<string>;
 
 export interface MoocClient {
   rpc: RpcClient;
   dwr: DwrClient;
   origin: string;
-  /** 移动端凭证提供者；未配置时为 undefined */
-  getMobileToken?: MobileTokenProvider;
   /**
    * 本客户端用的出站环境（载体的 fetch，扩展那边还包着「等规则生效 + 回绝重发」）。
    *
@@ -97,7 +87,6 @@ export function createMoocClient(options: MoocClientOptions): MoocClient {
   return {
     origin,
     send: options.fetch,
-    ...(options.getMobileToken !== undefined ? { getMobileToken: options.getMobileToken } : {}),
     /*
      * auth 类失败统一换成平台那句话再交出去。
      *

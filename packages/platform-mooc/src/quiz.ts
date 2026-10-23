@@ -86,23 +86,12 @@ export async function getQuizPaper(
 }
 
 /**
- * 读移动端凭证。没配、读失败都按空串处理——移动端答案源是可选的，
- * 不能因为它挡住原有的网页路径。
+ * 读移动端凭证：只认当前网页登录会话。
+ *
+ * 用户在官网登录后，扩展 GET `getMobToken.do` 取 320 位 token；
+ * 没有网页登录就返回空串，由调用方如实提示去登录。
  */
 async function mobileTokenOf(client: MoocClient): Promise<string> {
-  if (client.getMobileToken !== undefined) {
-    try {
-      const configured = (await client.getMobileToken()).trim();
-      if (configured !== '') return configured;
-    } catch {
-      // 配置读失败时继续尝试网页会话
-    }
-  }
-
-  /*
-   * 没有保存的 token 时，直接读网页登录会话换一个。用户只需要在官网页面上
-   * 登录（和平时用网站一样），不需要任何手动 token 步骤。
-   */
   const fetched = await fetchMobToken(client);
   return fetched.ok ? fetched.value : '';
 }

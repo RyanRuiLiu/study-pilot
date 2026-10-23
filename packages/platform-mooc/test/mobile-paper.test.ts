@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '../src/client.ts';
-import {
-  exchangeUrsTokenForMobToken,
-  fetchMobToken,
-  getMobileQuizPaper,
-  MOBILE_APP_ID,
-} from '../src/mobile-paper.ts';
+import { fetchMobToken, getMobileQuizPaper } from '../src/mobile-paper.ts';
 import type { QuizPaper } from '../src/types.ts';
 
 const TID = 900000001;
@@ -17,7 +12,6 @@ function clientWith(fetchImpl: (url: string, init?: RequestInit) => Promise<Resp
     getToken: () => 'web-token',
     md5: md5hex,
     minGapMs: 0,
-    getMobileToken: async () => 'mobile-token',
   });
 }
 
@@ -99,49 +93,6 @@ describe('getMobileQuizPaper', () => {
     expect(called).toBe(0);
   });
 });
-
-describe('exchangeUrsTokenForMobToken', () => {
-  it('用 ursToken + 固定 appId 换取 384 位 mob-token', async () => {
-    let called = '';
-    let body = '';
-    const client = clientWith(async (url, init) => {
-      called = String(url);
-      body = String(init?.body ?? '');
-      return new Response(
-        JSON.stringify({ code: 0, message: '请求成功', results: { mobToken: 'x'.repeat(384) } }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      );
-    });
-
-    const result = await exchangeUrsTokenForMobToken(client, 'urs-token');
-
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toHaveLength(384);
-    expect(new URL(called).pathname).toBe('/mob/ucmooc/0/0/passport/ursCellphoneLogin/v1');
-    const params = new URLSearchParams(body);
-    expect(params.get('ursToken')).toBe('urs-token');
-    expect(params.get('appId')).toBe(MOBILE_APP_ID);
-  });
-
-  it('业务码非 0 返回 api 错误，不泄露 ursToken', async () => {
-    const client = clientWith(
-      async () =>
-        new Response(JSON.stringify({ code: 100, message: '账号或者密码错误' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-    );
-
-    const result = await exchangeUrsTokenForMobToken(client, 'secret-urs-token');
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.kind).toBe('api');
-      expect(result.error.message).not.toContain('secret-urs-token');
-    }
-  });
-});
-
 
 describe('fetchMobToken', () => {
   it('用网页会话 GET getMobToken.do，返回 320 位 token', async () => {

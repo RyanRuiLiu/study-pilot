@@ -294,9 +294,6 @@ export function normalize(raw: Json): Settings {
       ...merged.mooc,
       courses: sanitizeMoocCourses(merged.mooc.courses),
       reviewComment: comment.trim() || DEFAULT_MOOC.reviewComment,
-      // 凭证只做 trim；空串是合法状态（未启用移动端答案源）
-      mobileToken: merged.mooc.mobileToken.trim(),
-      mobileUrsToken: merged.mooc.mobileUrsToken.trim(),
     },
     zhihuishu: {
       ...merged.zhihuishu,

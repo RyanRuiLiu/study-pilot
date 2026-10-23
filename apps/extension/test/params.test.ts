@@ -47,8 +47,6 @@ const SETTINGS = {
   ai: { enabled: false, model: 'glm-4-flash', apiKey: 'k' },
   mooc: {
     reviewComment: '默认评语',
-    mobileToken: '',
-    mobileUrsToken: '',
     courses: [],
     keepOverdueDays: 3,
   },

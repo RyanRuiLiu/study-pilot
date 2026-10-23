@@ -74,27 +74,6 @@ export interface MoocSettings {
    */
   reviewComment: string;
   /**
-   * 手机 App 的移动端凭证（`mob-token`）。为空表示不启用移动端答案源。
-   *
-   * 只存在本机配置里，不写日志、不交给 AI、不由扩展上传。它只用于调用
-   * `POST /mob/course/paperDetail/v1` 读取当前答卷的官方答案：
-   * 平台对进行中的单元测验不给答案，网页取卷返回 null，而同一份答卷
-   * 用移动端接口（带 mob-token）会下发 `optionDtos[].answer`。
-   *
-   * 获取方式：在已登录的中国大学 MOOC App 里抓一个带 `mob-token` 的请求，
-   * 粘贴到这里。过期后重新抓一次即可；扩展不做账号密码登录。
-   */
-  mobileToken: string;
-  /**
-   * App 登录后得到的 43 位 `ursToken`（可重复换取 mob-token）。
-   *
-   * 与 `mobileToken` 分开存：`ursToken` 是登录凭证，`mobileToken` 是它换来的
-   * 384 位会话 token。设置页的「换取 token」按钮用前者调
-   * `passport/ursCellphoneLogin/v1`，成功后写回后者；前者也留在本机，便于
-   * token 过期后再点一次，不必重新抓手机。
-   */
-  mobileUrsToken: string;
-  /**
    * 已过截止的事项在待办里保留几天。
    *
    * 过期项的作用是让用户知道自己漏了什么，说一次就够。挂太久会攒出
@@ -109,7 +88,5 @@ export interface MoocSettings {
 export const DEFAULT_MOOC: MoocSettings = {
   courses: [],
   reviewComment: '非常棒，继续努力！',
-  mobileToken: '',
-  mobileUrsToken: '',
   keepOverdueDays: 3,
 };
