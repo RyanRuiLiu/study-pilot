@@ -591,6 +591,7 @@ function meetRow(entry: ZhsCourseTask): HTMLElement {
     }
   }
   if (unread) parts.push('测验未读取到');
+  else if (entry.meet.total > 0) parts.push(`测验 ${entry.meet.done}/${entry.meet.total}`);
 
   return buildRow(entry, {
     board: ZHS_BOARDS[2].id,

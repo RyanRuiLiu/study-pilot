@@ -182,6 +182,68 @@ describe('同名课程的两行', () => {
     for (const el of visible) expect(el.textContent).toContain('第三章单元测试');
   });
 
+  it('见面课行按「回放 / 待直播 / 测验」分开说，回放看完时执行禁用', async () => {
+    bridge.getZhsCourseTasks.mockResolvedValueOnce({
+      status: 'ok',
+      value: {
+        courses: [
+          {
+            ...course(1),
+            meet: { done: 0, total: 2 },
+            meetSessions: { total: 4, upcoming: 2, watchable: 2, completed: 2 },
+            meetWatchItemIds: [],
+          },
+        ],
+        pendingTotal: 3,
+      },
+    });
+
+    await renderZhsCourseTasks();
+
+    const document = (globalThis as unknown as { document: Document }).document;
+    const text = document.getElementById('zhs-tasks-list')?.textContent ?? '';
+    expect(text).toContain('回放已看 2/2');
+    expect(text).toContain('待直播 2');
+    expect(text).toContain('测验 0/2');
+
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+      (candidate) => candidate.dataset.board === 'meet',
+    );
+    expect(button?.disabled).toBe(true);
+    expect(button?.title).toBe('回放都已看完');
+  });
+
+  it('有没看完的回放：执行只发这些场次的条目 id', async () => {
+    bridge.getZhsCourseTasks.mockResolvedValueOnce({
+      status: 'ok',
+      value: {
+        courses: [
+          {
+            ...course(1),
+            meet: { done: 2, total: 3 },
+            meetSessions: { total: 3, upcoming: 0, watchable: 3, completed: 2 },
+            meetWatchItemIds: ['zhs-meet-9'],
+          },
+        ],
+        pendingTotal: 1,
+      },
+    });
+
+    await renderZhsCourseTasks();
+
+    const document = (globalThis as unknown as { document: Document }).document;
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+      (candidate) => candidate.dataset.board === 'meet',
+    );
+    expect(button?.disabled).toBe(false);
+    button?.dispatchEvent(new window.Event('click', { bubbles: true }));
+    expect(bridge.runNow.mock.calls[0]?.[1]).toEqual({
+      platformId: 'zhihuishu',
+      group: '同名课程',
+      ids: ['zhs-meet-9'],
+    });
+  });
+
   it('没有单元测试的课：禁用按钮并说「没有」，不说「都交了且满分」', async () => {
     bridge.getZhsCourseTasks.mockResolvedValueOnce({
       status: 'ok',
