@@ -17,6 +17,7 @@ export {
   MOOC_LOGIN_URL,
   MOOC_ORIGIN,
   BROWSER_USER_AGENT,
+  type MobileTokenProvider,
   type MoocClient,
   type MoocClientOptions,
 } from './client.ts';
@@ -24,6 +25,7 @@ export {
 export {
   ENDPOINTS,
   DWR_ENDPOINTS,
+  MOBILE_ENDPOINTS,
   COURSE_TYPE,
   type CourseType,
   type Endpoint,
@@ -60,6 +62,7 @@ export {
 
 export {
   getQuizInfo,
+  getOpenQuizInfo,
   getQuizPaper,
   buildAnswers,
   buildAnswersWithBank,
@@ -68,6 +71,7 @@ export {
   answerAndSubmitQuiz,
   buildFillIndex,
   resolveAnswers,
+  mergeMobileAnswers,
   paperHasAllAnswers,
   firstFillAnswer,
   saveDraft,
@@ -77,6 +81,8 @@ export {
   type AnswerIndex,
   type FillAnswers,
 } from './quiz.ts';
+
+export { getMobileQuizPaper } from './mobile-paper.ts';
 
 /*
  * 策略层：慕课自己的判断与流程（会话、读取、计划、执行）。

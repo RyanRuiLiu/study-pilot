@@ -222,6 +222,7 @@
 | packages/platform-mooc/src/homework-read.ts | 已读 |
 | packages/platform-mooc/src/index.ts | 已读 |
 | packages/platform-mooc/src/ids.ts | 已读 |
+| packages/platform-mooc/src/mobile-paper.ts | 已读 |
 | packages/platform-mooc/src/paper-types.ts | 已读 |
 | packages/platform-mooc/src/policy/assembly.ts | 已读 |
 | packages/platform-mooc/src/policy/course-selection.ts | 已读 |
@@ -256,6 +257,8 @@
 | packages/platform-mooc/test/execute-work.test.ts | 已读 |
 | packages/platform-mooc/test/headless.test.ts | 已读 |
 | packages/platform-mooc/test/inspect-auth.test.ts | 已读 |
+| packages/platform-mooc/test/mobile-fill.test.ts | 已读 |
+| packages/platform-mooc/test/mobile-paper.test.ts | 已读 |
 | packages/platform-mooc/test/mooc-tasks.test.ts | 已读 |
 | packages/platform-mooc/test/origin-retry.test.ts | 已读 |
 | packages/platform-mooc/test/session-cookie.test.ts | 已读 |

@@ -7,7 +7,12 @@
  */
 
 import { md5hex } from '@study-pilot/core';
-import { createMoocClient, type MoocClient, type MoocClientOptions } from '../client.ts';
+import {
+  createMoocClient,
+  type MobileTokenProvider,
+  type MoocClient,
+  type MoocClientOptions,
+} from '../client.ts';
 import { COURSE_TYPE } from '../endpoints.ts';
 import { getCourses } from '../courses.ts';
 import type { CourseSummary } from '../types.ts';
@@ -70,6 +75,7 @@ function isBusinessSuccess(text: string): boolean {
 export function createPlatformClient(
   host: HostCapabilities,
   carrierFetch?: MoocClientOptions['fetch'],
+  getMobileToken?: MobileTokenProvider,
 ): PlatformClient {
   // 不把全局 fetch 拆出来直接调用（浏览器里那是 Illegal invocation），包一层再交出去
   const send: MoocClientOptions['fetch'] = carrierFetch ?? ((input, init) => fetch(input, init));
@@ -102,6 +108,7 @@ export function createPlatformClient(
     fetch: sendWithRules,
     getToken: () => readToken(host),
     md5: md5hex,
+    ...(getMobileToken !== undefined ? { getMobileToken } : {}),
   });
 
   /*

@@ -43,14 +43,22 @@ export async function renderParams(): Promise<void> {
   }
 
   const comment = input('review-comment');
+  const mobileToken = input('mooc-mobile-token');
   const enabled = input('ai-enabled');
   const model = input('ai-model');
   const apiKey = input('ai-api-key');
-  if (comment === null || enabled === null || model === null || apiKey === null) {
+  if (
+    comment === null ||
+    mobileToken === null ||
+    enabled === null ||
+    model === null ||
+    apiKey === null
+  ) {
     return;
   }
 
   comment.value = settings.mooc.reviewComment;
+  mobileToken.value = settings.mooc.mobileToken;
   enabled.checked = settings.ai.enabled;
   model.value = settings.ai.model;
   apiKey.value = settings.ai.apiKey;
@@ -73,6 +81,22 @@ export async function renderParams(): Promise<void> {
       .catch((error: unknown) => {
         // 写不进去就说一句：输入框里的字不等于已保存
         toast(`未能保存评语：${errorText(error)}`);
+      });
+  });
+
+  /*
+   * 移动端凭证：和评语一样在 change 时保存，避免把输入到一半的串写进配置。
+   * 留空合法（关闭移动端答案源），normalize 只做 trim。
+   */
+  mobileToken.addEventListener('change', () => {
+    const sent = mobileToken.value;
+    void updateSettings({ mooc: { mobileToken: sent } })
+      .then((next) => {
+        if (mobileToken.value === sent) mobileToken.value = next.mooc.mobileToken;
+        toast(sent.trim() === '' ? '已关闭移动端答案源' : '移动端凭证已保存');
+      })
+      .catch((error: unknown) => {
+        toast(`未能保存移动端凭证：${errorText(error)}`);
       });
   });
 

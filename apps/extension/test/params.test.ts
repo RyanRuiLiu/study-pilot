@@ -18,6 +18,7 @@ vi.mock('../src/ui-bridge.ts', () => bridge);
 const window = parseHTML(
   '<!doctype html><html><body>' +
     '<input id="review-comment" />' +
+    '<input id="mooc-mobile-token" type="password" />' +
     '<input id="ai-enabled" type="checkbox" />' +
     '<input id="ai-model" />' +
     '<input id="ai-api-key" />' +
@@ -45,7 +46,7 @@ const { renderParams } = await import('../entrypoints/options/params.ts');
 
 const SETTINGS = {
   ai: { enabled: false, model: 'glm-4-flash', apiKey: 'k' },
-  mooc: { reviewComment: '默认评语', courses: [], keepOverdueDays: 3 },
+  mooc: { reviewComment: '默认评语', mobileToken: '', courses: [], keepOverdueDays: 3 },
 };
 
 function doc(): Document {
@@ -111,6 +112,17 @@ describe('设置页的写失败', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(model.value).toBe('second');
+  });
+
+  it('移动端凭证保存：写进 mooc.mobileToken，并提示已保存', async () => {
+    await renderParams();
+    const token = doc().getElementById('mooc-mobile-token') as unknown as HTMLInputElement;
+    token.value = '  abc  ';
+    token.dispatchEvent(new window.Event('change'));
+    await vi.waitFor(() =>
+      expect(doc().getElementById('toast')?.textContent).toContain('移动端凭证已保存'),
+    );
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ mooc: { mobileToken: '  abc  ' } });
   });
 
   it('AI 设置保存失败：状态位说「未能保存 AI 设置」', async () => {

@@ -113,6 +113,12 @@ export const DWR_ENDPOINTS = {
   submitEvaluate: { bean: 'MocEvaluateBean', method: 'submitSubmissionEvaluate' },
 } as const satisfies Record<string, Endpoint>;
 
+/** 移动端接口（不是 `.rpc`，走 App 的 `/mob/course/*` 路径）。 */
+export const MOBILE_ENDPOINTS = {
+  /** 移动端取卷。参数走查询串：testId / isExercise / aId / withStdAnswerAndAnalyse / mob-token */
+  paper: { path: '/mob/course/paperDetail/v1' },
+} as const;
+
 /** 课程类型。getMyLearnedCoursePanelList 的 courseType 取值。 */
 export const COURSE_TYPE = {
   MOOC: 1,

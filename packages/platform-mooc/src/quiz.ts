@@ -33,6 +33,7 @@ import { err, ok, type Result } from '@study-pilot/core';
 import { apiError, type TransportError } from '@study-pilot/transport';
 import { callRead, type MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
+import { getMobileQuizPaper } from './mobile-paper.ts';
 import type { PaperAnswer, PaperQuestion, QuizInfo, QuizPaper } from './types.ts';
 
 // ---------- 取数 ----------
@@ -42,6 +43,22 @@ export async function getQuizInfo(
   tid: number,
 ): Promise<Result<QuizInfo, TransportError>> {
   return callRead<QuizInfo>(client, ENDPOINTS.quizInfo.bean, ENDPOINTS.quizInfo.method, {
+    tid,
+    targetAid: null,
+    isDraft: false,
+  });
+}
+
+/**
+ * 取测验的开考信息。页面进入做题页时调用的就是这个接口，
+ * 响应顶层的 `aid` 才是当前活跃答卷；`getQuizInfo` 顶层的 aid 在
+ * 进行中卷上可能为 0（2026-10-23 实测）。
+ */
+export async function getOpenQuizInfo(
+  client: MoocClient,
+  tid: number,
+): Promise<Result<QuizInfo, TransportError>> {
+  return callRead<QuizInfo>(client, ENDPOINTS.openQuizInfo.bean, ENDPOINTS.openQuizInfo.method, {
     tid,
     targetAid: null,
     isDraft: false,
@@ -67,6 +84,49 @@ export async function getQuizPaper(
     tid,
     aid,
     withStdAnswerAndAnalyse: true,
+  });
+}
+
+/**
+ * 读移动端凭证。没配、读失败都按空串处理——移动端答案源是可选的，
+ * 不能因为它挡住原有的网页路径。
+ */
+async function mobileTokenOf(client: MoocClient): Promise<string> {
+  if (client.getMobileToken === undefined) return '';
+  try {
+    return (await client.getMobileToken()).trim();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * 把移动端卷面上的答案标记并回网页卷面。
+ *
+ * 两边是同一份答卷、同一批 qid/选项 id；按 id 对齐，不按题号或题干。
+ * 只抄答案字段，提交用的 `answers`、`submitType` 等仍以网页卷面为准。
+ */
+export function mergeMobileAnswers(target: QuizPaper, mobile: QuizPaper): void {
+  const byQid = new Map<number, PaperQuestion>();
+  for (const question of mobile.objectiveQList ?? []) byQid.set(question.id, question);
+
+  target.objectiveQList = (target.objectiveQList ?? []).map((question) => {
+    const source = byQid.get(question.id);
+    if (source === undefined) return question;
+    const sourceOptions = new Map(
+      (source.optionDtos ?? []).map((option) => [String(option.id), option.answer]),
+    );
+    return {
+      ...question,
+      stdAnswer: source.stdAnswer ?? question.stdAnswer,
+      optionDtos: (question.optionDtos ?? []).map((option) => {
+        const mark = sourceOptions.get(String(option.id));
+        // 移动端没给这道选项的标记时保留原样，不能把它清成 null
+        return mark === undefined || mark === null
+          ? option
+          : { ...option, answer: mark };
+      }),
+    };
   });
 }
 
@@ -314,28 +374,7 @@ export interface FillAnswers {
   blanks: Array<string | null>;
 }
 
-export async function buildFillIndex(
-  client: MoocClient,
-  tid: number,
-  termId: number,
-): Promise<Result<FillAnswers, TransportError>> {
-  const info = await getQuizInfo(client, tid);
-  if (!info.ok) return info;
-
-  const aid = aidOf(info.value);
-  if (aid === null) return err(apiError(-1, '没有正在作答的卷，页面上没有可作答的题目'));
-
-  const paper = await getQuizPaper(client, tid, aid);
-  if (!paper.ok) return paper;
-
-  const shown = paper.value.objectiveQList ?? [];
-  let resolved = shown;
-  if (!paperHasAllAnswers(shown)) {
-    const bank = await getQuizBank(client, termId);
-    if (!bank.ok) return bank;
-    resolved = resolveAnswers(shown, bank.value, tid);
-  }
-
+function fillFromQuestions(resolved: PaperQuestion[]): FillAnswers {
   const options = new Map<string, boolean>();
   for (const question of resolved) {
     for (const option of question.optionDtos ?? []) {
@@ -352,7 +391,58 @@ export async function buildFillIndex(
       return answer === '' ? null : answer;
     });
 
-  return ok({ options, blanks });
+  return { options, blanks };
+}
+
+export async function buildFillIndex(
+  client: MoocClient,
+  tid: number,
+  termId: number,
+): Promise<Result<FillAnswers, TransportError>> {
+  /*
+   * 开考信息优先用 getOpenQuizInfo：进行中的卷在 getQuizInfo 顶层可能报 aid=0，
+   * 拿它去取卷会以为「没有正在作答的卷」。两个接口都读不到时才如实失败。
+   */
+  const open = await getOpenQuizInfo(client, tid);
+  const info = open.ok ? open : await getQuizInfo(client, tid);
+  if (!info.ok) return info;
+
+  const aid = aidOf(info.value);
+  if (aid === null) return err(apiError(-1, '没有正在作答的卷，页面上没有可作答的题目'));
+
+  /*
+   * 有 mob-token 时先走移动端：进行中的单元测验，网页取卷不给答案，
+   * 移动端对同一 aid 会下发官方答案（2026-10-23 实测）。移动端失败不阻断，
+   * 继续走网页/题库；最后仍取不到时把移动端的失败原因一并说出来。
+   */
+  const token = await mobileTokenOf(client);
+  let mobileFailure: string | null = null;
+  if (token !== '') {
+    const mobile = await getMobileQuizPaper(client, token, tid, aid);
+    if (mobile.ok) {
+      const questions = mobile.value.objectiveQList ?? [];
+      if (questions.length > 0 && paperHasAllAnswers(questions)) return ok(fillFromQuestions(questions));
+    } else {
+      mobileFailure = mobile.error.message;
+    }
+  }
+
+  const paper = await getQuizPaper(client, tid, aid);
+  if (!paper.ok) return paper;
+
+  const shown = paper.value.objectiveQList ?? [];
+  let resolved = shown;
+  if (!paperHasAllAnswers(shown)) {
+    const bank = await getQuizBank(client, termId);
+    if (!bank.ok) {
+      return mobileFailure === null
+        ? bank
+        : err(apiError(-1, `移动端取答案失败：${mobileFailure}；网页题库也失败：${bank.error.message}`));
+    }
+    resolved = resolveAnswers(shown, bank.value, tid);
+  }
+
+  return ok(fillFromQuestions(resolved));
 }
 
 // ---------- 作答并提交（唯一实现） ----------
@@ -395,6 +485,17 @@ export async function answerAndSubmitQuiz(
 ): Promise<QuizSubmitOutcome> {
   const paper = await getQuizPaper(client, tid, 0);
   if (!paper.ok) return { status: 'failed', message: `取卷失败：${paper.error.message}` };
+
+  /*
+   * 进行中的单元测验：网页卷面没有答案，移动端对同一 aid 有。
+   * 只读指定 aid，绝不拿 0 调移动端；失败就回退到原有的题库路径。
+   */
+  const token = await mobileTokenOf(client);
+  const mobileAid = typeof paper.value.aid === 'number' ? paper.value.aid : 0;
+  if (token !== '' && mobileAid > 0) {
+    const mobile = await getMobileQuizPaper(client, token, tid, mobileAid);
+    if (mobile.ok) mergeMobileAnswers(paper.value, mobile.value);
+  }
 
   const subjective = (paper.value.subjectiveQList ?? []).length;
   if (subjective > 0) {

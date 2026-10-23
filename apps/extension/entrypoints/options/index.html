@@ -108,6 +108,28 @@
           </label>
           <p class="note">平台要求评语非空；留空将退回默认评语（见输入框中的值）。</p>
         </section>
+
+        <!--
+          移动端答案源：平台对进行中的单元测验不在网页下发答案，
+          官方 App 的同一份答卷接口会下发。凭证只存本机，留空即关闭。
+        -->
+        <section class="panel">
+          <h2 class="panel-title">移动端答案源</h2>
+          <label class="field">
+            <input
+              id="mooc-mobile-token"
+              type="password"
+              aria-label="慕课移动端 mob-token"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="可选：粘贴手机 App 抓到的 mob-token"
+            />
+          </label>
+          <p class="note">
+            只用于读取测验官方答案，保存在本机，不写日志、不交给 AI。留空即关闭。
+            过期后从已登录的手机 App 重新抓一次。
+          </p>
+        </section>
       </section>
 
       <!--
