@@ -133,7 +133,11 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
            * 对不上就不排（那条数字卷号与神谕入参都拿不到）。`cpOrderNumber` 只是章节名，
            * 用来给人看的，不参与匹配。
            */
-          const chapterByListId = new Map(chapterExams(chapters).map((exam) => [exam.listId, exam]));
+          const chapterList = chapterExams(chapters);
+          const chapterByListId = new Map(chapterList.map((exam) => [exam.listId, exam]));
+          const chapterOrder = new Map(chapterList.map((exam, index) => [exam.listId, index]));
+          /** 本课的测验项：先收齐再按章节自然序排，避免后面的未做项插到前面低分卷之前 */
+          const quizItems: PlanItem[] = [];
           const pendingPage = await getExamList(deps.client, {
             recruitId: course.recruitId,
             courseId: course.courseId,
@@ -158,7 +162,7 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
           const pushQuiz = (item: ZhsExamListItem, totalScore: number | null, enter: ExamEnter): void => {
             const chapter = chapterByListId.get(item.id);
             if (chapter === undefined) return; // 对不上章节就不做（拿不到数字卷号，神谕也用不了）
-            items.push({
+            quizItems.push({
               id: quizItemId(item),
               group: course.name,
               title: item.examName,
@@ -188,6 +192,13 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
             if (item.score === null || item.totalScore === null || item.score >= item.totalScore) continue;
             pushQuiz(item, item.totalScore, 'submitted');
           }
+          quizItems.sort((left, right) => {
+            const leftOrder = chapterOrder.get((left.payload as QuizPayload).item.id) ?? Number.MAX_SAFE_INTEGER;
+            const rightOrder = chapterOrder.get((right.payload as QuizPayload).item.id) ?? Number.MAX_SAFE_INTEGER;
+            if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+            return left.title.localeCompare(right.title, 'zh-CN');
+          });
+          items.push(...quizItems);
         }
       } catch (error) {
         // 登录失效是账号级的事实：整份计划作废，按未登录交回去（与慕课 plan 同一形状）
