@@ -69,11 +69,29 @@ export interface AppResponseMap extends ShellResponseMap, MoocResponseMap, ZhsRe
 
 type RequestOf<K extends AppRequest['type']> = Extract<AppRequest, { type: K }>;
 
+/**
+ * 重载/更新扩展后，旧页面里的内容脚本会失去后台连接。Chrome 抛出的原文
+ * 是「Extension context invalidated」，对用户没有可执行的下一步；换一句
+ * 明确要求刷新页面，其他异常照原样上抛。
+ */
+function isExtensionContextInvalidated(error: unknown): boolean {
+  const text = error instanceof Error ? error.message : String(error);
+  return text.includes('Extension context invalidated') || text.includes('message port closed');
+}
+
 /** 向后台发送请求。返回类型由 type 推导，调用方不需要类型断言。 */
 export async function sendToBackground<K extends AppRequest['type']>(
   request: RequestOf<K>,
 ): Promise<AppResponseMap[K]> {
-  const response = (await browser.runtime.sendMessage(request)) as AppResponseMap[K] | undefined;
+  let response: AppResponseMap[K] | undefined;
+  try {
+    response = (await browser.runtime.sendMessage(request)) as AppResponseMap[K] | undefined;
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      throw new Error('扩展已更新，请刷新当前页面后再试');
+    }
+    throw error;
+  }
   if (response === undefined) {
     throw new Error(`后台未处理该请求：${request.type}`);
   }
