@@ -118,6 +118,66 @@ describe('plan', () => {
     expect(await tasks.plan(0)).toEqual({ items: [], needsLogin: true });
   });
 
+  it('低分的早章节重做排在后面的未做章节之前（章节自然序）', async () => {
+    const route = (listId: string, examKey: string): string =>
+      `https://onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/checkHomework/470001/${listId}/${examKey}/1000009999/5067`;
+    const chapters = {
+      data: {
+        videoChapterDtos: [
+          {
+            id: 1,
+            name: '第五章',
+            videoLessons: [{ id: 51, name: '第五章视频', videoId: 551, videoSec: 10, videoSmallLessons: null }],
+            studentExamDto: { id: 805, exam: { id: 905 }, examUrl: route('list5', 'key5') },
+          },
+          {
+            id: 2,
+            name: '第六章',
+            videoLessons: [{ id: 61, name: '第六章视频', videoId: 661, videoSec: 10, videoSmallLessons: null }],
+            studentExamDto: { id: 806, exam: { id: 906 }, examUrl: route('list6', 'key6') },
+          },
+        ],
+      },
+    };
+    const doneInfo = { data: { lesson: { '51': { watchState: 1 }, '61': { watchState: 1 } }, lv: {} } };
+    const tasks = createZhsTasks({
+      config,
+      client: fakeClient({
+        videoList: () => chapters,
+        studyInfo: () => doneInfo,
+        examHomeworkList: (payload) =>
+          payload?.flag === 1
+            ? {
+                rt: {
+                  studentHomeworkList: [
+                    { id: 'list6', examId: 'key6', examName: '第六章', meetCourseType: 0, state: 1 },
+                  ],
+                },
+              }
+            : {
+                rt: {
+                  studentHomeworkList: [
+                    {
+                      id: 'list5',
+                      examId: 'key5',
+                      examName: '第五章',
+                      meetCourseType: 0,
+                      state: 4,
+                      score: '10',
+                      totalScore: '100',
+                    },
+                  ],
+                },
+              },
+      }),
+      readCookie: readCookieLoggedIn,
+    });
+
+    const plan = await tasks.plan(0);
+    const ids = plan.items.map((item) => item.id);
+    expect(ids).toEqual(['zhs-quiz-list5', 'zhs-quiz-list6']);
+  });
+
   it('只把未完成的单元排进队列，项的形状固定', async () => {
     const tasks = createZhsTasks({
       config,
