@@ -17,7 +17,7 @@ export interface FillAnswers {
 }
 
 /**
- * 答案来自后台的 buildFillIndex（与提交同一份 resolveAnswers）。
+ * 答案来自后台的 buildFillIndex（与提交同一份移动端/卷面答案）。
  *
  * 取数失败时把原因原样交回（例如平台限流）：由面板如实显示，
  * **不在这里吞成「空答案」**——那会把限流说成「没有答案」。

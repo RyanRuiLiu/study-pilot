@@ -31,7 +31,7 @@ const BUTTON_FONT = TOKENS.textSm;
 const LABEL_TOTAL_SCORE = '总分：';
 
 export interface QuizHelperOptions {
-  /** 课程学期 id。为 null 时无法读取题库 */
+  /** 课程学期 id。为 null 时无法读取答案 */
   termId: number | null;
   /** 当前测验的 tid */
   quizId: number;

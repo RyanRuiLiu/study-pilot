@@ -154,7 +154,7 @@ export interface CourseUnit {
   unitId: number;
   /** 资源 id。视频是视频 id，文档是文档 id */
   contentId: number;
-  /** 所属学期。取题库等按学期维度的数据要用它 */
+  /** 所属学期。按学期维度的读取要用它 */
   termId: number;
   /** 所属课时 id */
   lessonId: number;

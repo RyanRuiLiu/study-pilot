@@ -80,12 +80,10 @@ function fail(message: string): { ok: false; error: TransportError } {
 }
 
 /**
- * 平台接口的替身不碰凭证。只有题库（getQuizBank）会经 client.rpc 真发请求——
- * 它是 buildAnswersWithBank 内部直接调用的模块函数，替身模块换不掉，只能从这里给。
- * 默认空题库：「卷面没答案、题库也没有 → 不交」是下面几条失败用例的前提。
+ * 平台接口的替身不碰凭证。答案只来自卷面/移动端，不再经 client.rpc 读题库；
+ * 空卷 + 无答案的失败用例仍从这里走。
  */
-let bank: unknown[] = [];
-const client = { rpc: { call: async () => ok(bank) } } as unknown as MoocClient;
+const client = { rpc: { call: async () => ok(null) } } as unknown as MoocClient;
 
 function snapshotWork(overrides: Partial<SnapshotWork> = {}): SnapshotWork {
   return {
@@ -198,7 +196,6 @@ function nextOf(
 
 beforeEach(() => {
   vi.resetAllMocks();
-  bank = [];
 });
 
 // ---------- 测验 ----------

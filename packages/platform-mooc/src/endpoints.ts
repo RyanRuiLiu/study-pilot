@@ -42,9 +42,6 @@ export const ENDPOINTS = {
    */
   openQuizInfo: { bean: 'mocQuizRpcBean', method: 'getOpenQuizInfo' }, // [已实测]
 
-  /** 整门课题库（含答案）。参数 {termId} */
-  quizBank: { bean: 'mocQuizRpcBean', method: 'getQuestionListByTermId' }, // [已实测]
-
   /** 取测验试卷。参数 {tid, aid, withStdAnswerAndAnalyse} */
   quizPaper: { bean: 'mocQuizRpcBean', method: 'getOpenQuizPaperDto' }, // [有样本]
 

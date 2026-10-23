@@ -66,7 +66,7 @@ export const QUESTION_TYPE = {
 
 /**
  * 试卷选项。取卷带 `withStdAnswerAndAnalyse: true` 时 `answer` 就是正确性标记
- * （2026-10-17 实测多门课；与旧题库口径抽样核对 14/14 吻合）。
+ * （2026-10-17 实测多门课）。
  */
 export interface PaperOption {
   id: number | string;
@@ -75,7 +75,7 @@ export interface PaperOption {
   [key: string]: unknown;
 }
 
-/** 试卷题目。注意它的 `id` 与题库题目的 `id` **不属于同一空间**。 */
+/** 试卷题目。题目 id 与选项 id **不属于同一空间**。 */
 export interface PaperQuestion {
   id: number;
   type?: number;

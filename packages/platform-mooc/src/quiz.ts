@@ -6,16 +6,14 @@
  * 1. 取卷 `getQuizPaper(tid, aid = 0)`。`aid` 传 0 时服务端会创建答题表单并返回真实 aid；
  *    真实提交要传 `getOpenQuizInfo` 顶层的 aid。取卷**带 `withStdAnswerAndAnalyse: true`**
  *    ——在该模式下答案随卷面一起下发（见下）。
- * 2. **答案来源分两道门**（2026-10-17 实测，同门课对照）：
+ * 2. **答案来源**（2026-10-23 起）：
  *      · **随堂测验**（课件里的练习）：卷面自带答案——
  *        选择类看 `optionDtos[].answer === true`，填空类看 `stdAnswer`（如「时间」）；
- *      · **单元测验**（测验与作业里的计分测验）：提交前平台一份答案都不给，
- *        此时用**整门课题库**按题型各自的键补齐（选择类按选项 id、填空类按同卷题号，
- *        见下方「题库」一段）。
- *    旧做法（拿题库建全局选项索引、按题干/选项跨源匹配）已退役，但
- *    `getQuestionListByTermId` 这条接口**没有**退役——它就是单元测验的题库来源；
- *    两类测验各需要其中一道门，谁也不能少。两条来源都取不到的题
- *    **如实计为取不到答案**，不猜、不用题干文本匹配（Ryan：禁止不确定的匹配）。
+ *      · **单元测验**（测验与作业里的计分测验）：网页在提交前一份答案都不给；
+ *        用移动端 `paperDetail/v1` + 用户配置的 `mob-token` 读同一 aId，平台会下发
+ *        官方答案（2026-10-23 实测 5/5）。
+ *    没有 `mob-token`、或移动端取不到答案时**如实失败**，不再调用已下线的
+ *    `getQuestionListByTermId`（实测 -1004）。不猜、不用题干文本匹配。
  * 3. `answers` 形状（客户端源码 + 真机提交回读双重取证，2026-10-17）：
  *    选择类 `[{ qid, type, optIds: [选项 id…], time }]`；
  *    填空类 `[{ qid, type, optIds: null, content: { content: '标准答案', attachments: null }, time }]`。
@@ -130,77 +128,8 @@ export function mergeMobileAnswers(target: QuizPaper, mobile: QuizPaper): void {
   });
 }
 
-// ---------- 题库（未提交的卷的答案来源） ----------
-
-/**
- * 整门课的题库（每题带选项与正确性）。参数 `{termId}`。
- *
- * 为什么留着它：平台对答案分两道门（2026-10-17 实测，同门课对照）——
- *   · **随堂测验**（课件里的练习）：未作答的卷也随卷下发答案；
- *   · **单元测验**（测验与作业里的计分测验）：提交前一份答案都不给
- *     （进行中的卷 submitStatus=1，withStdAnswerAndAnalyse=true 也只回 null；
- *     现开一份新卷同样为 null）。
- * 题库与作答状态无关，是单元测验在提交前的答案来源。两边的**选项 id 属于同一
- * 空间**（全站唯一，实测题库里能查到卷面每个选项的 id），因此按选项 id 查即可，
- * 不需要题干匹配，也不受富文本与选项乱序影响。
- *
- * 覆盖不到的地方如实承认：题库里没有的新题、以及以图片为内容的选项（答案是
- * 选项字母，不是文字）。
- */
-export async function getQuizBank(
-  client: MoocClient,
-  termId: number,
-): Promise<Result<PaperQuestion[], TransportError>> {
-  const payload = await callRead<PaperQuestion[]>(
-    client,
-    ENDPOINTS.quizBank.bean,
-    ENDPOINTS.quizBank.method,
-    { termId },
-  );
-  if (!payload.ok) return payload;
-  // code=0 但回的不是数组（实测少见）：如实失败，不拿它去迭代
-  if (!Array.isArray(payload.value)) return err(apiError(-1, '题库返回的形状不是题目列表'));
-  return ok(payload.value);
-}
-
 /** 选项 id → 是否为正确答案。 */
 export type AnswerIndex = Map<string, boolean>;
-
-/*
- * 卷面 + 题库 → 带答案的题（**唯一实现**）
- * -----------------------------------------
- * 填充（做题助手）与提交（一键执行、面板的提交按钮）都从这里取答案，
- * 不允许在别处再写一套补缺——两处曾经各写一遍，一道题在两处会得到不同的答案。
- *
- * 规则只有一条：**卷面自带的答案是权威**（本次作答的事实）；卷面没带的
- * （未提交的单元测验，平台在提交前不给），用题库按**该题型自己的键**补齐：
- *
- *   选择类 / 判断题 —— 选项 id。选项 id 全站唯一，题库与卷面同一空间
- *     （实测：本卷 9 道选择/判断全部命中，且命中的题库题 testId 都等于本卷）。
- *   填空类 —— **同卷题号**。填空题没有选项，选项 id 这条键用不上；题库题的
- *     `testId` 是它归属的那份卷、`position` 是该卷内的题号，实测与本卷题
- *     一一对应（军事理论第二章单元测验 12/12，含 3 道填空题的 stdAnswer）。
- *     **不需要、也不允许用题干文本去匹配**（Ryan 定）。
- *
- * 两条键都取不到的题保持没有答案，由调用方如实处理（提交时计入 unresolved，不猜）。
- */
-
-/**
- * 填空题标准答案里表示「多个可接受答案」的分隔符。
- *
- * 名字与值都取自平台源码（pub/s/core.js:18961、rc/main/assets 分块:1843）：
- *   FILL_BLANK_SPLITCHAR: "##%_YZPRLFH_%##"
- *   FILL_BLANK_SPLITCHARREG: /(##%_YZPRLFH_%##)/g
- *   展示时 C = f.stdAnswer?.split(s.FILL_BLANK_SPLITCHAR) || [];
- *         N = C.length ? C.join("或") : f.stdAnswer;   // 「马其诺或马奇诺」
- * 即：这是「同义答案」，学生填其中任一个都算对；提交取第一个。
- */
-const FILL_BLANK_SPLITCHAR = '##%_YZPRLFH_%##';
-
-/** 取填空题标准答案里的第一个可接受答案（平台展示为「甲或乙」时取「甲」）。 */
-export function firstFillAnswer(stdAnswer: string): string {
-  return stdAnswer.split(FILL_BLANK_SPLITCHAR)[0]?.trim() ?? '';
-}
 
 /** 这道题有没有答案（正确选项标记，或标准答案文本）。 */
 export function hasAnswer(question: PaperQuestion): boolean {
@@ -208,62 +137,7 @@ export function hasAnswer(question: PaperQuestion): boolean {
   return typeof question.stdAnswer === 'string' && question.stdAnswer.trim() !== '';
 }
 
-/**
- * 把题库的答案并进卷面（**唯一实现**；规则见本段文件头）。
- *
- * 索引建一次（选项 id → 题；「同卷题号」→ 题），再逐题查——题库最大见过
- * 一千三百多题，逐题全表扫是 O(n×m)。
- * 卷面已带答案的题原样保留；没带的按题型各自的键到题库取；再取不到就不给。
- * 返回新对象，不改服务端响应。
- */
-export function resolveAnswers(
-  questions: PaperQuestion[],
-  bank: PaperQuestion[],
-  tid: number,
-): PaperQuestion[] {
-  const byOptionId = new Map<string, PaperQuestion>();
-  const bySameTestPosition = new Map<number, PaperQuestion>();
-  for (const entry of bank) {
-    for (const option of entry.optionDtos ?? []) byOptionId.set(String(option.id), entry);
-    if (entry.testId === tid && typeof entry.position === 'number') {
-      bySameTestPosition.set(entry.position, entry);
-    }
-  }
-
-  return questions.map((question) => {
-    if (hasAnswer(question)) return question;
-
-    const options = question.optionDtos ?? [];
-
-    // 填空类：按「同卷题号」取库中题的 stdAnswer（填空题没有选项，选项 id 这条键用不上）
-    if (options.length === 0) {
-      if (typeof question.position !== 'number') return question;
-      const fromBank = bySameTestPosition.get(question.position);
-      const answer = typeof fromBank?.stdAnswer === 'string' ? firstFillAnswer(fromBank.stdAnswer) : '';
-      return answer === '' ? question : { ...question, stdAnswer: answer };
-    }
-
-    // 选择类 / 判断题：按选项 id 找库中同题，再把标记逐一抄到卷面选项上
-    const fromBank = options
-      .map((option) => byOptionId.get(String(option.id)))
-      .find((entry) => entry !== undefined);
-    if (fromBank === undefined) return question;
-
-    const marks = new Map(
-      (fromBank.optionDtos ?? []).map((option) => [String(option.id), option.answer ?? null]),
-    );
-    if (!options.some((option) => marks.has(String(option.id)))) return question;
-    return {
-      ...question,
-      optionDtos: options.map((option) => ({
-        ...option,
-        answer: marks.get(String(option.id)) ?? null,
-      })),
-    };
-  });
-}
-
-/** 整卷是否都已经有答案（都齐了就不必读题库）。 */
+/** 整卷是否都已经有答案。 */
 export function paperHasAllAnswers(questions: PaperQuestion[]): boolean {
   return questions.every((question) => hasAnswer(question));
 }
@@ -329,27 +203,6 @@ export function buildAnswers(paper: QuizPaper, options: BuildAnswersOptions = {}
   return { matched: answers.length, total: questions.length, unresolved };
 }
 
-/**
- * 构造提交用的答案：先把答案并齐（resolveAnswers，唯一实现），再按卷面构造提交载荷。
- *
- * 随堂测验的卷面自带答案，这一步不会读题库；单元测验的卷面不带，读题库按题型
- * 各自的键补齐。补完仍缺的题如实计入 unresolved——调用方据此不提交，不猜。
- */
-export async function buildAnswersWithBank(
-  client: MoocClient,
-  termId: number,
-  paper: QuizPaper,
-  now: number = Date.now(),
-): Promise<Result<BuildAnswersResult, TransportError>> {
-  const questions = paper.objectiveQList ?? [];
-  if (!paperHasAllAnswers(questions)) {
-    const bank = await getQuizBank(client, termId);
-    if (!bank.ok) return bank;
-    paper.objectiveQList = resolveAnswers(questions, bank.value, paper.tid);
-  }
-  return ok(buildAnswers(paper, { now }));
-}
-
 /** 响应顶层的 aid（当前活跃答卷）。0 或缺失表示没有。 */
 function aidOf(value: unknown): number | null {
   const aid = (value as { aid?: unknown } | null | undefined)?.aid;
@@ -364,9 +217,9 @@ function aidOf(value: unknown): number | null {
  *   blanks  —— 填空题的答案文本，**按题目在卷面中的显示顺序**（页面是 contenteditable，
  *              没有 id 可查，按显示顺序对；平台的渲染顺序就是卷面数组的顺序）。
  *
- * 答案来自 resolveAnswers——与提交**同一份实现**，不在这里另写一套补缺。
+ * 答案来自移动端卷面；没有 token 时只认网页卷面自带的答案。
  *
- * 只读：当前卷取 getQuizInfo 顶层的 aid（页面正在做的那份）。**绝不 aid = 0**——
+ * 只读：当前卷取 getOpenQuizInfo 顶层的 aid（页面正在做的那份）。**绝不 aid = 0**——
  * 那会在服务端新建一份答题表单，等价于点「开始测验」。
  */
 export interface FillAnswers {
@@ -397,7 +250,7 @@ function fillFromQuestions(resolved: PaperQuestion[]): FillAnswers {
 export async function buildFillIndex(
   client: MoocClient,
   tid: number,
-  termId: number,
+  _termId: number,
 ): Promise<Result<FillAnswers, TransportError>> {
   /*
    * 开考信息优先用 getOpenQuizInfo：进行中的卷在 getQuizInfo 顶层可能报 aid=0，
@@ -412,8 +265,7 @@ export async function buildFillIndex(
 
   /*
    * 有 mob-token 时先走移动端：进行中的单元测验，网页取卷不给答案，
-   * 移动端对同一 aid 会下发官方答案（2026-10-23 实测）。移动端失败不阻断，
-   * 继续走网页/题库；最后仍取不到时把移动端的失败原因一并说出来。
+   * 移动端对同一 aid 会下发官方答案（2026-10-23 实测）。
    */
   const token = await mobileTokenOf(client);
   let mobileFailure: string | null = null;
@@ -421,7 +273,8 @@ export async function buildFillIndex(
     const mobile = await getMobileQuizPaper(client, token, tid, aid);
     if (mobile.ok) {
       const questions = mobile.value.objectiveQList ?? [];
-      if (questions.length > 0 && paperHasAllAnswers(questions)) return ok(fillFromQuestions(questions));
+      if (questions.length > 0) return ok(fillFromQuestions(questions));
+      mobileFailure = '移动端返回了空卷';
     } else {
       mobileFailure = mobile.error.message;
     }
@@ -431,18 +284,20 @@ export async function buildFillIndex(
   if (!paper.ok) return paper;
 
   const shown = paper.value.objectiveQList ?? [];
-  let resolved = shown;
-  if (!paperHasAllAnswers(shown)) {
-    const bank = await getQuizBank(client, termId);
-    if (!bank.ok) {
-      return mobileFailure === null
-        ? bank
-        : err(apiError(-1, `移动端取答案失败：${mobileFailure}；网页题库也失败：${bank.error.message}`));
-    }
-    resolved = resolveAnswers(shown, bank.value, tid);
-  }
+  if (paperHasAllAnswers(shown)) return ok(fillFromQuestions(shown));
 
-  return ok(fillFromQuestions(resolved));
+  /*
+   * 网页卷面没有答案，旧题库接口已下线（getQuestionListByTermId → -1004）。
+   * 不再调用它兜底；把真正可执行的下一步说清楚。
+   */
+  return err(
+    apiError(
+      -1,
+      token === ''
+        ? '这份进行中的测验需要移动端 mob-token；网页题库接口已下线。请在设置页填入 mob-token 后重试。'
+        : `移动端取答案失败：${mobileFailure ?? '未返回答案'}；网页题库接口已下线，没有可用的兜底来源。`,
+    ),
+  );
 }
 
 // ---------- 作答并提交（唯一实现） ----------
@@ -474,13 +329,13 @@ export interface QuizSubmitHooks {
  * 不允许在别处再写一份（两处的判据——主观题守卫、取不到答案不交——必须一致）。
  *
  * 步骤：取卷（`aid = 0`；已有进行中的答卷时返回的就是那一份）→ 含主观题不交
- * （只交客观部分=残缺答卷）→ 组答案（卷面自带优先，缺的用题库按选项 id 补）→
- * 有题取不到答案就**一道都不交**（部分作答会拿到低于预期的分数）→ 提交。
+ * （只交客观部分=残缺答卷）→ 组答案（卷面自带优先，缺的用移动端同一 aid 的官方
+ * 答案补）→ 有题取不到答案就**一道都不交**（部分作答会拿到低于预期的分数）→ 提交。
  */
 export async function answerAndSubmitQuiz(
   client: MoocClient,
   tid: number,
-  termId: number,
+  _termId: number,
   hooks: QuizSubmitHooks = {},
 ): Promise<QuizSubmitOutcome> {
   const paper = await getQuizPaper(client, tid, 0);
@@ -488,13 +343,15 @@ export async function answerAndSubmitQuiz(
 
   /*
    * 进行中的单元测验：网页卷面没有答案，移动端对同一 aid 有。
-   * 只读指定 aid，绝不拿 0 调移动端；失败就回退到原有的题库路径。
+   * 只读指定 aid，绝不拿 0 调移动端；失败时如实报错，不再回退到已下线的题库。
    */
   const token = await mobileTokenOf(client);
+  let mobileFailure: string | null = null;
   const mobileAid = typeof paper.value.aid === 'number' ? paper.value.aid : 0;
   if (token !== '' && mobileAid > 0) {
     const mobile = await getMobileQuizPaper(client, token, tid, mobileAid);
     if (mobile.ok) mergeMobileAnswers(paper.value, mobile.value);
+    else mobileFailure = mobile.error.message;
   }
 
   const subjective = (paper.value.subjectiveQList ?? []).length;
@@ -502,15 +359,17 @@ export async function answerAndSubmitQuiz(
     return { status: 'failed', message: `这份测验含 ${subjective} 道主观题，需人工作答，不自动提交` };
   }
 
-  const builtResult = await buildAnswersWithBank(client, termId, paper.value);
-  if (!builtResult.ok) return { status: 'failed', message: `取答案失败：${builtResult.error.message}` };
-  const built = builtResult.value;
+  const built = buildAnswers(paper.value);
 
   if (built.total === 0) return { status: 'no-objective' };
   if (built.unresolved.length > 0) {
+    const hint =
+      token === ''
+        ? '未配置移动端 mob-token；网页题库接口已下线，无法补齐这份进行中的测验'
+        : `移动端取答案失败：${mobileFailure ?? '未返回答案'}；网页题库接口已下线`;
     return {
       status: 'failed',
-      message: `${built.unresolved.length} 道题取不到答案（卷面既无正确选项标记、也无标准答案），已跳过以免得到低分`,
+      message: `${built.unresolved.length} 道题取不到答案（${hint}），已跳过以免得到低分`,
     };
   }
 

@@ -29,24 +29,33 @@ function paper(overrides: Partial<QuizPaper> = {}): QuizPaper {
   };
 }
 
-/** 记录请求；getOpenQuizPaperDto 回给定卷面，getQuestionListByTermId 回给定题库，其余回成功。 */
-function clientStub(options: { paper: QuizPaper | null; bank?: unknown[]; submitFails?: boolean }) {
-  const calls: Array<{ bean: string; body: Record<string, unknown> }> = [];
+/** 记录请求；getOpenQuizPaperDto 回给定卷面，paperDetail 回移动端卷面，其余回成功。 */
+function clientStub(options: {
+  paper: QuizPaper | null;
+  mobileToken?: string;
+  mobilePaper?: QuizPaper;
+  submitFails?: boolean;
+}) {
+  const calls: Array<{ url: string; path: string; bean: string; body: Record<string, unknown> }> = [];
   const client = createMoocClient({
     fetch: (async (url: string, init?: RequestInit) => {
-      const path = new URL(url).pathname;
+      const parsed = new URL(url);
+      const path = parsed.pathname;
       const bean = path.split('/').pop() ?? '';
       const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
-      calls.push({ bean, body });
+      calls.push({ url: String(url), path, bean, body });
 
+      if (path.includes('/mob/course/paperDetail/v1')) {
+        return new Response(
+          JSON.stringify({
+            status: { code: 0, message: '' },
+            results: { mocPaperDto: options.mobilePaper ?? null },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
       if (bean.includes('getOpenQuizPaperDto')) {
         return new Response(JSON.stringify({ code: 0, message: '', result: options.paper }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }
-      if (bean.includes('getQuestionListByTermId')) {
-        return new Response(JSON.stringify({ code: 0, message: '', result: options.bank ?? [] }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         });
@@ -65,11 +74,14 @@ function clientStub(options: { paper: QuizPaper | null; bank?: unknown[]; submit
     getToken: () => TOKEN,
     md5: md5hex,
     minGapMs: 0,
+    getMobileToken: async () => options.mobileToken ?? '',
   });
   return {
     client,
     paperCalls: () => calls.filter((c) => c.bean.includes('getOpenQuizPaperDto')),
+    mobileCalls: () => calls.filter((c) => c.path.includes('/mob/course/paperDetail/v1')),
     submitCalls: () => calls.filter((c) => c.bean.includes('submitAnswers')),
+    bankCalls: () => calls.filter((c) => c.path.includes('getQuestionListByTermId')),
   };
 }
 
@@ -84,17 +96,25 @@ describe('answerAndSubmitQuiz', () => {
     expect(paperCalls()[0]!.body.aid).toBe(0);
   });
 
-  it('卷面没带答案（未提交的单元测验）时用题库按选项 id 补，补到的答案进提交载荷', async () => {
-    const { client, submitCalls } = clientStub({
+  it('卷面没带答案时用移动端同一 aid 的官方答案补齐，补到的答案进提交载荷', async () => {
+    const { client, submitCalls, mobileCalls } = clientStub({
       paper: paper({
+        aid: 42,
         objectiveQList: [{ id: 11, type: 1, optionDtos: [{ id: 101 }, { id: 102 }] }],
       }),
-      bank: [{ id: 9001, type: 1, optionDtos: [{ id: 101, answer: false }, { id: 102, answer: true }] }],
+      mobileToken: 'mobile-token',
+      mobilePaper: {
+        tid: TID,
+        aid: 42,
+        objectiveQList: [{ id: 11, type: 1, optionDtos: [{ id: 101, answer: false }, { id: 102, answer: true }] }],
+      },
     });
 
     const outcome = await answerAndSubmitQuiz(client, TID, TERM_ID);
 
     expect(outcome).toEqual({ status: 'submitted', matched: 1, total: 1 });
+    expect(mobileCalls()).toHaveLength(1);
+    expect(new URL(mobileCalls()[0]!.url).searchParams.get('aId')).toBe('42');
     const paperDto = submitCalls()[0]?.body.paperDto as { answers?: unknown };
     expect(paperDto.answers).toEqual([
       { qid: 11, type: 1, optIds: [102], time: expect.any(Number) },
@@ -113,21 +133,25 @@ describe('answerAndSubmitQuiz', () => {
     expect(submitCalls()).toHaveLength(0);
   });
 
-  it('有题取不到答案（卷面与题库都没有）：一道都不交', async () => {
-    const { client, submitCalls } = clientStub({
+  it('没有 mob-token 且卷面缺答案：一道都不交，并说明不再走旧题库', async () => {
+    const { client, submitCalls, mobileCalls, bankCalls } = clientStub({
       paper: paper({
         objectiveQList: [
           { id: 11, type: 1, optionDtos: [{ id: 101, answer: true }] },
           { id: 12, type: 1, optionDtos: [{ id: 103 }, { id: 104 }] },
         ],
       }),
-      bank: [],
     });
 
     const outcome = await answerAndSubmitQuiz(client, TID, TERM_ID);
 
     expect(outcome.status).toBe('failed');
-    if (outcome.status === 'failed') expect(outcome.message).toContain('1 道题取不到答案');
+    if (outcome.status === 'failed') {
+      expect(outcome.message).toContain('1 道题取不到答案');
+      expect(outcome.message).toContain('mob-token');
+    }
+    expect(mobileCalls()).toHaveLength(0);
+    expect(bankCalls()).toHaveLength(0);
     expect(submitCalls()).toHaveLength(0);
   });
 
