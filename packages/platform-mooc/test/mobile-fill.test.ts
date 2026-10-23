@@ -87,3 +87,49 @@ describe('移动端答案源接入', () => {
     expect(target.submitType).toBe(1);
   });
 });
+
+  it('没有保存 token 时自动用网页会话换取，再读移动端答案', async () => {
+    const calls: string[] = [];
+    const client = createMoocClient({
+      fetch: (async (url: string) => {
+        const path = new URL(url).pathname;
+        calls.push(path);
+        if (path.includes('getOpenQuizInfo')) {
+          return json({ code: 0, message: '', result: { tid: TID, aid: 42 } });
+        }
+        if (path.includes('/passport/reg/getMobToken.do')) {
+          return json({ code: 0, message: 'ok', result: 'a'.repeat(320) });
+        }
+        if (path.includes('paperDetail')) {
+          return json({
+            status: { code: 0, message: '' },
+            results: {
+              mocPaperDto: {
+                tid: TID,
+                aid: 42,
+                objectiveQList: [
+                  { id: 11, type: 1, optionDtos: [{ id: 101, answer: true }, { id: 102, answer: false }] },
+                ],
+              },
+            },
+          });
+        }
+        throw new Error(`unexpected ${path}`);
+      }) as never,
+      getToken: () => 'web-token',
+      md5: md5hex,
+      minGapMs: 0,
+    });
+
+    const result = await buildFillIndex(client, TID, TERM_ID);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.options.get('101')).toBe(true);
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        '/web/j/mocQuizRpcBean.getOpenQuizInfo.rpc',
+        '/passport/reg/getMobToken.do',
+        '/mob/course/paperDetail/v1',
+      ]),
+    );
+  });

@@ -148,7 +148,7 @@ describe('answerAndSubmitQuiz', () => {
     expect(outcome.status).toBe('failed');
     if (outcome.status === 'failed') {
       expect(outcome.message).toContain('1 道题取不到答案');
-      expect(outcome.message).toContain('mob-token');
+      expect(outcome.message).toContain('官网登录');
     }
     expect(mobileCalls()).toHaveLength(0);
     expect(bankCalls()).toHaveLength(0);

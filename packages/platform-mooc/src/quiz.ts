@@ -31,7 +31,7 @@ import { err, ok, type Result } from '@study-pilot/core';
 import { apiError, type TransportError } from '@study-pilot/transport';
 import { callRead, type MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
-import { getMobileQuizPaper } from './mobile-paper.ts';
+import { fetchMobToken, getMobileQuizPaper } from './mobile-paper.ts';
 import type { PaperAnswer, PaperQuestion, QuizInfo, QuizPaper } from './types.ts';
 
 // ---------- 取数 ----------
@@ -90,12 +90,21 @@ export async function getQuizPaper(
  * 不能因为它挡住原有的网页路径。
  */
 async function mobileTokenOf(client: MoocClient): Promise<string> {
-  if (client.getMobileToken === undefined) return '';
-  try {
-    return (await client.getMobileToken()).trim();
-  } catch {
-    return '';
+  if (client.getMobileToken !== undefined) {
+    try {
+      const configured = (await client.getMobileToken()).trim();
+      if (configured !== '') return configured;
+    } catch {
+      // 配置读失败时继续尝试网页会话
+    }
   }
+
+  /*
+   * 没有保存的 token 时，直接读网页登录会话换一个。用户只需要在官网页面上
+   * 登录（和平时用网站一样），不需要任何手动 token 步骤。
+   */
+  const fetched = await fetchMobToken(client);
+  return fetched.ok ? fetched.value : '';
 }
 
 /**
@@ -294,7 +303,7 @@ export async function buildFillIndex(
     apiError(
       -1,
       token === ''
-        ? '这份进行中的测验需要移动端 mob-token；网页题库接口已下线。请在设置页填入 mob-token 后重试。'
+        ? '还没检测到官网登录。请先在官网登录（设置页「账号登录」可打开登录页），扩展会自动获取移动端凭证。'
         : `移动端取答案失败：${mobileFailure ?? '未返回答案'}；网页题库接口已下线，没有可用的兜底来源。`,
     ),
   );
@@ -365,7 +374,7 @@ export async function answerAndSubmitQuiz(
   if (built.unresolved.length > 0) {
     const hint =
       token === ''
-        ? '未配置移动端 mob-token；网页题库接口已下线，无法补齐这份进行中的测验'
+        ? '还没检测到官网登录；请先在官网登录后再试（设置页可打开登录页）'
         : `移动端取答案失败：${mobileFailure ?? '未返回答案'}；网页题库接口已下线`;
     return {
       status: 'failed',
