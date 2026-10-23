@@ -24,6 +24,7 @@ import {
   chapterExams,
   getMeetSessions,
   HOMEWORK_STATE,
+  meetItemId,
   needsWork,
   probeSession,
   quizItemId,
@@ -57,6 +58,7 @@ async function unreadCourse(course: ZhihuishuCourse): Promise<ZhsCourseTask> {
     quizNotFull: 0,
     meet: { done: 0, total: 0 },
     meetSessions: null,
+    meetWatchItemIds: [],
     meetSessionsNote: null,
     quizUnreadReason: null,
     finalExam: null,
@@ -153,13 +155,22 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
          * 签到开关原样带出、不解释。读不到就如实说，不拿 0 场冒充。
          */
         let meetSessions: ZhsCourseTask['meetSessions'] = null;
+        let meetWatchItemIds: string[] = [];
         let meetSessionsNote: string | null = null;
         try {
           const sessions = await getMeetSessions(deps.client, course.recruitId);
+          const watchable = sessions.filter(
+            (session) =>
+              session.signOpenStatus === 2 &&
+              session.status === 3 &&
+              session.replayUrl !== null,
+          );
           meetSessions = {
             total: sessions.length,
             upcoming: sessions.filter((session) => session.status === 1).length,
+            watchable: watchable.length,
           };
+          meetWatchItemIds = watchable.map(meetItemId);
         } catch (error) {
           /*
            * **不置 partial**：场次不参与「待完成」那两个数（它只是提醒），
@@ -212,6 +223,7 @@ export function zhsCourseTasksCommand(deps: ZhsMessageDeps): MessageHandler {
           quizNotFull,
           meet,
           meetSessions,
+          meetWatchItemIds,
           meetSessionsNote,
           quizUnreadReason,
           finalExam,

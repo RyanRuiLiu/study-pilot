@@ -19,7 +19,7 @@ import type { ZhihuishuCourse } from '@study-pilot/application';
  * 与 `PlanItem.kind` 同一套取值（计划里就是这么标的），所以待办与执行范围
  * 天然对得上。智慧树的成绩构成有四类，四类都落成机器值；执行目前只覆盖前两类。
  */
-export type ZhsPendingKind = 'courseware' | 'quiz' | 'meetQuiz' | 'finalExam';
+export type ZhsPendingKind = 'courseware' | 'quiz' | 'meetWatch' | 'meetQuiz' | 'finalExam';
 
 /** 设置页与弹窗里的一条待办。 */
 export interface ZhsPendingEntry {
@@ -91,8 +91,8 @@ export interface ZhsPendingSummary {
  * 设置页按同一套组件报进度——**没有「课件」这个说法**：智慧树的任务不套慕课
  * 那套「课件/待办」二分，它的组件是平台自己给的（成绩分析页的原文口径）。
  *
- * 四块都填了实数据：教程与测试接执行（模块 1/2），见面课场次与期末接只读展示
- * （模块 4/6 的读半）。数据没接上的那一块**不给空行占位**——摆一行填不出的组件，
+ * 四块都填了实数据：教程/测试/见面课观看接执行（模块 1/2/4），期末接只读展示
+ * （模块 6 的读半）。数据没接上的那一块**不给空行占位**——摆一行填不出的组件，
  * 人会以为那些是零。
  */
 export interface ZhsCourseTask {
@@ -132,11 +132,13 @@ export interface ZhsCourseTask {
   /** 见面课测验：已交 / 全部（与单元测试同一份清单里的另一类条目） */
   meet: { done: number; total: number };
   /**
-   * 见面课场次：总场次与未开始场次；`null` = 没读到（连同原因）。
-   * 考勤按学校口径是「看直播或回放满 80%」（Ryan 2026-10-17），所以这一格
-   * 说的是「还有几场要去看」，不是签到。
+   * 见面课场次：总场次、未开始场次与可自动观看的回放场次。
+   * 考勤按学校口径是「看直播或回放满 80%」（Ryan 2026-10-17），在线观看型
+   * 由执行侧上报观看进度；现场签到型不自动。
    */
-  meetSessions: { total: number; upcoming: number } | null;
+  meetSessions: { total: number; upcoming: number; watchable: number } | null;
+  /** 这一行「执行」要做的见面课观看项 id（在线观看 + 已结束 + 有回放）。 */
+  meetWatchItemIds: string[];
   /** 场次没读成的原因（读成了是 null） */
   meetSessionsNote: string | null;
   /**

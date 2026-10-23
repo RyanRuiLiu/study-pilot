@@ -557,11 +557,9 @@ function quizRow(entry: ZhsCourseTask): HTMLElement | null {
  * 见面课那一行：见面课测验的「已交 / 全部」。与单元测试**同一份清单**里的另一类
  * 条目（`meetCourseType=1`，名字就是场次名），所以这一格是真的，不是估的。
  *
- * **没有「执行」**：这条路要先接场次（`examH5Url` 才是它的答卷入口，与单元测试
- * 的入口参数不同），执行侧没验过之前不摆按钮——按钮在那儿就等于许诺能做掉。
- * 场次与测验计数已经接上**只读**（`meetSessions` 来自见面课页自己的接口，
- * 测验与单元测试同一份作业清单）；还没接的是考勤分（看直播/回放满 80% 那一路）
- * 与执行入口，属于模块 4 的剩余部分。
+ * **有「执行」**：只对「在线观看 + 已结束 + 有回放」的场次开放，执行侧上报回放
+ * 观看进度（满 80% 计考勤，2026-10-23 真机闭环）。现场签到型、未来直播与见面课
+ * 测验都不进这个执行范围（测验只有一次机会，和期末一致）。
  */
 function meetRow(entry: ZhsCourseTask): HTMLElement {
   const unread = entry.quizUnreadReason !== null;
@@ -580,6 +578,7 @@ function meetRow(entry: ZhsCourseTask): HTMLElement {
     // 考勤按学校口径是「看直播/回放满 80%」——这一格要说的是「还有几场得去看」
     parts.push(sessions.total === 0 ? '无场次' : `场次 ${sessions.total}`);
     if (sessions.upcoming > 0) parts.push(`未开始 ${sessions.upcoming}`);
+    if (sessions.watchable > 0) parts.push(`可观看 ${sessions.watchable}`);
   }
   if (unread) parts.push('测验未读取到');
   else if (entry.meet.total > 0) parts.push(`测验 ${entry.meet.done}/${entry.meet.total}`);
@@ -591,6 +590,12 @@ function meetRow(entry: ZhsCourseTask): HTMLElement {
       ? `作业清单读取失败：${entry.quizUnreadReason ?? ''}`
       : '场次来自见面课页自己的接口；测验与单元测试同一份作业清单。考勤＝看直播或回放满 80%（学校口径）',
     href: meetPageUrl(entry.recruitId),
+    action: buildRunButton(entry, ZHS_BOARDS[2], {
+      ids: entry.meetWatchItemIds,
+      empty: entry.meetWatchItemIds.length === 0,
+      emptyTitle: '没有可自动观看的回放场次',
+      title: '执行：观看这门课可回放的见面课',
+    }),
   });
 }
 

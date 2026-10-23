@@ -32,6 +32,14 @@ export interface ZhsMeetSession {
   examId: string | null;
   /** 测验状态（平台原始值：1 = 未交，其余原样） */
   quizStatus: number | null;
+  /** 直播/回放房间的业务 id（观看进度上报用） */
+  liveCourseId: string | null;
+  /** 直播/回放的视频 id（观看进度上报用） */
+  videoId: string | null;
+  /** 考勤方式：2 = 在线观看（看满 80%）；其余原样（现场等） */
+  signOpenStatus: number | null;
+  /** 请假状态（只作展示） */
+  askLeaveStatus: number | null;
 }
 
 function str(value: unknown): string {
@@ -86,6 +94,10 @@ export function normalizeMeetSessions(body: unknown): ZhsMeetSession[] {
       liveUrl: safeUrl(entry.liveCourseUrl),
       examId: str(entry.examId) === '' ? null : str(entry.examId),
       quizStatus: num(entry.meetCourseExamStatus),
+      liveCourseId: str(entry.liveCourseId) === '' ? null : str(entry.liveCourseId),
+      videoId: str(entry.videoId) === '' ? null : str(entry.videoId),
+      signOpenStatus: num(entry.signOpenStatus),
+      askLeaveStatus: num(entry.askLeaveStatus),
     }))
     .filter((session) => session.taskId !== '');
 }

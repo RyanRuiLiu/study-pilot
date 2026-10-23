@@ -38,6 +38,8 @@ export const ZHS_HOSTS = {
   stuonline: 'https://stuonline.zhihuishu.com',
   /** 见面课网页域（考试应用菜单里的实名地址：`//online.zhihuishu.com/onlineSchool/teachMeeting/stuList`） */
   onlineWeb: 'https://online.zhihuishu.com',
+  /** 直播/回放进度域（`setWatchHistorySecret`，module 9，免签但走网关加密） */
+  live: 'https://appcomm-live-api.zhihuishu.com',
 } as const;
 export type ZhsHost = keyof typeof ZHS_HOSTS;
 
@@ -46,6 +48,7 @@ export const ZHS_MODULE = {
   study: 11,
   online: 13,
   exam: 3,
+  live: 9,
 } as const;
 
 export interface ZhsEndpoint {
@@ -292,6 +295,28 @@ const ENDPOINT_TABLE = {
     host: 'onlineWeb',
     path: '/onlineSchool/json/teachMeeting/listTeachMeetingStu?examV2=ss',
     method: 'POST',
+  },
+
+  /*
+   * ---- 见面课观看/考勤（appcomm-live-api，module 9；2026-10-23 页面实测）----
+   *
+   * 直播/回放播放器每上报一个 `relativeTime`，服务端把它记入观看历史；
+   * 历史出现 `#` 即观看完成/考勤完成（页面会显示「签到已完成」）。
+   * `paramSecret` 是 XOR-hex（key `zhihuishu`），再由网关用 module 9 加密成
+   * `secretStr`——与页面自己的 ajax 拦截器同一条路。
+   */
+  meetWatchHistory: {
+    host: 'live',
+    path: '/app-commserv-live/gateway/t/v1/pc/live/getWatchHistory',
+    method: 'GET',
+    module: ZHS_MODULE.live,
+  },
+  meetSetWatch: {
+    pace: 'write',
+    host: 'live',
+    path: '/app-commserv-live/gateway/t/v1/pc/live/setWatchHistorySecret',
+    method: 'GET',
+    module: ZHS_MODULE.live,
   },
 
   /** 是否客观题（重做门槛：非客观题平台弹二维码，走不了这条路） */

@@ -27,6 +27,8 @@ import { readSession, type CookieReader } from '../session.ts';
 import { chapterExams, getCourseUnits, readCourseChapters, type ZhsChapterExam, type ZhsUnit } from '../structure.ts';
 import { executeUnit, type ExecuteUnitInput } from './execute.ts';
 import { executeExam, type ExamEnter, type ExamRunInput, type ExamTarget } from './execute-exam.ts';
+import { getMeetSessions, type ZhsMeetSession } from '../meet.ts';
+import { watchMeetReplay } from '../meet-watch.ts';
 
 /** 平台跑一轮需要的外界能力。由装配层创建后注入（与慕课同一形状）。 */
 export interface ZhsRunDeps {
@@ -50,6 +52,17 @@ interface UnitPayload {
 /** 单元测试项的 id（展示与「只做这一条」回传都用它，必须同一份）。 */
 export function quizItemId(item: ZhsExamListItem): string {
   return `zhs-quiz-${item.id}`;
+}
+
+/** 见面课观看项的载荷。 */
+interface MeetPayload {
+  course: ZhihuishuCourse;
+  session: ZhsMeetSession;
+}
+
+/** 见面课观看项的 id（与学员界面「执行」的范围 id 同一份）。 */
+export function meetItemId(session: ZhsMeetSession): string {
+  return `zhs-meet-${session.taskId}`;
 }
 
 /** 单元测试项的载荷：清单条目 + 章节结构（数字 id 与弹题通道入口都在后者里）。 */
@@ -199,6 +212,30 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
             return left.title.localeCompare(right.title, 'zh-CN');
           });
           items.push(...quizItems);
+
+          /*
+           * 见面课：只排「在线观看 + 已结束 + 有回放」的场次。
+           * 观看 80% 即考勤完成（2026-10-23 真机闭环）；现场签到型与未来直播不排，
+           * 由界面如实留着。读失败不拖垮整门课的计划——见面课是附加项。
+           */
+          try {
+            const sessions = await getMeetSessions(deps.client, course.recruitId);
+            for (const session of sessions) {
+              if (session.signOpenStatus !== 2) continue;
+              if (session.status !== 3 || session.replayUrl === null) continue;
+              items.push({
+                id: meetItemId(session),
+                group: course.name,
+                title: session.name,
+                mode: 'auto',
+                kind: 'meetWatch',
+                payload: { course, session } satisfies MeetPayload,
+              });
+            }
+          } catch (error) {
+            if (error instanceof ZhsAuthError) throw error;
+            // 见面课读取失败不阻断视频/测验计划；界面另有场次读取的如实说明
+          }
         }
       } catch (error) {
         // 登录失效是账号级的事实：整份计划作废，按未登录交回去（与慕课 plan 同一形状）
@@ -209,6 +246,24 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
     },
 
     async run(item: PlanItem, _heartbeat: () => Promise<void>, control: RunControl): Promise<RunOutcome> {
+      if (item.kind === 'meetWatch') {
+        const { course, session } = item.payload as MeetPayload;
+        const current = await readSession(deps.readCookie);
+        if (!current.loggedIn) return { status: 'failed', message: '未登录' };
+        if (current.userId === null) return { status: 'failed', message: '会话缺少 userId，无法上报见面课观看进度' };
+        if (control.stopped()) return { status: 'skipped', message: '已停止' };
+        try {
+          return await watchMeetReplay(
+            deps.client,
+            session,
+            { recruitId: course.recruitId, userId: current.userId },
+            control,
+          );
+        } catch (error) {
+          if (error instanceof ZhsAuthError) throw error;
+          return { status: 'failed', message: error instanceof Error ? error.message : String(error) };
+        }
+      }
       if (item.kind === 'quiz') return runQuiz(item, control);
       const { course, unit } = item.payload as UnitPayload;
       if (course.secret.length === 0) {

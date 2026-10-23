@@ -16,6 +16,9 @@ const SESSION = {
   examH5Url: 'https://onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/470001/x/y/1000009999/5067/1',
   examId: 'M9n0P1q2',
   meetCourseExamStatus: '1',
+  liveCourseId: '13000001',
+  signOpenStatus: '2',
+  askLeaveStatus: '0',
 };
 
 describe('normalizeMeetSessions', () => {
@@ -27,6 +30,9 @@ describe('normalizeMeetSessions', () => {
       status: 3,
       examId: 'M9n0P1q2',
       quizStatus: 1,
+      liveCourseId: '13000001',
+      videoId: '80000001',
+      signOpenStatus: 2,
     });
     expect(session?.replayUrl).toBe('https://lc.zhihuishu.com/live/vod_room.html?t=1798387199000&liveId=13000001');
     expect(session?.startAt).toBe(new Date(2026, 9, 8, 18, 30, 0).getTime());

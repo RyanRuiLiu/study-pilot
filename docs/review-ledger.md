@@ -280,6 +280,7 @@
 | packages/platform-zhs/src/exam-paper.ts | 已读 |
 | packages/platform-zhs/src/final-exam.ts | 已读 |
 | packages/platform-zhs/src/index.ts | 已读 |
+| packages/platform-zhs/src/meet-watch.ts | 已读 |
 | packages/platform-zhs/src/meet.ts | 已读 |
 | packages/platform-zhs/src/oracle.ts | 已读 |
 | packages/platform-zhs/src/pages.ts | 已读 |
@@ -299,6 +300,7 @@
 | packages/platform-zhs/test/exam-paper.test.ts | 已读 |
 | packages/platform-zhs/test/execute-exam.test.ts | 已读 |
 | packages/platform-zhs/test/final-exam.test.ts | 已读 |
+| packages/platform-zhs/test/meet-watch.test.ts | 已读 |
 | packages/platform-zhs/test/meet.test.ts | 已读 |
 | packages/platform-zhs/test/oracle.test.ts | 已读 |
 | packages/platform-zhs/test/report.test.ts | 已读 |

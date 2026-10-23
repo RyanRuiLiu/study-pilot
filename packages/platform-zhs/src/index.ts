@@ -18,6 +18,7 @@ export {
   aesEncrypt,
   encryptRecruitId,
   xorHexEncode,
+  meetParamSecret,
   buildSeries,
   formatPosition,
   wrapSignedBody,
@@ -88,6 +89,7 @@ export {
 } from './exam-paper.ts';
 
 export { getMeetSessions, normalizeMeetSessions, type ZhsMeetSession } from './meet.ts';
+export { readMeetWatchHistory, watchMeetReplay } from './meet-watch.ts';
 export { examListUrl, meetPageUrl, reportPageUrl, studyPageUrl, ZHS_LOGIN_URL, ZHS_SITE_ORIGIN } from './pages.ts';
 export { askOracle, judge, type OracleVerdict } from './oracle.ts';
 
@@ -120,4 +122,4 @@ export {
   type ExamRunInput,
   type ExamTarget,
 } from './policy/execute-exam.ts';
-export { createZhsTasks, quizItemId, unitItemId, type ZhsRunDeps } from './policy/tasks.ts';
+export { createZhsTasks, meetItemId, quizItemId, unitItemId, type ZhsRunDeps } from './policy/tasks.ts';

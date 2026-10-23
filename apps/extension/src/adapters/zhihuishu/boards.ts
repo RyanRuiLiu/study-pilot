@@ -15,7 +15,7 @@
 export const ZHS_BOARDS = [
   { id: 'video', title: '教程视频', kinds: ['courseware'] },
   { id: 'quiz', title: '单元测试', kinds: ['quiz'] },
-  { id: 'meet', title: '见面课', kinds: ['meetQuiz'] },
+  { id: 'meet', title: '见面课', kinds: ['meetWatch', 'meetQuiz'] },
   { id: 'final', title: '期末考试', kinds: ['finalExam'] },
 ] as const;
 

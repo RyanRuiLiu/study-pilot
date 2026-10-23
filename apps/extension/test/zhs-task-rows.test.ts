@@ -57,6 +57,7 @@ function course(courseId: number) {
     quizNotFull: 0,
     meet: { done: 0, total: 0 },
     meetSessions: null,
+    meetWatchItemIds: [],
     meetSessionsNote: null,
     quizUnreadReason: null,
     finalExam: null,

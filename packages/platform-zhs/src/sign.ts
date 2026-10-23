@@ -292,3 +292,18 @@ export async function wrapSignedBody(
   if (stamp === undefined) return `secretStr=${encodeURIComponent(secretStr)}`;
   return `secretStr=${encodeURIComponent(secretStr)}&${stamp.field}=${stamp.value}`;
 }
+
+/**
+ * 见面课观看进度的 `paramSecret`：数组 `join(';')` 后与 `zhihuishu` 循环异或，
+ * 输出两位小写十六进制。逐字取自直播页 `D24444.Z`（`live/scripts/common/e.min.js`，
+ * 2026-10-23 实测：页面用它调 setWatchHistorySecret 成功）。
+ */
+export function meetParamSecret(values: ReadonlyArray<string | number>): string {
+  const key = 'zhihuishu';
+  const text = values.join(';');
+  let out = '';
+  for (let i = 0; i < text.length; i++) {
+    out += (text.charCodeAt(i) ^ key.charCodeAt(i % key.length)).toString(16).padStart(2, '0');
+  }
+  return out;
+}

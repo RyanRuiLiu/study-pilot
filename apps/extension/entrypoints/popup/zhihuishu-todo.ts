@@ -30,6 +30,7 @@ import { setRunning, statusWriterFor } from './status.ts';
 const KIND_TEXT: Record<ZhsPendingKind, string> = {
   courseware: '教程视频',
   quiz: '单元测试',
+  meetWatch: '见面课观看',
   meetQuiz: '见面课测验',
   finalExam: '期末考试',
 };
