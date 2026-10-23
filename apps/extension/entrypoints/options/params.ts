@@ -13,7 +13,6 @@
 import { testAiConnection } from '../../src/ai/index.ts';
 import { hasAiHostPermission } from '../../src/ai/permission.ts';
 import { getSettings, updateSettings } from '../../src/ui-bridge.ts';
-import { sendToBackground } from '../../src/messages.ts';
 import { errorText } from '../../src/ui/format.ts';
 import { toast } from './toast.ts';
 
@@ -44,13 +43,11 @@ export async function renderParams(): Promise<void> {
   }
 
   const comment = input('review-comment');
-  const loginFinish = document.getElementById('mooc-login-finish');
   const enabled = input('ai-enabled');
   const model = input('ai-model');
   const apiKey = input('ai-api-key');
   if (
     comment === null ||
-    loginFinish === null ||
     enabled === null ||
     model === null ||
     apiKey === null
@@ -82,31 +79,6 @@ export async function renderParams(): Promise<void> {
         // 写不进去就说一句：输入框里的字不等于已保存
         toast(`未能保存评语：${errorText(error)}`);
       });
-  });
-
-  const setLoginStatus = (text: string, isError: boolean): void => {
-    const el = document.getElementById('mooc-login-status');
-    if (el === null) return;
-    el.textContent = text;
-    el.classList.toggle('is-error', isError);
-  };
-
-  loginFinish.addEventListener('click', () => {
-    void (async () => {
-      setLoginStatus('正在读取官网登录状态…', false);
-      try {
-        const result = await sendToBackground({ type: 'MOOC_FETCH_MOB_TOKEN' });
-        if (result.status !== 'ok') {
-          setLoginStatus(`还取不到答案权限：${result.message}`, true);
-          return;
-        }
-        const next = await updateSettings({ mooc: { mobileToken: result.value.token } });
-        setLoginStatus(`已登录，移动端答案已启用（token ${next.mooc.mobileToken.length} 位）`, false);
-        toast('已获取答案权限');
-      } catch (error) {
-        setLoginStatus(`还取不到答案权限：${errorText(error)}`, true);
-      }
-    })();
   });
 
   /** 保存 AI 三项；失败写进状态位并返回 null（调用方据此中止后续动作）。 */

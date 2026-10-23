@@ -12,19 +12,12 @@ const bridge = vi.hoisted(() => ({
   getSettings: vi.fn(),
   updateSettings: vi.fn(),
 }));
-const messaging = vi.hoisted(() => ({
-  sendToBackground: vi.fn(),
-}));
-
 vi.mock('../src/ui-bridge.ts', () => bridge);
-vi.mock('../src/messages.ts', () => messaging);
 
 const window = parseHTML(
   '<!doctype html><html><body>' +
     '<input id="review-comment" />' +
-    '<a id="mooc-login-open"></a>' +
-    '<button id="mooc-login-finish"></button>' +
-    '<p id="mooc-login-status"></p>' +
+
     '<input id="ai-enabled" type="checkbox" />' +
     '<input id="ai-model" />' +
     '<input id="ai-api-key" />' +
@@ -70,7 +63,6 @@ beforeEach(() => {
   const status = doc().getElementById('ai-status');
   if (status) status.textContent = '';
   for (const fn of Object.values(bridge)) fn.mockReset();
-  for (const fn of Object.values(messaging)) fn.mockReset();
   bridge.getSettings.mockResolvedValue(SETTINGS);
   bridge.updateSettings.mockResolvedValue(SETTINGS);
 });
@@ -125,21 +117,6 @@ describe('设置页的写失败', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(model.value).toBe('second');
-  });
-
-  it('官网已登录后点“我已登录”：保存取到的 mob-token', async () => {
-    await renderParams();
-    messaging.sendToBackground.mockResolvedValue({ status: 'ok', value: { token: 'new-mobile-token' } });
-    bridge.updateSettings.mockResolvedValue({
-      ...SETTINGS,
-      mooc: { ...SETTINGS.mooc, mobileToken: 'new-mobile-token' },
-    });
-    (doc().getElementById('mooc-login-finish') as unknown as HTMLElement).click();
-    await vi.waitFor(() =>
-      expect(doc().getElementById('mooc-login-status')?.textContent).toContain('已登录'),
-    );
-    expect(messaging.sendToBackground).toHaveBeenCalledWith({ type: 'MOOC_FETCH_MOB_TOKEN' });
-    expect(bridge.updateSettings).toHaveBeenCalledWith({ mooc: { mobileToken: 'new-mobile-token' } });
   });
 
   it('AI 设置保存失败：状态位说「未能保存 AI 设置」', async () => {
