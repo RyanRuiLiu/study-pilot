@@ -78,7 +78,7 @@ export {
   type FillAnswers,
 } from './quiz.ts';
 
-export { getMobileQuizPaper, exchangeUrsTokenForMobToken, MOBILE_APP_ID } from './mobile-paper.ts';
+export { getMobileQuizPaper, exchangeUrsTokenForMobToken, loginWithPasswordForMobToken, MOBILE_APP_ID } from './mobile-paper.ts';
 
 /*
  * 策略层：慕课自己的判断与流程（会话、读取、计划、执行）。

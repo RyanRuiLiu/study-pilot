@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '../src/client.ts';
-import { exchangeUrsTokenForMobToken, getMobileQuizPaper, MOBILE_APP_ID } from '../src/mobile-paper.ts';
+import {
+  exchangeUrsTokenForMobToken,
+  getMobileQuizPaper,
+  loginWithPasswordForMobToken,
+  MOBILE_APP_ID,
+} from '../src/mobile-paper.ts';
 import type { QuizPaper } from '../src/types.ts';
 
 const TID = 900000001;
@@ -134,5 +139,47 @@ describe('exchangeUrsTokenForMobToken', () => {
       expect(result.error.kind).toBe('api');
       expect(result.error.message).not.toContain('secret-urs-token');
     }
+  });
+});
+
+describe('loginWithPasswordForMobToken', () => {
+  it('登录后自动取 getMobToken 的 320 位 token', async () => {
+    let loginBody = '';
+    const client = clientWith(async (url, init) => {
+      if (String(url).includes('/passport/reg/icourseLogin.do')) {
+        loginBody = String(init?.body ?? '');
+        return new Response('<html>ok</html>', { status: 200 });
+      }
+      if (String(url).includes('/passport/reg/getMobToken.do')) {
+        return new Response(JSON.stringify({ code: 0, message: 'ok', result: 'a'.repeat(320) }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      throw new Error('unexpected ' + url);
+    });
+
+    const result = await loginWithPasswordForMobToken(client, '1529617282', 'secret');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toHaveLength(320);
+    const body = new URLSearchParams(loginBody);
+    expect(body.get('username')).toBe('1529617282');
+    expect(body.get('passwd')).toBe('secret');
+  });
+
+  it('登录失败（页面带 errorCode）返回账号密码错误，不取 token', async () => {
+    let tokenCalls = 0;
+    const client = clientWith(async (url) => {
+      if (String(url).includes('/passport/reg/icourseLogin.do')) {
+        return new Response('<html>errorCode=-1</html>', { status: 200 });
+      }
+      tokenCalls++;
+      return new Response('{}', { status: 200 });
+    });
+
+    const result = await loginWithPasswordForMobToken(client, 'u', 'p');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toContain('账号或密码错误');
+    expect(tokenCalls).toBe(0);
   });
 });

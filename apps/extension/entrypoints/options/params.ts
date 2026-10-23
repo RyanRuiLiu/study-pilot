@@ -29,13 +29,6 @@ function setStatus(text: string, isError: boolean): void {
   el.classList.toggle('is-error', isError);
 }
 
-function setUrsStatus(text: string, isError: boolean): void {
-  const el = document.getElementById('mooc-urs-status');
-  if (el === null) return;
-  el.textContent = text;
-  el.classList.toggle('is-error', isError);
-}
-
 /** 权限被撤回时的说法。扩展自己无法重新申请静态声明的权限，只能指明去处。 */
 const REVOKED_HINT =
   '智谱访问许可已撤回：在扩展详情页开启「网站访问权限」后重试';
@@ -51,17 +44,17 @@ export async function renderParams(): Promise<void> {
   }
 
   const comment = input('review-comment');
-  const mobileToken = input('mooc-mobile-token');
-  const ursToken = input('mooc-urs-token');
-  const ursRefresh = document.getElementById('mooc-urs-refresh');
+  const loginUser = input('mooc-login-user');
+  const loginPassword = input('mooc-login-password');
+  const loginButton = document.getElementById('mooc-login-button');
   const enabled = input('ai-enabled');
   const model = input('ai-model');
   const apiKey = input('ai-api-key');
   if (
     comment === null ||
-    mobileToken === null ||
-    ursToken === null ||
-    ursRefresh === null ||
+    loginUser === null ||
+    loginPassword === null ||
+    loginButton === null ||
     enabled === null ||
     model === null ||
     apiKey === null
@@ -70,8 +63,6 @@ export async function renderParams(): Promise<void> {
   }
 
   comment.value = settings.mooc.reviewComment;
-  mobileToken.value = settings.mooc.mobileToken;
-  ursToken.value = settings.mooc.mobileUrsToken;
   enabled.checked = settings.ai.enabled;
   model.value = settings.ai.model;
   apiKey.value = settings.ai.apiKey;
@@ -97,53 +88,34 @@ export async function renderParams(): Promise<void> {
       });
   });
 
-  /*
-   * 移动端凭证：和评语一样在 change 时保存，避免把输入到一半的串写进配置。
-   * 留空合法（关闭移动端答案源），normalize 只做 trim。
-   */
-  mobileToken.addEventListener('change', () => {
-    const sent = mobileToken.value;
-    void updateSettings({ mooc: { mobileToken: sent } })
-      .then((next) => {
-        if (mobileToken.value === sent) mobileToken.value = next.mooc.mobileToken;
-        toast(sent.trim() === '' ? '已关闭移动端答案源' : '移动端凭证已保存');
-      })
-      .catch((error: unknown) => {
-        toast(`未能保存移动端凭证：${errorText(error)}`);
-      });
-  });
+  const setLoginStatus = (text: string, isError: boolean): void => {
+    const el = document.getElementById('mooc-login-status');
+    if (el === null) return;
+    el.textContent = text;
+    el.classList.toggle('is-error', isError);
+  };
 
-  /* 43 位 ursToken 单独保存；刷新按钮用它换 384 位 mob-token。 */
-  ursToken.addEventListener('change', () => {
-    const sent = ursToken.value.trim();
-    void updateSettings({ mooc: { mobileUrsToken: sent } })
-      .then(() => toast(sent === '' ? '已清除 ursToken' : 'ursToken 已保存'))
-      .catch((error: unknown) => {
-        toast(`未能保存 ursToken：${errorText(error)}`);
-      });
-  });
-
-  ursRefresh.addEventListener('click', () => {
+  loginButton.addEventListener('click', () => {
     void (async () => {
-      const sent = ursToken.value.trim();
-      if (sent === '') {
-        setUrsStatus('请先粘贴 App 登录得到的 43 位 ursToken', true);
+      const username = loginUser.value.trim();
+      const password = loginPassword.value;
+      if (username === '' || password === '') {
+        setLoginStatus('请输入手机号/邮箱和密码', true);
         return;
       }
-      setUrsStatus('正在换取 mob-token…', false);
+      setLoginStatus('正在登录…', false);
       try {
-        await updateSettings({ mooc: { mobileUrsToken: sent } });
-        const result = await sendToBackground({ type: 'MOOC_MOBILE_REFRESH', ursToken: sent });
+        const result = await sendToBackground({ type: 'MOOC_WEB_LOGIN', username, password });
         if (result.status !== 'ok') {
-          setUrsStatus(`换取失败：${result.message}`, true);
+          setLoginStatus(`登录失败：${result.message}`, true);
           return;
         }
         const next = await updateSettings({ mooc: { mobileToken: result.value.token } });
-        if (mobileToken.value !== next.mooc.mobileToken) mobileToken.value = next.mooc.mobileToken;
-        setUrsStatus(`已换取并保存 mob-token（${next.mooc.mobileToken.length} 位）`, false);
-        toast('移动端凭证已更新');
+        loginPassword.value = '';
+        setLoginStatus(`已登录，移动端答案已启用（token ${next.mooc.mobileToken.length} 位）`, false);
+        toast('登录成功');
       } catch (error) {
-        setUrsStatus(`换取失败：${errorText(error)}`, true);
+        setLoginStatus(`登录失败：${errorText(error)}`, true);
       }
     })();
   });

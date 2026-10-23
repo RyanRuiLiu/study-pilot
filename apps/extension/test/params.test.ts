@@ -22,10 +22,10 @@ vi.mock('../src/messages.ts', () => messaging);
 const window = parseHTML(
   '<!doctype html><html><body>' +
     '<input id="review-comment" />' +
-    '<input id="mooc-mobile-token" type="password" />' +
-    '<input id="mooc-urs-token" type="password" />' +
-    '<button id="mooc-urs-refresh"></button>' +
-    '<p id="mooc-urs-status"></p>' +
+    '<input id="mooc-login-user" />' +
+    '<input id="mooc-login-password" type="password" />' +
+    '<button id="mooc-login-button"></button>' +
+    '<p id="mooc-login-status"></p>' +
     '<input id="ai-enabled" type="checkbox" />' +
     '<input id="ai-model" />' +
     '<input id="ai-api-key" />' +
@@ -128,30 +128,25 @@ describe('设置页的写失败', () => {
     expect(model.value).toBe('second');
   });
 
-  it('移动端凭证保存：写进 mooc.mobileToken，并提示已保存', async () => {
+  it('账号密码登录成功后保存 mob-token，并清空密码框', async () => {
     await renderParams();
-    const token = doc().getElementById('mooc-mobile-token') as unknown as HTMLInputElement;
-    token.value = '  abc  ';
-    token.dispatchEvent(new window.Event('change'));
-    await vi.waitFor(() =>
-      expect(doc().getElementById('toast')?.textContent).toContain('移动端凭证已保存'),
-    );
-    expect(bridge.updateSettings).toHaveBeenCalledWith({ mooc: { mobileToken: '  abc  ' } });
-  });
-
-  it('ursToken 换取成功后写回 mob-token 与输入框', async () => {
-    await renderParams();
-    const urs = doc().getElementById('mooc-urs-token') as unknown as HTMLInputElement;
-    const mob = doc().getElementById('mooc-mobile-token') as unknown as HTMLInputElement;
-    urs.value = 'u';
+    const user = doc().getElementById('mooc-login-user') as unknown as HTMLInputElement;
+    const password = doc().getElementById('mooc-login-password') as unknown as HTMLInputElement;
+    user.value = '1529617282';
+    password.value = 'secret';
     messaging.sendToBackground.mockResolvedValue({ status: 'ok', value: { token: 'new-mobile-token' } });
     bridge.updateSettings.mockResolvedValue({
       ...SETTINGS,
-      mooc: { ...SETTINGS.mooc, mobileToken: 'new-mobile-token', mobileUrsToken: 'u' },
+      mooc: { ...SETTINGS.mooc, mobileToken: 'new-mobile-token' },
     });
-    (doc().getElementById('mooc-urs-refresh') as unknown as HTMLElement).click();
-    await vi.waitFor(() => expect(mob.value).toBe('new-mobile-token'));
-    expect(messaging.sendToBackground).toHaveBeenCalledWith({ type: 'MOOC_MOBILE_REFRESH', ursToken: 'u' });
+    (doc().getElementById('mooc-login-button') as unknown as HTMLElement).click();
+    await vi.waitFor(() => expect(password.value).toBe(''));
+    expect(messaging.sendToBackground).toHaveBeenCalledWith({
+      type: 'MOOC_WEB_LOGIN',
+      username: '1529617282',
+      password: 'secret',
+    });
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ mooc: { mobileToken: 'new-mobile-token' } });
   });
 
   it('AI 设置保存失败：状态位说「未能保存 AI 设置」', async () => {

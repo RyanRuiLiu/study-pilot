@@ -114,37 +114,23 @@
           官方 App 的同一份答卷接口会下发。凭证只存本机，留空即关闭。
         -->
         <section class="panel">
-          <h2 class="panel-title">移动端答案源</h2>
+          <h2 class="panel-title">账号登录</h2>
           <label class="field">
-            <input
-              id="mooc-mobile-token"
-              type="password"
-              aria-label="慕课移动端 mob-token"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="可选：粘贴手机 App 抓到的 mob-token"
-            />
+            <input id="mooc-login-user" type="text" aria-label="慕课账号" autocomplete="username"
+              placeholder="手机号或邮箱" />
           </label>
-          <p class="note">
-            只用于读取测验官方答案，保存在本机，不写日志、不交给 AI。留空即关闭。
-            过期后从已登录的手机 App 重新抓一次。
-          </p>
-
           <label class="field">
-            <input
-              id="mooc-urs-token"
-              type="password"
-              aria-label="慕课 ursToken"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="可选：43 位 ursToken（App 登录抓包）"
-            />
+            <input id="mooc-login-password" type="password" aria-label="慕课密码"
+              autocomplete="current-password" placeholder="密码" />
           </label>
-          <button id="mooc-urs-refresh" class="btn ghost" type="button">
-            用 ursToken 换取 mob-token
+          <button id="mooc-login-button" class="btn ghost" type="button">
+            登录并启用移动端答案
           </button>
-          <p class="note" id="mooc-urs-status"></p>
+          <p class="note" id="mooc-login-status">
+            密码只用于这次登录，不保存。登录后自动获取移动端凭证。
+          </p>
         </section>
+      </section>
       </section>
 
       <!--

@@ -16,6 +16,7 @@ import {
   buildFillIndex,
   exchangeUrsTokenForMobToken,
   getQuizInfo,
+  loginWithPasswordForMobToken,
 } from '@study-pilot/platform-mooc';
 import type { MessageHandler } from '../../../protocol.ts';
 import type { MoocMessageDeps } from './deps.ts';
@@ -110,5 +111,26 @@ export function mobileRefreshCommand(deps: MoocMessageDeps): MessageHandler {
     }
 
     sendResponse({ status: 'ok', value: { token: result.value } } satisfies MoocResponseMap['MOOC_MOBILE_REFRESH']);
+  };
+}
+
+export function webLoginCommand(deps: MoocMessageDeps): MessageHandler {
+  return async (request, sendResponse) => {
+    const { username, password } = request as { username?: unknown; password?: unknown };
+    if (typeof username !== 'string' || typeof password !== 'string' || password === '') {
+      sendResponse({ status: 'error', message: '请求缺少账号或密码' } satisfies MoocResponseMap['MOOC_WEB_LOGIN']);
+      return;
+    }
+
+    const result = await loginWithPasswordForMobToken(deps.client, username, password);
+    if (!result.ok) {
+      sendResponse({
+        status: 'error',
+        message: result.error.message,
+      } satisfies MoocResponseMap['MOOC_WEB_LOGIN']);
+      return;
+    }
+
+    sendResponse({ status: 'ok', value: { token: result.value } } satisfies MoocResponseMap['MOOC_WEB_LOGIN']);
   };
 }

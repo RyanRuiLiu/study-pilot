@@ -162,3 +162,80 @@ export async function exchangeUrsTokenForMobToken(
     timeout.dispose();
   }
 }
+
+interface WebLoginEnvelope {
+  code?: number;
+  message?: string;
+  result?: string | null;
+}
+
+/**
+ * 官网账号密码登录，然后取移动端 mob-token。
+ *
+ * 这是给「用户只会登录、不会抓 token」准备的唯一入口：
+ *   1. POST /passport/reg/icourseLogin.do（官网登录表单同款字段，密码只在这次请求里）；
+ *   2. GET  /passport/reg/getMobToken.do（网页会话已建立，返回 320 位 mob-token）。
+ * 密码不落盘；失败只返回平台说法，不重试。
+ */
+export async function loginWithPasswordForMobToken(
+  client: MoocClient,
+  username: string,
+  password: string,
+): Promise<Result<string, TransportError>> {
+  const user = username.trim();
+  if (user === '' || password === '') return err(apiError(-1, '账号或密码为空'));
+
+  const timeout = startOutboundTimeout(DEFAULT_TIMEOUT_MS);
+  try {
+    const returnUrl = btoa('https://www.icourse163.org/');
+    const loginBody = new URLSearchParams({
+      returnUrl,
+      failUrl: '',
+      saveLogin: 'true',
+      oauthType: '',
+      username: user,
+      passwd: password,
+    }).toString();
+
+    const login = await client.send(`${client.origin}/passport/reg/icourseLogin.do`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: loginBody,
+      credentials: 'include',
+      signal: timeout.signal,
+    });
+    const loginText = await login.text();
+    const loginUrl = login.url ?? '';
+    if (loginUrl.includes('errorCode') || /errorCode=-?\d+/.test(loginText)) {
+      return err(apiError(-1, '账号或密码错误'));
+    }
+    if (!login.ok) return err(httpError(login.status, loginText));
+
+    const tokenResponse = await client.send(`${client.origin}/passport/reg/getMobToken.do`, {
+      method: 'GET',
+      credentials: 'include',
+      signal: timeout.signal,
+    });
+    const tokenText = await tokenResponse.text();
+    if (!tokenResponse.ok) return err(httpError(tokenResponse.status, tokenText));
+
+    let envelope: WebLoginEnvelope;
+    try {
+      envelope = JSON.parse(tokenText) as WebLoginEnvelope;
+    } catch {
+      return err(parseError(tokenText));
+    }
+    if (envelope.code !== 0) {
+      return err(apiError(typeof envelope.code === 'number' ? envelope.code : -1, envelope.message ?? '取 mob-token 失败'));
+    }
+    const token = envelope.result;
+    if (typeof token !== 'string' || token.length < 100) {
+      return err(apiError(-1, '登录成功但没有取到移动端 token'));
+    }
+    return ok(token);
+  } catch (cause) {
+    return err(timeout.timedOut() ? timeoutError(DEFAULT_TIMEOUT_MS) : networkError(cause));
+  } finally {
+    timeout.dispose();
+  }
+}
