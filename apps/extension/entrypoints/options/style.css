@@ -127,6 +127,42 @@ body {
   outline-offset: 1px;
 }
 
+/* 账号登录：两个输入与按钮同一行；按钮不再单独占一行 */
+.login-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+}
+
+.login-row .login-input {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--space-12);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--control);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-md);
+}
+
+.login-row .login-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.login-row .login-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.login-row .btn {
+  flex: none;
+  height: 32px;
+}
+
 .check {
   display: flex;
   align-items: center;

@@ -143,8 +143,8 @@ export type MoocRequest =
   | { type: 'MOOC_QUIZ_SUBMIT'; tid: number; termId: number }
   /** 用 App 登录得到的 43 位 ursToken 换新的 mob-token（只登录/续期） */
   | { type: 'MOOC_MOBILE_REFRESH'; ursToken: string }
-  /** 官网账号密码登录，成功后自动取移动端 mob-token */
-  | { type: 'MOOC_WEB_LOGIN'; username: string; password: string }
+  /** 官网已登录后，用网页会话取移动端 mob-token */
+  | { type: 'MOOC_FETCH_MOB_TOKEN' }
 ;
 
 /** 课程列表里的一条：界面只需要名字与 termId 用来显示与勾选。 */
@@ -191,5 +191,5 @@ export interface MoocResponseMap {
   MOOC_QUIZ_INFO: QueryOutcome<QuizInfo>;
   MOOC_QUIZ_SUBMIT: QueryOutcome<{ matched: number; total: number }>;
   MOOC_MOBILE_REFRESH: QueryOutcome<{ token: string }>;
-  MOOC_WEB_LOGIN: QueryOutcome<{ token: string }>;
+  MOOC_FETCH_MOB_TOKEN: QueryOutcome<{ token: string }>;
 }

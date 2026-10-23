@@ -16,9 +16,9 @@ import { coursesCommand } from './courses.ts';
 import { homeworkPaperCommand } from './homework-paper.ts';
 import { pendingCommand } from './pending.ts';
 import {
+  fetchMobTokenCommand,
   mobileRefreshCommand,
   quizFillIndexCommand,
-  webLoginCommand,
   quizInfoCommand,
   quizSubmitCommand,
 } from './quiz-helper.ts';
@@ -38,6 +38,6 @@ export function moocHandlers(deps: MoocMessageDeps): MessageHandlers {
     MOOC_QUIZ_INFO: quizInfoCommand(deps),
     MOOC_QUIZ_SUBMIT: quizSubmitCommand(deps),
     MOOC_MOBILE_REFRESH: mobileRefreshCommand(deps),
-    MOOC_WEB_LOGIN: webLoginCommand(deps),
+    MOOC_FETCH_MOB_TOKEN: fetchMobTokenCommand(deps),
   } satisfies { [K in keyof MoocResponseMap]: MessageHandler };
 }

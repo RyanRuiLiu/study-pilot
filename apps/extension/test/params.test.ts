@@ -22,9 +22,8 @@ vi.mock('../src/messages.ts', () => messaging);
 const window = parseHTML(
   '<!doctype html><html><body>' +
     '<input id="review-comment" />' +
-    '<input id="mooc-login-user" />' +
-    '<input id="mooc-login-password" type="password" />' +
-    '<button id="mooc-login-button"></button>' +
+    '<a id="mooc-login-open"></a>' +
+    '<button id="mooc-login-finish"></button>' +
     '<p id="mooc-login-status"></p>' +
     '<input id="ai-enabled" type="checkbox" />' +
     '<input id="ai-model" />' +
@@ -128,24 +127,18 @@ describe('设置页的写失败', () => {
     expect(model.value).toBe('second');
   });
 
-  it('账号密码登录成功后保存 mob-token，并清空密码框', async () => {
+  it('官网已登录后点“我已登录”：保存取到的 mob-token', async () => {
     await renderParams();
-    const user = doc().getElementById('mooc-login-user') as unknown as HTMLInputElement;
-    const password = doc().getElementById('mooc-login-password') as unknown as HTMLInputElement;
-    user.value = '1529617282';
-    password.value = 'secret';
     messaging.sendToBackground.mockResolvedValue({ status: 'ok', value: { token: 'new-mobile-token' } });
     bridge.updateSettings.mockResolvedValue({
       ...SETTINGS,
       mooc: { ...SETTINGS.mooc, mobileToken: 'new-mobile-token' },
     });
-    (doc().getElementById('mooc-login-button') as unknown as HTMLElement).click();
-    await vi.waitFor(() => expect(password.value).toBe(''));
-    expect(messaging.sendToBackground).toHaveBeenCalledWith({
-      type: 'MOOC_WEB_LOGIN',
-      username: '1529617282',
-      password: 'secret',
-    });
+    (doc().getElementById('mooc-login-finish') as unknown as HTMLElement).click();
+    await vi.waitFor(() =>
+      expect(doc().getElementById('mooc-login-status')?.textContent).toContain('已登录'),
+    );
+    expect(messaging.sendToBackground).toHaveBeenCalledWith({ type: 'MOOC_FETCH_MOB_TOKEN' });
     expect(bridge.updateSettings).toHaveBeenCalledWith({ mooc: { mobileToken: 'new-mobile-token' } });
   });
 

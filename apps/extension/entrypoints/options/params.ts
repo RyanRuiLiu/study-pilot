@@ -44,17 +44,13 @@ export async function renderParams(): Promise<void> {
   }
 
   const comment = input('review-comment');
-  const loginUser = input('mooc-login-user');
-  const loginPassword = input('mooc-login-password');
-  const loginButton = document.getElementById('mooc-login-button');
+  const loginFinish = document.getElementById('mooc-login-finish');
   const enabled = input('ai-enabled');
   const model = input('ai-model');
   const apiKey = input('ai-api-key');
   if (
     comment === null ||
-    loginUser === null ||
-    loginPassword === null ||
-    loginButton === null ||
+    loginFinish === null ||
     enabled === null ||
     model === null ||
     apiKey === null
@@ -95,27 +91,20 @@ export async function renderParams(): Promise<void> {
     el.classList.toggle('is-error', isError);
   };
 
-  loginButton.addEventListener('click', () => {
+  loginFinish.addEventListener('click', () => {
     void (async () => {
-      const username = loginUser.value.trim();
-      const password = loginPassword.value;
-      if (username === '' || password === '') {
-        setLoginStatus('请输入手机号/邮箱和密码', true);
-        return;
-      }
-      setLoginStatus('正在登录…', false);
+      setLoginStatus('正在读取官网登录状态…', false);
       try {
-        const result = await sendToBackground({ type: 'MOOC_WEB_LOGIN', username, password });
+        const result = await sendToBackground({ type: 'MOOC_FETCH_MOB_TOKEN' });
         if (result.status !== 'ok') {
-          setLoginStatus(`登录失败：${result.message}`, true);
+          setLoginStatus(`还取不到答案权限：${result.message}`, true);
           return;
         }
         const next = await updateSettings({ mooc: { mobileToken: result.value.token } });
-        loginPassword.value = '';
         setLoginStatus(`已登录，移动端答案已启用（token ${next.mooc.mobileToken.length} 位）`, false);
-        toast('登录成功');
+        toast('已获取答案权限');
       } catch (error) {
-        setLoginStatus(`登录失败：${errorText(error)}`, true);
+        setLoginStatus(`还取不到答案权限：${errorText(error)}`, true);
       }
     })();
   });

@@ -115,19 +115,17 @@
         -->
         <section class="panel">
           <h2 class="panel-title">账号登录</h2>
-          <label class="field">
-            <input id="mooc-login-user" type="text" aria-label="慕课账号" autocomplete="username"
-              placeholder="手机号或邮箱" />
-          </label>
-          <label class="field">
-            <input id="mooc-login-password" type="password" aria-label="慕课密码"
-              autocomplete="current-password" placeholder="密码" />
-          </label>
-          <button id="mooc-login-button" class="btn ghost" type="button">
-            登录并启用移动端答案
-          </button>
+          <div class="login-row">
+            <a id="mooc-login-open" class="btn"
+              href="https://www.icourse163.org/member/login.htm" target="_blank" rel="noreferrer">
+              打开官网登录
+            </a>
+            <button id="mooc-login-finish" class="btn ghost" type="button">
+              我已登录，获取答案权限
+            </button>
+          </div>
           <p class="note" id="mooc-login-status">
-            密码只用于这次登录，不保存。登录后自动获取移动端凭证。
+            在打开的页面用手机号/邮箱 + 密码登录；完成后点“我已登录”。密码不经过扩展。
           </p>
         </section>
       </section>

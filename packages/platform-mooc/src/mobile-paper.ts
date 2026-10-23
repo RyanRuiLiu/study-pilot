@@ -163,74 +163,36 @@ export async function exchangeUrsTokenForMobToken(
   }
 }
 
-interface WebLoginEnvelope {
-  code?: number;
-  message?: string;
-  result?: string | null;
-}
-
 /**
- * 官网账号密码登录，然后取移动端 mob-token。
+ * 用当前网页登录会话取移动端 mob-token。
  *
- * 这是给「用户只会登录、不会抓 token」准备的唯一入口：
- *   1. POST /passport/reg/icourseLogin.do（官网登录表单同款字段，密码只在这次请求里）；
- *   2. GET  /passport/reg/getMobToken.do（网页会话已建立，返回 320 位 mob-token）。
- * 密码不落盘；失败只返回平台说法，不重试。
+ * 用户先在官网用手机号/密码登录（官网自己走 URS 加密流程），
+ * 扩展只读网页会话：GET /passport/reg/getMobToken.do（2026-10-23 实测
+ * 返回 320 位十六进制，课程列表 code=0）。不碰密码，也不重放登录请求。
  */
-export async function loginWithPasswordForMobToken(
-  client: MoocClient,
-  username: string,
-  password: string,
-): Promise<Result<string, TransportError>> {
-  const user = username.trim();
-  if (user === '' || password === '') return err(apiError(-1, '账号或密码为空'));
-
+export async function fetchMobToken(client: MoocClient): Promise<Result<string, TransportError>> {
   const timeout = startOutboundTimeout(DEFAULT_TIMEOUT_MS);
   try {
-    const returnUrl = btoa('https://www.icourse163.org/');
-    const loginBody = new URLSearchParams({
-      returnUrl,
-      failUrl: '',
-      saveLogin: 'true',
-      oauthType: '',
-      username: user,
-      passwd: password,
-    }).toString();
-
-    const login = await client.send(`${client.origin}/passport/reg/icourseLogin.do`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-      body: loginBody,
-      credentials: 'include',
-      signal: timeout.signal,
-    });
-    const loginText = await login.text();
-    const loginUrl = login.url ?? '';
-    if (loginUrl.includes('errorCode') || /errorCode=-?\d+/.test(loginText)) {
-      return err(apiError(-1, '账号或密码错误'));
-    }
-    if (!login.ok) return err(httpError(login.status, loginText));
-
-    const tokenResponse = await client.send(`${client.origin}/passport/reg/getMobToken.do`, {
+    const response = await client.send(`${client.origin}/passport/reg/getMobToken.do`, {
       method: 'GET',
       credentials: 'include',
       signal: timeout.signal,
     });
-    const tokenText = await tokenResponse.text();
-    if (!tokenResponse.ok) return err(httpError(tokenResponse.status, tokenText));
+    const raw = await response.text();
+    if (!response.ok) return err(httpError(response.status, raw));
 
-    let envelope: WebLoginEnvelope;
+    let envelope: { code?: number; message?: string; result?: string | null };
     try {
-      envelope = JSON.parse(tokenText) as WebLoginEnvelope;
+      envelope = JSON.parse(raw) as typeof envelope;
     } catch {
-      return err(parseError(tokenText));
+      return err(parseError(raw));
     }
     if (envelope.code !== 0) {
-      return err(apiError(typeof envelope.code === 'number' ? envelope.code : -1, envelope.message ?? '取 mob-token 失败'));
+      return err(apiError(typeof envelope.code === 'number' ? envelope.code : -1, envelope.message ?? '当前网页会话未登录'));
     }
     const token = envelope.result;
     if (typeof token !== 'string' || token.length < 100) {
-      return err(apiError(-1, '登录成功但没有取到移动端 token'));
+      return err(apiError(-1, '当前网页会话未登录，请先在官网完成登录'));
     }
     return ok(token);
   } catch (cause) {

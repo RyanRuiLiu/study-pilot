@@ -3,8 +3,8 @@ import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '../src/client.ts';
 import {
   exchangeUrsTokenForMobToken,
+  fetchMobToken,
   getMobileQuizPaper,
-  loginWithPasswordForMobToken,
   MOBILE_APP_ID,
 } from '../src/mobile-paper.ts';
 import type { QuizPaper } from '../src/types.ts';
@@ -142,44 +142,34 @@ describe('exchangeUrsTokenForMobToken', () => {
   });
 });
 
-describe('loginWithPasswordForMobToken', () => {
-  it('登录后自动取 getMobToken 的 320 位 token', async () => {
-    let loginBody = '';
-    const client = clientWith(async (url, init) => {
-      if (String(url).includes('/passport/reg/icourseLogin.do')) {
-        loginBody = String(init?.body ?? '');
-        return new Response('<html>ok</html>', { status: 200 });
-      }
-      if (String(url).includes('/passport/reg/getMobToken.do')) {
-        return new Response(JSON.stringify({ code: 0, message: 'ok', result: 'a'.repeat(320) }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }
-      throw new Error('unexpected ' + url);
+
+describe('fetchMobToken', () => {
+  it('用网页会话 GET getMobToken.do，返回 320 位 token', async () => {
+    let called = '';
+    const client = clientWith(async (url) => {
+      called = String(url);
+      return new Response(JSON.stringify({ code: 0, message: 'ok', result: 'a'.repeat(320) }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
     });
 
-    const result = await loginWithPasswordForMobToken(client, '1529617282', 'secret');
+    const result = await fetchMobToken(client);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value).toHaveLength(320);
-    const body = new URLSearchParams(loginBody);
-    expect(body.get('username')).toBe('1529617282');
-    expect(body.get('passwd')).toBe('secret');
+    expect(new URL(called).pathname).toBe('/passport/reg/getMobToken.do');
   });
 
-  it('登录失败（页面带 errorCode）返回账号密码错误，不取 token', async () => {
-    let tokenCalls = 0;
-    const client = clientWith(async (url) => {
-      if (String(url).includes('/passport/reg/icourseLogin.do')) {
-        return new Response('<html>errorCode=-1</html>', { status: 200 });
-      }
-      tokenCalls++;
-      return new Response('{}', { status: 200 });
-    });
-
-    const result = await loginWithPasswordForMobToken(client, 'u', 'p');
+  it('网页会话未登录时返回可执行错误', async () => {
+    const client = clientWith(
+      async () =>
+        new Response(JSON.stringify({ code: 1000, message: '未登录', result: null }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+    const result = await fetchMobToken(client);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.message).toContain('账号或密码错误');
-    expect(tokenCalls).toBe(0);
+    if (!result.ok) expect(result.error.message).toContain('未登录');
   });
 });
