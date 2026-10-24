@@ -117,7 +117,8 @@ CLI 单文件；标签版本与 `apps/extension/package.json` 不一致时发布
   三家 host permissions 的用途见 `wxt.config.ts` 注释）与数据使用声明
   （只读平台数据、密钥只存本机、不上传、无远程代码）。
 
-`minimum_chrome_version: 96` 由 `declarativeNetRequestWithHostAccess` 决定，不要下调。
+`minimum_chrome_version: 111` 由 content script 的 `world: "MAIN"`（智慧树判据接管）决定，
+不要下调；`declarativeNetRequestWithHostAccess` 要求的 96 已被覆盖。
 
 ## 平台接入标准（新平台照这条流程走）
 

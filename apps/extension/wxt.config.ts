@@ -60,13 +60,15 @@ export default defineConfig({
     /*
      * 最低浏览器版本。
      *
-     * 取 96 是因为用到了 declarativeNetRequestWithHostAccess，该权限在
-     * Chrome 96 才有。写出来让商店在低版本浏览器上直接判为不兼容，
-     * 而不是装上之后功能静默失效——那种情况用户只会以为扩展做坏了。
+     * 取 111 是因为用到了 content script 的 `world: "MAIN"`（智慧树判据接管，
+     * 见 entrypoints/zhs-guard.content.ts），该字段 Chrome 111 才有；
+     * declarativeNetRequestWithHostAccess 只要求 96，已被覆盖。
+     * 写出来让商店在低版本浏览器上直接判为不兼容，而不是装上之后功能静默失效
+     * ——那种情况用户只会以为扩展做坏了。
      *
      * Edge 与其他 Chromium 浏览器同此版本基线。
      */
-    minimum_chrome_version: '96',
+    minimum_chrome_version: '111',
     // 平台接口按 Origin 判别来源：service worker 发出的请求 Origin 是
     // chrome-extension://...，会被服务端 403 拒绝。用 declarativeNetRequest
     // 把出站请求的 Origin 改写成平台域名，后台才能独立发请求。

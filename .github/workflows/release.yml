@@ -74,16 +74,15 @@ jobs:
           学习平台辅助工具（中国大学 MOOC / 智慧树），两个发布渠道：
 
           - **扩展包**：`study-pilot-extension-<标签>-chrome.zip`。Chrome / Edge
-            解压后通过「加载已解压的扩展程序」安装；最低 Chrome 96。
+            解压后通过「加载已解压的扩展程序」安装；最低 Chrome 111。
           - **命令行**：`study-pilot-cli-<标签>.mjs`。Node 22.18+ 可直接运行，
             用法见仓库 README 的「命令行」一节。
           - **商店素材**：`store-icon-128.png`（Chrome 列表，96+16 留白）、
             `store-icon-300.png`（Edge 加载项 logo）、两张促销磁贴。
 
-          本版修复：慕课已登录仍提示未登录——会话 cookie 同时从 www 与裸域读，
-          读不出用户时用一次只读课程列表向服务端确认登录态；智慧树的 CASLOGC 同样从 www 与裸域读取。
-          图标：manifest 的 128 恢复满幅（与其余尺寸一致），商店上传图
-          单独生成，不再把商店留白混进工具栏/管理页图标。
+          本版变更：智慧树学习页与考试页在页面脚本之前接管原生函数判据，
+          根除「检测到异常脚本」的弹窗、上报与关闭；内容脚本改用 MAIN world，
+          最低 Chrome 111。
 
           构建自提交 $GITHUB_SHA；发布前已跑 lint / typecheck / 全部测试 /
           构建 / 无头 Chromium 冒烟。完整说明与变更记录见仓库。
