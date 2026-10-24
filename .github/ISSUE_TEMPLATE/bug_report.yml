@@ -1,0 +1,47 @@
+name: 缺陷报告
+description: 报告可复现的问题
+title: '[bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        不要粘贴 Cookie、token、账号密码或真实课程数据；日志请先脱敏。
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+  - type: input
+    id: environment
+    attributes:
+      label: 环境
+      placeholder: Windows 11 / Chrome 140 / 扩展 0.3.11，或 Node 22 / CLI 0.3.11
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图
+      description: 已移除 Cookie、token、账号与真实课程数据。
+  - type: checkboxes
+    id: redacted
+    attributes:
+      label: 脱敏确认
+      options:
+        - label: 我已移除凭据与真实课程/账号数据
+          required: true

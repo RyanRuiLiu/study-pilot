@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用说明与隐私政策
+    url: https://github.com/RyanRuiLiu/study-pilot/blob/main/README.md
+    about: 先读 README 与 PRIVACY.md
+  - name: 报告安全问题
+    url: https://github.com/RyanRuiLiu/study-pilot/security
+    about: 不要公开开 Issue；使用私密漏洞报告
