@@ -22,13 +22,19 @@ import type {
 import type { ZhihuishuCourse } from '@study-pilot/application';
 import { ZhsAuthError, type ZhsClient } from '../client.ts';
 import { readCourseIsApply, selectedCourses } from '../courses.ts';
-import { getExamList, HOMEWORK_STATE, needsWork, type ZhsExamListItem } from '../exam-list.ts';
+import {
+  getExamList,
+  HOMEWORK_STATE,
+  MEET_COURSE_TYPE,
+  needsWork,
+  type ZhsExamListItem,
+} from '../exam-list.ts';
 import { readSession, type CookieReader } from '../session.ts';
 import { chapterExams, getCourseUnits, readCourseChapters, type ZhsChapterExam, type ZhsUnit } from '../structure.ts';
 import { executeUnit, type ExecuteUnitInput } from './execute.ts';
 import { executeExam, type ExamEnter, type ExamRunInput, type ExamTarget } from './execute-exam.ts';
 import { getMeetSessions, type ZhsMeetSession } from '../meet.ts';
-import { watchMeetReplay } from '../meet-watch.ts';
+import { readMeetWatchHistory, watchMeetReplay } from '../meet-watch.ts';
 
 /** 平台跑一轮需要的外界能力。由装配层创建后注入（与慕课同一形状）。 */
 export interface ZhsRunDeps {
@@ -108,8 +114,8 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
       const selected = selectedCourses(settings, scope);
       if (selected.length === 0) return { items: [], blocked: 'no-course' };
 
-      const session = await readSession(deps.readCookie);
-      if (!session.loggedIn) return { items: [], needsLogin: true };
+      const account = await readSession(deps.readCookie);
+      if (!account.loggedIn) return { items: [], needsLogin: true };
 
       const items: PlanItem[] = [];
       try {
@@ -173,6 +179,12 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
           const history = historyPage.items;
 
           const pushQuiz = (item: ZhsExamListItem, totalScore: number | null, enter: ExamEnter): void => {
+            /*
+             * **只排单元测试**。见面课测验只有一次作答机会，与期末同一处置：
+             * 只展示、不自动。平台目前也确实把它放在另一份清单里；这里再判一次
+             * 题型，是为了平台哪天把两类混进同一份清单时也不会被自动作答。
+             */
+            if (item.meetCourseType !== MEET_COURSE_TYPE.unitTest) return;
             const chapter = chapterByListId.get(item.id);
             if (chapter === undefined) return; // 对不上章节就不做（拿不到数字卷号，神谕也用不了）
             quizItems.push({
@@ -186,10 +198,9 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
           };
 
           /*
-           * ① 未交页签里我们接手的那些。**单元测试与见面课测验同一判据、同一处**：
-           * 平台的「重做」只按 `examId` 判，不分题型（源码 `9.c58d…js:11803`：
-           * `getIsObject(examId)` ＋ `3 - redoNum(examId).rt > 0`，全流程无 meetCourseType
-           * 分支），所以这里也不分——平台不分，我们分了就是自造分歧。
+           * ① 未交页签里我们接手的那些。见面课测验在 `pushQuiz` 里被题型闸挡掉：
+           * 平台的重做只按 `examId` 判、不分题型（源码 `9.c58d…js:11803`），
+           * 但我们**只替用户做单元测试**——见面课测验只有一次机会，与期末同一处置。
            */
           for (const item of pending) {
             if (!needsWork(item)) continue;
@@ -197,8 +208,7 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
           }
           /*
            * ② 已交但没满分的（Ryan 口径：直接走第二次——收割建键是只读的，不用重打第一枪）。
-           * 同样不分题型：门槛由 `getIsObject` ＋ 剩余次数在**执行侧**把（见 remainingGate），
-           * 那里是一处，别在这儿按题型再判一遍。
+           * 同样只限单元测试；机会门槛仍由执行侧的 `remainingGate` 把。
            */
           for (const item of history) {
             if (item.state !== HOMEWORK_STATE.submitted) continue;
@@ -214,15 +224,31 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
           items.push(...quizItems);
 
           /*
-           * 见面课：只排「在线观看 + 已结束 + 有回放」的场次。
+           * 见面课：只排「在线观看 + 已结束 + 有回放 + 还没看完」的场次。
            * 观看 80% 即考勤完成（2026-10-23 真机闭环）；现场签到型与未来直播不排，
-           * 由界面如实留着。读失败不拖垮整门课的计划——见面课是附加项。
+           * 由界面如实留着。已出现 `#` 的视为完成，不再排——否则 CLI 的待办会
+           * 把已看完的回放一直列成可做，与弹窗口径对不上。
+           * 读失败不拖垮整门课的计划——见面课是附加项；单场历史读不到时保留，
+           * 由执行侧再读一次。
            */
           try {
             const sessions = await getMeetSessions(deps.client, course.recruitId);
             for (const session of sessions) {
               if (session.signOpenStatus !== 2) continue;
               if (session.status !== 3 || session.replayUrl === null) continue;
+              if (account.userId !== null && session.liveCourseId !== null) {
+                try {
+                  const history = await readMeetWatchHistory(
+                    deps.client,
+                    session.liveCourseId,
+                    account.userId,
+                  );
+                  if (history.split(',').includes('#')) continue;
+                } catch (error) {
+                  if (error instanceof ZhsAuthError) throw error;
+                  // 保留该项，执行侧会再读历史再决定
+                }
+              }
               items.push({
                 id: meetItemId(session),
                 group: course.name,

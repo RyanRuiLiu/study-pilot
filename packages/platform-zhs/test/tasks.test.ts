@@ -550,25 +550,52 @@ describe('plan：单元测试项', () => {
     expect(payload.totalScore).toBe(100);
   });
 
-  it('见面课测验与单元测试同一判据：没动过的进计划、进法一样', async () => {
+  /*
+   * 见面课测验只有一次作答机会，与期末同一处置：只展示、不自动。
+   * 平台目前把它放在另一份清单里；这三条钉住「即使混进同一份清单也不排」。
+   */
+  it('见面课测验没动过也不进计划', async () => {
     const { tasks } = planWith([item({ meetCourseType: 1 })], []);
-    const quiz = quizzesOf((await tasks.plan(0)).items);
-    expect(quiz).toHaveLength(1);
-    expect((quiz[0]!.payload as { enter: string }).enter).toBe('fresh');
+    expect(quizzesOf((await tasks.plan(0)).items)).toEqual([]);
   });
 
-  it('见面课测验重做已申请也进计划（平台的重做只按 examId 判，不分题型）', async () => {
+  it('见面课测验重做已申请也不进计划', async () => {
     const { tasks } = planWith([item({ meetCourseType: 1, state: 5 })], []);
-    const quiz = quizzesOf((await tasks.plan(0)).items);
-    expect(quiz).toHaveLength(1);
-    expect((quiz[0]!.payload as { enter: string }).enter).toBe('redoOpen');
+    expect(quizzesOf((await tasks.plan(0)).items)).toEqual([]);
   });
 
-  it('见面课测验已交未满分也进计划——门槛在执行侧一处把（getIsObject ＋ 剩余次数）', async () => {
+  it('见面课测验已交未满分也不进计划', async () => {
     const { tasks } = planWith([], [item({ meetCourseType: 1, state: 4, score: '60', totalScore: '100' })]);
-    const quiz = quizzesOf((await tasks.plan(0)).items);
-    expect(quiz).toHaveLength(1);
-    expect((quiz[0]!.payload as { enter: string }).enter).toBe('submitted');
+    expect(quizzesOf((await tasks.plan(0)).items)).toEqual([]);
+  });
+
+  it('已看完的见面课回放不再进计划，没看完的才排', async () => {
+    const meet = (taskId: string, liveCourseId: string) => ({
+      taskId,
+      taskName: taskId,
+      taskStatus: '3',
+      startTime: '2026-10-08 18:30:00',
+      endTime: '2026-10-08 20:00:00',
+      replayCourseUrl: `//lc.zhihuishu.com/live/vod_room.html?liveId=${liveCourseId}`,
+      liveCourseId,
+      videoId: `v-${liveCourseId}`,
+      signOpenStatus: '2',
+      askLeaveStatus: '0',
+    });
+    const tasks = createZhsTasks({
+      config,
+      readCookie: readCookieLoggedIn,
+      client: fakeClient({
+        videoList: () => CHAPTERS,
+        studyInfo: () => STUDY_INFO(0),
+        meetSessions: () => ({ maps: [meet('done', 'lc-done'), meet('todo', 'lc-todo')] }),
+        meetWatchHistory: (payload) => ({ rt: payload?.courseId === 'lc-done' ? '#' : '' }),
+      }),
+    });
+
+    const plan = await tasks.plan(0);
+    const meets = plan.items.filter((entry) => entry.kind === 'meetWatch');
+    expect(meets.map((entry) => entry.id)).toEqual(['zhs-meet-todo']);
   });
 
   it('计划是只读的：两个页签都读，但绝不开卷', async () => {
