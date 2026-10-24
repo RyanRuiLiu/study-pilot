@@ -30,6 +30,9 @@
                             # 打成单文件 → apps/extension/.output/study-pilot-extension-<版本>-chrome.zip
                             # 版本号在 apps/extension/package.json（清单与设置页页脚都取自它）
 
+    # apps/extension/.wxt/ 是 WXT 生成的类型缓存（git 忽略）。删掉后 IDE 会提示
+    # 找不到 .wxt/wxt.d.ts；跑一次 extension typecheck（或 pnpm install）就会重建。
+
 四条冒烟（可选，后两条要本地已有登录会话）：
 
     pnpm --filter @study-pilot/platform-mooc exec vitest run test/plan-smoke.test.ts
