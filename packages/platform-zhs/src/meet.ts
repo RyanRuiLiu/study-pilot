@@ -1,8 +1,8 @@
 /*
- * 见面课场次（模块 4）：只读 + 提醒。
+ * 见面课场次（模块 4）：读取场次 + 在线回放观看。
  *
  * 数据源是见面课页自己那条接口（`/onlineSchool/json/teachMeeting/listTeachMeetingStu`，
- * 2026-10-17 抓包读出来的路径，FINDINGS 里记的 stuonline 域那条是错的）。
+ * 2026-10-17 抓包读出来的路径）。
  * 每场带：主题、状态、起止时刻、直播与回放房间地址（两个都过 `safeUrl`）、测验状态。
  * **不带 `examH5Url`**：那是 dohomework 路由（打开即开卷），没人用它之前不摆进通用
  * 字段——摆了就等着哪天被谁顺手塞进 href。执行侧要用时按模块 2 的入口参数单独接。
@@ -20,7 +20,7 @@ export interface ZhsMeetSession {
   taskId: string;
   /** 场次主题（条目名，与作业清单里见面课测验的条目名同一个） */
   name: string;
-  /** `taskStatus`：3 = 已结束、1 = 未开始（实测的两个值，其余原样带出） */
+  /** `taskStatus`：1 = 未开始、2 = 进行中、3 = 已结束、4 = 提前 30 分钟预播（页面源码口径，其余原样带出） */
   status: number;
   startAt: number | null;
   endAt: number | null;

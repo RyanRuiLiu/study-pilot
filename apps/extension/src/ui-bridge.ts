@@ -98,7 +98,7 @@ export function refreshZhsCourses() {
   return sendToBackground({ type: 'ZHS_REFRESH_COURSES' });
 }
 
-/** 智慧树待办：未完成的教程视频与单元测试（两类都进待办，按板块排序）。 */
+/** 智慧树待办：视频、测验、已开始未完成的见面课与期末（按板块排序）。 */
 export function getZhsPending() {
   return sendToBackground({ type: 'ZHS_PENDING_SUMMARY' });
 }

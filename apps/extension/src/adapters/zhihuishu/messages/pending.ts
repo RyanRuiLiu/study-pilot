@@ -52,10 +52,10 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
       const enabled = selectedCourses(settings);
 
       /*
-       * 两类待办：教程视频走结构读取（含学情），单元测试走考试族清单。
-       * **结构读取只做一次**——测验要的章节表由 `collectUnits` 交出复用
-       * （每门课一次结构读取）。都读成之后按课程合并，所以待办里出现的
-       * 就是**执行会动的那些**。类别由 `kind` 标出，次序与措辞在弹窗侧。
+       * 三路读取：教程视频走结构读取（含学情），单元测试/见面课测验走考试族清单，
+       * 见面课场次与观看历史走模块 4。**结构读取只做一次**——测验要的章节表
+       * 由 `collectUnits` 交出复用（每门课一次结构读取）。都读成之后按课程合并，
+       * 类别由 `kind` 标出，次序与措辞在弹窗侧。
        */
       const collected = await collectUnits(deps.client, enabled);
       const quizzes = await collectQuizzes(deps.client, collected);

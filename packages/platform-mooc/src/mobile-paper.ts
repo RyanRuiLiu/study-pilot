@@ -9,8 +9,8 @@
  * 这里只读：**必须传已有的 active aId**。`aId=0` 在移动端同样会新建答卷，
  * 等价于点「开始测验」；调用方只能把网页取卷已经拿到的 aid 传进来。
  *
- * 这个能力是可选的：没有配置 `mob-token` 时，调用方走原来的网页路径。
- * 凭证只放在查询串里，不写日志、不拼进错误文本。
+ * 凭证由调用方从当前网页登录会话现取（`fetchMobToken`），不落盘。
+ * 只放在查询串里，不写日志、不拼进错误文本。
  */
 
 import { err, ok, type Result } from '@study-pilot/core';
@@ -53,7 +53,7 @@ export async function getMobileQuizPaper(
   aid: number,
 ): Promise<Result<QuizPaper, TransportError>> {
   const trimmed = token.trim();
-  if (trimmed === '') return err(apiError(-1, '未配置移动端 mob-token'));
+  if (trimmed === '') return err(apiError(-1, '还没检测到官网登录，无法获取移动端凭证'));
   if (!Number.isFinite(aid) || aid <= 0) return err(apiError(-1, '没有可用于移动端取卷的答卷 id'));
 
   const query = new URLSearchParams({

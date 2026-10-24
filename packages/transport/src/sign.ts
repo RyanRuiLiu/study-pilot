@@ -67,7 +67,7 @@ export const JSON_CONTENT_TYPE = 'application/json;charset=UTF-8';
  *
  * **对象这一支与页面不一致，是有意的**，别「改回去」：页面写作
  * `"[Object Object]" === Object.prototype.toString.call(e) ? JSON.stringify(e) : e || ""`
- * （逐字核对 `.probe/mooc-src/core.js`，大写 O）——那个字面量永远不相等，所以页面对
+ * （逐字核对平台前端 `core.js`，大写 O）——那个字面量永远不相等，所以页面对
  * 真对象走的是 `e || ""`，拼进签名的是隐式转换出来的 `"[object Object]"`。
  * 真实的 `.rpc` 调用在这里传进去的已经是 `JSON.stringify` 过的**字符串**，两边在这一支
  * 上逐字相同（带签名请求全部 `code: 0` 就是这条依据）。若把这里改成「和页面一样」，
