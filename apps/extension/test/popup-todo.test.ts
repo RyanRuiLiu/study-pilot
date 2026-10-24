@@ -78,6 +78,47 @@ describe('待办区的取数出口', () => {
     expect(textOf('zhs-todo-text')).toContain('读取失败：后台断了');
   });
 
+  it('见面课：可回放的给执行按钮，直播中/现场的只给「需手动完成」', async () => {
+    bridge.getZhsPending.mockResolvedValueOnce({
+      status: 'ok',
+      value: {
+        entries: [
+          {
+            itemId: 'zhs-meet-a',
+            kind: 'meetWatch',
+            courseName: '示例课程甲',
+            chapterName: '',
+            name: '已结束的回放',
+            status: '未观看',
+            href: 'https://example.com/replay',
+            deadline: null,
+            sec: 5400,
+            opensAt: null,
+          },
+          {
+            itemId: 'zhs-meet-b',
+            kind: 'meetWatch',
+            courseName: '示例课程甲',
+            chapterName: '',
+            name: '正在直播',
+            status: '直播中',
+            href: 'https://example.com/live',
+            deadline: null,
+            sec: 5400,
+            opensAt: null,
+            manual: true,
+          },
+        ],
+        unreadCourses: [],
+      },
+    });
+    await renderZhsTodo();
+    const document = (globalThis as unknown as { document: Document }).document;
+    const el = document.getElementById('zhs-todo-text');
+    expect(el?.textContent).toContain('需手动完成');
+    expect(el?.querySelectorAll('button.todo-run')).toHaveLength(1);
+  });
+
   it('见面课测验进待办时只给「需手动完成」，不给执行按钮', async () => {
     bridge.getZhsPending.mockResolvedValueOnce({
       status: 'ok',

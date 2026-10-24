@@ -102,12 +102,13 @@ function buildRow(entry: ZhsPendingEntry): HTMLElement {
   sub.className = 'todo-sub';
 
   /*
-   * 两颗按钮在这里不发：期末考试**不自动**（设计文档 §2.1），见面课测验的自动作答
-   * 也**尚未开发**（入口参数不同，执行侧没接过）。两者都只做「只读展示 + 可点」，
-   * 处置句用慕课人工项同一套词汇「需手动完成」——按钮在那儿就等于许诺能把这件事做掉。
+   * 按钮只发给能代做的：期末考试不自动；见面课测验不自动（只有一次机会）；
+   * 直播中的在线场次与现场签到由载荷标 `manual`（本人看/本人到场）。
+   * 其余都只做「只读展示 + 可点」，处置句用慕课人工项同一套词汇
+   * 「需手动完成」——按钮在那儿就等于许诺能把这件事做掉。
    */
   const handling = document.createElement('span');
-  if (entry.kind === 'finalExam' || entry.kind === 'meetQuiz') {
+  if (entry.manual === true || entry.kind === 'finalExam' || entry.kind === 'meetQuiz') {
     handling.className = 'todo-handling';
     handling.textContent = '需手动完成';
     sub.append(handling);

@@ -1,15 +1,19 @@
 /*
- * ZHS_PENDING_SUMMARY：待办 = 未完成的教程视频、单元测试/见面课测验，以及期末考试
- * （按课程归拢、章节自然序）。
+ * ZHS_PENDING_SUMMARY：待办 = 未完成的教程视频、单元测试/见面课测验、
+ * 已开始且没完成的见面课，以及期末考试（按课程归拢、章节自然序）。
  *
  * 视频单元没有截止时间概念（学习窗口由课程整体规定），因此不对它做
  * 任何时间过滤——列出来的就是「这门课还剩哪些没看」，一条不落。
+ * 见面课反过来：只列已开始的；未开播的现在做不了，留在设置页当提醒。
  */
 
 import type { MessageHandler, QueryOutcome } from '../../../protocol.ts';
 import {
+  getMeetSessions,
+  meetItemId,
   probeSession,
   quizItemId,
+  readMeetWatchHistory,
   readSession,
   selectedCourses,
   unitItemId,
@@ -21,7 +25,7 @@ import type { ZhsPendingEntry, ZhsPendingSummary, ZhsResponseMap, ZhsUnreadCours
 import { readFinalExam, collectQuizzes, collectUnits } from './reads.ts';
 
 // 落点 URL 都在 ../pages.ts（一处拼、界面各处共用；理由见那个文件）
-import { examListUrl, studyPageUrl } from '../pages.ts';
+import { examListUrl, meetPageUrl, studyPageUrl } from '../pages.ts';
 
 export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
   return async (_request, sendResponse) => {
@@ -82,6 +86,87 @@ export function zhsPendingCommand(deps: ZhsMessageDeps): MessageHandler {
             deadline: null, // 课程学习窗口尚未接入；界面上两格如实留空
             sec: unit.sec,
             opensAt: null,
+          });
+        }
+
+        /*
+         * 见面课（板块三）：只列**已开始且没完成**的场次——未开播的不进待办
+         * （现在做不了，只该在设置页那一行当提醒）。
+         *
+         * 能代做的只有「在线观看 + 已结束 + 有回放」：观看历史出现 `#` 即完成，
+         * 否则带执行按钮。直播中的在线场次要本人看，现场签到型要本人到场，
+         * 两者都只列成手动项（`manual`），不摆一个点了也做不掉的按钮。
+         * 现场签到没有可读的完成状态，只在**进行中**列；结束后无法再签到，
+         * 不把不知道完成没完成的场次永久挂在待办里。
+         */
+        try {
+          const sessions = await getMeetSessions(deps.client, course.recruitId);
+          for (const meet of sessions) {
+            if (meet.status !== 2 && meet.status !== 3) continue;
+            const duration =
+              meet.startAt !== null && meet.endAt !== null && meet.endAt > meet.startAt
+                ? Math.floor((meet.endAt - meet.startAt) / 1000)
+                : 0;
+            const base = {
+              itemId: meetItemId(meet),
+              kind: 'meetWatch' as const,
+              courseName: course.name,
+              chapterName: '',
+              name: meet.name,
+              deadline: null,
+              sec: duration,
+              opensAt: null,
+            };
+
+            // 考勤方式没读到时不猜：不把未知说成现场，也不当自动项
+            if (meet.signOpenStatus === null) continue;
+            if (meet.signOpenStatus !== 2) {
+              if (meet.status !== 2) continue;
+              entries.push({
+                ...base,
+                status: '现场签到',
+                href: meetPageUrl(course.recruitId),
+                manual: true,
+              });
+              continue;
+            }
+
+            let watched = '';
+            let known = false;
+            if (session.userId !== null && meet.liveCourseId !== null) {
+              try {
+                watched = await readMeetWatchHistory(deps.client, meet.liveCourseId, session.userId);
+                known = true;
+              } catch (error) {
+                if (error instanceof ZhsAuthError) throw error;
+                // 保留为候选，执行侧会再读历史；不因一次读取失败藏掉整场
+              }
+            }
+            if (watched.split(',').includes('#')) continue;
+
+            if (meet.status === 2) {
+              entries.push({
+                ...base,
+                status: '直播中',
+                href: meet.liveUrl ?? studyPageUrl(course.secret),
+                manual: true,
+              });
+              continue;
+            }
+            if (meet.replayUrl === null) continue;
+            const partial = watched.split(',').some((value) => value !== '');
+            entries.push({
+              ...base,
+              status: known ? (partial ? '未看完' : '未观看') : '未完成',
+              href: meet.replayUrl,
+            });
+          }
+        } catch (error) {
+          if (error instanceof ZhsAuthError) throw error;
+          // 与测验/期末相同的口径：读不到就如实说，不静默少列
+          unreadCourses.push({
+            courseName: course.name,
+            reason: `见面课读取失败：${error instanceof Error ? error.message : String(error)}`,
           });
         }
 

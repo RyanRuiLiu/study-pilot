@@ -17,7 +17,8 @@ import type { ZhihuishuCourse } from '@study-pilot/application';
  * 按它映射——平台包只负责说「这是哪一类」，不负责怎么称呼它。
  *
  * 与 `PlanItem.kind` 同一套取值（计划里就是这么标的），所以待办与执行范围
- * 天然对得上。智慧树的成绩构成有四类，四类都落成机器值；执行目前只覆盖前两类。
+ * 天然对得上。智慧树的成绩构成有四类，四类都落成机器值；执行覆盖教程视频、
+ * 单元测试，以及在线见面课里可回放的那些（直播中与现场签到只展示、需人工）。
  */
 export type ZhsPendingKind = 'courseware' | 'quiz' | 'meetWatch' | 'meetQuiz' | 'finalExam';
 
@@ -65,6 +66,13 @@ export interface ZhsPendingEntry {
    * 后者会让人以为现在就能做。没开的期末由渲染侧据它与当前时刻切换措辞。
    */
   opensAt: number | null;
+  /**
+   * 这条只能人工完成（直播中的在线见面课、现场签到）。
+   *
+   * 与 `finalExam` / `meetQuiz` 同样的处置：只读展示 + 可点，不出「执行」按钮。
+   * 缺省为 false——现有的视频、单元测试与可回放见面课都是可代做的。
+   */
+  manual?: boolean;
 }
 
 /** 一门课没读成的事实（待办里如实呈现，不静默消失——见 pending.ts）。 */
