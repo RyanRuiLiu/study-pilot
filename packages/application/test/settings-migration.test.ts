@@ -85,6 +85,7 @@ describe('版本 4 → 5 的设置迁移', () => {
       'keepOverdueDays',
       'mobileAId',
       'mobileAccount',
+      'mobileDeviceProfile',
       'mobilePassword',
       'mobileUniqueId',
       'reviewComment',

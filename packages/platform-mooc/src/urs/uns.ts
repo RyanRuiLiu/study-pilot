@@ -12,12 +12,13 @@
  * 用户的凭证；App 的每一次登录都用同一对。客户端私钥只用于解开服务端
  * 回给客户端的 key/iv，不参与身份认证。
  *
- * 2026-10-28 实测补充：
- *   · `ydUniqueId` 传空串可以通过 init，说明服务端不强制 ZXID；
- *   · 平板画像（model/resolution 改成 MatePad Pro）仍落手机槽：会顶掉
- *     另一台手机，平板本身不受影响；
- *   · `platform: 'web'` 的登录另占一个槽：换发 mob-token、取答案正常，
- *     且手机 token 保持有效。扩展因此固定用网页/PC 画像。
+ * 2026-10-28 实测：
+ *   · 服务端按设备槽切会话：手机槽与平板槽各一个，互不顶号；
+ *   · 落平板槽需要同时满足：平板画像（Android / MatePad Pro / 2560*1600）
+ *     和**一套全新的 aId/uniqueId**。沿用旧网页画像的安装 id 会并进手机槽；
+ *   · `ydUniqueId` 要传空串：服务端会校验 ZXID，随机值回 14010；
+ *   · 只在 init 里试画像不够，要以登录+换发后两个 mob-token 是否同时
+ *     有效为准（2026-10-28 A/B：网页控制会话与平板会话同时取到 5/5）。
  */
 
 import {
@@ -65,24 +66,21 @@ const getServerKey = (): RsaPublicKey => (serverKey ??= parseRsaPublicKey(base64
 const getClientKey = (): RsaPrivateKey => (clientKey ??= parseRsaPrivateKey(base64ToBytes(UNS_CLIENT_PRIVATE_KEY)));
 
 /**
- * 网页/PC 设备画像。
+ * 平板设备画像。
  *
- * 2026-10-28 实测：服务端按设备类别切会话槽，手机一个槽、平板一个槽；
- * 用“平板画像”（model MatePad Pro / 2560*1600）登录仍落**手机槽**，
- * 会顶掉另一台手机（平板本身不受影响）。同一账号下 `platform: 'web'`
- * 的登录被服务端接受，换发 384 位 mob-token、`paperDetail` 取答案均正常，
- * 且登录后手机 token 仍然有效。因此扩展固定用网页/PC 画像，占独立槽，
- * 不碰手机，也不碰平板。
+ * 服务端按设备槽切会话：手机槽与平板槽各一个。实测要落平板槽，
+ * 必须同时使用平板画像和一套全新的 aId/uniqueId；沿用旧网页画像的
+ * 安装 id 会并进手机槽，顶掉手机。`ydUniqueId` 必须留空（随机 ZXID 回 14010）。
  */
 export const UNS_DEVICE = {
-  platform: 'web',
+  platform: 'android',
   appVersion: UNS_APP_VERSION,
-  systemVersion: 0,
-  model: 'PC',
-  resolution: '1920*1080',
+  systemVersion: 30,
+  model: 'MatePad Pro',
+  resolution: '2560*1600',
   carrier: '中国电信',
   network: 'WIFI',
-  ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36',
+  ua: 'Mozilla/5.0 (Linux; Android 11; MatePad Pro Build/RP1A.200720.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.106 Mobile Safari/537.36',
 } as const;
 
 export interface UnsDeviceInstall {
@@ -133,7 +131,8 @@ export function buildUnsCommonPayload(install: UnsDeviceInstall, now: number, re
     aId: install.aId,
     uniqueId: install.uniqueId,
     packageSign: UNS_PACKAGE_SIGN,
-    // App 会带 ZXID；实测空串服务端也接受，普通用户不必有手机 App
+    // 服务端会校验 ZXID：随机值回 14010。扩展没有易盾真值，传空；
+    // 平板槽靠“全新 aId/uniqueId + 平板画像”区分。
     ydUniqueId: '',
     ua: UNS_DEVICE.ua,
     time: now,

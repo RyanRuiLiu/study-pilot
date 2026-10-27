@@ -80,6 +80,56 @@ describe('请求头规则安装', () => {
     ]);
   });
 
+  it('声明了 userAgent 时在出站前改写 User-Agent', async () => {
+    stored = [];
+    const whenReady = await loadFresh();
+
+    await whenReady([{ origin: 'https://sdk.reg.163.com', paths: ['/uns/'], userAgent: 'TabletUA' }]);
+
+    const action = stored[0]?.action as {
+      requestHeaders: Array<{ header: string; operation: string; value: string }>;
+    };
+    expect(action.requestHeaders).toContainEqual({
+      header: 'User-Agent',
+      operation: 'set',
+      value: 'TabletUA',
+    });
+  });
+
+  it('stripBrowserHeaders 会移除 Origin/Referer/Sec-CH-UA/Sec-Fetch-*', async () => {
+    stored = [];
+    const whenReady = await loadFresh();
+
+    await whenReady([
+      {
+        origin: 'https://sdk.reg.163.com',
+        paths: ['/uns/'],
+        userAgent: 'TabletUA',
+        stripBrowserHeaders: true,
+      },
+    ]);
+
+    const action = stored[0]?.action as {
+      requestHeaders: Array<{ header: string; operation: string; value?: string }>;
+    };
+    const removed = action.requestHeaders.filter((h) => h.operation === 'remove').map((h) => h.header);
+    expect(removed).toEqual([
+      'Origin',
+      'Referer',
+      'Sec-CH-UA',
+      'Sec-CH-UA-Mobile',
+      'Sec-CH-UA-Platform',
+      'Sec-Fetch-Site',
+      'Sec-Fetch-Mode',
+      'Sec-Fetch-Dest',
+    ]);
+    expect(action.requestHeaders).toContainEqual({
+      header: 'User-Agent',
+      operation: 'set',
+      value: 'TabletUA',
+    });
+  });
+
   it('worker 重启后不重复添加同 id 的规则：移除的 id 取自浏览器实际存在的规则', async () => {
     stored = [];
     const first = await loadFresh();

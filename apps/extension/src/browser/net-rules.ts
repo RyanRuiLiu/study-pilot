@@ -45,12 +45,36 @@ function buildRules(sets: NetRuleSet[]): Rule[] {
   const rules: Rule[] = [];
 
   for (const set of sets) {
-    const action = {
-      type: 'modifyHeaders' as RuleActionType,
-      requestHeaders: [
+    const requestHeaders: Array<{ header: string; operation: HeaderOperation; value?: string }> = [];
+    if (set.stripBrowserHeaders === true) {
+      for (const header of [
+        'Origin',
+        'Referer',
+        'Sec-CH-UA',
+        'Sec-CH-UA-Mobile',
+        'Sec-CH-UA-Platform',
+        'Sec-Fetch-Site',
+        'Sec-Fetch-Mode',
+        'Sec-Fetch-Dest',
+      ]) {
+        requestHeaders.push({ header, operation: 'remove' as HeaderOperation });
+      }
+    } else {
+      requestHeaders.push(
         { header: 'Origin', operation: 'set' as HeaderOperation, value: set.origin },
         { header: 'Referer', operation: 'set' as HeaderOperation, value: `${set.origin}/` },
-      ],
+      );
+    }
+    if (set.userAgent !== undefined) {
+      requestHeaders.push({
+        header: 'User-Agent',
+        operation: 'set' as HeaderOperation,
+        value: set.userAgent,
+      });
+    }
+    const action = {
+      type: 'modifyHeaders' as RuleActionType,
+      requestHeaders,
     };
 
     const host = set.origin.replace(/^https?:\/\//, '');

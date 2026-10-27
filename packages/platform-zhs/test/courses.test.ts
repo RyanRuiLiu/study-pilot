@@ -149,6 +149,7 @@ describe('refreshCourses', () => {
       mobilePassword: '',
       mobileAId: '',
       mobileUniqueId: '',
+      mobileDeviceProfile: '',
     },
     zhihuishu: {
       courses: [

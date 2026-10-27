@@ -8,10 +8,10 @@
  *   3. 用 `URS_CLIENT_ID` 把 token 换成 384 位 mob-token（见 mobile-paper.ts）。
  *
  * 与旧的 legacy URS（`/interfaces/yd/pwdlogin.do`）的关键差别不在协议，
- * 而在服务端的会话槽：legacy 账密登录会顶掉手机 App；UNS 的平板画像也仍落
- * 手机槽（2026-10-28 实测会顶掉另一台手机）。`platform: 'web'` 的网页/PC
- * 画像另占一槽，手机与平板都不受影响；`ydUniqueId` 可以传空串，所以普通
- * 用户不需要抓手机 ZXID。
+ * 而在服务端的会话槽：legacy 账密登录会顶掉手机 App。UNS 登录要以
+ * **平板画像 + 一套全新的 aId/uniqueId** 才落平板槽（2026-10-28 实测：
+ * 手机槽与平板槽各一个会话，互不顶号）；沿用旧网页画像的安装 id 会并进
+ * 手机槽，顶掉手机。`ydUniqueId` 必须留空（服务端校验 ZXID，随机值回 14010）。
  *
  * 凭证不落盘、不写日志、不拼进错误文本；p1 在发出前用 SM4 加密。
  */

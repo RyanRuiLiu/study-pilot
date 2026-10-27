@@ -19,8 +19,20 @@
  */
 
 import { MOOC_ORIGIN } from '../client.ts';
+import { UNS_DEVICE, UNS_ORIGIN } from '../urs/uns.ts';
 import type { NetRuleSet } from '@study-pilot/application';
 
 export const MOOC_REQUEST_RULES: NetRuleSet[] = [
   { origin: MOOC_ORIGIN, paths: ['/web/j/', '/dwr/', '/mob/', '/passport/'] },
+  /*
+   * UNS 的 HTTP UA 必须与 p1 里的设备 UA 一致；浏览器自动加的
+   * Origin/Referer/Sec-CH-UA/Sec-Fetch-* 也要去掉，否则服务端会把
+   * 它们和平板画像比对后回 14010。这里让请求看起来像原生 App。
+   */
+  {
+    origin: UNS_ORIGIN,
+    paths: ['/uns/'],
+    userAgent: UNS_DEVICE.ua,
+    stripBrowserHeaders: true,
+  },
 ];

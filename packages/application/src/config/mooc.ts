@@ -96,11 +96,18 @@ export interface MoocSettings {
    * 移动端登录的设备安装标识（Android ID，16 位十六进制）。
    *
    * 首次登录时由扩展生成并保存，之后复用；不是账号凭证，也不含个人信息。
-   * 它让同一次安装在多次自动续期时保持同一个“网页设备”。
+   * 它让同一次安装在多次自动续期时保持同一个“平板设备”。
    */
   mobileAId: string;
   /** 移动端登录的安装 id（40 位十六进制），与 mobileAId 一起生成、复用。 */
   mobileUniqueId: string;
+  /**
+   * 设备画像迁移标记。
+   *
+   * 空串表示旧安装，aId/uniqueId 还是网页画像时期的 id；首次移动端登录会
+   * 整套换新并置为 'tablet'，从此固定复用这套平板身份。
+   */
+  mobileDeviceProfile: 'tablet' | '';
 }
 
 export const DEFAULT_MOOC: MoocSettings = {
@@ -111,4 +118,5 @@ export const DEFAULT_MOOC: MoocSettings = {
   mobilePassword: '',
   mobileAId: '',
   mobileUniqueId: '',
+  mobileDeviceProfile: '',
 };

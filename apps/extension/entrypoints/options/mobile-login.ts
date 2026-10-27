@@ -2,8 +2,8 @@
  * 移动端登录（独立卡）：官网手机号 + 密码，保存并立即换发一次移动端会话。
  *
  * 走的是官方 UNS 账密登录 → `ursCellphoneLogin` 换发，和后台取答案同一条
- * 平台函数（`loginMobileSession`），不在这里重写一份请求。登录以网页/PC
- * 设备身份进行，不与手机、平板的移动端会话共槽。
+ * 平台函数（`loginMobileSession`），不在这里重写一份请求。登录以平板设备
+ * 身份进行，占平板槽，不占手机槽；手机与扩展可同时在线。
  */
 
 import { sendToBackground } from '../../src/messages.ts';
@@ -66,9 +66,15 @@ export async function renderMobileLogin(): Promise<void> {
         const current = await getSettings();
         let aId = current.mooc.mobileAId;
         let uniqueId = current.mooc.mobileUniqueId;
-        if (aId === '' || uniqueId === '') {
+        let mobileDeviceProfile = current.mooc.mobileDeviceProfile;
+        if (mobileDeviceProfile !== 'tablet') {
+          // 旧安装的 aId/uniqueId 属于网页画像；切平板槽时整套换新
           aId = randomHex(8);
           uniqueId = randomHex(20);
+          mobileDeviceProfile = 'tablet';
+        } else {
+          if (aId === '') aId = randomHex(8);
+          if (uniqueId === '') uniqueId = randomHex(20);
         }
         const settings = await updateSettings({
           mooc: {
@@ -76,6 +82,7 @@ export async function renderMobileLogin(): Promise<void> {
             mobilePassword: sentPassword,
             mobileAId: aId,
             mobileUniqueId: uniqueId,
+            mobileDeviceProfile,
           },
         });
         if (account.value.trim() === sentAccount) account.value = settings.mooc.mobileAccount;
@@ -90,7 +97,7 @@ export async function renderMobileLogin(): Promise<void> {
           uniqueId,
         });
         if (result.ok) {
-          setStatus('登录成功，已换发移动端会话（不占用手机/平板）', false);
+          setStatus('登录成功，已换发移动端会话（平板槽）', false);
           toast('移动端登录成功');
         } else {
           setStatus(result.message, true);

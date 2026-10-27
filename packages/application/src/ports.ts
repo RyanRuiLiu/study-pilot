@@ -89,6 +89,17 @@ export interface NetRuleSet {
    * 一并改掉，没有必要。
    */
   paths: string[];
+  /**
+   * HTTP User-Agent。需要与请求体里声明的设备 UA 一致时必须给：
+   * 网易 UNS 会校验两者，浏览器默认 UA 与平板画像不一致时回 14010。
+   */
+  userAgent?: string;
+  /**
+   * 去掉浏览器自动加的设备指纹头（Origin/Referer/Sec-CH-UA/Sec-Fetch-*）。
+   * 网易 UNS 会把它们和 p1 里的设备画像比对；浏览器指纹与平板画像不一致时
+   * 回 14010。原生 App 本来就不发这些头。
+   */
+  stripBrowserHeaders?: boolean;
 }
 
 // ---------- 载体要实现的端口 ----------
