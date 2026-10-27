@@ -12,10 +12,12 @@
  * 用户的凭证；App 的每一次登录都用同一对。客户端私钥只用于解开服务端
  * 回给客户端的 key/iv，不参与身份认证。
  *
- * 2026-10-27 实测补充：
+ * 2026-10-28 实测补充：
  *   · `ydUniqueId` 传空串可以通过 init，说明服务端不强制 ZXID；
- *   · 设备画像用平板（model/resolution），登录后手机 App 的 mob-token
- *     仍然有效（`getMobDeviceLimtStatus` 回 code 0），不会占用手机槽。
+ *   · 平板画像（model/resolution 改成 MatePad Pro）仍落手机槽：会顶掉
+ *     另一台手机，平板本身不受影响；
+ *   · `platform: 'web'` 的登录另占一个槽：换发 mob-token、取答案正常，
+ *     且手机 token 保持有效。扩展因此固定用网页/PC 画像。
  */
 
 import {
@@ -63,20 +65,24 @@ const getServerKey = (): RsaPublicKey => (serverKey ??= parseRsaPublicKey(base64
 const getClientKey = (): RsaPrivateKey => (clientKey ??= parseRsaPrivateKey(base64ToBytes(UNS_CLIENT_PRIVATE_KEY)));
 
 /**
- * 平板设备画像。
+ * 网页/PC 设备画像。
  *
- * 服务端按设备类别切会话槽：两台手机互相顶掉，平板与手机并存（用户实测）。
- * 因此扩展固定以平板身份登录，避免占用手机槽。
+ * 2026-10-28 实测：服务端按设备类别切会话槽，手机一个槽、平板一个槽；
+ * 用“平板画像”（model MatePad Pro / 2560*1600）登录仍落**手机槽**，
+ * 会顶掉另一台手机（平板本身不受影响）。同一账号下 `platform: 'web'`
+ * 的登录被服务端接受，换发 384 位 mob-token、`paperDetail` 取答案均正常，
+ * 且登录后手机 token 仍然有效。因此扩展固定用网页/PC 画像，占独立槽，
+ * 不碰手机，也不碰平板。
  */
 export const UNS_DEVICE = {
-  platform: 'android',
+  platform: 'web',
   appVersion: UNS_APP_VERSION,
-  systemVersion: 30,
-  model: 'MatePad Pro',
-  resolution: '2560*1600',
+  systemVersion: 0,
+  model: 'PC',
+  resolution: '1920*1080',
   carrier: '中国电信',
   network: 'WIFI',
-  ua: 'Mozilla/5.0 (Linux; Android 11; MatePad Pro Build/RP1A.200720.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.106 Mobile Safari/537.36',
+  ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36',
 } as const;
 
 export interface UnsDeviceInstall {

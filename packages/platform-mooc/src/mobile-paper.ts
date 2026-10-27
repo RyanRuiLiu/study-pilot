@@ -61,8 +61,8 @@ interface UrsLoginEnvelope {
  *
  * `appId` 必须与 `ursToken` 同一产品。扩展的 UNS 账密登录 token 用
  * `URS_CLIENT_ID`（2026-10-27 实测；用 App 抓包里的 init appId 会回
- * `code:1000 urs token无效`）。换发本身不再顶掉手机：UNS 登录已经以
- * 平板设备身份建立独立会话，换发只是把这枚 token 注册成移动端凭证。
+ * `code:1000 urs token无效`）。换发本身不再顶掉手机/平板：UNS 登录已经以
+ * 网页/PC 画像建立独立会话，换发只是把这枚 token 注册成移动端凭证。
  */
 export async function exchangeUrsTokenForMobToken(
   client: MobilePaperClient,
@@ -178,8 +178,8 @@ export async function getMobileQuizPaper(
 /**
  * 账密自动登录：UNS 手机号+密码 → `ursToken` → 384 位移动端 `mobToken`。
  *
- * 这是扩展设置页「移动端登录」与后台取答案共用的一条链。登录固定按平板
- * 设备画像提交，和手机 App 的会话并存；只在真要取答案时调，不做轮询。
+ * 这是扩展设置页「移动端登录」与后台取答案共用的一条链。登录固定按网页/PC
+ * 画像提交，和手机、平板的移动端会话并存；只在真要取答案时调，不做轮询。
  */
 export async function loginMobileSession(
   client: MobilePaperClient,
