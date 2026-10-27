@@ -9,23 +9,26 @@
  * 只回成功或错误原话；mob-token 留在后台，不进消息响应。
  */
 
-import { loginMobileSession } from '@study-pilot/platform-mooc';
 import type { MessageHandler } from '../../../protocol.ts';
 import type { MoocMessageDeps } from './deps.ts';
-import type { MoocRequest, MoocResponseMap } from './payload.ts';
-
-type Request = Extract<MoocRequest, { type: 'MOOC_MOBILE_LOGIN' }>;
+import type { MoocResponseMap } from './payload.ts';
 
 export function mobileLoginCommand(deps: MoocMessageDeps): MessageHandler {
-  return async (request, sendResponse) => {
-    const { account, password, aId, uniqueId } = request as Request;
-    const result = await loginMobileSession(
-      { send: deps.client.send, origin: deps.client.origin },
-      { account, password, aId, uniqueId },
-    );
-    const response: MoocResponseMap['MOOC_MOBILE_LOGIN'] = result.ok
-      ? { ok: true }
-      : { ok: false, message: result.error.message };
+  return async (_request, sendResponse) => {
+    let response: MoocResponseMap['MOOC_MOBILE_LOGIN'];
+    try {
+      // 走客户端那枚带缓存的 provider，而不是另起一次 loginMobileSession：
+      // 设置页登录成功后，后续取答案必须复用同一枚 mob-token，不能再次登录。
+      const provider = deps.client.mobileSession;
+      if (provider === undefined) {
+        response = { ok: false, message: '移动端登录尚未配置账号密码' };
+      } else {
+        const result = await provider({ refresh: true });
+        response = result.ok ? { ok: true } : { ok: false, message: result.error.message };
+      }
+    } catch (error) {
+      response = { ok: false, message: error instanceof Error ? error.message : String(error) };
+    }
     sendResponse(response);
   };
 }

@@ -19,7 +19,7 @@ import type {
 } from '@study-pilot/application';
 import type { CourseSummary } from '../types.ts';
 import type { CoursewareContext, TextGenerator } from '../courseware/index.ts';
-import type { MoocClient, MoocClientOptions } from '../client.ts';
+import type { MoocClient, MoocClientOptions, MobileSessionStore } from '../client.ts';
 import { createPlatformClient, loadSnapshot, refreshCourses, type PlatformClient } from './sync.ts';
 import { createMoocTasks, type MoocRunDeps } from './tasks.ts';
 import { MOOC_REQUEST_RULES } from './net-rules.ts';
@@ -48,6 +48,11 @@ export interface MoocCarrierDeps {
    * 权限被撤回时讨论单元不进计划，而不是每轮失败。缺省按设置推断。
    */
   textAvailable?: (settings: Settings) => Promise<boolean> | boolean;
+  /**
+   * 移动端会话的载体存储（可选）。扩展传 storage.session：跨 service worker
+   * 重启复用同一枚 mob-token，避免每次回收都重新登录顶掉另一台设备。
+   */
+  mobileSessionStore?: MobileSessionStore;
 }
 
 /** 本厂商的运行件。 */
@@ -130,7 +135,7 @@ export function createMoocRuntime(carrier: MoocCarrierDeps): MoocRuntime {
     }
     if (Object.keys(patch).length > 0) await carrier.config.update({ mooc: patch });
     return { account: mobileAccount, password: mobilePassword, aId, uniqueId };
-  });
+  }, carrier.mobileSessionStore);
 
   /*
    * 课件行为的上下文：只有一处来源——设置里的 AI 配置加上载体给的生成器工厂。

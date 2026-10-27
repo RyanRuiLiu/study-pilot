@@ -19,6 +19,7 @@ export {
   BROWSER_USER_AGENT,
   type MoocClient,
   type MoocClientOptions,
+  type MobileSessionStore,
 } from './client.ts';
 
 export {

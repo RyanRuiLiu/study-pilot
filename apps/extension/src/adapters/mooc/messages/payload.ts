@@ -149,10 +149,6 @@ export type MoocRequest =
    */
   | {
       type: 'MOOC_MOBILE_LOGIN';
-      account: string;
-      password: string;
-      aId: string;
-      uniqueId: string;
     }
 ;
 

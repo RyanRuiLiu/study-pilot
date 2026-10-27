@@ -9,7 +9,7 @@
 import { md5hex } from '@study-pilot/core';
 import { err, ok } from '@study-pilot/core';
 import { apiError } from '@study-pilot/transport';
-import { createMoocClient, MOOC_ORIGIN, type MoocClient, type MoocClientOptions } from '../client.ts';
+import { createMoocClient, MOOC_ORIGIN, type MoocClient, type MoocClientOptions, type MobileSessionStore } from '../client.ts';
 import { loginMobileSession } from '../mobile-paper.ts';
 import type { UnsPasswordCredentials } from '../urs/password-login.ts';
 import { COURSE_TYPE } from '../endpoints.ts';
@@ -75,6 +75,7 @@ export function createPlatformClient(
   host: HostCapabilities,
   carrierFetch?: MoocClientOptions['fetch'],
   getMobileCredentials?: () => Promise<UnsPasswordCredentials | null>,
+  mobileSessionStore?: MobileSessionStore,
 ): PlatformClient {
   // 不把全局 fetch 拆出来直接调用（浏览器里那是 Illegal invocation），包一层再交出去
   const send: MoocClientOptions['fetch'] = carrierFetch ?? ((input, init) => fetch(input, init));
@@ -112,13 +113,46 @@ export function createPlatformClient(
       : {
           mobileSession: (() => {
             let cached: string | null = null;
+            let loaded = false;
+            let inflight: Promise<Awaited<ReturnType<typeof loginMobileSession>>> | null = null;
+            const loadStored = async (): Promise<string | null> => {
+              if (cached !== null) return cached;
+              if (loaded || mobileSessionStore === undefined) return cached;
+              loaded = true;
+              try {
+                cached = await mobileSessionStore.load();
+              } catch {
+                cached = null;
+              }
+              return cached;
+            };
             return async (options?: { refresh?: boolean }) => {
-              if (options?.refresh !== true && cached !== null) return ok(cached);
-              const credentials = await getMobileCredentials();
-              if (credentials === null) return err(apiError(-1, '移动端登录尚未配置账号密码'));
-              const session = await loginMobileSession({ send: sendWithRules, origin: MOOC_ORIGIN }, credentials);
-              cached = session.ok ? session.value : null;
-              return session;
+              if (options?.refresh !== true) {
+                const existing = await loadStored();
+                if (existing !== null) return ok(existing);
+              } else {
+                // 服务端已经判定旧 token 失效；先清掉，避免下次又拿它去试。
+                cached = null;
+                loaded = true;
+                await mobileSessionStore?.clear().catch(() => undefined);
+              }
+              // 并发中的取答案会同时要 token；只放一次登录过去，避免同一次
+              // 点击/同一轮读取换出两枚会话、把另一台设备顶掉。
+              if (inflight !== null) return inflight;
+              inflight = (async () => {
+                const credentials = await getMobileCredentials();
+                if (credentials === null) return err(apiError(-1, '移动端登录尚未配置账号密码'));
+                const session = await loginMobileSession(
+                  { send: sendWithRules, origin: MOOC_ORIGIN },
+                  credentials,
+                );
+                cached = session.ok ? session.value : null;
+                if (session.ok) await mobileSessionStore?.save(session.value).catch(() => undefined);
+                return session;
+              })().finally(() => {
+                inflight = null;
+              });
+              return inflight;
             };
           })(),
         }),

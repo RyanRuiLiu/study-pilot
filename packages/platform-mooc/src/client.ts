@@ -65,6 +65,18 @@ export type MobileSessionProvider = (options?: { refresh?: boolean }) => Promise
   Result<string, TransportError>
 >;
 
+/**
+ * 移动端会话的载体存储（可选）。
+ *
+ * 扩展用 `chrome.storage.session`：只存内存、浏览器关闭即清，不落盘；
+ * 但能跨 service worker 重启复用，避免每次回收都重新登录顶掉另一台设备。
+ */
+export interface MobileSessionStore {
+  load: () => Promise<string | null>;
+  save: (token: string) => Promise<void>;
+  clear: () => Promise<void>;
+}
+
 export interface MoocClient {
   rpc: RpcClient;
   dwr: DwrClient;

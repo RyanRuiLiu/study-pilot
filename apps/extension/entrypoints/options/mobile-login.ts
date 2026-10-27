@@ -89,18 +89,12 @@ export async function renderMobileLogin(): Promise<void> {
         if (password.value === sentPassword) password.value = settings.mooc.mobilePassword;
 
         // 交给后台发：扩展页直接发会带 chrome-extension:// 的 Origin 和浏览器 UA
-        const result = await sendToBackground({
-          type: 'MOOC_MOBILE_LOGIN',
-          account: sentAccount,
-          password: sentPassword,
-          aId,
-          uniqueId,
-        });
-        if (result.ok) {
+        const result = await sendToBackground({ type: 'MOOC_MOBILE_LOGIN' });
+        if (result?.ok === true) {
           setStatus('登录成功，已换发移动端会话（平板槽）', false);
           toast('移动端登录成功');
         } else {
-          setStatus(result.message, true);
+          setStatus(result?.message ?? '后台未响应，请稍后重试', true);
         }
       } catch (error) {
         setStatus(`保存失败：${errorText(error)}`, true);
