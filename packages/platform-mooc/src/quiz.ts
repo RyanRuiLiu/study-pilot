@@ -107,7 +107,7 @@ async function fetchMobileTokenState(client: MoocClient): Promise<MobileTokenSta
 /**
  * 读移动端卷面，并在 -10012 时用账密强制重登一次。
  *
- * -10012 是「本槽位的移动端会话被其它登录顶掉」。重登一次即可拿回会话
+ * -10012 是「移动端会话被同一账号的其它登录顶掉」。重登一次即可拿回会话
  * （2026-10-27 实测）；重登失败时如实返回失败原因。
  */
 async function mobilePaperOf(

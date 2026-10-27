@@ -27,7 +27,7 @@ export const MOOC_REQUEST_RULES: NetRuleSet[] = [
   /*
    * UNS 的 HTTP UA 必须与 p1 里的设备 UA 一致；浏览器自动加的
    * Origin/Referer/Sec-CH-UA/Sec-Fetch-* 也要去掉，否则服务端会把
-   * 它们和平板画像比对后回 14010。这里让请求看起来像原生 App。
+   * 它们和手机画像比对后回 14010。这里让请求看起来像原生 App。
    */
   {
     origin: UNS_ORIGIN,

@@ -19,7 +19,6 @@ const SETTINGS: Settings = {
     mobilePassword: '',
     mobileAId: '',
     mobileUniqueId: '',
-    mobileDeviceProfile: '',
   },
   zhihuishu: {
     courses: [

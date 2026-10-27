@@ -137,8 +137,8 @@ describe('UNS 账密登录', () => {
     expect(payload.version).toBe('1.6.3');
     expect(payload.appVersion).toBe('5.6.1');
     expect(payload.platform).toBe('android');
-    expect(payload.model).toBe('MatePad Pro');
-    expect(payload.resolution).toBe('2560*1600');
+    expect(payload.model).toBe('PCAM10');
+    expect(payload.resolution).toBe('1080*2264');
     expect(payload.packageSign).toBe(UNS_PACKAGE_SIGN);
     expect(payload.ydUniqueId).toBe('');
     expect(payload.aId).toBe('0123456789abcdef');

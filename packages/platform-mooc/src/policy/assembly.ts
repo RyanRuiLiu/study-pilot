@@ -108,30 +108,18 @@ export function createMoocRuntime(carrier: MoocCarrierDeps): MoocRuntime {
     const { mobileAccount, mobilePassword } = settings.mooc;
     if (mobileAccount === '' || mobilePassword === '') return null;
 
-    let { mobileAId: aId, mobileUniqueId: uniqueId, mobileDeviceProfile } = settings.mooc;
+    let { mobileAId: aId, mobileUniqueId: uniqueId } = settings.mooc;
     const patch: {
       mobileAId?: string;
       mobileUniqueId?: string;
-      mobileDeviceProfile?: 'tablet';
     } = {};
-    if (mobileDeviceProfile !== 'tablet') {
-      // 旧安装只有网页画像的 aId/uniqueId；切平板槽必须换一整套身份，
-      // 否则服务端仍会把这些 id 关联到旧手机槽。
+    if (aId === '') {
       aId = randomHex(8);
-      uniqueId = randomHex(20);
-      mobileDeviceProfile = 'tablet';
       patch.mobileAId = aId;
+    }
+    if (uniqueId === '') {
+      uniqueId = randomHex(20);
       patch.mobileUniqueId = uniqueId;
-      patch.mobileDeviceProfile = mobileDeviceProfile;
-    } else {
-      if (aId === '') {
-        aId = randomHex(8);
-        patch.mobileAId = aId;
-      }
-      if (uniqueId === '') {
-        uniqueId = randomHex(20);
-        patch.mobileUniqueId = uniqueId;
-      }
     }
     if (Object.keys(patch).length > 0) await carrier.config.update({ mooc: patch });
     return { account: mobileAccount, password: mobilePassword, aId, uniqueId };

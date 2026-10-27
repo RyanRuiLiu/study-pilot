@@ -300,7 +300,6 @@ export function normalize(raw: Json): Settings {
       // 设备标识只认约定格式；野值留空，由首次登录重新生成
       mobileAId: /^[0-9a-f]{16}$/.test(merged.mooc.mobileAId) ? merged.mooc.mobileAId : '',
       mobileUniqueId: /^[0-9a-f]{40}$/.test(merged.mooc.mobileUniqueId) ? merged.mooc.mobileUniqueId : '',
-      mobileDeviceProfile: merged.mooc.mobileDeviceProfile === 'tablet' ? 'tablet' : '',
     },
     zhihuishu: {
       ...merged.zhihuishu,

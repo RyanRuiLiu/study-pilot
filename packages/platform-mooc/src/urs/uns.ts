@@ -13,12 +13,10 @@
  * 回给客户端的 key/iv，不参与身份认证。
  *
  * 2026-10-28 实测：
- *   · 服务端按设备槽切会话：手机槽与平板槽各一个，互不顶号；
- *   · 落平板槽需要同时满足：平板画像（Android / MatePad Pro / 2560*1600）
- *     和**一套全新的 aId/uniqueId**。沿用旧网页画像的安装 id 会并进手机槽；
- *   · `ydUniqueId` 要传空串：服务端会校验 ZXID，随机值回 14010；
- *   · 只在 init 里试画像不够，要以登录+换发后两个 mob-token 是否同时
- *     有效为准（2026-10-28 A/B：网页控制会话与平板会话同时取到 5/5）。
+ *   · 平台同一账号只保留一处移动端在线；新登录会顶掉旧会话；
+ *   · UNS 的 `ydUniqueId` 必须传空串：服务端会校验 ZXID，随机值回 14010；
+ *   · 扩展以官方 App 的手机画像登录，和手机/平板不会共存——登录扩展
+ *     就可能让手机或平板下线，反之亦然。这是平台限制，不是扩展能绕开的。
  */
 
 import {
@@ -66,21 +64,21 @@ const getServerKey = (): RsaPublicKey => (serverKey ??= parseRsaPublicKey(base64
 const getClientKey = (): RsaPrivateKey => (clientKey ??= parseRsaPrivateKey(base64ToBytes(UNS_CLIENT_PRIVATE_KEY)));
 
 /**
- * 平板设备画像。
+ * 官方 App 的手机设备画像。
  *
- * 服务端按设备槽切会话：手机槽与平板槽各一个。实测要落平板槽，
- * 必须同时使用平板画像和一套全新的 aId/uniqueId；沿用旧网页画像的
- * 安装 id 会并进手机槽，顶掉手机。`ydUniqueId` 必须留空（随机 ZXID 回 14010）。
+ * 平台同一账号只保留一处移动端在线。扩展以手机身份登录，会占用该名额；
+ * 手机/平板正在使用同一账号时，登录扩展会让它们其中一台下线。
+ * `ydUniqueId` 必须留空（随机 ZXID 回 14010）。
  */
 export const UNS_DEVICE = {
   platform: 'android',
   appVersion: UNS_APP_VERSION,
   systemVersion: 30,
-  model: 'MatePad Pro',
-  resolution: '2560*1600',
+  model: 'PCAM10',
+  resolution: '1080*2264',
   carrier: '中国电信',
   network: 'WIFI',
-  ua: 'Mozilla/5.0 (Linux; Android 11; MatePad Pro Build/RP1A.200720.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.106 Mobile Safari/537.36',
+  ua: 'Mozilla/5.0 (Linux; Android 11; PCAM10 Build/RP1A.200720.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.106 Mobile Safari/537.36',
 } as const;
 
 export interface UnsDeviceInstall {
@@ -131,8 +129,7 @@ export function buildUnsCommonPayload(install: UnsDeviceInstall, now: number, re
     aId: install.aId,
     uniqueId: install.uniqueId,
     packageSign: UNS_PACKAGE_SIGN,
-    // 服务端会校验 ZXID：随机值回 14010。扩展没有易盾真值，传空；
-    // 平板槽靠“全新 aId/uniqueId + 平板画像”区分。
+    // 服务端会校验 ZXID：随机值回 14010。扩展没有易盾真值，传空。
     ydUniqueId: '',
     ua: UNS_DEVICE.ua,
     time: now,

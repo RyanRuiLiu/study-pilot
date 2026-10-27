@@ -122,9 +122,9 @@ export const MOBILE_ENDPOINTS = {
    * `POST` 表单 `ursToken=<yd_+40hex>&mob-token=&appId=<URS 客户端 id>`
    * → `{code:0, results:{mobToken:384, mobPToken:384}}`。
    *
-   * 扩展的 UNS 登录按平板画像 + 全新安装 id 建立平板槽会话，不占手机槽；
-   * 换发只是把 UNS token 注册成移动端凭证，本身不会顶掉手机。仍只在
-   * 取答案当下做，不轮询。
+   * 扩展的 UNS 登录按官方 App 手机画像建立移动端会话，会占用该账号唯一的
+   * 移动端在线名额；换发只是把 UNS token 注册成移动端凭证。仍只在取答案
+   * 当下做，不轮询。
    */
   ursLogin: { path: '/mob/ucmooc/0/0/passport/ursCellphoneLogin/v1' },
 } as const;
