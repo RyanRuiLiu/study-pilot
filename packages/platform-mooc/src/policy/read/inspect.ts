@@ -111,6 +111,8 @@ export async function inspect(
           positive(work.test.totalScore) ??
           positive(work.test.sbjTotalScore) ??
           positive(work.test.objTotalScore),
+        usedTryCount: asNumber(work.test.usedTryCount),
+        totalTryCount: asNumber(work.test.totalTryCount),
         reviewable: status.reviewable,
         evaluateDone: null,
         evaluateTotal: null,

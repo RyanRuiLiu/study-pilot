@@ -38,6 +38,7 @@ const MANUAL_KIND: Record<ManualItem['reason'], PendingKind> = {
   'homework-unsubmitted': 'submit-homework',
   'homework-overdue': 'submit-homework',
   'quiz-overdue': 'submit-quiz',
+  'quiz-login-required': 'submit-quiz',
   'review-overdue': 'evaluate-homework',
   'self-overdue': 'self-evaluate',
   exam: 'submit-exam',
@@ -100,6 +101,13 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
     if (action.kind === 'courseware') continue;
 
     const { course, work } = action;
+    const retake =
+      action.kind === 'quiz' &&
+      work.submitted &&
+      work.score !== null &&
+      work.totalScore !== null &&
+      work.usedTryCount !== null &&
+      work.totalTryCount !== null;
     entries.push({
       /*
        * 三件事各有各的类别，不能合并。
@@ -124,7 +132,9 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
        * 测验要赶的是提交截止，评分要赶的是互评截止。
        */
       status: describeWorkStatus(work, now),
-      statusDetail: describeStatusDetail(describeWorkStatus(work, now)),
+      statusDetail: retake
+        ? `当前 ${work.score}/${work.totalScore} 分，已用 ${work.usedTryCount}/${work.totalTryCount} 次，可重做。`
+        : describeStatusDetail(describeWorkStatus(work, now)),
       deadline:
         action.kind === 'quiz' ? (work.deadline ?? 0) : (work.evaluateEnd ?? 0),
       evaluateDone: action.kind === 'review' ? work.evaluateDone : null,
@@ -153,7 +163,11 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
       name: work.name,
       examId: work.examId,
       status: describeWorkStatus(work, now),
-      statusDetail: describeStatusDetail(describeWorkStatus(work, now)),
+      statusDetail:
+        reason === 'quiz-login-required'
+          ? '需先在设置页的「移动端登录」配置账号密码，配置后才能取答案。'
+          : describeStatusDetail(describeWorkStatus(work, now)),
+      ...(reason === 'quiz-login-required' ? { note: '需先配置移动端登录' } : {}),
       deadline: item.deadline ?? 0,
       evaluateDone: null,
       evaluateTotal: null,

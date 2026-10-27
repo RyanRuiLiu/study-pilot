@@ -72,6 +72,35 @@
         （见 main.ts 的 onFirstActivate）。
       -->
       <section class="tab-panel" role="tabpanel" id="panel-mooc" aria-labelledby="tab-mooc" data-tab="mooc" hidden>
+        <!--
+          移动端登录：慕课第一块，独立登录卡。
+          账密只存本机扩展存储；保存后立即按官方 URS 登录换发一次移动端会话。
+          未配置时测验类任务只展示、不执行（判据在 platform-mooc 的计划层）。
+        -->
+        <section class="panel" id="mobile-login-card">
+          <div class="panel-head">
+            <h2 class="panel-title">移动端登录</h2>
+            <button id="mobile-login-save" class="btn" type="button">保存并登录</button>
+          </div>
+          <label class="field">
+            <span class="field-label">手机号</span>
+            <input id="mobile-account" type="tel" inputmode="numeric" autocomplete="username" placeholder="官网手机号" />
+          </label>
+          <label class="field">
+            <span class="field-label">密码</span>
+            <input id="mobile-password" type="password" autocomplete="current-password" />
+          </label>
+          <p class="note">
+            本模块用官网账号密码建立官方移动端会话，仅用于读取未提交答卷的标准答案。网页登录态来自浏览器会话，两者相互独立；
+            必须使用与网页端相同的慕课账号，否则读取的答卷不属于该账号，无法取得答案。
+          </p>
+          <p class="note">
+            按平台规则，移动端登录会结束该账号此前在手机 App 上的会话（手机 App 需重新登录），不影响网页登录。
+            账号密码仅存本机扩展存储，不上传。
+          </p>
+          <span class="note" id="mobile-login-status"></span>
+        </section>
+
         <section class="panel">
           <div class="panel-head">
             <h2 class="panel-title">账号与课程</h2>
@@ -107,26 +136,6 @@
             <input id="review-comment" type="text" aria-label="互评评语" />
           </label>
           <p class="note">平台要求评语非空；留空将退回默认评语（见输入框中的值）。</p>
-        </section>
-
-        <!--
-          移动端登录：独立的登录卡，不嵌在题目面板里。
-          账密只存本机扩展存储；保存后立即按官方 URS 登录换发一次移动端会话，
-          之后取答案遇到会话被顶掉会自动重登。
-        -->
-        <section class="panel" id="mobile-login-card">
-          <div class="panel-head">
-            <h2 class="panel-title">移动端登录</h2>
-            <p class="head-status" id="mobile-login-status"></p>
-          </div>
-          <label class="field">
-            <input id="mobile-account" type="tel" inputmode="numeric" autocomplete="username" placeholder="官网手机号" aria-label="官网手机号" />
-          </label>
-          <label class="field">
-            <input id="mobile-password" type="password" autocomplete="current-password" placeholder="官网密码" aria-label="官网密码" />
-          </label>
-          <button id="mobile-login-save" class="btn" type="button">保存并登录</button>
-          <p class="note">账密只存本机扩展存储，不上传；登录会按官方规则顶掉手机上原有的移动端会话。</p>
         </section>
 
       </section>

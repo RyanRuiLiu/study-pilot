@@ -79,6 +79,8 @@ export interface PendingEntry {
   status: string;
   /** 该状态的含义，用于悬停提示，与明细同源 */
   statusDetail: string;
+  /** 需要提前说明的处置条件（如「需先配置移动端登录」）；其余条目没有 */
+  note?: string;
   /** 该看哪个截止时间（待提交看提交截止，待互评看互评截止）；0 表示平台未提供 */
   deadline: number;
   /** 互评已完成份数；非互评类为 null */

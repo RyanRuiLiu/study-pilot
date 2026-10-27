@@ -25,13 +25,19 @@ import type { Settings } from '@study-pilot/application';
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date(2026, 8, 26, 10, 0, 0).getTime();
 
-/** 一份最小可用的设置：AI 关着（讨论单元因此不进计划）、没有课程、默认评语。 */
+/** 一份最小可用的设置：AI 关着、移动端登录未配置（测验因此只展示、不执行）。 */
 const SETTINGS: Settings = {
   version: 8,
   ai: { enabled: false, model: '', apiKey: '' },
   mooc: { courses: [], reviewComment: 'x', keepOverdueDays: 3, mobileAccount: '', mobilePassword: '' },
   zhihuishu: { courses: [] },
   ui: { activeTab: 'mooc' },
+};
+
+/** 配上移动端登录后的同一份设置：测验这时可以进自动计划。 */
+const SETTINGS_MOBILE: Settings = {
+  ...SETTINGS,
+  mooc: { ...SETTINGS.mooc, mobileAccount: '13800138000', mobilePassword: 'secret' },
 };
 
 function work(overrides: Partial<SnapshotWork> & { tid: number }): SnapshotWork {
@@ -47,6 +53,8 @@ function work(overrides: Partial<SnapshotWork> & { tid: number }): SnapshotWork 
     evaluateScoreRelease: null,
     score: null,
     totalScore: 100,
+    usedTryCount: null,
+    totalTryCount: null,
     reviewable: false,
     evaluateDone: null,
     evaluateTotal: null,
@@ -79,17 +87,30 @@ function shape(plan: Plan): string {
 // ---------- 测验 ----------
 
 describe('测验', () => {
-  const cases: Array<[string, Partial<SnapshotWork>, string]> = [
-    ['未做、未过截止', {}, '自动:quiz'],
+  const cases: Array<[string, Partial<SnapshotWork>, string, Settings?]> = [
+    ['未做、未过截止、已配置移动端登录', {}, '自动:quiz', SETTINGS_MOBILE],
+    ['未做、未过截止、未配置移动端登录', {}, '人工:quiz-login-required'],
     ['未做、已过截止', { deadline: NOW - DAY }, '人工:quiz-overdue'],
-    ['已做、有分', { submitted: true, score: 90 }, '空'],
+    ['未做、无截止时间、未配置移动端登录', { deadline: null }, '人工:quiz-login-required'],
+    [
+      '已做、未满分、还有次数、已配置',
+      { submitted: true, score: 80, usedTryCount: 1, totalTryCount: 3 },
+      '自动:quiz',
+      SETTINGS_MOBILE,
+    ],
+    [
+      '已做、未满分、还有次数、未配置',
+      { submitted: true, score: 80, usedTryCount: 1, totalTryCount: 3 },
+      '人工:quiz-login-required',
+    ],
+    ['已做、满分', { submitted: true, score: 100, usedTryCount: 1, totalTryCount: 3 }, '空'],
+    ['已做、未满分但次数用完', { submitted: true, score: 80, usedTryCount: 3, totalTryCount: 3 }, '空'],
     ['已做、无分', { submitted: true }, '空'],
-    ['未做、无截止时间', { deadline: null }, '自动:quiz'],
   ];
 
-  for (const [name, patch, expected] of cases) {
+  for (const [name, patch, expected, settings] of cases) {
     it(`${name} → ${expected}`, () => {
-      const plan = derivePlan(snapshot([work({ tid: 1, ...patch })]), SETTINGS, NOW);
+      const plan = derivePlan(snapshot([work({ tid: 1, ...patch })]), settings ?? SETTINGS, NOW);
       expect(shape(plan)).toBe(expected);
     });
   }
@@ -260,7 +281,7 @@ describe('一份作业同时需要互评与自评', () => {
 
   it('执行顺序上测验在前、自评居中、互评最后', () => {
     const quiz = work({ tid: 1 });
-    const plan = derivePlan(snapshot([hw(), quiz]), SETTINGS, NOW);
+    const plan = derivePlan(snapshot([hw(), quiz]), SETTINGS_MOBILE, NOW);
     expect(plan.auto.map((a) => a.kind)).toEqual(['quiz', 'self', 'review']);
   });
 });
@@ -275,7 +296,7 @@ describe('计划的自洽', () => {
       work({ tid: 3, type: 'quiz', submitted: true }), // 已交 → 都不进
       work({ tid: 4, type: 'homework' }), // 作业没交 → manual
     ]);
-    const plan = derivePlan(snap, SETTINGS, NOW);
+    const plan = derivePlan(snap, SETTINGS_MOBILE, NOW);
 
     const autoTids = new Set(
       plan.auto.flatMap((a) => (a.kind === 'courseware' ? [] : [a.work.tid])),
@@ -327,7 +348,7 @@ describe('课件单元', () => {
 
   it('课件排在最前面：一条请求就完事，先做完最便宜的', () => {
     const works = [work({ tid: 11 })];
-    const plan = derivePlan(snapshot(works, [unitOf({ unitId: 1 })]), SETTINGS, NOW);
+    const plan = derivePlan(snapshot(works, [unitOf({ unitId: 1 })]), SETTINGS_MOBILE, NOW);
     expect(plan.auto.map((a) => a.kind)).toEqual(['courseware', 'quiz']);
   });
 });

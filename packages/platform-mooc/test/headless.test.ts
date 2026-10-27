@@ -47,6 +47,8 @@ function snapshotWithQuiz(tid: number): Snapshot {
     evaluateScoreRelease: null,
     score: null,
     totalScore: 100,
+    usedTryCount: null,
+    totalTryCount: null,
     reviewable: false,
     evaluateDone: null,
     evaluateTotal: null,
@@ -74,9 +76,14 @@ const fakeHost: HostCapabilities = {
   },
 };
 
+const MOBILE_SETTINGS = {
+  ...DEFAULT_SETTINGS,
+  mooc: { ...DEFAULT_SETTINGS.mooc, mobileAccount: '13800138000', mobilePassword: 'secret' },
+};
+
 const fakeConfig: ConfigPort = {
-  read: async () => DEFAULT_SETTINGS,
-  update: async () => DEFAULT_SETTINGS,
+  read: async () => MOBILE_SETTINGS,
+  update: async () => MOBILE_SETTINGS,
 };
 
 function deps(over: Partial<MoocRunDeps> = {}): MoocRunDeps {

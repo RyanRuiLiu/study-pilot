@@ -33,6 +33,10 @@ export interface SnapshotWork {
   evaluateScoreRelease: number | null;
   score: number | null;
   totalScore: number | null;
+  /** 已用尝试次数；平台未提供时为 null */
+  usedTryCount: number | null;
+  /** 尝试次数上限；平台未提供时为 null */
+  totalTryCount: number | null;
   /** 这份作业是否带互评环节 */
   reviewable: boolean;
   /** 互评已完成的份数；未查过为 null */

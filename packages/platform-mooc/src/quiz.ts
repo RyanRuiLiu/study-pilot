@@ -32,7 +32,7 @@ import { apiError, type TransportError } from '@study-pilot/transport';
 import { MOOC_MOBILE_CODE_SESSION_KILLED, MOOC_MOBILE_SESSION_EXPIRED } from './auth.ts';
 import { callRead, type MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
-import { fetchMobToken, getMobileQuizPaper } from './mobile-paper.ts';
+import { getMobileQuizPaper } from './mobile-paper.ts';
 import type { PaperAnswer, PaperQuestion, QuizInfo, QuizPaper } from './types.ts';
 
 // ---------- 取数 ----------
@@ -93,28 +93,22 @@ export async function getQuizPaper(
  * 变成同一个值，界面把前者说成「还没检测到官网登录」——吞错，也指错路。
  */
 export type MobileTokenState =
-  | { status: 'ok'; token: string; source: 'app' | 'web' }
-  /** 拿不到 token：其中「网页会话未登录」由包内如实归到 auth 类 */
-  | { status: 'fetch-failed'; error: TransportError; source: 'app' | 'web' };
+  | { status: 'ok'; token: string }
+  | { status: 'fetch-failed'; error: TransportError };
 
 async function fetchMobileTokenState(client: MoocClient): Promise<MobileTokenState> {
-  if (client.mobileSession !== undefined) {
-    const session = await client.mobileSession();
-    return session.ok
-      ? { status: 'ok', token: session.value, source: 'app' }
-      : { status: 'fetch-failed', error: session.error, source: 'app' };
+  if (client.mobileSession === undefined) {
+    return { status: 'fetch-failed', error: apiError(-1, '未配置移动端登录（设置页 → 移动端登录）') };
   }
-  const fetched = await fetchMobToken(client);
-  return fetched.ok
-    ? { status: 'ok', token: fetched.value, source: 'web' }
-    : { status: 'fetch-failed', error: fetched.error, source: 'web' };
+  const session = await client.mobileSession();
+  return session.ok ? { status: 'ok', token: session.value } : { status: 'fetch-failed', error: session.error };
 }
 
 /**
  * 读移动端卷面，并在 -10012 时用账密强制重登一次。
  *
- * -10012 是「本账号的移动端会话被其它登录顶掉」。配置了移动端登录时，
- * 重登一次就能拿到新会话（2026-10-27 实测）；没配置时保留原来的如实失败。
+ * -10012 是「本账号的移动端会话被其它登录顶掉」。重登一次即可拿回会话
+ * （2026-10-27 实测）；重登失败时如实返回失败原因。
  */
 async function mobilePaperOf(
   client: MoocClient,
@@ -139,26 +133,17 @@ async function mobilePaperOf(
 /**
  * 取答案失败时给用户的说法（两个调用点共用，判据不许分叉）。
  *
- * 三条分支都是实测事实（见 auth.ts 的 -10012 注释）：
- *   · 网页会话没登录 → 引导登录；
- *   · 移动端被回 -10012 → 手机侧会话被顶掉，出路只有手机 App 重登，
- *     说成「重新登录网页」是误导；
- *   · 其余 → 透平台的原话（转述平台的口吻），并说明网页题库接口已下线。
+ * 两种情况各有明确原因：没配移动端登录（先配置），或会话被顶掉后重登仍失败。
+ * 其余错误透平台原话；网页题库接口已下线，没有其它答案来源。
  */
 function unresolvedHint(token: MobileTokenState, mobileFailure: TransportError | null): string {
   if (token.status === 'fetch-failed') {
-    if (token.source === 'app') {
-      return `移动端登录失败：${token.error.message}`;
-    }
-    if (token.error.kind === 'auth') {
-      return '还没检测到官网登录。请先在官网登录（设置页「账号登录」可打开登录页），或在「移动端登录」里填写账号密码。';
-    }
-    return `取移动端凭证失败：${token.error.message}`;
+    return `移动端登录不可用：${token.error.message}`;
   }
   if (mobileFailure !== null && mobileFailure.code === MOOC_MOBILE_CODE_SESSION_KILLED) {
-    return `移动端会话被其它登录顶掉，${token.source === 'app' ? '自动重登后仍失败' : '请在「移动端登录」填写账号密码以自动重登'}：${MOOC_MOBILE_SESSION_EXPIRED}`;
+    return `移动端会话被其它登录顶掉，自动重登后仍无法取答案（${MOOC_MOBILE_SESSION_EXPIRED}）`;
   }
-  return `移动端取答案失败：${mobileFailure?.message ?? '未返回答案'}；网页题库接口已下线，没有可用的兜底来源。`;
+  return `移动端取答案失败：${mobileFailure?.message ?? '未返回答案'}`;
 }
 
 /**
@@ -349,7 +334,7 @@ export async function buildFillIndex(
 
   /*
    * 网页卷面没有答案，旧题库接口已下线（getQuestionListByTermId → -1004）。
-   * 不再调用它兜底；把真正可执行的下一步说清楚。
+   * 不调用已下线的题库接口；把可执行的下一步说清楚。
    */
   return err(apiError(-1, unresolvedHint(token, mobileFailure)));
 }
@@ -380,7 +365,7 @@ export interface QuizSubmitHooks {
  * 作答并提交一份测验。
  *
  * **唯一实现**：无人值守的自动执行与做题助手的「提交答案」按钮都走这里，
- * 不允许在别处再写一份（两处的判据——主观题守卫、取不到答案不交——必须一致）。
+ * 不允许在别处再写一份（两处的判据——主观题守卫、取不到答案不提交——必须一致）。
  *
  * 步骤：取卷（`aid = 0`；已有进行中的答卷时返回的就是那一份）→ 含主观题不交
  * （只交客观部分=残缺答卷）→ 组答案（卷面自带优先，缺的用移动端同一 aid 的官方
@@ -410,7 +395,7 @@ export async function answerAndSubmitQuiz(
 
   const subjective = (paper.value.subjectiveQList ?? []).length;
   if (subjective > 0) {
-    return { status: 'failed', message: `这份测验含 ${subjective} 道主观题，需人工作答，不自动提交` };
+    return { status: 'failed', message: `这份测验含 ${subjective} 道主观题，需人工作答` };
   }
 
   const built = buildAnswers(paper.value);
@@ -419,7 +404,7 @@ export async function answerAndSubmitQuiz(
   if (built.unresolved.length > 0) {
     return {
       status: 'failed',
-      message: `${built.unresolved.length} 道题取不到答案（${unresolvedHint(token, mobileFailure)}），已跳过以免得到低分`,
+      message: `${built.unresolved.length} 道题取不到答案（${unresolvedHint(token, mobileFailure)}），已跳过`,
     };
   }
 

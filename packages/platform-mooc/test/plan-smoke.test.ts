@@ -76,7 +76,7 @@ const snapshot: Snapshot = {
 describe('Node 里跑核心逻辑', () => {
   it('不碰浏览器也能算出计划', () => {
     // 默认设置即可：能力开关已经不在了，能做的都会排进来
-    const settings = DEFAULT_SETTINGS;
+    const settings = { ...DEFAULT_SETTINGS, mooc: { ...DEFAULT_SETTINGS.mooc, mobileAccount: '13800138000', mobilePassword: 'secret' } };
 
     const original = (globalThis as { browser?: unknown }).browser;
     (globalThis as { browser?: unknown }).browser = new Proxy(

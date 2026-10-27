@@ -43,6 +43,7 @@ function handlingText(entry: PendingEntry): string {
     // 已过截止的说清后果：用户可能仍去点它、然后发现做不了
     return '已过截止，无法补做';
   }
+  if (entry.note !== undefined) return entry.note;
   if (entry.handling === 'auto') {
     // 互评类带进度：还差几份直接关系到会不会影响成绩
     if (entry.kind === 'evaluate-homework' && entry.evaluateTotal !== null && entry.evaluateDone !== null) {

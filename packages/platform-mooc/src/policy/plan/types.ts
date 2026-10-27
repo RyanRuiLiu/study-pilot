@@ -45,6 +45,7 @@ export interface ManualItem {
    *   homework-unsubmitted  主观题做不了，但还来得及自己写
    *   homework-overdue      同上，但已过提交截止，平台不收
    *   quiz-overdue          测验过了截止，平台不允许开卷
+   *   quiz-login-required   测验需要移动端登录才能取答案，尚未配置
    *   review-overdue        作业过了互评截止但没评够，会影响成绩
    *   self-overdue          作业过了互评截止但自评没做，会影响成绩
    *   exam                  考试，尚未截止；扩展不自动作答
@@ -59,6 +60,7 @@ export interface ManualItem {
     | 'homework-unsubmitted'
     | 'homework-overdue'
     | 'quiz-overdue'
+    | 'quiz-login-required'
     | 'review-overdue'
     | 'self-overdue'
     | 'exam'

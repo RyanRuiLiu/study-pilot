@@ -48,12 +48,17 @@ export function derivePlan(
   textAvailableOverride?: boolean,
 ): Plan {
   const textAvailable = textAvailableOverride ?? hasTextGenerator(settings);
+  /*
+   * 移动端登录是否配置齐（账号+密码）。测验的答案只来自官方移动端会话，
+   * 没配置时测验类不进自动计划，只在待办里列出并说明先配置。
+   */
+  const mobileReady = settings.mooc.mobileAccount !== '' && settings.mooc.mobilePassword !== '';
   const auto: AutoAction[] = [];
   const manual: ManualItem[] = [];
 
   for (const course of snapshot.courses) {
     for (const work of course.works) {
-      const planned = planWork(course, work, now);
+      const planned = planWork(course, work, now, mobileReady);
       auto.push(...planned.auto);
       manual.push(...planned.manual);
     }

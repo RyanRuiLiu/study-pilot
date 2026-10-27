@@ -24,9 +24,6 @@ describe('移动端答案源接入', () => {
         if (path.includes('getOpenQuizInfo')) {
           return json({ code: 0, message: '', result: { tid: TID, aid: 42 } });
         }
-        if (path.includes('/passport/reg/getMobToken.do')) {
-          return json({ code: 0, message: 'ok', result: 'a'.repeat(320) });
-        }
         if (path.includes('paperDetail')) {
           return json({
             status: { code: 0, message: '' },
@@ -47,6 +44,7 @@ describe('移动端答案源接入', () => {
       getToken: () => 'web-token',
       md5: md5hex,
       minGapMs: 0,
+      mobileSession: async () => ({ ok: true, value: 'app-token' }),
     });
 
     const result = await buildFillIndex(client, TID, TERM_ID);
@@ -90,7 +88,7 @@ describe('移动端答案源接入', () => {
   });
 });
 
-  it('没有保存 token 时自动用网页会话换取，再读移动端答案', async () => {
+  it('注入 mobileSession 后自动读取移动端答案', async () => {
     const calls: string[] = [];
     const client = createMoocClient({
       fetch: (async (url: string) => {
@@ -98,9 +96,6 @@ describe('移动端答案源接入', () => {
         calls.push(path);
         if (path.includes('getOpenQuizInfo')) {
           return json({ code: 0, message: '', result: { tid: TID, aid: 42 } });
-        }
-        if (path.includes('/passport/reg/getMobToken.do')) {
-          return json({ code: 0, message: 'ok', result: 'a'.repeat(320) });
         }
         if (path.includes('paperDetail')) {
           return json({
@@ -121,6 +116,7 @@ describe('移动端答案源接入', () => {
       getToken: () => 'web-token',
       md5: md5hex,
       minGapMs: 0,
+      mobileSession: async () => ({ ok: true, value: 'app-token' }),
     });
 
     const result = await buildFillIndex(client, TID, TERM_ID);
@@ -130,7 +126,6 @@ describe('移动端答案源接入', () => {
     expect(calls).toEqual(
       expect.arrayContaining([
         '/web/j/mocQuizRpcBean.getOpenQuizInfo.rpc',
-        '/passport/reg/getMobToken.do',
         '/mob/course/paperDetail/v1',
       ]),
     );

@@ -9,8 +9,9 @@
  * 这里只读：**必须传已有的 active aId**。`aId=0` 在移动端同样会新建答卷，
  * 等价于点「开始测验」；调用方只能把网页取卷已经拿到的 aid 传进来。
  *
- * 凭证由调用方从当前网页登录会话现取（`fetchMobToken`），不落盘。
- * 只放在查询串里，不写日志、不拼进错误文本。
+ * 凭证只来自官方账密登录换发（`loginMobileSession` → `mobileSession`），不落盘。
+ * 只放在查询串里，不写日志、不拼进错误文本。网页会话自带的 320 位 token
+ * 对 `paperDetail` 回 `-10012`，相关换取代码已移除。
  */
 
 import { err, ok, type Result } from '@study-pilot/core';
@@ -25,7 +26,6 @@ import {
   type TransportError,
 } from '@study-pilot/transport';
 import type { MoocClient } from './client.ts';
-import { sessionExpired } from './auth.ts';
 import { MOBILE_ENDPOINTS } from './endpoints.ts';
 import type { QuizPaper } from './types.ts';
 import { loginUrsByPassword, URS_CLIENT_ID, type UrsPasswordCredentials } from './urs/password-login.ts';
@@ -63,8 +63,8 @@ interface UrsLoginEnvelope {
  *   ursToken=…&mob-token=&appId=…
  *
  * `ursToken` 是账号级的登录凭证（`yd_` + 40 hex），可重复使用；返回的 384 位
- * `mobToken` 才是 `/mob/course/*` 认的会话凭证——`getMobToken.do` 给的 320 位那族
- * 会被回 `-10012`（见 auth.ts）。
+ * `mobToken` 才是 `/mob/course/*` 认的会话凭证。网页会话自带的同名字段是另一族
+ * 凭证（320 位），对 `paperDetail` 回 `-10012`，已不再使用。
  *
  * 副作用：这一步等价于「在移动端登录一次」，会顶掉账号上原有的移动端会话
  * （用户手机 App 会收到重新登录提示）。所以只在真要取答案时调，不做轮询。
@@ -198,44 +198,4 @@ export async function loginMobileSession(
   const session = await loginUrsByPassword(client.send, credentials, options);
   if (!session.ok) return session;
   return exchangeUrsTokenForMobToken(client, session.value.token, URS_CLIENT_ID);
-}
-
-/**
- * 用当前网页登录会话取移动端 mob-token。
- *
- * 用户先在官网用手机号/密码登录（官网自己走 URS 加密流程），
- * 扩展只读网页会话：GET /passport/reg/getMobToken.do（2026-10-23 实测
- * 返回 320 位十六进制，课程列表 code=0）。不碰密码，也不重放登录请求。
- */
-export async function fetchMobToken(client: MobilePaperClient): Promise<Result<string, TransportError>> {
-  const timeout = startOutboundTimeout(DEFAULT_TIMEOUT_MS);
-  try {
-    const response = await client.send(`${client.origin}/passport/reg/getMobToken.do`, {
-      method: 'GET',
-      credentials: 'include',
-      signal: timeout.signal,
-    });
-    const raw = await response.text();
-    if (!response.ok) return err(httpError(response.status, raw));
-
-    let envelope: { code?: number; message?: string; result?: string | null };
-    try {
-      envelope = JSON.parse(raw) as typeof envelope;
-    } catch {
-      return err(parseError(raw));
-    }
-    if (envelope.code !== 0) {
-      return err(apiError(typeof envelope.code === 'number' ? envelope.code : -1, envelope.message ?? '当前网页会话未登录'));
-    }
-    const token = envelope.result;
-    if (typeof token !== 'string' || token.length < 100) {
-      // `code:0` 而 result 为空＝平台的不认形态（见 auth.ts），归 auth 而不是 api
-      return err(sessionExpired(raw));
-    }
-    return ok(token);
-  } catch (cause) {
-    return err(timeout.timedOut() ? timeoutError(DEFAULT_TIMEOUT_MS) : networkError(cause));
-  } finally {
-    timeout.dispose();
-  }
 }

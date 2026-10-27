@@ -50,19 +50,15 @@ import {
   SIGN_SALT,
   SIGN_SYSTEM,
 } from '../../packages/transport/src/sign.ts';
-// 慕课的移动端链路（getMobToken / paperDetail）只活在包内实现里，页面不发这两个请求，
+// 慕课的移动端链路（paperDetail / ursCellphoneLogin）只活在包内实现里，页面不发这两个请求，
 // capture 的 HAR 里永远看不到它们。取证走同一条「调试有标准」的路：先进端点表，
 // 再经包内函数直发（与 zhs --endpoint 一个模式）。
 import {
   MOBILE_ENDPOINTS,
   BROWSER_USER_AGENT as MOOC_USER_AGENT,
   createMoocClient,
-  fetchMobToken,
   getMobileQuizPaper,
   exchangeUrsTokenForMobToken,
-  fetchQrLoginCode,
-  pollQrLoginStatus,
-  confirmQrLogin,
 } from '../../packages/platform-mooc/src/index.ts';
 import { md5hex } from '../../packages/core/src/index.ts';
 
@@ -730,8 +726,6 @@ async function zhsCall(opts) {
 // ---------------------------------------------------------------- 慕课移动端
 
 const MOOC_MOBILE_ENDPOINTS = {
-  /** 取移动端凭证：GET /passport/reg/getMobToken.do（网页会话换 320 位 token） */
-  token: { path: '/passport/reg/getMobToken.do', read: true },
   /** 移动端取卷：POST /mob/course/paperDetail/v1（参数 testId / aId / mob-token，包内拼） */
   paper: { ...MOBILE_ENDPOINTS.paper, read: true },
   /**
@@ -754,7 +748,7 @@ function moocMobileList() {
 }
 
 /**
- * 调一个慕课移动端端点（Node 直发，走包内 fetchMobToken / getMobileQuizPaper）。
+ * 调一个慕课移动端端点（Node 直发，走包内 getMobileQuizPaper / exchangeUrsTokenForMobToken）。
  *
  * 与 call（.rpc）的分工是协议不同：这两跳不在 .rpc 信封里，参数与凭证的拼法
  * 只有包内一份（mobile-paper.ts），所以调试也只准调包内函数。cookie 与 zhs 同口径：
@@ -813,9 +807,7 @@ async function moocMobileCall(opts) {
 
     const started = Date.now();
     let outcome;
-    if (name === 'token') {
-      outcome = await fetchMobToken(client);
-    } else if (name === 'ursLogin') {
+    if (name === 'ursLogin') {
       if (typeof params.ursTokenFile !== 'string') die('ursLogin 需要 --params \'{"ursTokenFile":".probe/…"}\'');
       const exchanged = await exchangeUrsTokenForMobToken(client, readSecret(params.ursTokenFile));
       if (exchanged.ok) writeFileSync(path.resolve(ROOT, params.moutFile ?? '.probe/mooc-mob-token.txt'), exchanged.value);
@@ -824,15 +816,9 @@ async function moocMobileCall(opts) {
       const tid = Number(params.tid);
       const aid = Number(params.aid);
       if (!Number.isFinite(tid) || !Number.isFinite(aid)) die('paper 需要 --params \'{"tid":…,"aid":…}\'（aid 必须是已有的进行中答卷 id）');
-      // 答案只认移动端会话凭证：优先用 --params mobTokenFile 里那枚（ursLogin 的产物），
-      // 没有才退回网页会话的 320 位（实测会被判 -10012，留作对照）
-      let mob;
-      if (typeof params.mobTokenFile === 'string') mob = readSecret(params.mobTokenFile);
-      else {
-        const fetched = await fetchMobToken(client);
-        if (!fetched.ok) die(`取凭证失败：${fetched.error.kind} ${fetched.error.message}`);
-        mob = fetched.value;
-      }
+      // 答案只认移动端会话凭证：用 --params mobTokenFile 里那枚（ursLogin 的产物）
+      if (typeof params.mobTokenFile !== 'string') die('paper 缺少移动端凭证：--params 里要给 mobTokenFile');
+      const mob = readSecret(params.mobTokenFile);
       outcome = await getMobileQuizPaper(client, mob, tid, aid);
     }
     const elapsed = Date.now() - started;
@@ -871,93 +857,6 @@ async function moocMobileCall(opts) {
       console.log(`卷面 ${outcome.value.objectiveQList?.length ?? 0} 题，其中带答案 ${answered} 题`);
     }
     console.log(`已保存 → ${rel(file)}`);
-  } finally {
-    await release(handle);
-  }
-}
-
-// ---------------------------------------------------------------- 手机扫码登录流
-
-const QR_STATE_FILE = path.join(ROOT, '.probe', 'qr-login-state.json');
-
-/**
- * 手机扫码登录流（走包内 qr-login.ts：/logonByQRCode/code.do → poll.do →
- * mocMobChangeCookie.htm，端点与状态码都只有包内一份）。
- *
- * 分两步跑（扫码要人用手机 App 完成，命令不代人等）：
- *   pnpm probe qr --code            取二维码，打印 codeUrl（图片直接开给 App 扫），
- *                                   pollKey 暂存 .probe/qr-login-state.json
- *   pnpm probe qr --poll            问一次状态；已确认就完成换发并归档
- * 用途：-10012（手机侧会话被顶）后，验证「账号级重新登录」能否换发新的移动端凭证
- * ——取证时前后各跑一次 `mooc --endpoint token` 比指纹。
- */
-async function qrLogin(opts) {
-  const handle = await acquire({ ext: false });
-  try {
-    const cookies = (await handle.context.cookies()).filter((c) =>
-      /(^|\.)icourse163\.org$/.test(String(c.domain)),
-    );
-    if (cookies.length === 0) die('浏览器里没有 icourse163 的 cookie——先在探测浏览器里登录慕课');
-    const byName = new Map();
-    for (const c of cookies) {
-      const prev = byName.get(c.name);
-      if (!prev || String(c.domain).length < String(prev.domain).length) byName.set(c.name, c);
-    }
-    const cookieHeader = [...byName.values()].map((c) => `${c.name}=${c.value}`).join('; ');
-
-    const client = createMoocClient({
-      fetch: async (url, init = {}) => {
-        const headers = new Headers(init.headers);
-        headers.set('cookie', cookieHeader);
-        headers.set('origin', 'https://www.icourse163.org');
-        headers.set('referer', 'https://www.icourse163.org/');
-        headers.set('user-agent', MOOC_USER_AGENT);
-        return await fetch(url, { ...init, headers });
-      },
-      getToken: async () => byName.get('NTESSTUDYSI')?.value ?? '',
-      md5: md5hex,
-    });
-
-    if (opts.code) {
-      const code = await fetchQrLoginCode(client);
-      if (!code.ok) die(`取二维码失败：${code.error.kind} ${code.error.message}`);
-      writeFileSync(QR_STATE_FILE, JSON.stringify({ pollKey: code.value.pollKey, requestedAt: new Date().toISOString() }));
-      console.log(`二维码：${code.value.codeUrl}`);
-      console.log('（在手机 MOOC App「扫一扫」里打开这个图片地址；pollKey 已暂存，稍后跑 pnpm probe qr --poll）');
-      return;
-    }
-
-    if (opts.poll) {
-      if (!existsSync(QR_STATE_FILE)) die('没有暂存的 pollKey——先跑 pnpm probe qr --code');
-      const { pollKey } = JSON.parse(readFileSync(QR_STATE_FILE, 'utf8'));
-      const polled = await pollQrLoginStatus(client, pollKey);
-      if (!polled.ok) die(`读状态失败：${polled.error.kind} ${polled.error.message}`);
-      console.log(`codeStatus=${polled.value.status}（0 未扫 / 1 已扫未确认 / 2 已确认 / 3 过期 / 4 被别的 App 扫）`);
-      if (polled.value.status !== 2) return;
-      const token = polled.value.token;
-      if (token === null || token === '') die('已确认但没有 token：平台响应形状变了，取原始报文核对');
-      const confirmed = await confirmQrLogin(client, token, 'https://www.icourse163.org/');
-      mkdirSync(API_DIR, { recursive: true });
-      const file = path.join(API_DIR, `qr-login.${Date.now()}.json`);
-      writeFileSync(
-        file,
-        JSON.stringify(
-          {
-            requestedAt: new Date().toISOString(),
-            status: polled.value.status,
-            tokenDigest: createHash('sha256').update(token).digest('hex').slice(0, 12),
-            finalUrl: confirmed.ok ? confirmed.value.finalUrl : null,
-            error: confirmed.ok ? null : { kind: confirmed.error.kind, message: confirmed.error.message },
-          },
-          null,
-          2,
-        ),
-      );
-      console.log(confirmed.ok ? `换发完成 → ${rel(file)}` : `换发失败：${confirmed.error.kind} ${confirmed.error.message}`);
-      return;
-    }
-
-    die('qr 需要 --code 或 --poll');
   } finally {
     await release(handle);
   }
@@ -2148,8 +2047,8 @@ const USAGE = `用法：pnpm probe <命令> [选项]
   mooc --list                            慕课移动端端点表（token / paper——HAR 里看不到的那两跳）
   mooc --endpoint <名字>                 调慕课移动端（Node 直发，走包内 mobile-paper.ts；附着浏览器取活 cookie）
       [--params '{"tid":…,"aid":…}']    两个都只读；paper 的 aid 必须是已存在的进行中答卷
-  qr --code                              取手机扫码登录的二维码（App 扫一扫；pollKey 暂存 .probe/）
-  qr --poll                              问一次扫码状态；已确认就完成换发（-10012 后验证能否换新移动端凭证）
+
+
   ext id | ext reload                    打印扩展 id / 重载扩展（要求探测浏览器在运行）
   icon [--check] [--preview] [--dir <目录>]
                                          生成扩展图标 → apps/extension/public/icon/
@@ -2203,9 +2102,6 @@ async function main() {
     case 'mooc':
       if (opts.list) moocMobileList();
       else await moocMobileCall(opts);
-      break;
-    case 'qr':
-      await qrLogin(opts);
       break;
     case 'ext':
       await extCommand(opts);

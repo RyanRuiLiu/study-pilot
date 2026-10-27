@@ -83,6 +83,7 @@ const MANUAL_KINDS: Record<ManualItem['reason'], string> = {
   'homework-unsubmitted': 'homework',
   'homework-overdue': 'homework',
   'quiz-overdue': 'quiz',
+  'quiz-login-required': 'quiz',
   'review-overdue': 'review',
   'self-overdue': 'self',
   exam: 'exam',

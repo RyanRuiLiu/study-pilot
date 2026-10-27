@@ -29,7 +29,12 @@ export interface WorkPlan {
   manual: ManualItem[];
 }
 
-export function planWork(course: SnapshotCourse, work: SnapshotWork, now: number): WorkPlan {
+export function planWork(
+  course: SnapshotCourse,
+  work: SnapshotWork,
+  now: number,
+  mobileReady: boolean,
+): WorkPlan {
   const auto: WorkAutoAction[] = [];
   const manual: ManualItem[] = [];
 
@@ -51,16 +56,36 @@ export function planWork(course: SnapshotCourse, work: SnapshotWork, now: number
   }
 
   if (work.type === 'quiz') {
-    if (work.submitted) return { auto, manual };
+    const past = work.deadline !== null && work.deadline <= now;
+
+    if (work.submitted) {
+      /*
+       * 已提交的测验：分数未满、还有次数且没过截止时，列出一条可重做的待办；
+       * 没配置移动端登录则同样列出，但不进自动（只展示，不执行）。
+       * 分数已满、次数用完或已过截止都不再列。
+       */
+      const notFull =
+        work.score !== null && work.totalScore !== null && work.totalScore > 0 && work.score < work.totalScore;
+      const attemptsLeft =
+        work.usedTryCount !== null && work.totalTryCount !== null && work.usedTryCount < work.totalTryCount;
+      if (notFull && attemptsLeft && !past) {
+        if (mobileReady) auto.push({ kind: 'quiz', course, work, remaining: 0 });
+        else manual.push({ course, work, deadline: work.deadline, reason: 'quiz-login-required' });
+      }
+      return { auto, manual };
+    }
 
     /*
      * 未提交的测验分两种。已过截止的平台不允许开卷，扩展做不了，
-     * 只能让用户知道已经晚了；没过截止的排进 auto——客观题，能作答也能提交。
+     * 只能让用户知道已经晚了；没过截止的要移动端登录才取得到答案，
+     * 未配置时只列出并说明先配置，不执行。
      */
-    if (work.deadline !== null && work.deadline <= now) {
+    if (past) {
       manual.push({ course, work, deadline: work.deadline, reason: 'quiz-overdue' });
-    } else {
+    } else if (mobileReady) {
       auto.push({ kind: 'quiz', course, work, remaining: 0 });
+    } else {
+      manual.push({ course, work, deadline: work.deadline, reason: 'quiz-login-required' });
     }
     return { auto, manual };
   }

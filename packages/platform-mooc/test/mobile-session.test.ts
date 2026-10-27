@@ -99,6 +99,6 @@ describe('账密自动移动端会话', () => {
     const result = await buildFillIndex(client, TID, TERM_ID);
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.message).toContain('移动端登录失败');
+    if (!result.ok) expect(result.error.message).toContain('移动端登录不可用');
   });
 });

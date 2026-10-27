@@ -118,38 +118,17 @@ export const MOBILE_ENDPOINTS = {
   /**
    * 移动端登录：用 URS 的 `ursToken` 注册一个移动端会话，换出 384 位 `mobToken`。
    *
-   * 报文形状来自真实抓包（2026-10-23，`.probe/phone-login.har` 的 entry 522），
-   * 2026-10-26 复测仍然可用：`POST` 表单 `ursToken=<yd_+40hex>&mob-token=&appId=<224位>`
+   * 报文形状来自真实抓包（2026-10-23），2026-10-27 复测仍然可用：
+   * `POST` 表单 `ursToken=<yd_+40hex>&mob-token=&appId=<URS 客户端 id>`
    * → `{code:0, results:{mobToken:384, mobPToken:384}}`。
    *
-   * 两条实测事实决定了它是取答案唯一可靠的凭证入口：
-   *   · `getMobToken.do` 给的是**网页族 320 位** token，`paperDetail` 对它回 `-10012`；
-   *   · 账号只承认**最后一次**移动端登录，所以这步必须在取答案当下做。
+   * 账号只承认**最后一次**移动端登录，所以这步必须在取答案当下做。
    * 副作用（如实记录）：每次调用都会顶掉账号上原有的移动端会话，包括用户手机 App
    * 的登录态——手机会收到「账号在其他设备登录」的提示。
    */
   ursLogin: { path: '/mob/ucmooc/0/0/passport/ursCellphoneLogin/v1' },
 } as const;
 
-/**
- * 手机扫码登录流（平台 Web 前端自己的协议，core.js 偏移 18038/18042 与
- * SPA 83561 chunk 同源一致，2026-10-26 从源码镜像核对）。
- *
- * 链条：GET /logonByQRCode/code.do?width&height → `{codeUrl, pollKey}`；
- * 每 2 秒 GET /logonByQRCode/poll.do?pollKey → `{codeStatus, token}`
- * （0 未扫 / 1 已扫未确认 / 2 已确认 / 3 过期 / 4 被别的 App 扫）；
- * 确认后浏览器跳到 GET /passport/logingate/mocMobChangeCookie.htm?token&returnUrl
- * 换发网页 cookie（302 到 returnUrl）。
- *
- * 收进包内的理由与 `getMobToken.do` 相同：协议字面量只准有一处。本仓库当前用
- * 它做的是「换发移动端凭证」的取证与自动化（-10012 后手机重登的程序化等价物），
- * 处置归调用方。
- */
-export const QR_LOGIN_ENDPOINTS = {
-  code: { path: '/logonByQRCode/code.do' },
-  poll: { path: '/logonByQRCode/poll.do' },
-  changeCookie: { path: '/passport/logingate/mocMobChangeCookie.htm' },
-} as const;
 
 /** 课程类型。getMyLearnedCoursePanelList 的 courseType 取值。 */
 export const COURSE_TYPE = {

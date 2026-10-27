@@ -99,6 +99,8 @@ function snapshotWork(overrides: Partial<SnapshotWork> = {}): SnapshotWork {
     evaluateScoreRelease: null,
     score: null,
     totalScore: 100,
+    usedTryCount: null,
+    totalTryCount: null,
     reviewable: true,
     evaluateDone: 0,
     evaluateTotal: 3,

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '../src/client.ts';
-import { exchangeUrsTokenForMobToken, fetchMobToken, getMobileQuizPaper, MOBILE_APP_ID } from '../src/mobile-paper.ts';
+import { exchangeUrsTokenForMobToken, getMobileQuizPaper, MOBILE_APP_ID } from '../src/mobile-paper.ts';
+import { URS_CLIENT_ID } from '../src/urs/password-login.ts';
 import type { QuizPaper } from '../src/types.ts';
 
 const TID = 900000001;
@@ -109,49 +110,6 @@ describe('getMobileQuizPaper', () => {
   });
 });
 
-describe('fetchMobToken', () => {
-  it('用网页会话 GET getMobToken.do，返回 320 位 token', async () => {
-    let called = '';
-    const client = clientWith(async (url) => {
-      called = String(url);
-      return new Response(JSON.stringify({ code: 0, message: 'ok', result: 'a'.repeat(320) }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      });
-    });
-
-    const result = await fetchMobToken(client);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toHaveLength(320);
-    expect(new URL(called).pathname).toBe('/passport/reg/getMobToken.do');
-  });
-
-  it('网页会话未登录时返回可执行错误', async () => {
-    const client = clientWith(
-      async () =>
-        new Response(JSON.stringify({ code: 1000, message: '未登录', result: null }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-    );
-    const result = await fetchMobToken(client);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.message).toContain('未登录');
-  });
-
-  it('code 0 而 result 为空是不认形态：归 auth，不当成业务错误', async () => {
-    const client = clientWith(
-      async () => new Response(JSON.stringify({ code: 0, message: 'ok', result: null }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    );
-    const result = await fetchMobToken(client);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.kind).toBe('auth');
-  });
-});
-
 /*
  * 移动端会话注册（ursToken → 384 位 mobToken）。
  * 报文形状取自真实抓包（2026-10-23）与 2026-10-26 的复测；值全部是合成样例。
@@ -180,6 +138,22 @@ describe('exchangeUrsTokenForMobToken', () => {
     expect(params.get('ursToken')).toBe(URS_TOKEN);
     expect(params.get('mob-token')).toBe('');
     expect(params.get('appId')).toBe(MOBILE_APP_ID);
+  });
+
+  it('可显式指定 URS 客户端 id 作为 appId（账密链使用）', async () => {
+    let form = '';
+    const client = clientWith(async (_url, init) => {
+      form = String(init?.body ?? '');
+      return new Response(
+        JSON.stringify({ code: 0, message: '', results: { mobToken: 'b'.repeat(384) } }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+
+    const result = await exchangeUrsTokenForMobToken(client, URS_TOKEN, URS_CLIENT_ID);
+
+    expect(result.ok).toBe(true);
+    expect(new URLSearchParams(form).get('appId')).toBe(URS_CLIENT_ID);
   });
 
   it('没有 ursToken 时不发请求（不去动账号的移动端会话）', async () => {

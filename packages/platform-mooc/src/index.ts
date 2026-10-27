@@ -84,46 +84,11 @@ export {
 
 export {
   getMobileQuizPaper,
-  fetchMobToken,
   exchangeUrsTokenForMobToken,
   loginMobileSession,
   MOBILE_APP_ID,
   type MobilePaperClient,
 } from './mobile-paper.ts';
-export {
-  fetchQrLoginCode,
-  pollQrLoginStatus,
-  confirmQrLogin,
-  QR_SCAN_STATUS,
-  type QrCode,
-  type QrScanStatus,
-} from './qr-login.ts';
-export { QR_LOGIN_ENDPOINTS } from './endpoints.ts';
-
-/*
- * 网易 URS（账号级登录）：目前只落了信封与算法层（SM4 + RSA PKCS#1）。
- * 登录流程尚未实现——还缺两把 App 密钥（libnedat 从 key_private_urs.dat /
- * key_public_urs.dat 解出）与账密登录载荷字段的一次真机确认，见 urs/endpoints.ts 注释。
- */
-export {
-  URS_ACCESS_ID,
-  URS_ENDPOINTS,
-  URS_HOSTS,
-  URS_PRODUCT,
-} from './urs/endpoints.ts';
-export { buildUrsHeaders, decryptUrsResponse, type UrsHeaders } from './urs/envelope.ts';
-export { parseRsaPrivateKey, parseRsaPublicKey, rsaPkcs1Decrypt, rsaPkcs1Encrypt } from './urs/pkcs1.ts';
-export { sm4CbcDecrypt, sm4CbcEncrypt } from './urs/sm4.ts';
-export {
-  loginUrsByPassword,
-  buildUrsPasswordParams,
-  URS_CLIENT_ID,
-  URS_LOGIN_ORIGIN,
-  URS_PASSWORD_LOGIN_PATH,
-  type UrsPasswordCredentials,
-  type UrsSession,
-} from './urs/password-login.ts';
-export { aes128EcbDecryptHex, aes128EcbEncryptHex, aesKeyFromHex } from './urs/aes.ts';
 
 /*
  * 策略层：慕课自己的判断与流程（会话、读取、计划、执行）。
