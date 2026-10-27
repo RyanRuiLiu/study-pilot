@@ -20,7 +20,7 @@ const platform = vi.hoisted(() => ({
 const settingsModule = vi.hoisted(() => ({
   getSettings: vi.fn(async () => ({
     ai: { enabled: false, model: '', apiKey: '' },
-    mooc: { courses: [], reviewComment: 'x', keepOverdueDays: 3 },
+    mooc: { courses: [], reviewComment: 'x', keepOverdueDays: 3, mobileAccount: '', mobilePassword: '' },
   })),
 }));
 

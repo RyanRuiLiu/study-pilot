@@ -7,7 +7,11 @@
  */
 
 import { md5hex } from '@study-pilot/core';
-import { createMoocClient, type MoocClient, type MoocClientOptions } from '../client.ts';
+import { err, ok } from '@study-pilot/core';
+import { apiError } from '@study-pilot/transport';
+import { createMoocClient, MOOC_ORIGIN, type MoocClient, type MoocClientOptions } from '../client.ts';
+import { loginMobileSession } from '../mobile-paper.ts';
+import type { UrsPasswordCredentials } from '../urs/password-login.ts';
 import { COURSE_TYPE } from '../endpoints.ts';
 import { getCourses } from '../courses.ts';
 import type { CourseSummary } from '../types.ts';
@@ -70,6 +74,7 @@ function isBusinessSuccess(text: string): boolean {
 export function createPlatformClient(
   host: HostCapabilities,
   carrierFetch?: MoocClientOptions['fetch'],
+  getMobileCredentials?: () => Promise<UrsPasswordCredentials | null>,
 ): PlatformClient {
   // 不把全局 fetch 拆出来直接调用（浏览器里那是 Illegal invocation），包一层再交出去
   const send: MoocClientOptions['fetch'] = carrierFetch ?? ((input, init) => fetch(input, init));
@@ -102,6 +107,21 @@ export function createPlatformClient(
     fetch: sendWithRules,
     getToken: () => readToken(host),
     md5: md5hex,
+    ...(getMobileCredentials === undefined
+      ? {}
+      : {
+          mobileSession: (() => {
+            let cached: string | null = null;
+            return async (options?: { refresh?: boolean }) => {
+              if (options?.refresh !== true && cached !== null) return ok(cached);
+              const credentials = await getMobileCredentials();
+              if (credentials === null) return err(apiError(-1, '移动端登录尚未配置账号密码'));
+              const session = await loginMobileSession({ send: sendWithRules, origin: MOOC_ORIGIN }, credentials);
+              cached = session.ok ? session.value : null;
+              return session;
+            };
+          })(),
+        }),
   });
 
   /*

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '../src/client.ts';
-import { fetchMobToken, getMobileQuizPaper } from '../src/mobile-paper.ts';
+import { exchangeUrsTokenForMobToken, fetchMobToken, getMobileQuizPaper, MOBILE_APP_ID } from '../src/mobile-paper.ts';
 import type { QuizPaper } from '../src/types.ts';
 
 const TID = 900000001;
@@ -80,6 +80,21 @@ describe('getMobileQuizPaper', () => {
     }
   });
 
+  it('移动端会话被顶（-10012）时把码带出来：调用方按码给出路', async () => {
+    const client = clientWith(
+      async () =>
+        new Response(
+          JSON.stringify({ status: { code: -10012, message: '系统检测您的帐号已经在其他设备上登录' } }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
+
+    const result = await getMobileQuizPaper(client, 'mobile-token', TID, 42);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe(-10012);
+  });
+
   it('没有 token 时不发请求', async () => {
     let called = 0;
     const client = clientWith(async () => {
@@ -122,5 +137,81 @@ describe('fetchMobToken', () => {
     const result = await fetchMobToken(client);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.message).toContain('未登录');
+  });
+
+  it('code 0 而 result 为空是不认形态：归 auth，不当成业务错误', async () => {
+    const client = clientWith(
+      async () => new Response(JSON.stringify({ code: 0, message: 'ok', result: null }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const result = await fetchMobToken(client);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('auth');
+  });
+});
+
+/*
+ * 移动端会话注册（ursToken → 384 位 mobToken）。
+ * 报文形状取自真实抓包（2026-10-23）与 2026-10-26 的复测；值全部是合成样例。
+ */
+describe('exchangeUrsTokenForMobToken', () => {
+  const URS_TOKEN = 'yd_' + '0'.repeat(40);
+
+  it('按抓包的表单形状 POST：ursToken + 空 mob-token + 固定 appId', async () => {
+    let called = '';
+    let form = '';
+    const client = clientWith(async (url, init) => {
+      called = String(url);
+      form = String(init?.body ?? '');
+      return new Response(
+        JSON.stringify({ code: 0, message: '', results: { mobToken: 'b'.repeat(384) } }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+
+    const result = await exchangeUrsTokenForMobToken(client, URS_TOKEN);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toHaveLength(384);
+    expect(new URL(called).pathname).toBe('/mob/ucmooc/0/0/passport/ursCellphoneLogin/v1');
+    const params = new URLSearchParams(form);
+    expect(params.get('ursToken')).toBe(URS_TOKEN);
+    expect(params.get('mob-token')).toBe('');
+    expect(params.get('appId')).toBe(MOBILE_APP_ID);
+  });
+
+  it('没有 ursToken 时不发请求（不去动账号的移动端会话）', async () => {
+    let called = 0;
+    const client = clientWith(async () => {
+      called++;
+      return new Response('{}');
+    });
+
+    const result = await exchangeUrsTokenForMobToken(client, '  ');
+
+    expect(result.ok).toBe(false);
+    expect(called).toBe(0);
+  });
+
+  it('被拒时透平台的话，且错误里不带凭证', async () => {
+    const client = clientWith(
+      async () =>
+        new Response(JSON.stringify({ code: 1000, message: 'urs token无效', results: null }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+
+    const result = await exchangeUrsTokenForMobToken(client, URS_TOKEN);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('api');
+      expect(result.error.code).toBe(1000);
+      expect(result.error.message).toContain('urs token无效');
+      expect(JSON.stringify(result.error)).not.toContain(URS_TOKEN);
+    }
   });
 });

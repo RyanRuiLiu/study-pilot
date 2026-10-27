@@ -49,6 +49,8 @@ const SETTINGS = {
     reviewComment: '默认评语',
     courses: [],
     keepOverdueDays: 3,
+    mobileAccount: '',
+    mobilePassword: '',
   },
 };
 

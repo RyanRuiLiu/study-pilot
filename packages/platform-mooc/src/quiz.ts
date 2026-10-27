@@ -29,6 +29,7 @@
 
 import { err, ok, type Result } from '@study-pilot/core';
 import { apiError, type TransportError } from '@study-pilot/transport';
+import { MOOC_MOBILE_CODE_SESSION_KILLED, MOOC_MOBILE_SESSION_EXPIRED } from './auth.ts';
 import { callRead, type MoocClient } from './client.ts';
 import { ENDPOINTS } from './endpoints.ts';
 import { fetchMobToken, getMobileQuizPaper } from './mobile-paper.ts';
@@ -86,14 +87,78 @@ export async function getQuizPaper(
 }
 
 /**
- * 读移动端凭证：只认当前网页登录会话。
+ * 读移动端凭证的三态。
  *
- * 用户在官网登录后，扩展 GET `getMobToken.do` 取 320 位 token；
- * 没有网页登录就返回空串，由调用方如实提示去登录。
+ * 曾经的写法是「失败折叠成空串」：取凭证的失败（会话失效、平台拒绝）与「没登录」
+ * 变成同一个值，界面把前者说成「还没检测到官网登录」——吞错，也指错路。
  */
-async function mobileTokenOf(client: MoocClient): Promise<string> {
+export type MobileTokenState =
+  | { status: 'ok'; token: string; source: 'app' | 'web' }
+  /** 拿不到 token：其中「网页会话未登录」由包内如实归到 auth 类 */
+  | { status: 'fetch-failed'; error: TransportError; source: 'app' | 'web' };
+
+async function fetchMobileTokenState(client: MoocClient): Promise<MobileTokenState> {
+  if (client.mobileSession !== undefined) {
+    const session = await client.mobileSession();
+    return session.ok
+      ? { status: 'ok', token: session.value, source: 'app' }
+      : { status: 'fetch-failed', error: session.error, source: 'app' };
+  }
   const fetched = await fetchMobToken(client);
-  return fetched.ok ? fetched.value : '';
+  return fetched.ok
+    ? { status: 'ok', token: fetched.value, source: 'web' }
+    : { status: 'fetch-failed', error: fetched.error, source: 'web' };
+}
+
+/**
+ * 读移动端卷面，并在 -10012 时用账密强制重登一次。
+ *
+ * -10012 是「本账号的移动端会话被其它登录顶掉」。配置了移动端登录时，
+ * 重登一次就能拿到新会话（2026-10-27 实测）；没配置时保留原来的如实失败。
+ */
+async function mobilePaperOf(
+  client: MoocClient,
+  tokenState: MobileTokenState,
+  tid: number,
+  aid: number,
+): Promise<{ paper: QuizPaper | null; failure: TransportError | null }> {
+  if (tokenState.status !== 'ok') return { paper: null, failure: null };
+
+  const first = await getMobileQuizPaper(client, tokenState.token, tid, aid);
+  if (first.ok) return { paper: first.value, failure: null };
+  if (first.error.code !== MOOC_MOBILE_CODE_SESSION_KILLED || client.mobileSession === undefined) {
+    return { paper: null, failure: first.error };
+  }
+
+  const refreshed = await client.mobileSession({ refresh: true });
+  if (!refreshed.ok) return { paper: null, failure: refreshed.error };
+  const retried = await getMobileQuizPaper(client, refreshed.value, tid, aid);
+  return retried.ok ? { paper: retried.value, failure: null } : { paper: null, failure: retried.error };
+}
+
+/**
+ * 取答案失败时给用户的说法（两个调用点共用，判据不许分叉）。
+ *
+ * 三条分支都是实测事实（见 auth.ts 的 -10012 注释）：
+ *   · 网页会话没登录 → 引导登录；
+ *   · 移动端被回 -10012 → 手机侧会话被顶掉，出路只有手机 App 重登，
+ *     说成「重新登录网页」是误导；
+ *   · 其余 → 透平台的原话（转述平台的口吻），并说明网页题库接口已下线。
+ */
+function unresolvedHint(token: MobileTokenState, mobileFailure: TransportError | null): string {
+  if (token.status === 'fetch-failed') {
+    if (token.source === 'app') {
+      return `移动端登录失败：${token.error.message}`;
+    }
+    if (token.error.kind === 'auth') {
+      return '还没检测到官网登录。请先在官网登录（设置页「账号登录」可打开登录页），或在「移动端登录」里填写账号密码。';
+    }
+    return `取移动端凭证失败：${token.error.message}`;
+  }
+  if (mobileFailure !== null && mobileFailure.code === MOOC_MOBILE_CODE_SESSION_KILLED) {
+    return `移动端会话被其它登录顶掉，${token.source === 'app' ? '自动重登后仍失败' : '请在「移动端登录」填写账号密码以自动重登'}：${MOOC_MOBILE_SESSION_EXPIRED}`;
+  }
+  return `移动端取答案失败：${mobileFailure?.message ?? '未返回答案'}；网页题库接口已下线，没有可用的兜底来源。`;
 }
 
 /**
@@ -265,17 +330,15 @@ export async function buildFillIndex(
    * 有 mob-token 时先走移动端：进行中的单元测验，网页取卷不给答案，
    * 移动端对同一 aid 会下发官方答案（2026-10-23 实测）。
    */
-  const token = await mobileTokenOf(client);
-  let mobileFailure: string | null = null;
-  if (token !== '') {
-    const mobile = await getMobileQuizPaper(client, token, tid, aid);
-    if (mobile.ok) {
-      const questions = mobile.value.objectiveQList ?? [];
-      if (questions.length > 0) return ok(fillFromQuestions(questions));
-      mobileFailure = '移动端返回了空卷';
-    } else {
-      mobileFailure = mobile.error.message;
-    }
+  const token = await fetchMobileTokenState(client);
+  let mobileFailure: TransportError | null = null;
+  const mobileOutcome = await mobilePaperOf(client, token, tid, aid);
+  if (mobileOutcome.paper !== null) {
+    const questions = mobileOutcome.paper.objectiveQList ?? [];
+    if (questions.length > 0) return ok(fillFromQuestions(questions));
+    mobileFailure = apiError(-1, '移动端返回了空卷');
+  } else {
+    mobileFailure = mobileOutcome.failure;
   }
 
   const paper = await getQuizPaper(client, tid, aid);
@@ -288,14 +351,7 @@ export async function buildFillIndex(
    * 网页卷面没有答案，旧题库接口已下线（getQuestionListByTermId → -1004）。
    * 不再调用它兜底；把真正可执行的下一步说清楚。
    */
-  return err(
-    apiError(
-      -1,
-      token === ''
-        ? '还没检测到官网登录。请先在官网登录（设置页「账号登录」可打开登录页），扩展会自动获取移动端凭证。'
-        : `移动端取答案失败：${mobileFailure ?? '未返回答案'}；网页题库接口已下线，没有可用的兜底来源。`,
-    ),
-  );
+  return err(apiError(-1, unresolvedHint(token, mobileFailure)));
 }
 
 // ---------- 作答并提交（唯一实现） ----------
@@ -343,13 +399,13 @@ export async function answerAndSubmitQuiz(
    * 进行中的单元测验：网页卷面没有答案，移动端对同一 aid 有。
    * 只读指定 aid，绝不拿 0 调移动端；失败时如实报错，不再回退到已下线的题库。
    */
-  const token = await mobileTokenOf(client);
-  let mobileFailure: string | null = null;
+  const token = await fetchMobileTokenState(client);
+  let mobileFailure: TransportError | null = null;
   const mobileAid = typeof paper.value.aid === 'number' ? paper.value.aid : 0;
-  if (token !== '' && mobileAid > 0) {
-    const mobile = await getMobileQuizPaper(client, token, tid, mobileAid);
-    if (mobile.ok) mergeMobileAnswers(paper.value, mobile.value);
-    else mobileFailure = mobile.error.message;
+  if (mobileAid > 0) {
+    const mobileOutcome = await mobilePaperOf(client, token, tid, mobileAid);
+    if (mobileOutcome.paper !== null) mergeMobileAnswers(paper.value, mobileOutcome.paper);
+    else mobileFailure = mobileOutcome.failure;
   }
 
   const subjective = (paper.value.subjectiveQList ?? []).length;
@@ -361,13 +417,9 @@ export async function answerAndSubmitQuiz(
 
   if (built.total === 0) return { status: 'no-objective' };
   if (built.unresolved.length > 0) {
-    const hint =
-      token === ''
-        ? '还没检测到官网登录；请先在官网登录后再试（设置页可打开登录页）'
-        : `移动端取答案失败：${mobileFailure ?? '未返回答案'}；网页题库接口已下线`;
     return {
       status: 'failed',
-      message: `${built.unresolved.length} 道题取不到答案（${hint}），已跳过以免得到低分`,
+      message: `${built.unresolved.length} 道题取不到答案（${unresolvedHint(token, mobileFailure)}），已跳过以免得到低分`,
     };
   }
 

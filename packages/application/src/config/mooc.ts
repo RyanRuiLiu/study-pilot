@@ -83,10 +83,21 @@ export interface MoocSettings {
    * 想看更早的可以去看单元明细，那里列全部单元且带得分，不受这个设置影响。
    */
   keepOverdueDays: number;
+  /**
+   * 移动端登录：官网账号（11 位大陆手机号）。
+   *
+   * 存在本地是为了“登录一次之后自动续期”，不上传、不写日志。空串表示未配置，
+   * 此时取答案沿用网页会话那条旧路径。
+   */
+  mobileAccount: string;
+  /** 移动端登录：官网密码，与 mobileAccount 成对使用；同样只存本地。 */
+  mobilePassword: string;
 }
 
 export const DEFAULT_MOOC: MoocSettings = {
   courses: [],
   reviewComment: '非常棒，继续努力！',
   keepOverdueDays: 3,
+  mobileAccount: '',
+  mobilePassword: '',
 };

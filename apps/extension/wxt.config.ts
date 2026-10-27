@@ -85,6 +85,7 @@ export default defineConfig({
      *   zhihuishu.com     智慧树全系域名——页面、接口、静态库分布在不同子域
      *                     （studywisdomh5 / studyservice-api / appcomm-user …），
      *                     用一条通配覆盖，逐个子域列举只会漏；
+     *   sdk.reg.163.com   网易 URS——移动端登录的官方账密登录（换发移动端会话）；
      *   open.bigmodel.cn  智谱开放平台——AI 的唯一出口（见 application 的
      *                     AI_BASE_URL，地址固定，因此权限可以静态声明，
      *                     不再有「按需申请」那一步）。
@@ -96,7 +97,7 @@ export default defineConfig({
      * 权限仍可能不在：用户可以在扩展详情页收回「网站访问权限」。那种情况下
      * 界面如实提示（见 src/ai/permission.ts），计划里的讨论单元不进队列。
      */
-    host_permissions: ['*://*.icourse163.org/*', '*://*.zhihuishu.com/*', 'https://open.bigmodel.cn/*'],
+    host_permissions: ['*://*.icourse163.org/*', '*://*.zhihuishu.com/*', 'https://sdk.reg.163.com/*', 'https://open.bigmodel.cn/*'],
     options_ui: {
       page: 'options.html',
       open_in_tab: true,

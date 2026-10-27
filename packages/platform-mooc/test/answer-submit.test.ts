@@ -34,6 +34,8 @@ function clientStub(options: {
   paper: QuizPaper | null;
   mobToken?: string;
   mobilePaper?: QuizPaper;
+  mobileCode?: number;
+  mobileMessage?: string;
   submitFails?: boolean;
 }) {
   const calls: Array<{ url: string; path: string; bean: string; body: Record<string, unknown> }> = [];
@@ -52,6 +54,12 @@ function clientStub(options: {
         );
       }
       if (path.includes('/mob/course/paperDetail/v1')) {
+        if (options.mobileCode !== undefined && options.mobileCode !== 0) {
+          return new Response(
+            JSON.stringify({ status: { code: options.mobileCode, message: options.mobileMessage ?? '' } }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        }
         return new Response(
           JSON.stringify({
             status: { code: 0, message: '' },
@@ -135,6 +143,27 @@ describe('answerAndSubmitQuiz', () => {
 
     expect(outcome.status).toBe('failed');
     if (outcome.status === 'failed') expect(outcome.message).toContain('主观题');
+    expect(submitCalls()).toHaveLength(0);
+  });
+
+  it('移动端被回 -10012：说的是移动端凭证被顶，出路是手机 App 重登，不是重新登录网页', async () => {
+    const { client, submitCalls } = clientStub({
+      paper: paper({
+        aid: 42,
+        objectiveQList: [{ id: 11, type: 1, optionDtos: [{ id: 101 }, { id: 102 }] }],
+      }),
+      mobToken: 'a'.repeat(320),
+      mobileCode: -10012,
+      mobileMessage: '系统检测您的帐号已经在其他设备上登录',
+    });
+
+    const outcome = await answerAndSubmitQuiz(client, TID, TERM_ID);
+
+    expect(outcome.status).toBe('failed');
+    if (outcome.status === 'failed') {
+      expect(outcome.message).toContain('手机 MOOC App 重新登录');
+      expect(outcome.message).not.toContain('网页题库接口已下线');
+    }
     expect(submitCalls()).toHaveLength(0);
   });
 

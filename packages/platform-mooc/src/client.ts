@@ -53,7 +53,17 @@ export interface MoocClientOptions {
   origin?: string;
   /** 出站请求最小间隔。只有测试才需要改它 */
   minGapMs?: number;
+  /**
+   * 账密换移动端会话。配置了账号密码的载体注入；平台包只在取答案需要
+   * `mob-token` 时调用，不预先登录、不轮询。
+   */
+  mobileSession?: MobileSessionProvider;
 }
+
+/** 取一枚新的移动端 mob-token。`refresh` 用于 -10012 后强制重登。 */
+export type MobileSessionProvider = (options?: { refresh?: boolean }) => Promise<
+  Result<string, TransportError>
+>;
 
 export interface MoocClient {
   rpc: RpcClient;
@@ -66,6 +76,8 @@ export interface MoocClient {
    * 在命令行/代理域这类载体上就会带着错的 Origin、发到错的站点。
    */
   send: FetchLike;
+  /** 有账密配置时由载体注入；没有则沿用网页会话取 320 位 token 的旧路径。 */
+  mobileSession?: MobileSessionProvider;
 }
 
 export function createMoocClient(options: MoocClientOptions): MoocClient {
@@ -87,6 +99,7 @@ export function createMoocClient(options: MoocClientOptions): MoocClient {
   return {
     origin,
     send: options.fetch,
+    ...(options.mobileSession === undefined ? {} : { mobileSession: options.mobileSession }),
     /*
      * auth 类失败统一换成平台那句话再交出去。
      *

@@ -59,7 +59,7 @@ const { renderZhsCourseTasks } = await import('../entrypoints/options/zhihuishu-
 
 const SETTINGS = {
   ai: { enabled: false, model: 'glm-4-flash', apiKey: '' },
-  mooc: { courses: [], reviewComment: 'x', keepOverdueDays: 3 },
+  mooc: { courses: [], reviewComment: 'x', keepOverdueDays: 3, mobileAccount: '', mobilePassword: '' },
   zhihuishu: { courses: [] },
   ui: { activeTab: 'mooc' },
 };

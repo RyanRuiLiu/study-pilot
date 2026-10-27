@@ -92,7 +92,11 @@ export function selectedCourses(settings: Settings): InspectCourse[] {
 }
 
 export function createMoocRuntime(carrier: MoocCarrierDeps): MoocRuntime {
-  const { client, renew }: PlatformClient = createPlatformClient(carrier.host, carrier.fetch);
+  const { client, renew }: PlatformClient = createPlatformClient(carrier.host, carrier.fetch, async () => {
+    const settings = await carrier.config.read();
+    const { mobileAccount, mobilePassword } = settings.mooc;
+    return mobileAccount !== '' && mobilePassword !== '' ? { account: mobileAccount, password: mobilePassword } : null;
+  });
 
   /*
    * 课件行为的上下文：只有一处来源——设置里的 AI 配置加上载体给的生成器工厂。
