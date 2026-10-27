@@ -107,7 +107,7 @@ async function fetchMobileTokenState(client: MoocClient): Promise<MobileTokenSta
 /**
  * 读移动端卷面，并在 -10012 时用账密强制重登一次。
  *
- * -10012 是「本账号的移动端会话被其它登录顶掉」。重登一次即可拿回会话
+ * -10012 是「本槽位的移动端会话被其它登录顶掉」。重登一次即可拿回会话
  * （2026-10-27 实测）；重登失败时如实返回失败原因。
  */
 async function mobilePaperOf(
@@ -141,7 +141,7 @@ function unresolvedHint(token: MobileTokenState, mobileFailure: TransportError |
     return `移动端登录不可用：${token.error.message}`;
   }
   if (mobileFailure !== null && mobileFailure.code === MOOC_MOBILE_CODE_SESSION_KILLED) {
-    return `移动端会话被其它登录顶掉，自动重登后仍无法取答案（${MOOC_MOBILE_SESSION_EXPIRED}）`;
+    return `${MOOC_MOBILE_SESSION_EXPIRED}，自动重登后仍无法取答案`;
   }
   return `移动端取答案失败：${mobileFailure?.message ?? '未返回答案'}`;
 }

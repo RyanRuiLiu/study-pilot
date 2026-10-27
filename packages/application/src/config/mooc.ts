@@ -86,12 +86,21 @@ export interface MoocSettings {
   /**
    * 移动端登录：官网账号（11 位大陆手机号）。
    *
-   * 存在本地是为了“登录一次之后自动续期”，不上传、不写日志。空串表示未配置，
-   * 此时取答案沿用网页会话那条旧路径。
+   * 存在本地是为了“登录一次之后自动续期”，不上传、不写日志。空串表示未配置；
+   * 此时测验类任务只展示、不执行（取答案没有网页回退路径）。
    */
   mobileAccount: string;
   /** 移动端登录：官网密码，与 mobileAccount 成对使用；同样只存本地。 */
   mobilePassword: string;
+  /**
+   * 移动端登录的设备安装标识（Android ID，16 位十六进制）。
+   *
+   * 首次登录时由扩展生成并保存，之后复用；不是账号凭证，也不含个人信息。
+   * 它让同一次安装在多次自动续期时保持同一个“平板设备”。
+   */
+  mobileAId: string;
+  /** 移动端登录的安装 id（40 位十六进制），与 mobileAId 一起生成、复用。 */
+  mobileUniqueId: string;
 }
 
 export const DEFAULT_MOOC: MoocSettings = {
@@ -100,4 +109,6 @@ export const DEFAULT_MOOC: MoocSettings = {
   keepOverdueDays: 3,
   mobileAccount: '',
   mobilePassword: '',
+  mobileAId: '',
+  mobileUniqueId: '',
 };

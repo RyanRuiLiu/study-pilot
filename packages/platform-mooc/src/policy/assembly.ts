@@ -91,11 +91,25 @@ export function selectedCourses(settings: Settings): InspectCourse[] {
     }));
 }
 
+const randomHex = (length: number): string => {
+  const bytes = new Uint8Array(length);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+};
+
 export function createMoocRuntime(carrier: MoocCarrierDeps): MoocRuntime {
   const { client, renew }: PlatformClient = createPlatformClient(carrier.host, carrier.fetch, async () => {
     const settings = await carrier.config.read();
     const { mobileAccount, mobilePassword } = settings.mooc;
-    return mobileAccount !== '' && mobilePassword !== '' ? { account: mobileAccount, password: mobilePassword } : null;
+    if (mobileAccount === '' || mobilePassword === '') return null;
+
+    let { mobileAId: aId, mobileUniqueId: uniqueId } = settings.mooc;
+    if (aId === '' || uniqueId === '') {
+      aId = randomHex(8);
+      uniqueId = randomHex(20);
+      await carrier.config.update({ mooc: { mobileAId: aId, mobileUniqueId: uniqueId } });
+    }
+    return { account: mobileAccount, password: mobilePassword, aId, uniqueId };
   });
 
   /*

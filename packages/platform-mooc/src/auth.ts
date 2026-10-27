@@ -18,11 +18,12 @@ import { unauthenticatedError, type TransportError } from '@study-pilot/transpor
 export const MOOC_SESSION_EXPIRED = '登录已失效，需重新登录慕课';
 
 /**
- * 移动端会话被新登录顶掉（`paperDetail/v1` 回 `-10012`）。
+ * 移动端会话被同槽位的新登录顶掉（`paperDetail/v1` 回 `-10012`）。
  *
- * 判据是码，不是文本。账号只承认最后一次移动端登录：任何新登录都会让此前
- * 的移动端会话失效。配置了移动端登录时，`quiz.ts` 会用配置的账密自动重登
- * 一次并重试；未配置时如实失败（待办里只展示、不执行）。
+ * 判据是码，不是文本。扩展的 UNS 登录按平板设备画像建立会话，与手机 App
+ * 分属不同会话槽；手机登录不会让这个会话失效。仍回 -10012 时（例如同槽位
+ * 被其他设备登录），`quiz.ts` 会用配置的账密自动重登一次并重试；未配置时
+ * 如实失败（待办里只展示、不执行）。
  */
 export const MOOC_MOBILE_CODE_SESSION_KILLED = -10012;
 

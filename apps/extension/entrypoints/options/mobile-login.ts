@@ -1,11 +1,12 @@
 /*
  * 移动端登录（独立卡）：官网手机号 + 密码，保存并立即换发一次移动端会话。
  *
- * 走的是官方 URS 账密登录 → `ursCellphoneLogin` 换发，和后台取答案同一条
- * 平台函数（`loginMobileSession`），不在这里重写一份请求。
+ * 走的是官方 UNS 账密登录 → `ursCellphoneLogin` 换发，和后台取答案同一条
+ * 平台函数（`loginMobileSession`），不在这里重写一份请求。登录以平板设备
+ * 身份进行，不占用手机 App 的会话槽。
  */
 
-import { loginMobileSession } from '@study-pilot/platform-mooc';
+import { sendToBackground } from '../../src/messages.ts';
 import { getSettings, updateSettings } from '../../src/ui-bridge.ts';
 import { errorText } from '../../src/ui/format.ts';
 import { toast } from './toast.ts';
@@ -21,6 +22,12 @@ function setStatus(text: string, isError: boolean): void {
   element.textContent = text;
   element.classList.toggle('is-error', isError);
 }
+
+const randomHex = (length: number): string => {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+};
 
 export async function renderMobileLogin(): Promise<void> {
   const account = field('mobile-account');
@@ -56,21 +63,37 @@ export async function renderMobileLogin(): Promise<void> {
       save.disabled = true;
       setStatus('正在保存并登录…', false);
       try {
+        const current = await getSettings();
+        let aId = current.mooc.mobileAId;
+        let uniqueId = current.mooc.mobileUniqueId;
+        if (aId === '' || uniqueId === '') {
+          aId = randomHex(8);
+          uniqueId = randomHex(20);
+        }
         const settings = await updateSettings({
-          mooc: { mobileAccount: sentAccount, mobilePassword: sentPassword },
+          mooc: {
+            mobileAccount: sentAccount,
+            mobilePassword: sentPassword,
+            mobileAId: aId,
+            mobileUniqueId: uniqueId,
+          },
         });
         if (account.value.trim() === sentAccount) account.value = settings.mooc.mobileAccount;
         if (password.value === sentPassword) password.value = settings.mooc.mobilePassword;
 
-        const result = await loginMobileSession(
-          { send: (input, init) => fetch(input, init), origin: 'https://www.icourse163.org' },
-          { account: sentAccount, password: sentPassword },
-        );
+        // 交给后台发：扩展页直接发会带 chrome-extension:// 的 Origin 和浏览器 UA
+        const result = await sendToBackground({
+          type: 'MOOC_MOBILE_LOGIN',
+          account: sentAccount,
+          password: sentPassword,
+          aId,
+          uniqueId,
+        });
         if (result.ok) {
-          setStatus('登录成功，已换发移动端会话', false);
+          setStatus('登录成功，已换发移动端会话（不占用手机）', false);
           toast('移动端登录成功');
         } else {
-          setStatus(`登录失败：${result.error.message}`, true);
+          setStatus(result.message, true);
         }
       } catch (error) {
         setStatus(`保存失败：${errorText(error)}`, true);

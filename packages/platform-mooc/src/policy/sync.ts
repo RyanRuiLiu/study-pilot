@@ -11,7 +11,7 @@ import { err, ok } from '@study-pilot/core';
 import { apiError } from '@study-pilot/transport';
 import { createMoocClient, MOOC_ORIGIN, type MoocClient, type MoocClientOptions } from '../client.ts';
 import { loginMobileSession } from '../mobile-paper.ts';
-import type { UrsPasswordCredentials } from '../urs/password-login.ts';
+import type { UnsPasswordCredentials } from '../urs/password-login.ts';
 import { COURSE_TYPE } from '../endpoints.ts';
 import { getCourses } from '../courses.ts';
 import type { CourseSummary } from '../types.ts';
@@ -74,7 +74,7 @@ function isBusinessSuccess(text: string): boolean {
 export function createPlatformClient(
   host: HostCapabilities,
   carrierFetch?: MoocClientOptions['fetch'],
-  getMobileCredentials?: () => Promise<UrsPasswordCredentials | null>,
+  getMobileCredentials?: () => Promise<UnsPasswordCredentials | null>,
 ): PlatformClient {
   // 不把全局 fetch 拆出来直接调用（浏览器里那是 Illegal invocation），包一层再交出去
   const send: MoocClientOptions['fetch'] = carrierFetch ?? ((input, init) => fetch(input, init));

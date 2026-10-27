@@ -28,7 +28,7 @@ import {
 import type { MoocClient } from './client.ts';
 import { MOBILE_ENDPOINTS } from './endpoints.ts';
 import type { QuizPaper } from './types.ts';
-import { loginUrsByPassword, URS_CLIENT_ID, type UrsPasswordCredentials } from './urs/password-login.ts';
+import { loginUnsByPassword, URS_CLIENT_ID, type UnsPasswordCredentials } from './urs/password-login.ts';
 
 /** 移动端这几跳只需要出站与站点地址，不需要整只客户端。 */
 export type MobilePaperClient = Pick<MoocClient, 'send' | 'origin'>;
@@ -39,13 +39,6 @@ const MOBILE_HEADERS: Record<string, string> = {
   'edu-app-type': 'android',
   'edu-app-version': '5.6.1',
 };
-
-/**
- * App 的固定应用标识（不是账号凭证）。来源：手机 App 登录抓包的 `appId`
- * （2026-10-23 真实 HAR），2026-10-26 复测换发仍回 `code:0`。换 App 大版本时可能需要同步。
- */
-export const MOBILE_APP_ID =
-  'EABB51F70D27DC1E7D87C84F7FA2F049DC63B04C64F6472113D9262C52760DCD3FE15EBB30456EBC73E8A6319D8E6B76FAB3398001EE522BEEE4390C7C2497BAFF11C43E64E8C5FE00F86F315390B46356994B673796601C05E66A1A4F7CEDCA9ADCD34BB0946747B7C59107EA14C5A4';
 
 interface UrsLoginEnvelope {
   code?: number;
@@ -66,17 +59,15 @@ interface UrsLoginEnvelope {
  * `mobToken` 才是 `/mob/course/*` 认的会话凭证。网页会话自带的同名字段是另一族
  * 凭证（320 位），对 `paperDetail` 回 `-10012`，已不再使用。
  *
- * 副作用：这一步等价于「在移动端登录一次」，会顶掉账号上原有的移动端会话
- * （用户手机 App 会收到重新登录提示）。所以只在真要取答案时调，不做轮询。
- *
- * `appId` 必须与 `ursToken` 同一产品：传统 URS 账密登录的 token 要用
- * `URS_CLIENT_ID`，App 抓包的 UNS token 才用 `MOBILE_APP_ID`（2026-10-27 实测；
- * 混用回 `code:1000 urs token无效`）。
+ * `appId` 必须与 `ursToken` 同一产品。扩展的 UNS 账密登录 token 用
+ * `URS_CLIENT_ID`（2026-10-27 实测；用 App 抓包里的 init appId 会回
+ * `code:1000 urs token无效`）。换发本身不再顶掉手机：UNS 登录已经以
+ * 平板设备身份建立独立会话，换发只是把这枚 token 注册成移动端凭证。
  */
 export async function exchangeUrsTokenForMobToken(
   client: MobilePaperClient,
   ursToken: string,
-  appId: string = MOBILE_APP_ID,
+  appId: string = URS_CLIENT_ID,
 ): Promise<Result<string, TransportError>> {
   const trimmed = ursToken.trim();
   if (trimmed === '') return err(apiError(-1, '没有移动端登录凭证（ursToken），无法注册移动端会话'));
@@ -185,17 +176,17 @@ export async function getMobileQuizPaper(
 }
 
 /**
- * 账密自动登录：URS 手机号+密码 → `ursToken` → 384 位移动端 `mobToken`。
+ * 账密自动登录：UNS 手机号+密码 → `ursToken` → 384 位移动端 `mobToken`。
  *
- * 这是扩展设置页「移动端登录」与后台取答案共用的一条链。换发会顶掉手机上
- * 原有的 App 会话——这正是官方移动登录的语义，不额外轮询、不预先登录。
+ * 这是扩展设置页「移动端登录」与后台取答案共用的一条链。登录固定按平板
+ * 设备画像提交，和手机 App 的会话并存；只在真要取答案时调，不做轮询。
  */
 export async function loginMobileSession(
   client: MobilePaperClient,
-  credentials: UrsPasswordCredentials,
-  options: { randomHex?: (length: number) => string } = {},
+  credentials: UnsPasswordCredentials,
+  options: { randomHex?: (length: number) => string; randomBytes?: (length: number) => Uint8Array } = {},
 ): Promise<Result<string, TransportError>> {
-  const session = await loginUrsByPassword(client.send, credentials, options);
+  const session = await loginUnsByPassword(client.send, credentials, options);
   if (!session.ok) return session;
   return exchangeUrsTokenForMobToken(client, session.value.token, URS_CLIENT_ID);
 }

@@ -143,6 +143,17 @@ export type MoocRequest =
   | { type: 'MOOC_QUIZ_FILL_INDEX'; tid: number; termId: number }
   | { type: 'MOOC_QUIZ_INFO'; tid: number }
   | { type: 'MOOC_QUIZ_SUBMIT'; tid: number; termId: number }
+  /**
+   * 设置页的「保存并登录」：在后台走 UNS 登录，避免扩展页直接发请求时
+   * 带上的 Origin/浏览器 UA 被服务端按「非法请求」拒绝。
+   */
+  | {
+      type: 'MOOC_MOBILE_LOGIN';
+      account: string;
+      password: string;
+      aId: string;
+      uniqueId: string;
+    }
 ;
 
 /** 课程列表里的一条：界面只需要名字与 termId 用来显示与勾选。 */
@@ -188,4 +199,5 @@ export interface MoocResponseMap {
   }>;
   MOOC_QUIZ_INFO: QueryOutcome<QuizInfo>;
   MOOC_QUIZ_SUBMIT: QueryOutcome<{ matched: number; total: number }>;
+  MOOC_MOBILE_LOGIN: { ok: true } | { ok: false; message: string };
 }

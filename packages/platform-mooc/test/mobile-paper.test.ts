@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { md5hex } from '@study-pilot/core';
 import { createMoocClient } from '../src/client.ts';
-import { exchangeUrsTokenForMobToken, getMobileQuizPaper, MOBILE_APP_ID } from '../src/mobile-paper.ts';
+import { exchangeUrsTokenForMobToken, getMobileQuizPaper } from '../src/mobile-paper.ts';
 import { URS_CLIENT_ID } from '../src/urs/password-login.ts';
 import type { QuizPaper } from '../src/types.ts';
 
@@ -117,7 +117,7 @@ describe('getMobileQuizPaper', () => {
 describe('exchangeUrsTokenForMobToken', () => {
   const URS_TOKEN = 'yd_' + '0'.repeat(40);
 
-  it('按抓包的表单形状 POST：ursToken + 空 mob-token + 固定 appId', async () => {
+  it('按抓包的表单形状 POST：ursToken + 空 mob-token + URS 客户端 id', async () => {
     let called = '';
     let form = '';
     const client = clientWith(async (url, init) => {
@@ -137,7 +137,7 @@ describe('exchangeUrsTokenForMobToken', () => {
     const params = new URLSearchParams(form);
     expect(params.get('ursToken')).toBe(URS_TOKEN);
     expect(params.get('mob-token')).toBe('');
-    expect(params.get('appId')).toBe(MOBILE_APP_ID);
+    expect(params.get('appId')).toBe(URS_CLIENT_ID);
   });
 
   it('可显式指定 URS 客户端 id 作为 appId（账密链使用）', async () => {

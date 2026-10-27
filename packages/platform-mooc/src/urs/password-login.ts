@@ -1,21 +1,21 @@
-/**
- * 正式 URS 手机号+密码登录（icourse 的 App 登录链第一跳）。
+/*
+ * 官方 UNS 手机号+密码登录（icourse App 的账密登录链第一跳）。
  *
- * 不是自制协议：请求形状、字段顺序、AES/ECB/PKCS5Padding 与 MD5 口令
- * 全部来自官方 4.12.0 的 `com.netease.loginapi`（`library/e.work`、
- * `library/vo/r.onPreSerialize`、`library/vo/v`、`URSdkImpl` 的 pwdlogin 分支），
- * 产品口令（客户端 id / AES key）来自 4.26.1 在官方 initSdk 后写入的
- * `NELoginConfig`（2026-10-27 提取；同日起从本机 PC 复测通过）。
+ * 链路（2026-10-27 在 5.6.1 上逐跳验证）：
+ *   1. POST /uns/sdk/app/v1/ini，用 p1/p2/p3 信封取安装级 appId；
+ *   2. POST /uns/sdk/login/mob/pwd/v1/login，p1 里带 username/isMd5/pwd，
+ *      返回 `yd_` + 40 hex 的 UNS token；
+ *   3. 用 `URS_CLIENT_ID` 把 token 换成 384 位 mob-token（见 mobile-paper.ts）。
  *
- * 它返回的 `token`（`yd_` + 40 hex）在换发移动端会话时 **`appId` 必须用
- * 本文件的 `URS_CLIENT_ID`**；用 App 抓包里的 `appId` 会被回“urs token无效”
- * （2026-10-27 实测）。换发成功即得到 384 位 `mobToken`，可直接读
- * `paperDetail` 的官方答案。
+ * 与旧的 legacy URS（`/interfaces/yd/pwdlogin.do`）的关键差别不在协议，
+ * 而在服务端的会话槽：legacy 账密登录会顶掉手机 App；UNS 用平板设备画像
+ * （model/resolution）登录时与手机并存。`ydUniqueId` 实测可以传空串，
+ * 所以普通用户不需要抓手机 ZXID。
  *
- * 凭证不落盘、不写日志、不拼进错误文本。
+ * 凭证不落盘、不写日志、不拼进错误文本；p1 在发出前用 SM4 加密。
  */
 
-import { err, md5hex, ok, type Result } from '@study-pilot/core';
+import { err, ok, type Result } from '@study-pilot/core';
 import {
   apiError,
   DEFAULT_TIMEOUT_MS,
@@ -27,24 +27,31 @@ import {
   type FetchLike,
   type TransportError,
 } from '@study-pilot/transport';
-import { aes128EcbDecryptHex, aes128EcbEncryptHex, aesKeyFromHex } from './aes.ts';
+import {
+  buildUnsCommonPayload,
+  buildUnsHeaders,
+  decryptUnsResponse,
+  UNS_INIT_PATH,
+  UNS_ORIGIN,
+  UNS_PASSWORD_LOGIN_PATH,
+  type UnsDeviceInstall,
+  type UnsKeyPair,
+} from './uns.ts';
 
-export const URS_LOGIN_ORIGIN = 'https://sdk.reg.163.com';
-export const URS_PASSWORD_LOGIN_PATH = '/interfaces/yd/pwdlogin.do';
-/** 官方产品 `edumooc_client` 的客户端 id（URS initSdk 下发）。 */
-export const URS_CLIENT_ID =
-  '5A628216489A6CF86F2890898ED620804859F7613325A31AA9FA58E1B5206CBF1357988F9BBF7444F8C4089965276261A907209E92AFDB94D9686F55C600B9A6';
-/** 同一产品的 AES-128 密钥（32 位十六进制文本）。 */
-const URS_CLIENT_KEY = '4cf8b82d04d0ca838fe0db6bf03488db';
-const URS_PRODUCT = 'edumooc_client';
-const URS_PASSWORD_OK = 201;
+export { URS_CLIENT_ID } from './uns.ts';
 
-export interface UrsPasswordCredentials {
+const UNS_OK = 200;
+
+export interface UnsPasswordCredentials {
   account: string;
   password: string;
+  /** 本机扩展安装级 Android ID（16 位十六进制）；缺省时随机生成 */
+  aId?: string;
+  /** 本机扩展安装级安装 id（40 位十六进制）；缺省时随机生成 */
+  uniqueId?: string;
 }
 
-export interface UrsSession {
+export interface UnsSession {
   /** `yd_` + 40 位十六进制，换发移动端 mobToken 用 */
   token: string;
   /** 163 主账号（yd.xxx@163.com） */
@@ -53,102 +60,171 @@ export interface UrsSession {
   mobileAccount: string;
 }
 
-export interface UrsPasswordLoginOptions {
-  /** 测试注入的随机源 */
+export interface UnsPasswordLoginOptions {
+  /** 测试注入的十六进制随机源（ID/reqId） */
   randomHex?: (length: number) => string;
+  /** 测试注入的字节随机源（smkey/smIv） */
+  randomBytes?: (length: number) => Uint8Array;
+  /** 测试注入的 RSA 密钥；生产环境不传 */
+  keys?: UnsKeyPair;
 }
 
-const defaultRandomHex = (length: number): string => {
+const defaultRandomBytes = (length: number): Uint8Array => {
   const bytes = new Uint8Array(length);
-  crypto.getRandomValues(bytes);
+  globalThis.crypto.getRandomValues(bytes);
+  return bytes;
+};
+
+const defaultRandomHex = (length: number): string => {
+  const bytes = defaultRandomBytes(length);
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 };
 
-/** 纯函数：按官方字段顺序拼出 AES 前的参数串。 */
-export function buildUrsPasswordParams(
-  credentials: UrsPasswordCredentials,
-  uniqueId: string,
-  requestId: string,
-): string {
-  const params: Array<[string, string | number]> = [
-    ['rtid', requestId],
-    ['androidID', uniqueId],
-    ['carrier', '中国移动'],
-    ['network', 'wifi'],
-    ['pdtVersion', '4.12.0'],
-    ['mac', '02:00:00:00:00:00'],
-    ['resolution', '1080x2340'],
-    ['uniqueID', uniqueId],
-    ['uniqueID_cf', uniqueId],
-    ['imei', ''],
-    ['product', URS_PRODUCT],
-    ['deviceType', 'PCAM10'],
-    ['systemName', 'Android'],
-    ['systemVersion', '11'],
-    ['isEmulator', 0],
-    ['loginException', 0],
-    ['needLeakInfo', 0],
-    ['ignorelock', 1],
-    ['mobile', credentials.account],
-    ['password', md5hex(credentials.password)],
-    ['isMd5', 1],
-  ];
-  return params.map(([key, value]) => `${key}=${value}`).join('&');
+interface UnsEnvelope {
+  result?: unknown;
+  msg?: unknown;
+  data?: unknown;
+  enc?: unknown;
+  key?: unknown;
+  iv?: unknown;
 }
 
-export async function loginUrsByPassword(
+/** 拼登录 p1：字段名与官方 App 一致（`pwd` 明文、`isMd5:0`）。 */
+export function buildUnsLoginPayload(
+  credentials: Pick<UnsPasswordCredentials, 'account' | 'password'>,
+  install: UnsDeviceInstall,
+  now: number,
+  reqId: string,
+): Record<string, unknown> {
+  return {
+    username: credentials.account,
+    isMd5: 0,
+    pwd: credentials.password,
+    ...buildUnsCommonPayload(install, now, reqId),
+  };
+}
+
+function resultCode(value: unknown): number | null {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number.parseInt(value, 10);
+  return null;
+}
+
+async function postEnvelope(
   send: FetchLike,
-  credentials: UrsPasswordCredentials,
-  options: UrsPasswordLoginOptions = {},
-): Promise<Result<UrsSession, TransportError>> {
+  path: string,
+  payload: unknown,
+  body: unknown,
+  randomBytes: (length: number) => Uint8Array,
+  keys: UnsKeyPair | undefined,
+  signal: AbortSignal,
+): Promise<Result<UnsEnvelope, TransportError>> {
+  const headers = buildUnsHeaders(payload, randomBytes, keys);
+  const response = await send(`${UNS_ORIGIN}${path}`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+      Connection: 'close',
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+  const raw = await response.text();
+  if (!response.ok) return err(httpError(response.status, raw));
+  try {
+    return ok(JSON.parse(raw) as UnsEnvelope);
+  } catch {
+    return err(parseError(raw));
+  }
+}
+
+function envelopeError(envelope: UnsEnvelope, stage: string, fallback: string, raw: string): TransportError {
+  const code = resultCode(envelope.result);
+  const message = typeof envelope.msg === 'string' && envelope.msg !== '' ? envelope.msg : fallback;
+  return apiError(code ?? -1, `${stage}：${message}`, raw);
+}
+
+/**
+ * 官方 UNS 账密登录。
+ *
+ * `send` 走调用方的出站层（扩展里是 client.send，带 Origin/Cookie 规则）；
+ * 返回的 token 只能通过 `URS_CLIENT_ID` 换发移动端会话。
+ */
+export async function loginUnsByPassword(
+  send: FetchLike,
+  credentials: UnsPasswordCredentials,
+  options: UnsPasswordLoginOptions = {},
+): Promise<Result<UnsSession, TransportError>> {
   if (!/^1\d{10}$/.test(credentials.account)) {
     return err(apiError(-1, '手机号格式不正确，需要 11 位大陆手机号'));
   }
   if (credentials.password === '') return err(apiError(-1, '密码不能为空'));
 
   const randomHex = options.randomHex ?? defaultRandomHex;
-  const uniqueId = randomHex(16);
-  const requestId = randomHex(16);
-  const plain = buildUrsPasswordParams(credentials, uniqueId, requestId);
-  const key = aesKeyFromHex(URS_CLIENT_KEY);
-  const body = `params=${aes128EcbEncryptHex(new TextEncoder().encode(plain), key)}&id=${URS_CLIENT_ID}`;
+  const randomBytes = options.randomBytes ?? defaultRandomBytes;
+  const install: UnsDeviceInstall = {
+    aId: credentials.aId ?? randomHex(8),
+    uniqueId: credentials.uniqueId ?? randomHex(20),
+  };
 
   const timeout = startOutboundTimeout(DEFAULT_TIMEOUT_MS);
   try {
-    const response = await send(`${URS_LOGIN_ORIGIN}${URS_PASSWORD_LOGIN_PATH}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-      body,
-      signal: timeout.signal,
-    });
-    const raw = await response.text();
-    if (!response.ok) return err(httpError(response.status, raw));
+    const initPayload = buildUnsCommonPayload(install, Date.now(), randomHex(16));
+    const init = await postEnvelope(
+      send,
+      UNS_INIT_PATH,
+      initPayload,
+      { sdv: {}, utid: '', rtid: randomHex(16) },
+      randomBytes,
+      options.keys,
+      timeout.signal,
+    );
+    if (!init.ok) return init;
 
-    let envelope: { result?: unknown; msg?: unknown };
+    const initCode = resultCode(init.value.result);
+    if (initCode !== UNS_OK) {
+      return err(envelopeError(init.value, 'UNS 初始化', 'UNS 初始化失败', JSON.stringify(init.value)));
+    }
+    let initData: { appId?: unknown } | null;
     try {
-      envelope = JSON.parse(raw) as { result?: unknown; msg?: unknown };
+      initData = decryptUnsResponse<{ appId?: unknown }>(init.value, options.keys);
     } catch {
-      return err(parseError(raw));
+      return err(parseError(JSON.stringify(init.value)));
     }
-    const result = typeof envelope.result === 'string' ? Number.parseInt(envelope.result, 10) : envelope.result;
-    const message = typeof envelope.msg === 'string' ? envelope.msg : '';
-    if (result !== URS_PASSWORD_OK) {
-      return err(apiError(typeof result === 'number' ? result : -1, message || 'URS 登录失败', raw));
-    }
-    if (message === '') return err(parseError(raw));
+    const appId = typeof initData?.appId === 'string' ? initData.appId : '';
+    if (appId === '') return err(parseError(JSON.stringify(init.value)));
 
-    let decrypted: string;
-    try {
-      decrypted = new TextDecoder().decode(aes128EcbDecryptHex(message, key));
-    } catch {
-      return err(parseError(raw));
+    const loginPayload = buildUnsLoginPayload(credentials, install, Date.now(), randomHex(16));
+    const login = await postEnvelope(
+      send,
+      UNS_PASSWORD_LOGIN_PATH,
+      loginPayload,
+      { utid: appId, rtid: randomHex(16) },
+      randomBytes,
+      options.keys,
+      timeout.signal,
+    );
+    if (!login.ok) return login;
+
+    const loginCode = resultCode(login.value.result);
+    if (loginCode !== UNS_OK) {
+      return err(envelopeError(login.value, 'UNS 登录', 'UNS 登录失败', JSON.stringify(login.value)));
     }
-    const fields = new URLSearchParams(decrypted);
-    const token = fields.get('token') ?? '';
-    const ssn = fields.get('ssn') ?? '';
-    const mobileAccount = fields.get('ydAccount') ?? '';
+    let data: { token?: unknown; ssn?: unknown; aliasuser?: unknown } | null;
+    try {
+      data = decryptUnsResponse<{ token?: unknown; ssn?: unknown; aliasuser?: unknown }>(
+        login.value,
+        options.keys,
+      );
+    } catch {
+      return err(parseError(JSON.stringify(login.value)));
+    }
+    const token = typeof data?.token === 'string' ? data.token : '';
+    const ssn = typeof data?.ssn === 'string' ? data.ssn : '';
+    const mobileAccount = typeof data?.aliasuser === 'string' ? data.aliasuser : '';
     if (!/^yd_[0-9a-f]{40}$/.test(token) || ssn === '' || mobileAccount === '') {
-      return err(parseError(raw));
+      return err(parseError(JSON.stringify(login.value)));
     }
     return ok({ token, ssn, mobileAccount });
   } catch (cause) {

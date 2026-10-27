@@ -297,6 +297,9 @@ export function normalize(raw: Json): Settings {
       // 账号去空白；密码原样保留（空格可能是密码的一部分）
       mobileAccount: merged.mooc.mobileAccount.trim(),
       mobilePassword: merged.mooc.mobilePassword,
+      // 设备标识只认约定格式；野值留空，由首次登录重新生成
+      mobileAId: /^[0-9a-f]{16}$/.test(merged.mooc.mobileAId) ? merged.mooc.mobileAId : '',
+      mobileUniqueId: /^[0-9a-f]{40}$/.test(merged.mooc.mobileUniqueId) ? merged.mooc.mobileUniqueId : '',
     },
     zhihuishu: {
       ...merged.zhihuishu,

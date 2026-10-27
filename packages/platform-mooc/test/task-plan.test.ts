@@ -29,7 +29,15 @@ const NOW = new Date(2026, 8, 26, 10, 0, 0).getTime();
 const SETTINGS: Settings = {
   version: 8,
   ai: { enabled: false, model: '', apiKey: '' },
-  mooc: { courses: [], reviewComment: 'x', keepOverdueDays: 3, mobileAccount: '', mobilePassword: '' },
+  mooc: {
+    courses: [],
+    reviewComment: 'x',
+    keepOverdueDays: 3,
+    mobileAccount: '',
+    mobilePassword: '',
+    mobileAId: '',
+    mobileUniqueId: '',
+  },
   zhihuishu: { courses: [] },
   ui: { activeTab: 'mooc' },
 };

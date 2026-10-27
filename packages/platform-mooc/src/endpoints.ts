@@ -122,9 +122,8 @@ export const MOBILE_ENDPOINTS = {
    * `POST` 表单 `ursToken=<yd_+40hex>&mob-token=&appId=<URS 客户端 id>`
    * → `{code:0, results:{mobToken:384, mobPToken:384}}`。
    *
-   * 账号只承认**最后一次**移动端登录，所以这步必须在取答案当下做。
-   * 副作用（如实记录）：每次调用都会顶掉账号上原有的移动端会话，包括用户手机 App
-   * 的登录态——手机会收到「账号在其他设备登录」的提示。
+   * 扩展的 UNS 登录按平板设备画像建立会话，与手机 App 分属不同会话槽；
+   * 换发本身不会顶掉手机。仍只在取答案当下做，不轮询。
    */
   ursLogin: { path: '/mob/ucmooc/0/0/passport/ursCellphoneLogin/v1' },
 } as const;

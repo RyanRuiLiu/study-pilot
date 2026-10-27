@@ -86,7 +86,6 @@ export {
   getMobileQuizPaper,
   exchangeUrsTokenForMobToken,
   loginMobileSession,
-  MOBILE_APP_ID,
   type MobilePaperClient,
 } from './mobile-paper.ts';
 
