@@ -15,12 +15,20 @@
  * 因此这里发首末两条、声明合理的阅读秒数（合计 ≈ 页数 × 30 秒）：
  * 时长与逐页上报的总量一致，请求数却从 页数+1 降到 3（含取页数）。
  * 请求间隔不由本模块管：`postLearnInfo` 走共享节流器，`-2` 由 RPC 层退避重试。
+ *
+ * 页数在两种文档上并不都可靠（2026-11-01 实测，大物——电磁学）：
+ * `edu-lesson-pdfsrc.nosdn.127.net` 的老档回 `textPages: N`；
+ * 后来上传的 `eds-doc.nos-jd.163yun.com` 水印档一律回 `textPages:null`——
+ * 页数是阅读器自己用 pdf.js 数出来的（见 bundle 的 `PdfUnit`，`finished: 当前页==numPages`），
+ * 服务端那份 DTO 里根本没有这个数。DTO 不给就下载文档自己数（pdf-pages.ts），
+ * 数出来的页数与平台给过页数的 20 余份文档逐份一致——页数只有一个来源，
+ * 往下仍然只有这一套「首末两报 + 每页 30 秒」。
  */
 
-import { err, ok } from '@study-pilot/core';
-import { apiError } from '@study-pilot/transport';
+import { ok } from '@study-pilot/core';
 import { UNIT_TYPE } from '../types.ts';
 import type { UnitBehavior } from './behavior.ts';
+import { countPdfPages } from './pdf-pages.ts';
 import { baseDto, postLearnInfo } from './reports.ts';
 import { getUnitResource } from './resource.ts';
 
@@ -37,16 +45,17 @@ export const documentBehavior: UnitBehavior = {
   ready: () => true,
   async run(client, unit) {
     /*
-     * 唯一路径：取页数 → 首末两报。
-     *
-     * 页数拿不到时返回失败，不退化成「一条完成上报」——那样进度会与平台上的
-     * 页数对不上，而用户看到的是「已完成」。宁可失败让他手动处理。
+     * 页数两处来源，汇成一个值：DTO 带就用（老档都带），不带就下载文档自己数。
+     * 往下只有一套上报——页码与时长都按这份真实页数算，不因为来源不同分叉。
      */
     const resource = await getUnitResource(client, unit);
     if (!resource.ok) return resource;
-    const pages = resource.value.textPages;
+
+    let pages = resource.value.textPages;
     if (pages === null) {
-      return err(apiError(-1, '平台没有给出这份文档的总页数，无法按页上报'));
+      const counted = await countPdfPages(client, resource.value.textUrl);
+      if (!counted.ok) return counted;
+      pages = counted.value;
     }
 
     /*

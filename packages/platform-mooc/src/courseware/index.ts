@@ -10,7 +10,8 @@
  * ------------
  *   behavior.ts   行为的接口（一种类型一个实现）
  *   reports.ts    上报的唯一出口（报文形状只有这一处）
- *   resource.ts   单元资源（文档页数）
+ *   resource.ts   单元资源（文档页数、文档地址、讨论题）
+ *   pdf-pages.ts  页数的第二个来源（DTO 没给时从文档本身数）
  *   video / document / text / unit-quiz / discuss   各类型的行为
  *
  * **唯一来源**：`BEHAVIORS` 是「支持哪些类型、各自怎么做」的唯一清单。

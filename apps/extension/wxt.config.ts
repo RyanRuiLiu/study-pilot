@@ -89,6 +89,11 @@ export default defineConfig({
      *   open.bigmodel.cn  智谱开放平台——AI 的唯一出口（见 application 的
      *                     AI_BASE_URL，地址固定，因此权限可以静态声明，
      *                     不再有「按需申请」那一步）。
+     *   两个文档域名    慕课课件里的文档本体。一部分课件单元的 DTO 不带页数
+     *                     （`textPages:null`），页数只能从文档本身数出来，
+     *                     service worker 得能读到这份 PDF（见 platform-mooc 的
+     *                     courseware/pdf-pages.ts）：edu-lesson-pdfsrc 是早先上传的档，
+     *                     eds-doc.nos-jd.163yun.com 是后上传的水印档。只读、不写。
      *
      * 没有 optional_host_permissions：AI 地址不由用户填，扩展不需要
      * 「任意域名」这把伞。加平台时同时补 host_permissions 与内容脚本匹配，
@@ -97,7 +102,14 @@ export default defineConfig({
      * 权限仍可能不在：用户可以在扩展详情页收回「网站访问权限」。那种情况下
      * 界面如实提示（见 src/ai/permission.ts），计划里的讨论单元不进队列。
      */
-    host_permissions: ['*://*.icourse163.org/*', '*://*.zhihuishu.com/*', 'https://sdk.reg.163.com/*', 'https://open.bigmodel.cn/*'],
+    host_permissions: [
+      '*://*.icourse163.org/*',
+      '*://*.zhihuishu.com/*',
+      'https://sdk.reg.163.com/*',
+      'https://open.bigmodel.cn/*',
+      '*://edu-lesson-pdfsrc.nosdn.127.net/*',
+      '*://eds-doc.nos-jd.163yun.com/*',
+    ],
     options_ui: {
       page: 'options.html',
       open_in_tab: true,

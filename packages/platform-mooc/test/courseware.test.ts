@@ -52,13 +52,35 @@ function unitOf(overrides: Partial<CourseUnit> = {}): CourseUnit {
   };
 }
 
+/**
+ * 合成 PDF：每页一个 `/Type /Page` 对象，外加页树根 `/Type /Pages`。
+ * 形态照真机（字节标记长这样），值全是造的。
+ */
+function pdfFixture(pages: number): string {
+  const objects = Array.from(
+    { length: pages },
+    (_, index) => `${index + 3} 0 obj\n<< /Type /Page /Parent 2 0 R >>\nendobj\n`,
+  ).join('');
+  return `%PDF-1.7\n2 0 obj\n<< /Type /Pages /Kids [] /Count ${pages} >>\nendobj\n${objects}%%EOF\n`;
+}
+
+/** 只有页树根、没有页对象的 PDF：页数只能从 `/Count` 兜底读出来。 */
+function pdfWithOnlyCount(pages: number): string {
+  return `%PDF-1.7\n2 0 obj\n<< /Type /Pages /Kids [] /Count ${pages} >>\nendobj\n%%EOF\n`;
+}
+
 /** 记录每次请求，并按路径给出响应。 */
-function clientStub(responses: Record<string, unknown> = {}) {
-  const calls: Array<{ kind: 'rpc' | 'dwr'; path: string; body: Record<string, unknown> }> = [];
+function clientStub(responses: Record<string, unknown> = {}, pdf: string = pdfFixture(1)) {
+  const calls: Array<{ kind: 'rpc' | 'dwr' | 'file'; path: string; body: Record<string, unknown> }> = [];
   const client = createMoocClient({
     fetch: (async (url: string, init?: RequestInit) => {
       const path = new URL(url).pathname;
       const isDwr = path.includes('/dwr/');
+      // 文档本体（数页数用）不是接口：原样回字节，不走 JSON
+      if (!isDwr && path.endsWith('.pdf')) {
+        calls.push({ kind: 'file', path, body: {} });
+        return new Response(pdf, { status: 200, headers: { 'content-type': 'application/pdf' } });
+      }
       const body = isDwr
         ? { __raw: String(init?.body ?? '') }
         : (JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>);
@@ -94,6 +116,8 @@ function clientStub(responses: Record<string, unknown> = {}) {
     calls,
     rpcCalls: (method: string) => calls.filter((c) => c.path.includes(method)),
     dwrCalls: (method: string) => calls.filter((c) => c.path.includes(method)),
+    /** 下载文档本体（数页数）的请求 */
+    fileCalls: () => calls.filter((c) => c.kind === 'file'),
   };
 }
 
@@ -191,8 +215,48 @@ describe('文档：首末两报，进度与时长都不靠中间态', () => {
     expect(reports[0]?.learnedVideoTimeCount).toBe(30);
   });
 
-  it('拿不到页数时返回失败：不发任何上报，交人工', async () => {
-    const { client, rpcCalls } = clientStub({ getLessonUnitLearnVo: 's0.textUrl="x";\n' });
+  it('DTO 带页数时不下载文档：页数只有一个来源', async () => {
+    const { client, fileCalls } = clientStub({
+      getLessonUnitLearnVo: 's0.textPages=3;\ns0.textUrl="http://doc.example.com/a.pdf";\n',
+    });
+    await completeUnit(client, unitOf({ contentType: UNIT_TYPE.PDF }));
+
+    expect(fileCalls()).toHaveLength(0);
+  });
+
+  /*
+   * 后上传的课件 DTO 是 `textPages:null`（2026-11-01 实测：eds-doc 水印档一律如此），
+   * 页数只存在阅读器里。这时下载文档自己数，往下仍走同一套首末两报——
+   * 不因为页数来源不同少报一条、也不省略时长。
+   */
+  it('DTO 没给页数时下载文档数出页数，仍按首末两报', async () => {
+    const { client, fileCalls, rpcCalls } = clientStub(
+      { getLessonUnitLearnVo: 's0.textUrl="http://doc.example.com/w.pdf";\n' },
+      pdfFixture(4),
+    );
+    await completeUnit(client, unitOf({ contentType: UNIT_TYPE.PDF }));
+
+    expect(fileCalls()).toHaveLength(1);
+    const reports = rpcCalls('saveMocContentLearn').map((c) => c.body.dto as Record<string, unknown>);
+    expect(reports.map((dto) => dto.pageNum)).toEqual([1, 4]);
+    expect(reports.map((dto) => dto.finished)).toEqual([false, true]);
+    // 时长同样按页数算：首报 30 秒 + 末报 (4-1)×30 秒
+    expect(reports.map((dto) => dto.learnedVideoTimeCount)).toEqual([30, 90]);
+  });
+
+  it('页对象数不出来时退回页树根的 /Count', async () => {
+    const { client, rpcCalls } = clientStub(
+      { getLessonUnitLearnVo: 's0.textUrl="http://doc.example.com/w.pdf";\n' },
+      pdfWithOnlyCount(5),
+    );
+    await completeUnit(client, unitOf({ contentType: UNIT_TYPE.PDF }));
+
+    const reports = rpcCalls('saveMocContentLearn').map((c) => c.body.dto as Record<string, unknown>);
+    expect(reports.map((dto) => dto.pageNum)).toEqual([1, 5]);
+  });
+
+  it('既没页数也没文档地址时失败：不发任何上报，交人工', async () => {
+    const { client, rpcCalls } = clientStub({ getLessonUnitLearnVo: 's0.textPages=null;\n' });
     const result = await completeUnit(client, unitOf({ contentType: UNIT_TYPE.PDF }));
 
     expect(result.ok).toBe(false);
