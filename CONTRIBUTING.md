@@ -97,6 +97,9 @@
 2. `pnpm install --frozen-lockfile && pnpm lint && pnpm -r typecheck && pnpm -r test`。
 3. `pnpm build && pnpm --filter @study-pilot/extension zip` →
    `apps/extension/.output/study-pilot-extension-<版本>-chrome.zip`，manifest.json 在压缩包根目录。
+   **这个名字就是发布资产名**：本地产物、`releases/` 归档、GitHub Release 上的附件三处同名，
+   任何环节都不再改名（别加 `v`、别加日期）。`<版本>` 指 `apps/extension/package.json`
+   里的 `X.Y.Z`，**不带 `v`**；`v` 只属于标签。
 4. `pnpm e2e`：无头 Chromium 装载 `chrome-mv3/`，确认 service worker、popup、options 无页面异常。
 5. `pnpm probe icon --check` 核对 manifest 图标未过期；`pnpm probe store` 生成商店上传图
    （`store-icon-128.png` 带 96+16 留白、`store-icon-300.png` 给 Edge logo）与两张促销磁贴
@@ -108,6 +111,16 @@
 `.github/workflows/release.yml` 会在标签上重跑 lint / typecheck / 全部测试 /
 构建 / 无头冒烟，用仓库自带的 `GITHUB_TOKEN` 建 Release，并附上扩展 zip 与
 CLI 单文件；标签版本与 `apps/extension/package.json` 不一致时发布会直接失败。
+
+发布资产只有两个名字，都由版本号派生（**标签带 `v`，资产不带**）：
+
+| 资产 | 名字 | 来源 |
+|---|---|---|
+| 扩展包 | `study-pilot-extension-<版本>-chrome.zip` | `apps/extension/.output/` 里那份，原样上传 |
+| 命令行 | `study-pilot-cli-<版本>.mjs` | `apps/cli/.output/main.mjs` 改名 |
+
+Release 正文里的「本版变更」由工作流从上一个标签到本标签的提交标题自动生成，
+**不写死**——写死的话每个版本都会挂着上一版的说明。
 
 商店后台还有三样**仓库不生成、必须人工准备**的材料：
 

@@ -18,7 +18,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 是为了让下面的「本版变更」能读到一个标签到本标签的提交历史；
+      # 默认的浅克隆只有一个提交，git describe 找不到上一个标签。
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -56,42 +60,46 @@ jobs:
       - name: 商店上传图
         run: pnpm probe store
 
-      - name: 整理发布素材
+      - name: 整理发布素材与发布说明
         run: |
+          # 资产名一律由版本号派生，标签带 v、资产不带（见 CONTRIBUTING「扩展发版」）
           version="${GITHUB_REF_NAME#v}"
-          cp "apps/extension/.output/study-pilot-extension-${version}-chrome.zip" "study-pilot-extension-${GITHUB_REF_NAME}-chrome.zip"
-          cp apps/cli/.output/main.mjs "study-pilot-cli-${GITHUB_REF_NAME}.mjs"
+
+          # 扩展包原样上传，不改名：本地产物、releases/ 归档、Release 附件三处同名
+          cp "apps/extension/.output/study-pilot-extension-${version}-chrome.zip" .
+          cp apps/cli/.output/main.mjs "study-pilot-cli-${version}.mjs"
           cp apps/extension/.output/store/store-icon-128.png .
           cp apps/extension/.output/store/store-icon-300.png .
           cp apps/extension/.output/store/tile-small-440x280.png .
           cp apps/extension/.output/store/tile-large-1400x560.png .
 
+          # 本版变更从提交标题生成，不写死——写死的说明每个版本都挂着上一版的内容。
+          # 只取 feat/fix/perf：chore、ci、docs 这类不面向用户，写进发布说明只是噪声。
+          prev="$(git describe --tags --abbrev=0 --match 'v*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          if [ -n "$prev" ]; then range="${prev}..${GITHUB_REF_NAME}"; else range="$GITHUB_REF_NAME"; fi
+          git log --no-merges --pretty='- %s' "$range" | grep -E '^- (feat|fix|perf)(\(|:|!)' | head -20 > changes.md || true
+          test -s changes.md || echo '- 本版以维护性改动为主，无用户可见变化。' > changes.md
+
+          {
+            printf '学习平台辅助工具（中国大学 MOOC / 智慧树），两个发布渠道：\n\n'
+            printf -- '- **扩展包**：`study-pilot-extension-%s-chrome.zip`。Chrome / Edge\n  解压后通过「加载已解压的扩展程序」安装；最低 Chrome 111。\n' "$version"
+            printf -- '- **命令行**：`study-pilot-cli-%s.mjs`。Node 22.18+ 可直接运行，\n  用法见仓库 README 的「命令行」一节。\n' "$version"
+            printf -- '- **商店素材**：`store-icon-128.png`（Chrome 列表，96+16 留白）、\n  `store-icon-300.png`（Edge 加载项 logo）、两张促销磁贴。\n\n'
+            printf '本版变更（%s）：\n\n' "$GITHUB_REF_NAME"
+            cat changes.md
+            printf '\n构建自提交 %s；发布前已跑 lint / typecheck / 全部测试 /\n构建 / 无头 Chromium 冒烟。完整说明与变更记录见仓库。\n' "$GITHUB_SHA"
+          } > release-notes.md
+
       - name: 创建 GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cat > release-notes.md <<'EOF'
-          学习平台辅助工具（中国大学 MOOC / 智慧树），两个发布渠道：
-
-          - **扩展包**：`study-pilot-extension-<标签>-chrome.zip`。Chrome / Edge
-            解压后通过「加载已解压的扩展程序」安装；最低 Chrome 111。
-          - **命令行**：`study-pilot-cli-<标签>.mjs`。Node 22.18+ 可直接运行，
-            用法见仓库 README 的「命令行」一节。
-          - **商店素材**：`store-icon-128.png`（Chrome 列表，96+16 留白）、
-            `store-icon-300.png`（Edge 加载项 logo）、两张促销磁贴。
-
-          本版变更：智慧树学习页与考试页在页面脚本之前接管原生函数判据，
-          根除「检测到异常脚本」的弹窗、上报与关闭；内容脚本改用 MAIN world，
-          最低 Chrome 111。
-
-          构建自提交 $GITHUB_SHA；发布前已跑 lint / typecheck / 全部测试 /
-          构建 / 无头 Chromium 冒烟。完整说明与变更记录见仓库。
-          EOF
+          version="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" \
             --title "Study Pilot $GITHUB_REF_NAME" \
             --notes-file release-notes.md \
-            "study-pilot-extension-${GITHUB_REF_NAME}-chrome.zip" \
-            "study-pilot-cli-${GITHUB_REF_NAME}.mjs" \
+            "study-pilot-extension-${version}-chrome.zip" \
+            "study-pilot-cli-${version}.mjs" \
             store-icon-128.png \
             store-icon-300.png \
             tile-small-440x280.png \
