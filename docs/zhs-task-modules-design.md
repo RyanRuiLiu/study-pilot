@@ -75,7 +75,8 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
 | `meetCourseId / taskName / taskType` | 场次 id / 主题 / 类型 |
 | `taskStatus` | **3 = 已结束；1 = 未开始**（实测值） |
 | `startTime / endTime / courseEndTime` | 场次时间；`courseEndTime` 即测验截止（官方文案：测验截止=课程结束时间） |
-| `liveCourseUrl / replayCourseUrl / liveCourseId / videoId` | 直播房间 / 回放房间 / 直播 id / 视频 id |
+| `liveCourseUrl / replayCourseUrl / liveCourseId` | 直播房间 / 回放房间 / 直播 id（= 回放页的 `liveId`） |
+| `videoId` | 这房间**几段视频的 id 拼成的逗号串**（2026-11-01 实测四场都是两段）——只作展示，**不能直接当上报载荷**：整串送上去服务端查不到视频，回 `code=-1`「服务器暂无回应，请稍后重试」。段表另取 `getVideosByLiveId` |
 | `examH5Url` | **见面课测验入口**（dohomework 路由，t1/t2 服务端下发，尾参 `/1`） |
 | `examId / meetCourseExamStatus / examScore` | 测验卷 id / 状态 / 得分 |
 | `signOpenStatus / askLeaveStatus / speakerJson / taskAddr` | 签到开关 / 请假 / 主讲 / 地点 |
@@ -362,6 +363,11 @@ startTime / endDate / limitTime（分钟）/ problemNum / totalScore / faStudent
 
 - 职责：场次列表归一（时间 / 主讲 / 直播/回放 / 签到状态 / 测验入口与截止）；
   产出「见面课测验」的答卷入口参数（喂给模块 2）；在线观看型上报回放进度（80% 计考勤），现场签到不自动。
+- **80% 是逐段算的**（2026-11-01 与回放页 `vod_room.js` 逐字段核对，取证见 `meet-watch.ts` 文件头）：
+  一个房间几段视频不固定，各段时长按顺序接成一条**绝对分钟轴**（`everyVideoStartEndTime()`），
+  每段各自判 `(该段已看分钟 / 该段总分钟) < 80%`；上报载荷第 4 格是**分钟**（不是秒）、
+  第 6 格是**当前那一段的单个 id**（`curVideoId`）。历史里已有的分钟不再补报
+  （平台原话：重复播放不记录进签到进度）。所以这条链要读段表 `meetVideos`（`im.zhihuishu.com/livehome/getVideosByLiveId`）。
 - 落点：`packages/platform-zhs/src/meeting.ts`。——**实际落在 `meet.ts`**（见本节末的落地状态）。
 
 ### 模块 5：外壳接线

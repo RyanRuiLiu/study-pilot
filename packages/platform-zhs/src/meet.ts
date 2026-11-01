@@ -10,6 +10,12 @@
  * 考勤：Ryan 2026-10-17 给的学校口径是「看直播或回放满 80% 即得考勤分，无需签到」，
  * 所以这一项的**动作是看回放**（`replayCourseUrl`），不是签到——签到那套
  * （`signOpenStatus`/`askLeaveStatus`）原样带出，只作展示。
+ *
+ * 一个房间里有几段视频**不固定**，而且 80% 是**逐段**算的（2026-11-01 与回放页源码
+ * `vod_room.js` 逐字段核对：`everyVideoStartEndTime()` 把各段时长按顺序接成一条分钟轴，
+ * `getEffectWatchTime()` 对每段各判 `(count / 该段分钟数) * 100 < 80`）。所以段表要从
+ * `getMeetVideos` 取，不能拿场次里那个 `videoId` 字段凑——它是这几段 id 拼的逗号串，
+ * 整串当 id 送上去，服务端查不到视频，回 `code=-1`「服务器暂无回应，请稍后重试」。
  */
 
 import type { ZhsClient } from './client.ts';
@@ -32,10 +38,8 @@ export interface ZhsMeetSession {
   examId: string | null;
   /** 测验状态（平台原始值：1 = 未交，其余原样） */
   quizStatus: number | null;
-  /** 直播/回放房间的业务 id（观看进度上报用） */
+  /** 直播/回放房间的业务 id（观看进度上报与取视频清单都用它） */
   liveCourseId: string | null;
-  /** 直播/回放的视频 id（观看进度上报用） */
-  videoId: string | null;
   /** 考勤方式：2 = 在线观看（看满 80%）；其余原样（现场等） */
   signOpenStatus: number | null;
   /** 请假状态（只作展示） */
@@ -95,7 +99,6 @@ export function normalizeMeetSessions(body: unknown): ZhsMeetSession[] {
       examId: str(entry.examId) === '' ? null : str(entry.examId),
       quizStatus: num(entry.meetCourseExamStatus),
       liveCourseId: str(entry.liveCourseId) === '' ? null : str(entry.liveCourseId),
-      videoId: str(entry.videoId) === '' ? null : str(entry.videoId),
       signOpenStatus: num(entry.signOpenStatus),
       askLeaveStatus: num(entry.askLeaveStatus),
     }))
@@ -110,4 +113,42 @@ export async function getMeetSessions(client: ZhsClient, recruitId: number): Pro
     'page.pageSize': 50,
   });
   return normalizeMeetSessions(body);
+}
+
+/** 回放房间的一段视频。 */
+export interface ZhsMeetVideo {
+  /** 视频 id（上报载荷的第六格，一次只填这一段的） */
+  id: string;
+  /** 时长（秒）——房间分钟轴按它逐段累加 */
+  durationSec: number;
+}
+
+/**
+ * 视频清单响应 → 段表（纯函数，可离线核对形态）。
+ *
+ * 形态不符抛错，不交空表（理由同 `normalizeMeetSessions`：空表会被读成「这房间没有视频」）。
+ * 顺序照平台给的原样——回放页也按这个顺序把各段首尾接成一条分钟轴；`sort` 不参与排序，
+ * 实测平台回的两段是 0 与 9，原序与按 sort 排同结果，不自己另加规则。
+ */
+export function normalizeMeetVideos(body: unknown): ZhsMeetVideo[] {
+  if (!Array.isArray(body)) throw new Error('见面课视频清单：响应不是一个列表');
+  return body.map((entry, index) => {
+    if (entry === null || typeof entry !== 'object') {
+      throw new Error(`见面课视频清单：第 ${index + 1} 条不是对象`);
+    }
+    const item = entry as Record<string, unknown>;
+    // 这里的 id 是数字（场封信封里那几个 id 是字符串，两处各按各的形态读）
+    const id = typeof item.id === 'number' || typeof item.id === 'string' ? String(item.id) : '';
+    if (id === '') throw new Error(`见面课视频清单：第 ${index + 1} 条没有 id`);
+    const duration = num(item.duration);
+    if (duration === null || duration <= 0) {
+      throw new Error(`见面课视频清单：视频 ${id} 没有有效时长`);
+    }
+    return { id, durationSec: duration };
+  });
+}
+
+/** 读一个回放房间的视频段表（`liveCourseId` 就是这条接口的 `liveId`）。 */
+export async function getMeetVideos(client: ZhsClient, liveCourseId: string): Promise<ZhsMeetVideo[]> {
+  return normalizeMeetVideos(await client.call('meetVideos', { liveId: liveCourseId }));
 }

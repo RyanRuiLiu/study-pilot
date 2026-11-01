@@ -233,9 +233,9 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
 
       if (endpoint.module === undefined) {
         /*
-         * 免签端点。GET（如遗留的 getLoginUserInfo）不带参数；
-         * POST（移动端 appstudent 那一族，如神谕）走**明文表单体**——
-         * 实测它只吃 application/x-www-form-urlencoded。
+         * 免签端点。GET 把参数拼在查询串上（遗留的 getLoginUserInfo 本来就无参数，
+         * 拼出来仍是光秃秃的路径）；POST（移动端 appstudent 那一族，如神谕）走
+         * **明文表单体**——实测它只吃 application/x-www-form-urlencoded。
          */
         const headers: Record<string, string> = {
           accept: 'application/json',
@@ -246,12 +246,15 @@ export function createZhsClient(options: ZhsClientOptions): ZhsClient {
            */
           'x-requested-with': 'XMLHttpRequest',
         };
+        const form = new URLSearchParams(
+          Object.entries(payload).map(([name, value]) => [name, String(value)]),
+        ).toString();
         init = { method: endpoint.method, headers, credentials: 'include' };
         if (endpoint.method === 'POST') {
           headers['content-type'] = 'application/x-www-form-urlencoded';
-          init.body = new URLSearchParams(
-            Object.entries(payload).map(([name, value]) => [name, String(value)]),
-          ).toString();
+          init.body = form;
+        } else if (form !== '') {
+          requestUrl = `${url}?${form}`;
         }
       } else {
         const stamp = now();

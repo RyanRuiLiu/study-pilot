@@ -40,6 +40,8 @@ export const ZHS_HOSTS = {
   onlineWeb: 'https://online.zhihuishu.com',
   /** 直播/回放进度域（`setWatchHistorySecret`，module 9，免签但走网关加密） */
   live: 'https://appcomm-live-api.zhihuishu.com',
+  /** 回放房间取视频清单的域（`vod_room.js` 里那条 `getVideosByLiveId`，免签） */
+  liveHome: 'https://im.zhihuishu.com',
 } as const;
 export type ZhsHost = keyof typeof ZHS_HOSTS;
 
@@ -304,7 +306,23 @@ const ENDPOINT_TABLE = {
    * 历史出现 `#` 即观看完成/考勤完成（页面会显示「签到已完成」）。
    * `paramSecret` 是 XOR-hex（key `zhihuishu`），再由网关用 module 9 加密成
    * `secretStr`——与页面自己的 ajax 拦截器同一条路。
+   *
+   * 载荷那一串的第 4、6 格（2026-11-01 逐字段与回放页核对，`vod_room.js`）：
+   *   · `relativeTime` 是**分钟**——源码 `Math.floor(relativeTime / 60) + 1`；
+   *   · `curVideoId` 是**单个**视频 id——一个房间有几段视频由 `meetVideos` 给出，
+   *     页面每段各自上报自己那段的分钟。
    */
+  /**
+   * 回放房间的视频清单（id、时长、顺序）——房间分钟轴的唯一来源。
+   *
+   * 2026-11-01 从回放页的 HAR 里取到原样请求（`liveId` 就是场次的 `liveCourseId`）。
+   * 见面场次里那个 `videoId` 字段是这段清单的 id 拼成的逗号串，不能直接当上报载荷用。
+   */
+  meetVideos: {
+    host: 'liveHome',
+    path: '/livehome/getVideosByLiveId',
+    method: 'GET',
+  },
   meetWatchHistory: {
     host: 'live',
     path: '/app-commserv-live/gateway/t/v1/pc/live/getWatchHistory',

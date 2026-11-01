@@ -271,7 +271,7 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
       return { items };
     },
 
-    async run(item: PlanItem, _heartbeat: () => Promise<void>, control: RunControl): Promise<RunOutcome> {
+    async run(item: PlanItem, heartbeat: () => Promise<void>, control: RunControl): Promise<RunOutcome> {
       if (item.kind === 'meetWatch') {
         const { course, session } = item.payload as MeetPayload;
         const current = await readSession(deps.readCookie);
@@ -284,6 +284,7 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
             session,
             { recruitId: course.recruitId, userId: current.userId },
             control,
+            heartbeat,
           );
         } catch (error) {
           if (error instanceof ZhsAuthError) throw error;
