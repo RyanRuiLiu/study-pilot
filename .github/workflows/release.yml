@@ -20,7 +20,7 @@ jobs:
     steps:
       # fetch-depth: 0 是为了让下面的「本版变更」能读到一个标签到本标签的提交历史；
       # 默认的浅克隆只有一个提交，git describe 找不到上一个标签。
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
