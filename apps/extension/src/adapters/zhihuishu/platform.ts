@@ -7,8 +7,9 @@
  */
 
 import { createZhsRuntime } from '@study-pilot/platform-zhs';
-import type { ConfigPort, PlatformTasks, PlatformWiring } from '@study-pilot/application';
+import { readTaskData, withTaskData, type ConfigPort, type PlatformTasks, type PlatformWiring } from '@study-pilot/application';
 import { browserCapabilities } from '../../browser/capabilities.ts';
+import { taskStore } from '../../background/runtime/task-state.ts';
 import type { MessageHandlers } from '../../protocol.ts';
 import type { ZhsMessageDeps } from './messages/deps.ts';
 import { zhihuishuHandlers } from './messages/handlers.ts';
@@ -28,11 +29,22 @@ export interface ZhsPlatform {
 }
 
 export function createZhihuishuPlatform(env: ZhsEnv): ZhsPlatform {
+  /*
+   * 逐任务跨次留痕落在 TaskState 的 zhihuishu 条目上（迁移规则在 application
+   * 的 state.ts，这里只把读写口接到本载体的 taskStore）。
+   */
+  const taskData = {
+    read: async (taskId: string) => readTaskData(await taskStore.read(), 'zhihuishu', taskId),
+    write: async (taskId: string, value: unknown) =>
+      taskStore.write(withTaskData(await taskStore.read(), 'zhihuishu', taskId, value)),
+  };
+
   // fetch 由本载体提供：扩展后台的全局 fetch（含 cookie、走浏览器网络栈）
   const runtime = createZhsRuntime({
     config: env.config,
     fetch: (url, init) => fetch(url, init),
     readCookie: browserCapabilities.readCookie,
+    taskData,
   });
 
   const deps: ZhsMessageDeps = {

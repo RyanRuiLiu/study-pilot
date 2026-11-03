@@ -1,54 +1,52 @@
 /*
  * 答案键与作答计划（纯函数，无 IO）。
  *
- * 平台事实（2026-10-16／17 真机实证，证据见 .probe/zhs-src/FINDINGS.md §二十六）：
+ * 平台事实（2026-10-16／17 首测，2026-11-04 补全，证据见 .probe/api/ 留痕）：
  *  1. 开卷题面 `student/doHomework` 只给 题干 + 选项 id + eid：题号（数字 id）恒为 null。
- *     eid 是 16 字节题目标识，同一道题在首答卷与重做卷里**逐字节相同**（沙箱课 50/50 实测）；
- *     它与数字题号之间没有客户端能算出来的关系（md5 / sha1 截断 / 流式异或三类假设全 0/50）。
- *  2. 正解只有一个出口：弹题族 `popupAnswer/lessonPopupExam`，**按数字题号查**；
+ *     数字题号只在交卷之后由 `student/lookHomework` 下发。eid 是 16 字节题目标识，
+ *     同一道题在首答卷与重做卷里逐字节相同（沙箱课 50/50 实测）。
+ *  2. 正解只有一个出口：弹题族 `popupAnswer/lessonPopupExam`，按数字题号查；
  *     数字题号只在交卷之后由 `student/lookHomework` 下发。
- *  3. 弹题池（`popupAnswer/loadVideoPointerInfo` → `lessonPopupExam`）只覆盖**视频弹题**那一份题：
- *     同一门沙箱课全量 82 题，与这门课单元测试的真题面按题干、按选项 id 双口径比对均 **0/50**。
- *     ——拿弹题池去答单元测试不成立，别指望它。
+ *  3. **对齐键在响应里本来就带着**（2026-11-04 实测，数字信号处理 19/19）：
+ *     弹题回包每条 `testQuestion.questionId` 就是回顾卷面的数字题号；
+ *     选项 id 在 开卷 ↔ 回顾 ↔ 弹题 三端同源（同一道题集合逐 id 相同，
+ *     每次尝试只重排顺序——「选项顺序为随机排列」是平台自己页面上的提示）。
+ *  4. 题干**不能**当对齐键：图片题的题干是 `<img>`（弹题侧连题干都不带），
+ *     归一后是空串，全部挤进同一个键位互相污染——2026-11-04 真机事故
+ *     （数字信号处理 7 张卷覆盖率 16-27%）的根因。文本匹配整个退场。
  *
- * 推论（本模块的立足点）：**键不存在时，开卷前取不到正解**。所以答案流程的第一步不是解题，
- * 而是建键：把任意一次已交卷的答卷（该卷历史提交、重做卷、同课副本）收割成键；
- * 键一旦落库，后续任何一次开卷都能一次作答、只交一次——不需要先交一次探路。
- *
- * 键的两个口径（都用真机数据定过）：
- *  · 正解选项 id 集合：同一道题的选项 id 在多次开卷之间稳定（重做换序不换 id，12 分 → 100 分实证）；
- *  · 按题干的条目：换副本换 id 时的后备口径，题干归一后比对，命中后再要求正解 id 落在卷面选项里。
+ * 推论（本模块的立足点）：键 = **题号 → 该题正解选项集**，对齐与作答全走 id：
+ *  · 覆盖率（回顾卷面）：按题号直取；
+ *  · 作答（开卷卷面，只有 eid 没有题号）：**选项 id 集合的精确包含**——一道题的
+ *    正解 id 全部出现在唯一一道卷面题的选项里（选项 id 全局唯一、每题各自一行），
+ *    这是确定性关联，不是兜底。
+ * 键不存在时，开卷前取不到正解：所以流程的第一步是建键（收割任意一次已交卷），
+ * 键一旦在手，后续任何一次开卷都能一次作答、只交一次。
  */
 
 /** 卷面一道题（来自 student/doHomework 或交卷后的 student/lookHomework）。 */
 export interface PaperQuestion {
-  /** 题目稳定标识：开卷前就有，交卷前后一致 */
+  /** 题目稳定标识：开卷前就有，交卷前后一致（开卷侧） */
   eid: string;
-  /** 题干原文（可能含 HTML） */
-  text: string;
+  /** 数字题号：回顾侧才有，开卷侧恒为 null（平台锁到交卷后） */
+  questionId: number | null;
   options: PaperOption[];
 }
 
 export interface PaperOption {
+  /** 选项 id：三端同源、全局唯一（每题各自一行），仅顺序每次尝试重排 */
   id: string;
-  text: string;
 }
 
-/** 按题干的键条目。 */
+/** 按数字题号的键条目（弹题通道按 `testQuestion.questionId` 对齐）。 */
 export interface AnswerKeyEntry {
-  /** 归一后的题干（normalizeQuestionText 的输出） */
-  question: string;
-  /** 正解选项 id（同一份题内稳定） */
+  questionId: number;
+  /** 该题的正解选项 id 集（弹题侧 `result === '1'` 的选项） */
   correct: string[];
-  /** 正解选项文本（归一后；换副本换 id 时的后备口径） */
-  correctTexts: string[];
 }
 
 export interface AnswerKey {
-  version: 1;
-  /** 正解选项 id 集合（本课同一份题的多次开卷之间稳定） */
-  correctOptionIds: string[];
-  /** 题干条目（后备口径） */
+  version: 2;
   entries: AnswerKeyEntry[];
 }
 
@@ -70,89 +68,58 @@ export function coverageOf(paper: readonly PaperQuestion[], match: KeyMatch): nu
   return match.answers.length / paper.length;
 }
 
-/**
- * 题干归一：去标签、去空白与标点。
- *
- * 两侧都来自平台（键来自弹题通道的题干、卷面来自取卷响应），但一边可能带 `<p>` 之类的标签，
- * 一边带全角括号，所以比对前统一：先剥标签，再删空白与中英标点。
- */
-export function normalizeQuestionText(text: string): string {
-  return text
-    .replace(/<[^>]*>/g, '')
-    .replace(/[\s\u3000（）()。，,、？?！!：:；;－\-.…“”"'']/g, '');
-}
-
 /** 弹题通道一条响应里本模块要用的字段（`popupAnswer/lessonPopupExam`）。 */
 export interface PopupExamQuestion {
   testQuestion?: {
-    name?: unknown;
+    /** 数字题号——与回顾卷面的 `id` 同源，键的对齐键（2026-11-04 实测） */
+    questionId?: unknown;
     questionOptions?: Array<{ id?: unknown; result?: unknown } | null> | null;
   } | null;
 }
 
 /**
- * 从弹题通道的响应条目建键。
+ * 从弹题通道的响应条目建键：**按 `testQuestion.questionId` 对齐**。
  *
- * 通道语义（真机实测）：每个选项带 `result`，`"1"` 就是正解；选项 id 与卷面同源，
- * 所以收割到的 id 可以直接用于以后的开卷（这就是"重做换序不换 id"的根）。
- * 没有正解的条目（`result` 全空）不进键——宁可缺键，也不塞错答案。
+ * 通道语义（真机实测）：每个选项带 `result`，`"1"` 就是正解；选项 id 三端同源。
+ * 拿不到题号或正解的条目不进键——宁可缺键如实报覆盖率，也不塞错答案。
  */
 export function answerKeyFromPopupExam(questions: readonly PopupExamQuestion[]): AnswerKey {
-  const correctOptionIds = new Set<string>();
-  const entries = new Map<string, { correct: Set<string>; correctTexts: Set<string> }>();
-
+  const entries: AnswerKeyEntry[] = [];
   for (const dto of questions) {
     const question = dto?.testQuestion;
-    if (!question) continue;
-    const correctOptions = (question.questionOptions ?? [])
-      .filter((option): option is { id: unknown; result: unknown; content?: unknown } => Boolean(option))
-      .filter((option) => String(option.result) === '1');
-    const correct = correctOptions
+    const questionId = Number(question?.questionId);
+    if (!Number.isInteger(questionId) || questionId <= 0) continue;
+
+    const correct = (question?.questionOptions ?? [])
+      .filter((option): option is { id: unknown; result: unknown } => Boolean(option))
+      .filter((option) => String(option.result) === '1')
       .map((option) => String(option.id))
-      .filter((id) => id !== 'undefined' && id !== 'null' && id !== '');
+      .filter((id) => id !== '' && id !== 'undefined' && id !== 'null');
     if (correct.length === 0) continue;
-
-    for (const id of correct) correctOptionIds.add(id);
-
-    const name = typeof question.name === 'string' ? question.name : '';
-    if (name === '') continue;
-    const key = normalizeQuestionText(name);
-    const bucket = entries.get(key) ?? { correct: new Set<string>(), correctTexts: new Set<string>() };
-    for (const id of correct) bucket.correct.add(id);
-    for (const option of correctOptions) {
-      if (typeof option.content === 'string' && option.content !== '') {
-        bucket.correctTexts.add(normalizeQuestionText(option.content));
-      }
-    }
-    entries.set(key, bucket);
+    entries.push({ questionId, correct });
   }
-
-  return {
-    version: 1,
-    correctOptionIds: [...correctOptionIds],
-    entries: [...entries.entries()].map(([question, bucket]) => ({
-      question,
-      correct: [...bucket.correct],
-      correctTexts: [...bucket.correctTexts],
-    })),
-  };
+  return { version: 2, entries };
 }
 
 /**
- * 把键套到已开卷的卷面上。
+ * 把键套到已开卷的卷面上。全 id、无文本——对齐的两条路都是确定性关联：
  *
- * 命中按**这道题自己的键条目**来（键可能是多份副本收割出来的并集，
- * 整卷通用的 id 集合会把甲题的正解安到乙题头上）：
- *  1. 题干口径优先：归一后逐字相等找到条目，再用**该条目的正解 id**在本卷选项里定位，
- *     要求全中（多选只中一半算没把握，不交半份答案）；
- *  2. 同一条目里 id 对不上（换副本重发了 id），退到**正解选项文本**，同样要求全中；
- *  3. 题干找不到条目时（换副本连题干也变了）才用整卷 id 并集兜底命中——
- *     它只保证「这个 id 在某处是正解」，范围比前两条宽，所以排在最后。
- * 都不中进 missing，由策略层按剩余作答机会决定怎么办，绝不硬造答案。
+ *  1. 卷面带数字题号（回顾卷面）→ 按题号直取该题的正解 id 集；
+ *  2. 卷面只有 eid（开卷卷面）→ **选项 id 集合的精确包含**：某条键目的正解 id
+ *     **全部**落在唯一一道卷面题的选项里，那道题就是它（选项 id 全局唯一、
+ *     每题各自一行；三端同源已实测）。命中后按**本卷**的选项序作答
+ *     （每次尝试顺序重排，键里的序不可照搬）。
+ *
+ * 正解 id 缺任何一个（多选只中一半、本卷选项缺 id）就是不确定的，进 missing，
+ * 由策略层按剩余作答机会决定怎么办，绝不硬造答案。
  */
 export function matchPaper(paper: readonly PaperQuestion[], key: AnswerKey): KeyMatch {
-  const correctIds = new Set(key.correctOptionIds);
-  const byText = new Map(key.entries.map((entry) => [entry.question, entry]));
+  /** 正解选项 id → 拥有它的键条目（选项 id 全局唯一，一个选项只属于一道题） */
+  const questionOfOption = new Map<string, AnswerKeyEntry>();
+  for (const entry of key.entries) {
+    for (const id of entry.correct) questionOfOption.set(id, entry);
+  }
+  const byQuestionId = new Map(key.entries.map((entry) => [entry.questionId, entry]));
 
   const answers: PlannedAnswer[] = [];
   const missing: PaperQuestion[] = [];
@@ -161,34 +128,30 @@ export function matchPaper(paper: readonly PaperQuestion[], key: AnswerKey): Key
     // 作答一律按**本卷**的选项序：键条目里的序是收割那一卷的，照搬过去会换序
     const optionIds = question.options.map((option) => option.id);
 
-    const entry = byText.get(normalizeQuestionText(question.text));
-    if (entry) {
-      /*
-       * 有条目就以条目为准，**不再往下看并集**：这道题的正解就是这一条，
-       * 条目满足不了（本卷选项缺它那条 id、多选只中一半）就是不确定的，
-       * 拿别的题的 id 凑上去答是错的开始。让它进 missing，由机会数决定下一步。
-       */
-      const byIds = entry.correct.filter((id) => optionIds.includes(id));
-      if (entry.correct.length > 0 && byIds.length === entry.correct.length) {
-        answers.push({ eid: question.eid, optionIds: optionIds.filter((id) => byIds.includes(id)) });
-        continue;
-      }
-      const wantedTexts = new Set(entry.correctTexts);
-      const byTexts = question.options
-        .filter((option) => wantedTexts.has(normalizeQuestionText(option.text)))
-        .map((option) => option.id);
-      if (entry.correctTexts.length > 0 && byTexts.length === entry.correctTexts.length) {
-        answers.push({ eid: question.eid, optionIds: byTexts });
+    // ① 回顾卷面：题号直取
+    const direct =
+      question.questionId !== null ? byQuestionId.get(question.questionId) : undefined;
+    if (direct !== undefined) {
+      if (direct.correct.length > 0 && direct.correct.every((id) => optionIds.includes(id))) {
+        answers.push({ eid: question.eid, optionIds: optionIds.filter((id) => direct.correct.includes(id)) });
         continue;
       }
       missing.push(question);
       continue;
     }
 
-    const hitByIds = optionIds.filter((id) => correctIds.has(id));
-    if (hitByIds.length > 0) {
-      answers.push({ eid: question.eid, optionIds: hitByIds });
-      continue;
+    // ② 开卷卷面：正解 id 集合的精确包含（所有正解 id 都在这道题的选项里）
+    const owners = new Set<AnswerKeyEntry>();
+    for (const id of optionIds) {
+      const owner = questionOfOption.get(id);
+      if (owner !== undefined) owners.add(owner);
+    }
+    if (owners.size === 1) {
+      const [entry] = owners;
+      if (entry.correct.every((id) => optionIds.includes(id))) {
+        answers.push({ eid: question.eid, optionIds: optionIds.filter((id) => entry.correct.includes(id)) });
+        continue;
+      }
     }
 
     missing.push(question);

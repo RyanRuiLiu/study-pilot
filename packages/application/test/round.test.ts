@@ -98,7 +98,7 @@ describe('一轮的前置条件', () => {
     const mooc = platform('mooc', { items: [item('a', 'auto')] });
     const { runner } = setup([mooc], {
       task: {
-        platforms: { mooc: { runningSince: at, heartbeatAt: at, lastFinishedAt: null, failure: null } },
+        platforms: { mooc: { runningSince: at, heartbeatAt: at, lastFinishedAt: null, failure: null, taskData: {} } },
       },
     });
 
@@ -116,7 +116,7 @@ describe('一轮的前置条件', () => {
     const mooc = platform('mooc', { items: [item('a', 'auto')] });
     const { runner } = setup([mooc], {
       task: {
-        platforms: { mooc: { runningSince: at, heartbeatAt: at, lastFinishedAt: null, failure: null } },
+        platforms: { mooc: { runningSince: at, heartbeatAt: at, lastFinishedAt: null, failure: null, taskData: {} } },
       },
     });
 
@@ -132,7 +132,7 @@ describe('一轮的前置条件', () => {
       task: {
         platforms: {
           // 智慧树在跑（心跳新鲜）；慕课不在跑
-          zhihuishu: { runningSince: at, heartbeatAt: at, lastFinishedAt: null, failure: null },
+          zhihuishu: { runningSince: at, heartbeatAt: at, lastFinishedAt: null, failure: null, taskData: {} },
         },
       },
     });
@@ -157,13 +157,13 @@ describe('一轮的前置条件', () => {
             runningSince: null,
             heartbeatAt: null,
             lastFinishedAt: 1,
-            failure: { message: '旧的', action: null, at: 1 },
+            failure: { message: '旧的', action: null, at: 1 }, taskData: {},
           },
           zhihuishu: {
             runningSince: null,
             heartbeatAt: null,
             lastFinishedAt: 1,
-            failure: { message: '别家的', action: null, at: 1 },
+            failure: { message: '别家的', action: null, at: 1 }, taskData: {},
           },
         },
       },
@@ -656,7 +656,7 @@ describe('两家平台在一轮里', () => {
           runningSince: null,
           heartbeatAt: null,
           lastFinishedAt: 1,
-          failure: { message: '上次：滑块验证没过', action: null, at: 1 },
+          failure: { message: '上次：滑块验证没过', action: null, at: 1 }, taskData: {},
         },
       },
     };
@@ -684,7 +684,7 @@ describe('两家平台在一轮里', () => {
           runningSince: null,
           heartbeatAt: null,
           lastFinishedAt: 1,
-          failure: { message: '上次：滑块验证没过', action: null, at: 1 },
+          failure: { message: '上次：滑块验证没过', action: null, at: 1 }, taskData: {},
         },
       },
     };

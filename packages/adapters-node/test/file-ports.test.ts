@@ -42,7 +42,7 @@ describe('状态文件', () => {
           runningSince: 123,
           heartbeatAt: null,
           lastFinishedAt: null,
-          failure: { message: '上一轮失败', action: null, at: 1 },
+          failure: { message: '上一轮失败', action: null, at: 1 }, taskData: {},
         },
       },
     };

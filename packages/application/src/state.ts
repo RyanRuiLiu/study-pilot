@@ -29,6 +29,7 @@ const EMPTY_PLATFORM: PlatformRunState = {
   heartbeatAt: null,
   lastFinishedAt: null,
   failure: null,
+  taskData: {},
 };
 
 /**
@@ -85,9 +86,42 @@ export function normalizeTaskState(stored: unknown): TaskState {
       heartbeatAt: time(record.heartbeatAt),
       lastFinishedAt: time(record.lastFinishedAt),
       failure: failure(record.failure),
+      taskData: objectMap(record.taskData),
     };
   }
   return { platforms };
+}
+
+/** 逐任务留痕的归一：不是对象（或缺字段）一律按空表算，不猜形状。 */
+function objectMap(value: unknown): Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return {};
+  const source = value as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(source)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+    result[key] = entry;
+  }
+  return result;
+}
+
+/** 取某任务自己的跨次留痕；没有按 null 算（不预先造条目）。 */
+export function readTaskData(state: TaskState, platformId: string, taskId: string): unknown {
+  const data = stateOf(state, platformId).taskData;
+  return taskId in data ? data[taskId] : null;
+}
+
+/** 换掉某任务的跨次留痕（整体换新，不改旧对象）。 */
+export function withTaskData(
+  state: TaskState,
+  platformId: string,
+  taskId: string,
+  value: unknown,
+): TaskState {
+  const platform = stateOf(state, platformId);
+  return withPlatform(state, platformId, {
+    ...platform,
+    taskData: { ...platform.taskData, [taskId]: value },
+  });
 }
 
 /** 取某平台的运行状态；没出现过按空值算（不预先造条目）。 */

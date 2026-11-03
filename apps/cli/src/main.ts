@@ -28,7 +28,13 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRunner, type PlatformTasks, type RoundResult } from '@study-pilot/application';
+import {
+  createRunner,
+  readTaskData,
+  withTaskData,
+  type PlatformTasks,
+  type RoundResult,
+} from '@study-pilot/application';
 import {
   BROWSER_USER_AGENT as MOOC_USER_AGENT,
   createMoocRuntime,
@@ -231,11 +237,22 @@ async function main(): Promise<number> {
     },
     // 不注入文本生成器：讨论单元于是进人工（计划层按 hasTextGenerator 判断），执行层不假装成功
   });
+  /*
+   * 逐任务跨次留痕：与运行状态同一份文件（TaskState.platforms.zhihuishu.taskData，
+   * 迁移规则在 application 的 state.ts）。只有 run 会调它（收割落盘）；
+   * 与 runner 的 store 各持一个实例没有关系——每步都是整读整写，无缓存。
+   */
+  const zhsTaskDataStore = createFileTaskStore(args.state);
   const zhihuishu = createZhsRuntime({
     config,
     // 智慧树不改写 Origin（实测直连即 200，见 platform-zhs 的 net-rules.ts）
     fetch: createHeaderFetch(sessions.zhihuishu, { userAgent: ZHS_USER_AGENT, rewriteOrigin: false }),
     readCookie: createCookieFileHost(sessions.zhihuishu).readCookie,
+    taskData: {
+      read: async (taskId) => readTaskData(await zhsTaskDataStore.read(), 'zhihuishu', taskId),
+      write: async (taskId, value) =>
+        zhsTaskDataStore.write(withTaskData(await zhsTaskDataStore.read(), 'zhihuishu', taskId, value)),
+    },
   });
 
   const platforms: CarrierPlatform[] = [

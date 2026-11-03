@@ -30,7 +30,6 @@ export interface AnswerPayload {
 interface RawQuestion {
   eid: string;
   questionId: number | null;
-  text: string;
   questionType: number;
   options: PaperOption[];
 }
@@ -71,10 +70,7 @@ function walkQuestions(rt: unknown): RawQuestion[] {
         for (const option of rawOptions as Array<Record<string, unknown> | null>) {
           if (option === null || typeof option !== 'object') continue;
           if (option.id === null || option.id === undefined) continue;
-          options.push({
-            id: String(option.id),
-            text: typeof option.content === 'string' ? option.content : '',
-          });
+          options.push({ id: String(option.id) });
         }
       }
 
@@ -82,7 +78,6 @@ function walkQuestions(rt: unknown): RawQuestion[] {
       out.push({
         eid: typeof dto.eid === 'string' ? dto.eid : '',
         questionId: typeof dto.id === 'number' && Number.isFinite(dto.id) ? dto.id : null,
-        text: typeof dto.name === 'string' ? dto.name : '',
         questionType: typeof type === 'number' && Number.isFinite(type) ? type : 0,
         options,
       });
@@ -109,11 +104,9 @@ export interface PaperQuestionFull extends PaperQuestion {
 }
 
 /** 交卷后回顾的一道题（`lookHomework`）：题号有、`eid` 为 null。 */
-export interface LookedQuestion {
-  /** 数字题号（int，十位数亿量级）——神谕与弹题通道的入口参数 */
+export interface LookedQuestion extends PaperQuestion {
+  /** 数字题号（int，十位数亿量级）——神谕、弹题通道与键对齐的入口参数 */
   questionId: number;
-  text: string;
-  options: PaperOption[];
 }
 
 /**
@@ -130,10 +123,9 @@ export function parsePaper(rt: unknown): PaperQuestionFull[] {
     .filter((question) => question.eid !== '')
     .map((question) => ({
       eid: question.eid,
-      text: question.text,
+      questionId: null,
       options: question.options,
       questionType: question.questionType,
-      questionId: null,
     }));
   if (paper.length === 0) {
     throw new Error('智慧树答卷读不出任何一道题（卷面为空，或平台换了形态）');
@@ -142,14 +134,14 @@ export function parsePaper(rt: unknown): PaperQuestionFull[] {
 }
 
 /**
- * `student/lookHomework` 的响应 → 已交卷的题（取题号与题面用）。
+ * `student/lookHomework` 的响应 → 已交卷的题（取题号与选项用）。
  * 没有数字题号的题跳过——这个接口的价值就在题号。
  */
 export function parseLookedPaper(rt: unknown): LookedQuestion[] {
   const out: LookedQuestion[] = [];
   for (const question of walkQuestions(rt)) {
     if (question.questionId === null) continue;
-    out.push({ questionId: question.questionId, text: question.text, options: question.options });
+    out.push({ eid: '', questionId: question.questionId, options: question.options });
   }
   return out;
 }

@@ -100,7 +100,6 @@ export {
   answerKeyFromPopupExam,
   coverageOf,
   matchPaper,
-  normalizeQuestionText,
   planAnswering,
   remainingAttempts,
   type AnswerKey,
@@ -122,4 +121,4 @@ export {
   type ExamRunInput,
   type ExamTarget,
 } from './policy/execute-exam.ts';
-export { createZhsTasks, meetItemId, quizItemId, unitItemId, type ZhsRunDeps } from './policy/tasks.ts';
+export { createZhsTasks, meetItemId, quizItemId, unitItemId, type TaskDataPort, type ZhsRunDeps } from './policy/tasks.ts';

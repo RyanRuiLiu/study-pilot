@@ -34,7 +34,7 @@ const P = 'mooc';
 
 /** 平台的空白运行状态（与 state.ts 的底座同形）。 */
 function blank(over: Partial<PlatformRunState> = {}): PlatformRunState {
-  return { runningSince: null, heartbeatAt: null, lastFinishedAt: null, failure: null, ...over };
+  return { runningSince: null, heartbeatAt: null, lastFinishedAt: null, failure: null, taskData: {}, ...over };
 }
 
 /** 一份「P 平台 + 可选的其它平台」的状态。 */
@@ -191,7 +191,7 @@ describe('存储归一', () => {
       }),
     ).toEqual({
       platforms: {
-        mooc: { runningSince: 5, heartbeatAt: null, lastFinishedAt: null, failure: { message: 'x', action: null, at: 1 } },
+        mooc: { runningSince: 5, heartbeatAt: null, lastFinishedAt: null, failure: { message: 'x', action: null, at: 1 }, taskData: {} },
       },
     });
   });
@@ -230,6 +230,7 @@ describe('存储归一', () => {
       heartbeatAt: null,
       lastFinishedAt: null,
       failure: null,
+      taskData: {},
     });
     expect(state.platforms.zhihuishu?.failure).toEqual({
       message: '要验证',

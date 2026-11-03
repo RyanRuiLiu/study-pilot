@@ -36,18 +36,14 @@ const PAPER = {
 };
 
 describe('parsePaper', () => {
-  it('摊平多个 part，eid / 题干 / 选项（id 转字符串）都取到', () => {
+  it('摊平多个 part，eid / 选项（id 转字符串）都取到', () => {
     const paper = parsePaper(PAPER);
     expect(paper).toHaveLength(2);
     expect(paper[0]).toEqual({
       eid: 'aG9sZGluZy9zbGFzaA==',
-      text: '示例单选：甲是（ ）的活动',
       questionType: 1,
       questionId: null, // 开卷不给题号（平台锁在交卷之后）
-      options: [
-        { id: '900000011', text: '正例' },
-        { id: '900000012', text: '反例' },
-      ],
+      options: [{ id: '900000011' }, { id: '900000012' }],
     });
     expect(paper[1]!.questionType).toBe(2);
   });
@@ -121,12 +117,9 @@ describe('parseLookedPaper（lookHomework：字段与开卷互补）', () => {
     const looked = parseLookedPaper(LOOKED);
     expect(looked).toEqual([
       {
+        eid: '', // 回顾侧没有 eid（与开卷互补）
         questionId: 1000000001,
-        text: '示例单选二：乙属于（ ）的思维活动。',
-        options: [
-          { id: '900000011', text: '成立' },
-          { id: '900000012', text: '不成立' },
-        ],
+        options: [{ id: '900000011' }, { id: '900000012' }],
       },
     ]);
     expect(questionIdsOf(looked)).toEqual([1000000001]);

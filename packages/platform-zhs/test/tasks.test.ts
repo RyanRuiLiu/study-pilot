@@ -4,9 +4,20 @@ import { describe, expect, it } from 'vitest';
 import type { ConfigPort, PlanItem, Settings } from '@study-pilot/application';
 import type { ZhsClient } from '../src/client.ts';
 import { ZhsApiError, ZhsAuthError } from '../src/client.ts';
-import { createZhsTasks, unitItemId } from '../src/policy/tasks.ts';
+import { createZhsTasks, unitItemId, type TaskDataPort } from '../src/policy/tasks.ts';
 import { ZhsRoundHalt } from '../src/policy/execute.ts';
 import type { CookieReader } from '../src/session.ts';
+
+/** 内存版逐任务留痕：每个用例一份，读写同源（收割题号落点的替身）。 */
+function memoryTaskData(): TaskDataPort {
+  const data = new Map<string, unknown>();
+  return {
+    read: async (taskId) => (data.has(taskId) ? data.get(taskId) : null),
+    write: async (taskId, value) => {
+      data.set(taskId, value);
+    },
+  };
+}
 
 const SETTINGS: Settings = {
   version: 8,
@@ -100,6 +111,7 @@ describe('plan', () => {
       config: { read: async () => ({ ...SETTINGS, zhihuishu: { courses: [] } }), update: async () => SETTINGS },
       client: fakeClient({}),
       readCookie: readCookieLoggedIn,
+      taskData: memoryTaskData(),
     });
     expect(await tasks.plan(0)).toEqual({ items: [], blocked: 'no-course' });
   });
@@ -109,6 +121,7 @@ describe('plan', () => {
       config,
       client: fakeClient({}),
       readCookie: readCookieLoggedOut,
+      taskData: memoryTaskData(),
     });
     expect(await tasks.plan(0)).toEqual({ items: [], needsLogin: true });
   });
@@ -122,6 +135,7 @@ describe('plan', () => {
         },
       }),
       readCookie: readCookieLoggedIn,
+      taskData: memoryTaskData(),
     });
     expect(await tasks.plan(0)).toEqual({ items: [], needsLogin: true });
   });
@@ -179,6 +193,7 @@ describe('plan', () => {
               },
       }),
       readCookie: readCookieLoggedIn,
+      taskData: memoryTaskData(),
     });
 
     const plan = await tasks.plan(0);
@@ -194,6 +209,7 @@ describe('plan', () => {
         studyInfo: () => STUDY_INFO(0),
       }),
       readCookie: readCookieLoggedIn,
+      taskData: memoryTaskData(),
     });
     const plan = await tasks.plan(0);
     expect(plan.items).toHaveLength(1);
@@ -216,6 +232,7 @@ describe('plan', () => {
         studyInfo: () => STUDY_INFO(0),
       }),
       readCookie: readCookieLoggedIn,
+      taskData: memoryTaskData(),
     });
     const plan = await tasks.plan(0);
     expect(plan.items.length).toBeGreaterThan(0); // 空表会让下面那句白过
@@ -246,6 +263,7 @@ describe('run', () => {
     const tasks = createZhsTasks({
       config,
       readCookie: readCookieLoggedIn,
+      taskData: memoryTaskData(),
       client: fakeClient({
         queryCourse: () => ({ code: 0, data: { isApply: 1 } }),
         prelearningNote: () => {
@@ -462,6 +480,7 @@ describe('run', () => {
       config: { read: async () => broken, update: async () => broken },
       client: fakeClient({}),
       readCookie: readCookieLoggedIn,
+      taskData: memoryTaskData(),
     });
     const item = {
       id: 'x',
@@ -515,7 +534,7 @@ describe('plan：单元测试项', () => {
         return { rt: { result: 'success', next: -1, studentHomeworkList: flag === 1 ? pending : history } };
       },
     });
-    return { tasks: createZhsTasks({ config, client, readCookie: readCookieLoggedIn }), flags };
+    return { tasks: createZhsTasks({ config, client, readCookie: readCookieLoggedIn, taskData: memoryTaskData() }), flags };
   }
 
   const quizzesOf = (items: ReadonlyArray<PlanItem>) => items.filter((entry) => entry.kind === 'quiz');
@@ -593,6 +612,7 @@ describe('plan：单元测试项', () => {
     const tasks = createZhsTasks({
       config,
       readCookie: readCookieLoggedIn,
+      taskData: memoryTaskData(),
       client: fakeClient({
         videoList: () => CHAPTERS,
         studyInfo: () => STUDY_INFO(0),
@@ -615,6 +635,7 @@ describe('plan：单元测试项', () => {
     const mined = createZhsTasks({
       config,
       readCookie: readCookieLoggedIn,
+      taskData: memoryTaskData(),
       client: fakeClient({
         videoList: () => CHAPTERS_WITH_EXAM,
         studyInfo: () => ({ data: { lesson: {}, lv: {} } }),

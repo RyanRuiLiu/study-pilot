@@ -14,7 +14,7 @@ import type { FetchLike } from '@study-pilot/transport';
 import { createZhsClient, type ZhsClient } from './client.ts';
 import { refreshCourses } from './courses.ts';
 import { ZHS_REQUEST_RULES } from './policy/net-rules.ts';
-import { createZhsTasks } from './policy/tasks.ts';
+import { createZhsTasks, type TaskDataPort } from './policy/tasks.ts';
 import type { CookieReader } from './session.ts';
 
 export interface ZhsRuntimeEnv {
@@ -23,6 +23,8 @@ export interface ZhsRuntimeEnv {
   fetch: FetchLike;
   /** 读 cookie 的宿主能力（会话判定；扩展侧是 browser.cookies，命令行侧是会话文件） */
   readCookie: CookieReader;
+  /** 逐任务跨次留痕（收割题号；扩展/命令行都落在 TaskState 的 taskData 上） */
+  taskData: TaskDataPort;
 }
 
 export interface ZhsRuntime {
@@ -51,7 +53,7 @@ export function createZhsRuntime(env: ZhsRuntimeEnv): ZhsRuntime {
   return {
     client,
     refreshCourses: () => refreshCourses(client, env.config),
-    tasks: () => createZhsTasks({ config: env.config, client, readCookie: env.readCookie }),
+    tasks: () => createZhsTasks({ config: env.config, client, readCookie: env.readCookie, taskData: env.taskData }),
     wiring: { id: 'zhihuishu', requestRules: ZHS_REQUEST_RULES },
   };
 }

@@ -36,12 +36,20 @@ import { executeExam, type ExamEnter, type ExamRunInput, type ExamTarget } from 
 import { getMeetSessions, type ZhsMeetSession } from '../meet.ts';
 import { readMeetWatchHistory, watchMeetReplay } from '../meet-watch.ts';
 
+/** 逐任务跨次留痕的窄端口（载体实现，落在 TaskState.platforms[id].taskData 上）。 */
+export interface TaskDataPort {
+  read(taskId: string): Promise<unknown>;
+  write(taskId: string, value: unknown): Promise<void>;
+}
+
 /** 平台跑一轮需要的外界能力。由装配层创建后注入（与慕课同一形状）。 */
 export interface ZhsRunDeps {
   config: ConfigPort;
   client: ZhsClient;
   /** 读 cookie 的宿主能力：会话判定的唯一来源（见 session.ts） */
   readCookie: CookieReader;
+  /** 逐任务跨次留痕：收割题号的落点（没有它，中断过的重做卷无法接管） */
+  taskData: TaskDataPort;
 }
 
 /** 单元项的 id 与标题取名（界面展示与「只做这一条」回传都用它，必须同一份）。 */
@@ -322,9 +330,10 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
   /**
    * 单元测试那一枪。
    *
-   * 第一期**答案键只有一个来源：该卷历史已交**（`lookHomework` → 弹题通道），
-   * 所以这里每次现收割、用完即弃（不落盘，见设计文档 §7-5）。这也意味着
-   * **从没交过的卷没有键**——那正是探路重做存在的理由。
+   * 答案键的来源是**该卷历史已交**（`lookHomework` → 弹题通道），每次现收割。
+   * 收割到的数字题号经 `onHarvest` 当场落进 taskData——收割只在重做申请之前
+   * 可行（2026-11-03 实测：lookHomework 对重做中的卷结构性拒绝），结算中断过
+   * 的卷重跑全靠这份留存接管（见 execute-exam.ts 的 runRedoOpen）。
    *
    * 收割是只读的；真正的写（开卷/作答/交卷/重做）全在 executeExam 里，
    * 由它自己的闸门看着。
@@ -344,17 +353,29 @@ export function createZhsTasks(deps: ZhsRunDeps): PlatformTasks {
       stuExamIdNum: chapter.stuExamId,
     };
 
+    // 上次收割的留存：键 = 任务 id，值 = { questionIds }（本函数写入，形状只此一处）
+    const stored = storedQuestionIds(await deps.taskData.read(item.id));
+
     const input: ExamRunInput = {
       target,
       userId: session.userId,
-      key: null, // 第一期不做键的落盘：每次现收割、用完即弃（见 execute-exam.ts 的 harvestKey）
-      questionIds: [],
+      key: null,
+      questionIds: stored,
       totalScore,
       popupLessonId: chapter.lessonId,
       enter,
       recruitAndCourseId: course.secret,
+      onHarvest: (questionIds) =>
+        deps.taskData.write(item.id, { questionIds: [...questionIds] }),
     };
     return executeExam(deps.client, input, control);
   }
+}
+
+/** 读回留存的收割题号：形状不对一律按「没有留存」算（不猜、不将就）。 */
+function storedQuestionIds(value: unknown): number[] {
+  const record = value as { questionIds?: unknown } | null | undefined;
+  if (record === null || typeof record !== 'object' || !Array.isArray(record.questionIds)) return [];
+  return record.questionIds.filter((id): id is number => typeof id === 'number' && Number.isFinite(id));
 }
 

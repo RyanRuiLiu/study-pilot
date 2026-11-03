@@ -50,6 +50,30 @@ export async function examListUrl(recruitId: number, studyUrl: string): Promise<
 }
 
 /**
+ * 一张卷的作答页（深链）：对应卷的答题页面，作答撞门（滑块）时在那儿过验证。
+ *
+ * 段位与结构里 `studentExamDto.examUrl` 的 dohomework 路由逐字同形
+ * （`dohomework/<recruitId>/<listId>/<examKey>/<courseId>/<schoolId>/<N>`，N 恒为 0，
+ * 全部章节的实测样本一致）。**打开这一页会开卷/接管答卷**（设计文档 §5）——
+ * 所以它只给执行中的撞门当去处：那时卷已经被同一条流程开过，落回这里没有新副作用。
+ * 与清单页（examListUrl）的差别是「这一卷」与「这一课的全部卷」。
+ */
+export function examAnswerPageUrl(input: {
+  recruitId: number;
+  /** 清单条目 id（dohomework 路由的 t1） */
+  listId: string;
+  /** 8 字符串 examId（路由的 t2） */
+  examKey: string;
+  courseId: number;
+  schoolId: number;
+}): string {
+  return (
+    `https://onlineexamh5new.zhihuishu.com/stuExamWeb.html#/webExamList/dohomework/` +
+    `${input.recruitId}/${input.listId}/${input.examKey}/${input.courseId}/${input.schoolId}/0`
+  );
+}
+
+/**
  * 见面课页：新版（V2）。Ryan 2026-10-17 指出旧版
  * `online.zhihuishu.com/onlineSchool/teachMeeting/stuList` 不用。
  * 实名从站点自己的代码里读出（与 FINDINGS §7 记的 `stuListV2` 一致）。

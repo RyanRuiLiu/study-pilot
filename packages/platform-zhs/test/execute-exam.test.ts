@@ -52,15 +52,17 @@ const PAPER = {
   },
 };
 
-/** 正解 = 每题的第一个选项。 */
+/** 正解 = 每题的第一个选项（键按题号对齐；开卷卷面没有题号，匹配走选项 id 集合包含）。 */
 const FULL_KEY: AnswerKey = {
-  version: 1,
-  correctOptionIds: ['900000006', '561505200'],
-  entries: [],
+  version: 2,
+  entries: [
+    { questionId: 111, correct: ['900000006'] },
+    { questionId: 222, correct: ['561505200'] },
+  ],
 };
 
 /** 只覆盖第一题。 */
-const HALF_KEY: AnswerKey = { version: 1, correctOptionIds: ['900000006'], entries: [] };
+const HALF_KEY: AnswerKey = { version: 2, entries: [{ questionId: 111, correct: ['900000006'] }] };
 
 const ORACLE_PASS = { status: '200', rt: { '111': { score: '2', done: 'true' }, '222': { score: '2', done: 'true' } } };
 const ORACLE_ZERO = { status: '200', rt: { '111': { score: '2', done: 'true' }, '222': { score: '0', done: 'true' } } };
@@ -267,8 +269,11 @@ describe('业务码（rt.statu）不被吞掉', () => {
       message: '滑块验证未通过不能答题', // 平台原话，不替它改
       action: { platformId: 'zhihuishu', label: '打开作业考试页' },
     });
-    // 去处是这一课的作业考试页（那一卷在那儿，点进去就是答题页）
-    expect((halt as { action: { url: string } }).action.url).toContain('#/webExamList?recruitId=');
+    // 去处是**这一卷**的作答页（dohomework 深链，段位与结构 examUrl 同形；
+    // 2026-11-03 起不再是清单页——人不该还得自己找到那一卷）
+    expect((halt as { action: { url: string } }).action.url).toContain(
+      '#/webExamList/dohomework/470001/AbCd0001/FfGh0002/1000009999/1001/0',
+    );
   });
 
   it('别处（非作答通道）的 -1 不当门：如实失败，带上平台自己的原话', async () => {
@@ -340,8 +345,8 @@ describe('缺键路径（探路重做）', () => {
     popupExam: {
       data: {
         lessonTestQuestionUseInterfaceDtos: [
-          { testQuestion: { name: '第一题', questionOptions: [{ id: 900000006, content: '对', result: '1' }] } },
-          { testQuestion: { name: '第二题', questionOptions: [{ id: 561505200, content: '对', result: '1' }] } },
+          { testQuestion: { questionId: 111, name: '第一题', questionOptions: [{ id: 900000006, content: '对', result: '1' }] } },
+          { testQuestion: { questionId: 222, name: '第二题', questionOptions: [{ id: 561505200, content: '对', result: '1' }] } },
         ],
       },
     },
@@ -380,6 +385,35 @@ describe('缺键路径（探路重做）', () => {
     );
     // 重做后的定分那一枪过了神谕（题号是用探路收割来的，不是空的）
     expect(names).toContain('examQuestionDoneState');
+  });
+
+  it('收割题号当场落盘：onHarvest 在申请重做之前被调（题号诞生即留存）', async () => {
+    // 结算再被滑块门打断时，重跑全靠这份留存接管（lookHomework 对 state=5 拒绝）——
+    // 所以落盘必须发生在申请重做**之前**，而不是结算成功之后。
+    const events: string[] = [];
+    const client: ZhsClient = {
+      call: async (name) => {
+        events.push(name);
+        const response = PROBE_RESPONSES[name as keyof typeof PROBE_RESPONSES];
+        if (response === undefined) throw new Error(`假 client 没有登记 ${name}`);
+        return response;
+      },
+    };
+    const outcome = await executeExam(
+      client,
+      input({
+        key: null,
+        questionIds: [],
+        onHarvest: async (ids) => {
+          events.push(`onHarvest:${ids.join(',')}`);
+        },
+      }),
+      NEVER_STOPPED,
+    );
+
+    expect(outcome.status).toBe('done');
+    expect(events).toContain('onHarvest:111,222');
+    expect(events.indexOf('onHarvest:111,222')).toBeLessThan(events.indexOf('examApplyRedo'));
   });
 
   it('探路后拿不到题号 → 不申请重做（不白花一次机会）', async () => {
@@ -426,8 +460,8 @@ const HARVESTED_LOOKED = {
 const HARVESTED_POPUP = {
   data: {
     lessonTestQuestionUseInterfaceDtos: [
-      { testQuestion: { name: '第一题', questionOptions: [{ id: 900000006, content: '对', result: '1' }] } },
-      { testQuestion: { name: '第二题', questionOptions: [{ id: 561505200, content: '对', result: '1' }] } },
+      { testQuestion: { questionId: 111, name: '第一题', questionOptions: [{ id: 900000006, content: '对', result: '1' }] } },
+      { testQuestion: { questionId: 222, name: '第二题', questionOptions: [{ id: 561505200, content: '对', result: '1' }] } },
     ],
   },
 };
@@ -479,7 +513,7 @@ describe('已交未满分（enter=submitted）：收割 → 申请一次重做 �
       popupExam: {
         data: {
           lessonTestQuestionUseInterfaceDtos: [
-            { testQuestion: { name: '第一题', questionOptions: [{ id: 900000006, content: '对', result: '1' }] } },
+            { testQuestion: { questionId: 111, name: '第一题', questionOptions: [{ id: 900000006, content: '对', result: '1' }] } },
           ],
         },
       },
@@ -520,5 +554,49 @@ describe('重做已申请（enter=redoOpen）：直接接管，绝不再申请�
     await executeExam(client, input({ enter: 'redoOpen' }), NEVER_STOPPED);
     expect(names).not.toContain('examIsObject');
     expect(names).not.toContain('examRedoNum');
+  });
+
+  it('有上次收割的题号留存 → 不碰 lookHomework，直接弹题建键定分', async () => {
+    // 2026-11-03 实测：lookHomework 对 state=5 结构性拒绝（-1/2）——接管路径的
+    // 题号必须来自留存（ExamRunInput.questionIds）。被拒过的端点根本不该被问。
+    const { client, names } = recordingClient({
+      popupExam: HARVESTED_POPUP,
+      examDoHomework: { rt: PAPER },
+      examSaveAnswer: { rt: { statu: '1' } },
+      examQuestionDoneState: ORACLE_PASS,
+      examSubmit: { rt: { statu: '0', score: '4' } },
+      examLookHomework: { rt: { examBase: { workExamParts: [] } } },
+    });
+    const outcome = await executeExam(
+      client,
+      input({ enter: 'redoOpen', key: null, questionIds: [111, 222] }),
+      NEVER_STOPPED,
+    );
+
+    expect(outcome.status).toBe('done');
+    if (outcome.status !== 'done') return;
+    expect(outcome.message).toContain('接管重做定分');
+    expect(names).not.toContain('examLookHomework');
+    expect(names.filter((n) => n === 'examSubmit')).toHaveLength(1);
+  });
+
+  it('没有留存、lookHomework 又被拒 → 如实说清去处，不把光杆错误码甩给使用者', async () => {
+    // 这是重做卡死卷（曾一直报「2」）修复后的样子：说清为什么、人该做什么
+    const client: ZhsClient = {
+      call: async (name) => {
+        if (name === 'examLookHomework') throw new ZhsApiError(-1, '2');
+        throw new Error(`不该调到 ${name}`);
+      },
+    };
+    const outcome = await executeExam(
+      client,
+      input({ enter: 'redoOpen', key: null, questionIds: [] }),
+      NEVER_STOPPED,
+    );
+
+    expect(outcome.status).toBe('failed');
+    expect(outcome.message).toContain('不开放回顾');
+    expect(outcome.message).toContain('收割');
+    expect(outcome.message).not.toBe('2');
   });
 });

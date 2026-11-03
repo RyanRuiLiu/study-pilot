@@ -45,7 +45,7 @@ import {
 } from '../exam-paper.ts';
 import { askOracle, judge } from '../oracle.ts';
 import { gateAction, gateHaltMessage, ZhsRoundHalt } from './execute.ts';
-import { examListUrl, studyPageUrl, ZHS_LOGIN_URL } from '../pages.ts';
+import { examAnswerPageUrl, ZHS_LOGIN_URL } from '../pages.ts';
 
 /** 一张卷的入口参数（清单 + 章节测验条目合成）。 */
 export interface ExamTarget {
@@ -91,6 +91,12 @@ export interface ExamRunInput {
   enter?: ExamEnter;
   /** 该课的学习页入口参数（门的「下一步」去处；与视频线同一个地址） */
   recruitAndCourseId: string;
+  /**
+   * 收割落盘的回调：题号在诞生那一刻留存（见 prepareKey）。
+   * 载体把它接到 taskData 上（tasks.ts 的 runQuiz）；不给就不落盘——
+   * 那样中断过的重做卷无法接管，调用方要自己想清楚。
+   */
+  onHarvest?: (questionIds: readonly number[]) => Promise<void>;
 }
 
 /**
@@ -203,7 +209,6 @@ async function saveAnswers(
   client: ZhsClient,
   target: ExamTarget,
   answers: readonly AnswerPayload[],
-  recruitAndCourseId: string,
 ): Promise<void> {
   for (const answer of answers) {
     if (answer.eid === '' || answer.optionIds.length === 0) continue; // 空作答不发（不污染答卷）
@@ -227,8 +232,9 @@ async function saveAnswers(
       if (error instanceof ZhsApiError && ANSWER_GATE_CODES.has(error.code)) {
         /*
          * 消息用**平台自己的话**（它给的 msg 就是「滑块验证未通过不能答题」这类），
-         * 去处是**作业考试页**：那一卷在那儿，点进去就是答题页面，验证也在那一页里
-         * 做完（Ryan 定）。不替平台改措辞，也不换它指的地方。
+         * 去处是**这一卷的作答页**：点进去就是这份卷的答题页面，验证也在那一页里
+         * 做完（Ryan 定，2026-11-03——先前只给到清单页，人还得自己找到那一卷）。
+         * 不替平台改措辞，也不换它指的地方。
          */
         const said = error.message.trim();
         throw new ZhsRoundHalt(
@@ -236,7 +242,7 @@ async function saveAnswers(
           {
             platformId: 'zhihuishu',
             label: '打开作业考试页',
-            url: await examListUrl(target.recruitId, studyPageUrl(recruitAndCourseId)),
+            url: examAnswerPageUrl(target),
           },
         );
       }
@@ -246,8 +252,13 @@ async function saveAnswers(
     if (statu === SAVE_STATU_OK) continue;
     if (statu !== null && SAVE_STATU_GATE.has(statu)) {
       // 平台源码：-10 → emit("captchaForAnswer")、-20 → emit("disableForAnswer")
+      // -10 的验证同样长在这一卷的作答页上，去处与上面的门一致
       throw statu === -10
-        ? new ZhsRoundHalt(gateHaltMessage('人机验证'), gateAction(recruitAndCourseId))
+        ? new ZhsRoundHalt(gateHaltMessage('人机验证'), {
+            platformId: 'zhihuishu',
+            label: '打开作业考试页',
+            url: examAnswerPageUrl(target),
+          })
         : new ZhsRoundHalt('无法继续作答：平台已禁用');
     }
     throw new ZhsStatuError(`作答失败：平台返回 ${statu ?? '无 statu'}`);
@@ -386,7 +397,7 @@ async function runWithKey(client: ZhsClient, input: ExamRunInput, control: RunCo
   }
 
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
-  await saveAnswers(client, input.target, planToAnswers(paper, plan.answers), input.recruitAndCourseId);
+  await saveAnswers(client, input.target, planToAnswers(paper, plan.answers));
 
   const gate = await passOracleGate(client, input);
   if (isOutcome(gate)) return gate;
@@ -402,6 +413,11 @@ async function runWithKey(client: ZhsClient, input: ExamRunInput, control: RunCo
  *
  * 这是第一期唯一的键来源（设计文档 §7-5：不落盘，用完即弃）。它**不消耗任何
  * 作答机会**——这也是「已交未满分的卷不重打第一枪」能成立的原因。
+ *
+ * 2026-11-03 实测追加的硬约束：`lookHomework` 对**重做已申请（state=5）**的卷
+ * 结构性拒绝（`-1/2`；干净样本复现，与风控无关）——所以收割只在重做申请**之前**
+ * 可行。中断后重跑的接管路径（redoOpen）不许再走这里：用 taskData 里留存的
+ * 题号走 {@link keyFromQuestionIds}。
  */
 async function harvestKey(
   client: ZhsClient,
@@ -417,19 +433,29 @@ async function harvestKey(
   const looked = await readLookedPaper(client, target);
   const questionIds = questionIdsOf(looked);
   if (questionIds.length === 0) {
-    return { key: { version: 1, correctOptionIds: [], entries: [] }, questionIds, questionCount: 0, looked };
+    return { key: { version: 2, entries: [] }, questionIds, questionCount: 0, looked };
   }
 
+  const key = await keyFromQuestionIds(client, target, lessonId, questionIds);
+  return { key, questionIds, questionCount: questionIds.length, looked };
+}
+
+/** 弹题通道按已知数字题号换正解（收割的后半段；接管路径用存量题号走这里）。 */
+async function keyFromQuestionIds(
+  client: ZhsClient,
+  target: ExamTarget,
+  lessonId: number,
+  questionIds: readonly number[],
+): Promise<AnswerKey> {
   const feedBody = (await client.call('popupExam', {
     lessonId,
     recruitId: target.recruitId,
     courseId: target.courseId,
     questionIds: questionIds.join(','),
   })) as { data?: { lessonTestQuestionUseInterfaceDtos?: unknown } | null };
-  const key = answerKeyFromPopupExam(
+  return answerKeyFromPopupExam(
     (feedBody.data?.lessonTestQuestionUseInterfaceDtos ?? []) as Parameters<typeof answerKeyFromPopupExam>[0],
   );
-  return { key, questionIds, questionCount: questionIds.length, looked };
 }
 
 /**
@@ -442,13 +468,11 @@ async function harvestKey(
  * **一份没作答的新卷**——等于白花。这几行就是「留最后一次」在代码里的落点。
  */
 function keyCoversLookedPaper(key: AnswerKey, looked: readonly LookedQuestion[]): { ok: boolean; coverage: number } {
-  const asPaper = looked.map((question) => ({
-    eid: String(question.questionId),
-    text: question.text,
-    options: question.options,
-  }));
-  const match = matchPaper(asPaper, key);
-  return { ok: match.missing.length === 0, coverage: asPaper.length === 0 ? 0 : match.answers.length / asPaper.length };
+  const match = matchPaper(looked, key);
+  return {
+    ok: match.missing.length === 0,
+    coverage: looked.length === 0 ? 0 : match.answers.length / looked.length,
+  };
 }
 
 /**
@@ -493,20 +517,42 @@ async function remainingGate(client: ZhsClient, target: ExamTarget, min: number)
  * `abandoned` 是失败文案的前缀：**被放弃的是哪一步**（两条路不一样——
  * 一条是没申请重做，一条是没接管那份开着的答卷）。判据共用一份，
  * 文案各自说清，别在两个调用点各写一遍判据。
+ *
+ * 覆盖率通过后**当场调 `persist`**（若提供）：题号在诞生那一刻就落盘，
+ * 不等结局——申请重做之后这份卷就是 state=5，lookHomework 对它结构性拒绝
+ * （2026-11-03 干净样本实测），结算再被滑块门/停止/崩溃打断，重跑全靠这份留存。
+ *
+ * 收割被拒时把「人该做什么」说清楚，不能把光杆错误码（界面上就一个「2」）
+ * 甩给使用者。
  */
 async function prepareKey(
   client: ZhsClient,
   target: ExamTarget,
   lessonId: number,
   abandoned: string,
+  persist?: (questionIds: readonly number[]) => Promise<void>,
 ): Promise<{ key: AnswerKey; questionIds: number[] } | RunOutcome> {
-  const harvested = await harvestKey(client, target, lessonId);
+  let harvested: Awaited<ReturnType<typeof harvestKey>>;
+  try {
+    harvested = await harvestKey(client, target, lessonId);
+  } catch (error) {
+    if (error instanceof ZhsApiError && error.code === -1) {
+      return {
+        status: 'failed',
+        message:
+          `${abandoned}：平台拒绝查看该卷（重做申请后的卷不开放回顾，或该章尚未解锁），无法收割题号；` +
+          '若上次执行中断过，收割记录留存时重跑会自动接管，否则请在作业考试页手动完成这张卷',
+      };
+    }
+    throw error;
+  }
   if (harvested.questionCount === 0) return { status: 'failed', message: `${abandoned}：回顾未取到题号` };
 
   const preview = keyCoversLookedPaper(harvested.key, harvested.looked);
   if (!preview.ok) {
     return { status: 'failed', message: `${abandoned}：答案键覆盖 ${Math.round(preview.coverage * 100)}%` };
   }
+  if (persist !== undefined) await persist(harvested.questionIds);
   return { key: harvested.key, questionIds: harvested.questionIds };
 }
 
@@ -518,7 +564,7 @@ async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: R
   const gate = (await objectGate(client, target)) ?? (await remainingGate(client, target, 1));
   if (gate !== null) return gate;
 
-  const prepared = await prepareKey(client, target, input.popupLessonId, '未申请重做');
+  const prepared = await prepareKey(client, target, input.popupLessonId, '未申请重做', input.onHarvest);
   if (isOutcome(prepared)) return prepared;
 
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
@@ -545,12 +591,24 @@ async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: R
  * （2026-10-17）「按没做过一样对待，直接接管」，所以走到这和走到一张没做过的卷
  * 没区别：收割建键（纯只读）→ 开卷套键作答 → 过神谕 → 交卷。
  *
- * 不问 `redoGate`：那道闸是**花机会之前**的门槛（剩余次数够不够、是不是客观题），
- * 这条路不花机会，而「过得了神谕的那一枪是确定的满分，剩几次都交」（§3 模块 3）。
- * 客观题与否由覆盖率判据兜住——非客观题的键覆盖不了卷面，`prepareKey` 会拦下。
+ * **题号优先用上次收割的留存**（`ExamRunInput.questionIds`，载体从 taskData 读回）：
+ * `lookHomework` 对 state=5 的卷结构性拒绝（2026-11-03 干净样本实测），收割
+ * 走不通是这条路径曾经的死因——中断过的卷永远报错「2」，再也起不来。题号跨
+ * 重做稳定（同一份卷、同一批数字 id，神谕实测对重做后的新卷照常判分）。
+ * 留存不在时才试一次收割——万一是清单快照过期（用户已手动处理）这样还能自救；
+ * 被拒则按 prepareKey 的文案如实失败，不甩光杆错误码。
  */
 async function runRedoOpen(client: ZhsClient, input: ExamRunInput, control: RunControl): Promise<RunOutcome> {
-  const prepared = await prepareKey(client, input.target, input.popupLessonId, '未接管');
+  const stored = input.questionIds;
+  if (stored.length > 0) {
+    const key = await keyFromQuestionIds(client, input.target, input.popupLessonId, stored);
+    const settled = await runWithKey(client, { ...input, key, questionIds: stored }, control);
+    return settled.status === 'done'
+      ? { status: 'done', message: `接管重做定分：${settled.message}` }
+      : settled;
+  }
+
+  const prepared = await prepareKey(client, input.target, input.popupLessonId, '未接管', input.onHarvest);
   if (isOutcome(prepared)) return prepared;
 
   const settled = await runWithKey(
@@ -573,12 +631,14 @@ async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: Ru
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
   const probePaper = await openExamPaper(client, target);
   const probeAnswers = firstOptionAnswers(probePaper);
-  await saveAnswers(client, target, probeAnswers, input.recruitAndCourseId);
+  await saveAnswers(client, target, probeAnswers);
   if (control.stopped()) return { status: 'skipped', message: '已停止：未交卷' };
   await submit(client, target, probeAnswers.length);
 
-  // ② 收割建键（只读），并先判覆盖率——都不花机会
-  const prepared = await prepareKey(client, target, input.popupLessonId, '未申请重做');
+  // ② 收割建键（只读），并先判覆盖率——都不花机会。
+  //    onHarvest 在这里落盘：③之后这份卷就是 state=5，lookHomework 不再放行，
+  //    结算再被打断（滑块门/停止/崩溃），重跑全靠这份留存接管。
+  const prepared = await prepareKey(client, target, input.popupLessonId, '未申请重做', input.onHarvest);
   if (isOutcome(prepared)) return prepared;
 
   // ③ 申请重做（分数覆盖）

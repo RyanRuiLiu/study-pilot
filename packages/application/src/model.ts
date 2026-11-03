@@ -119,6 +119,14 @@ export interface PlatformRunState {
   lastFinishedAt: number | null;
   /** 该平台最近一次失败的留痕；null 表示没有 */
   failure: PlatformFailure | null;
+  /**
+   * 各任务自己的跨次留痕（键 = PlanItem.id，值 = 平台自定的对象）。
+   *
+   * 为什么要有它：有的平台事实**只在第一次执行时拿得到**，中断后重跑再也
+   * 取不回来（智慧树的数字题号：收割只在重做申请前可行，见 platform-zhs
+   * execute-exam.ts）。载体只管把这一份原样存读；内容与清理由平台自决。
+   */
+  taskData: Record<string, unknown>;
 }
 
 /** 跨次运行保留的状态。 */
