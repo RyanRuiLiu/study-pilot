@@ -146,12 +146,10 @@ export function matchPaper(paper: readonly PaperQuestion[], key: AnswerKey): Key
       const owner = questionOfOption.get(id);
       if (owner !== undefined) owners.add(owner);
     }
-    if (owners.size === 1) {
-      const [entry] = owners;
-      if (entry.correct.every((id) => optionIds.includes(id))) {
-        answers.push({ eid: question.eid, optionIds: optionIds.filter((id) => entry.correct.includes(id)) });
-        continue;
-      }
+    const owner = owners.size === 1 ? owners.values().next().value : undefined;
+    if (owner !== undefined && owner.correct.every((id) => optionIds.includes(id))) {
+      answers.push({ eid: question.eid, optionIds: optionIds.filter((id) => owner.correct.includes(id)) });
+      continue;
     }
 
     missing.push(question);
