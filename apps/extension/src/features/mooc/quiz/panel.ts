@@ -54,7 +54,7 @@ interface PanelActions {
   onSubmit: () => void;
 }
 
-interface PanelHandle {
+export interface PanelHandle {
   root: HTMLElement;
   body: HTMLElement;
   setStatus: (text: string) => void;
@@ -106,7 +106,7 @@ function paintButton(button: HTMLButtonElement, primary: boolean): void {
   });
 }
 
-function panelButton(label: string, kind: 'fill' | 'submit', onClick: () => void): HTMLButtonElement {
+export function panelButton(label: string, kind: 'fill' | 'submit', onClick: () => void): HTMLButtonElement {
   const button = buttonShell();
   button.textContent = label;
   paintButton(button, kind === 'submit');
@@ -115,7 +115,7 @@ function panelButton(label: string, kind: 'fill' | 'submit', onClick: () => void
 }
 
 /** 面板容器：固定右上，白面 + 12px 圆角 + 投影；标题条可拖动，可收起。 */
-function createPanelShell(id: string, title: string): PanelHandle {
+export function createPanelShell(id: string, title: string): PanelHandle {
   document.getElementById(id)?.remove();
 
   const root = document.createElement('div');

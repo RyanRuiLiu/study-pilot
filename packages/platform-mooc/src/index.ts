@@ -46,6 +46,9 @@ export {
   deriveStatus,
 } from './structure.ts';
 
+export { getNewExamList, getNewExamPaper, type NewExamListItem, type NewExamPaper, type NewExamPaperQuestion } from './new-exam.ts';
+export { resolveContentTermId } from './spoc-sync.ts';
+
 export {
   BEHAVIORS,
   isUnitComplete,

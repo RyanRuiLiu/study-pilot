@@ -59,7 +59,8 @@ export type WorkKind =
   | 'homework'
   | 'exam-objective'
   | 'exam-score'
-  | 'exam-subjective';
+  | 'exam-subjective'
+  | 'exam-new';
 
 /** 页面上认出来的位置：四类作答区之外统一算 `other`。 */
 export type WorkView = WorkKind | 'other';
@@ -78,6 +79,14 @@ const WORK_ROUTE: Record<WorkKind, string> = {
   'exam-objective': 'learn/examObject',
   'exam-score': 'learn/examObjectScore',
   'exam-subjective': 'learn/examSubjective',
+  /*
+   * 新版考试的协议页（源码 examlist chunk 49318 的「进入」按钮：无草稿时
+   * `location.hash = "#/learn/newExamAgreement?eid="`）。有草稿时官方直接开
+   * /mooc/main/newExam 独立页——那不是 hash 路由，不在这张表里；本工具一律给
+   * 协议页。打开它无副作用：NewExamAgreement chunk 里唯一的写调用
+   * （publishExamDraft）挂在「开始考试」按钮 onClick 上，页面加载只发只读请求。
+   */
+  'exam-new': 'learn/newExamAgreement',
 };
 
 /** 页面地址里认出来的位置。 */
@@ -162,6 +171,15 @@ export function workPageUrl(
     if (!examId) return `${base}#/learn/examlist`;
     const type = kind === 'exam-objective' ? '&examType=0' : '';
     return `${base}#/${route}?eid=${examId}&id=${testId}${type}`;
+  }
+
+  /*
+   * 新版考试：协议页只认 eid（考试 id）。testId 是两个部分各自的 test id，
+   * 协议页不认它； eid 缺失同样退到考试列表页。
+   */
+  if (kind === 'exam-new') {
+    if (!examId) return `${base}#/learn/examlist`;
+    return `${base}#/${route}?eid=${examId}`;
   }
 
   return `${base}#/${route}?id=${testId}`;

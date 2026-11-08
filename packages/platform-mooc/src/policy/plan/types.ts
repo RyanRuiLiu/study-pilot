@@ -95,10 +95,10 @@ export const OVERDUE_REASONS: ReadonlySet<ManualItem['reason']> = new Set([
 /**
  * 是不是考试。
  *
- * 考试分客观题与主观题两种类型，而多数判断只关心「是不是考试」。
- * 把这两个字符串的比较收在一处，免得散落到各处——漏掉一个就会出现
+ * 考试分客观题、主观题与新版考试三种类型，而多数判断只关心「是不是考试」。
+ * 把字符串的比较收在一处，免得散落到各处——漏掉一个就会出现
  * 「主观题考试被当成作业」这类只在一半情况下发作的问题。
  */
 export function isExam(type: SnapshotWork['type']): boolean {
-  return type === 'exam-objective' || type === 'exam-subjective';
+  return type === 'exam-objective' || type === 'exam-subjective' || type === 'exam-new';
 }

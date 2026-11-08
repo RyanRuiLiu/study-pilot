@@ -92,7 +92,7 @@ const USAGE = `study-pilot（命令行载体）
   --platform <id>    只做这个平台：mooc / zhihuishu（默认两家都读）
   --kind    <类,...> run 的范围：只做这些类别（取值由平台定义：mooc 是
                      courseware / quiz / review / self / homework / exam，
-                     zhihuishu 是 courseware / quiz）
+                     zhihuishu 是 courseware / quiz / meetWatch）
   --course  <课程名> run 的范围：只做这一门课
   --yes              run 的授权旗标：没有它只预演，不写平台
 `;

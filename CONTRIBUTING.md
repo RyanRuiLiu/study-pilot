@@ -127,7 +127,7 @@ Release 正文里的「本版变更」由工作流从上一个标签到本标签
 - 至少一张截图（1280x800 或 640x400），展示弹窗/设置页的真实内容（要登录态）；
 - 隐私政策的**公开 URL**（内容用本仓 `PRIVACY.md`，放 Pages 或可公开访问的地址）；
 - 单一用途说明、权限逐项理由（cookies / storage / declarativeNetRequestWithHostAccess，
-  三家 host permissions 的用途见 `wxt.config.ts` 注释）与数据使用声明
+  六条 host permissions 的用途见 `wxt.config.ts` 注释）与数据使用声明
   （只读平台数据、密钥只存本机、不上传、无远程代码）。
 
 `minimum_chrome_version: 111` 由 content script 的 `world: "MAIN"`（智慧树判据接管）决定，

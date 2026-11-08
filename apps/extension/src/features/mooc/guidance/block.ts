@@ -14,7 +14,6 @@
  * test/tokens-parity.test.ts 逐条核对）。
  */
 
-import type { PaperQuestion } from '@study-pilot/platform-mooc';
 import { TOKENS } from '../../../ui/tokens.ts';
 import { ANSWER_MARK_ATTRIBUTE, ANSWER_SOURCE_ATTRIBUTE, GUIDANCE_LABEL } from './markers.ts';
 
@@ -163,7 +162,13 @@ export function renderRichText(html: string): HTMLElement {
  * 评分点全为空（这份作业没配评分依据）时返回 null，不注入空块——
  * 没有可展示的内容就不往页面上放东西。
  */
-export function buildAnswerBlock(question: PaperQuestion, source: string): HTMLElement | null {
+/** 评分块要读的字段（旧取卷与新版考试 getPaper 的题目都满足这个子形状）。 */
+export interface RubricQuestion {
+  judgeDtos?: ReadonlyArray<{ msg?: string | null; maxScore?: number | null }> | null;
+  score?: number | null;
+}
+
+export function buildAnswerBlock(question: RubricQuestion, source: string): HTMLElement | null {
   /*
    * 样式与弹窗/设置页同一套设计语言（令牌见 src/ui/tokens.ts）：
    * 浅主色衬底 + 12px 圆角（与卡面同档），不画描边、不画左侧色条——

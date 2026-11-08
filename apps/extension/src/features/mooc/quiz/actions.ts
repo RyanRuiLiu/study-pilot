@@ -31,7 +31,7 @@ import { PANEL_ID, setBusy, type ActivePanel } from './panel.ts';
  * 取 300ms 留余量。「等上一个请求返回」并不够：串行无间隔仍会被拒，
  * 说明服务端判定并发时包含时间窗口。
  */
-const WRITE_GAP_MS = 300;
+export const WRITE_GAP_MS = 300;
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => window.setTimeout(resolve, ms));

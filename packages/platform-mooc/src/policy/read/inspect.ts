@@ -10,6 +10,8 @@
  * 那个键在代码里没有任何读写方。
  */
 
+import { getNewExamList, type NewExamListItem } from '../../new-exam.ts';
+import { resolveContentTermId } from '../../spoc-sync.ts';
 import { deriveStatus, getCourseStructure } from '../../structure.ts';
 import { currentEvaluatePhase, getEvaluationDetail } from '../../review.ts';
 import type { MoocClient } from '../../client.ts';
@@ -38,12 +40,49 @@ function positive(value: unknown): number | null {
   return parsed !== null && parsed > 0 ? parsed : null;
 }
 
+/** 新版考试条目 → 快照工作项（type=exam-new；与旧版考试同一处置：只读展示、不自动执行）。 */
+function newExamEntry(exam: NewExamListItem): SnapshotWork {
+  return {
+    tid: exam.eid,
+    name: exam.name,
+    chapterName: '',
+    examId: exam.eid,
+    type: 'exam-new',
+    /*
+     * 「交没交」的判据只用实测字段：新版考试 DTO 没有旧版的提交状态，
+     * tryTime/usedTryCount 是它自己带的机会记账（真机：tryTime=1、
+     * usedTryCount=0）。两者缺一就不判已交——宁可多列一条待办，
+     * 不可把没考的考试从清单里藏掉。
+     */
+    submitted:
+      exam.usedTryCount !== null && exam.tryTime !== null && exam.usedTryCount >= exam.tryTime,
+    deadline: exam.deadline,
+    evaluateStart: null,
+    evaluateEnd: null,
+    evaluateScoreRelease: null,
+    score: exam.userScore,
+    totalScore: positive(exam.totalScore),
+    usedTryCount: exam.usedTryCount,
+    totalTryCount: exam.tryTime,
+    reviewable: false,
+    evaluateDone: null,
+    evaluateTotal: null,
+    selfDone: null,
+  };
+}
+
 /**
  * 拉取指定课程的当前状态，产出一份快照。
  *
  * 单门课失败不中断整轮：其余课程的数据仍然有用，而失败的那门会在下一次
  * 拉取时补上。若全部失败则抛错——那种情况下返回一份空快照会让上层误以为
  * 「确实没有待办」。
+ *
+ * **按内容学期分组读取**：SPOC 同步课的学习内容在源学期上（spoc-sync.ts），
+ * 两门课（MOOC 本尊与引用它的 SPOC）可能指向同一个内容学期。同一学期只读
+ * 一次，工作项归属到 termId 等于内容学期的那门课（归属课未勾选才归到引用
+ * 它的 SPOC）。不这样收口，同一份测验会以两条计划项出现——一轮里被提交
+ * 两次；平台上它也只有一份，清单里出现两次就是把一份事实说成两份。
  */
 export async function inspect(
   client: MoocClient,
@@ -60,8 +99,38 @@ export async function inspect(
    */
   let firstFailure = '';
 
+  const failCourse = (course: InspectCourse, message: string, auth: boolean): void => {
+    if (auth) authFailures++;
+    failures++;
+    if (firstFailure === '') {
+      firstFailure = `课程 ${course.courseId}：${message}`;
+    }
+  };
+
+  /*
+   * ① 解析每门课的内容学期，按它分组（保持勾选顺序）。
+   * 解析失败按单门失败记账，不影响别的课。
+   */
+  const groups = new Map<number, InspectCourse[]>();
   for (const course of courses) {
-    const structure = await getCourseStructure(client, course.termId);
+    const contentTerm = await resolveContentTermId(client, {
+      termId: course.termId,
+      courseId: course.courseId,
+      schoolShortName: course.schoolShortName,
+      mode: course.mode ?? -1,
+    });
+    if (!contentTerm.ok) {
+      failCourse(course, contentTerm.error.message, false);
+      continue;
+    }
+    const group = groups.get(contentTerm.value);
+    if (group === undefined) groups.set(contentTerm.value, [course]);
+    else group.push(course);
+  }
+
+  // ② 每个内容学期读一次（结构 + 新版考试），归属唯一
+  for (const [contentTermId, group] of groups) {
+    const structure = await getCourseStructure(client, contentTermId);
     if (!structure.ok) {
       /*
        * auth 失败单独记账：它同时是「会话已死」的候选证据。
@@ -69,10 +138,20 @@ export async function inspect(
        * **全部**课程都栽在这个形态上才判会话失效——个别课程如此时，
        * 仍按普通的单门失败处理，其余课程照常进快照。
        */
-      if (structure.error.kind === 'auth') authFailures++;
-      failures++;
-      if (firstFailure === '') {
-        firstFailure = `课程 ${course.courseId}：${structure.error.kind} ${structure.error.message}`;
+      for (const course of group) {
+        failCourse(course, `${structure.error.kind} ${structure.error.message}`, structure.error.kind === 'auth');
+      }
+      continue;
+    }
+
+    /*
+     * 新版考试与结构同一门槛：读失败则整组不进快照（否则那一组的工作项
+     * 会少掉整类考试，而快照看起来完好——比失败更难发现）。
+     */
+    const newExams = await getNewExamList(client, contentTermId);
+    if (!newExams.ok) {
+      for (const course of group) {
+        failCourse(course, newExams.error.message, newExams.error.kind === 'auth');
       }
       continue;
     }
@@ -141,15 +220,38 @@ export async function inspect(
       works.push(entry);
     }
 
-    snapshotCourses.push({
-      termId: course.termId,
-      courseId: course.courseId,
-      schoolShortName: course.schoolShortName,
-      mode: course.mode ?? -1,
-      courseName: course.name,
-      works,
-      units: structure.value.units,
-    });
+    /*
+     * 新版考试追加进同一张工作项清单：它们与旧版考试是平行的两套体系，
+     * 但对使用者来说是同一列「要交的事」。条目构造见 newExamEntry——
+     * 「交没交」用 tryTime/usedTryCount 判（新版考试 DTO 没有旧版的
+     * 提交状态字段），已用满机会即已交。
+     */
+    for (const exam of newExams.value) {
+      works.push(newExamEntry(exam));
+    }
+
+    /*
+     * 归属唯一：termId 等于内容学期的那门课是本尊（MOOC）；它没被勾选时
+     * 才归到引用这个学期的第一门 SPOC。组内其余课程如实保留空工作项——
+     * 它们自己的内容就是空的（平台原话：老师还没有发布任何学习内容），
+     * 共享的内容已经在归属课名下列过一次。
+     */
+    const owner = group.find((course) => course.termId === contentTermId) ?? group[0];
+    if (owner === undefined) {
+      throw new Error(`课程 ${group[0]?.courseId ?? '?'}：内容学期分组为空（实现错误）`);
+    }
+    for (const course of group) {
+      const attributed = course === owner;
+      snapshotCourses.push({
+        termId: course.termId,
+        courseId: course.courseId,
+        schoolShortName: course.schoolShortName,
+        mode: course.mode ?? -1,
+        courseName: course.name,
+        works: attributed ? works : [],
+        units: attributed ? structure.value.units : [],
+      });
+    }
   }
 
   if (failures > 0 && snapshotCourses.length === 0) {

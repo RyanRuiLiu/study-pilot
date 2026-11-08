@@ -15,6 +15,10 @@
  * 两条路径都要覆盖：
  *   /web/j/      .rpc 接口
  *   /dwr/        DWR 接口（互评、待办等走这条；前缀覆盖 /dwr/call/ 一族）
+ *   /mob/        移动端取卷（paperDetail 的答案通道）
+ *   /passport/   UNS 登录
+ *   /mm-tiku/    新版考试的 rpc 族（2026-11-08 实测：不覆盖时同样 403，
+ *                与上面同一条平台判据——服务端对扩展来源一律拒绝）
  * 只覆盖其一的话，另一类请求仍会被 403 拒掉。
  */
 
@@ -23,7 +27,7 @@ import { UNS_DEVICE, UNS_ORIGIN } from '../urs/uns.ts';
 import type { NetRuleSet } from '@study-pilot/application';
 
 export const MOOC_REQUEST_RULES: NetRuleSet[] = [
-  { origin: MOOC_ORIGIN, paths: ['/web/j/', '/dwr/', '/mob/', '/passport/'] },
+  { origin: MOOC_ORIGIN, paths: ['/web/j/', '/dwr/', '/mob/', '/passport/', '/mm-tiku/'] },
   /*
    * UNS 的 HTTP UA 必须与 p1 里的设备 UA 一致；浏览器自动加的
    * Origin/Referer/Sec-CH-UA/Sec-Fetch-* 也要去掉，否则服务端会把

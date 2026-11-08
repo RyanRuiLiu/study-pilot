@@ -24,6 +24,11 @@ export interface Endpoint {
    * 写侧没有新实测，沿用历史上写爆发触发 -12 对应的保守值。
    */
   pace?: 'read' | 'write';
+  /**
+   * rpc 网关路径前缀（缺省 /web/j）。mm-tiku 族（新版考试）在 /mm-tiku/web/j/ 下，
+   * 报文格式与 /web/j 完全相同（2026-11-08 实测）；客户端按它选 rpc 实例。
+   */
+  pathPrefix?: string;
 }
 
 export const ENDPOINTS = {
@@ -32,6 +37,24 @@ export const ENDPOINTS = {
 
   /** 课程结构：章节，以及挂在章节下的测验、作业、考试。参数 {termId} */
   courseStructure: { bean: 'courseBean', method: 'getLastLearnedMocTermDto' }, // [已实测]
+
+  /**
+   * 新版考试列表。参数 {termId}（form 表单；与全部 .rpc 同一格式）。
+   *
+   * 与课程结构里的 exams（期中/期末旧版考试）是**两套并行的体系**：
+   * 结构 DTO 的 exams 为空的同时，这个接口能回独立的考试条目
+   * （2026-11-08 真机：NTU 模电 exams=[]，getNewExamList 回期中测试）。
+   * 信封 {code:0, result:null} = 该学期没有新版考试（同刻另一学期有）——
+   * **不是**未登录；未登录的判别由同轮其它读取负责。
+   */
+  newExamList: { bean: 'courseBean', method: 'getNewExamList' }, // [已实测 2026-11-08]
+
+  /**
+   * 新版考试取卷。参数 {examId, answerformId?}（开卷后才有 answerformId）。
+   * mm-tiku 族：路径前缀见上；响应不带答案（见 new-exam.ts 头注释）。
+   */
+  newExamPaperIntro: { bean: 'mocExamBean', method: 'getPaperIntroduce', pathPrefix: '/mm-tiku' }, // [已实测 2026-11-08]
+  newExamPaper: { bean: 'mocExamBean', method: 'getPaper', pathPrefix: '/mm-tiku' }, // [已实测 2026-11-08]
 
   /** 单元测验状态。参数 {tid, targetAid:null, isDraft:false} */
   quizInfo: { bean: 'mocQuizRpcBean', method: 'getQuizInfo' }, // [已实测]

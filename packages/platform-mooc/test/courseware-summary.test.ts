@@ -32,7 +32,7 @@ function snapshotOf(units: CourseUnit[]): Snapshot {
       {
         termId: 1,
         courseId: 100,
-        schoolShortName: 'NTU',
+        schoolShortName: 'DEMO',
         mode: 0,
         courseName: '示例课程甲',
         works: [],

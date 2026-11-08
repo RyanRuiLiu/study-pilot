@@ -19,7 +19,7 @@ export type Tone = 'idle' | 'busy' | 'error';
 /**
  * 执行范围：平台、类别、课程与具体条目。原样转给后台，判据见 application 的 RunSelection。
  * 类别取值由平台定义（慕课是 quiz / review / self / homework / exam / courseware；
- * 智慧树是 courseware）。**每次执行都点名平台**：两家共存后，「课件」这个类别名
+ * 智慧树是 courseware/quiz/meetWatch 三类）。**每次执行都点名平台**：两家共存后，「课件」这个类别名
  * 两家都在用，界面上的一次点击只该作用于它自己那张卡/那个 tab 的平台。
  */
 export interface RunScope {

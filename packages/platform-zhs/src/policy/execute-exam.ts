@@ -509,6 +509,24 @@ async function remainingGate(client: ZhsClient, target: ExamTarget, min: number)
 }
 
 /**
+ * 申请重做（分数覆盖）。rt=1 才算成功；后半句是平台自己的失败文案
+ * （源码 1.184ad30c22bdba34ce6c.js:11835 字面量），照抄。
+ * 判据只写这一处——runAfterSubmit 与 runWithoutKey 两个调用点共用。
+ */
+async function applyRedo(client: ZhsClient, target: ExamTarget): Promise<RunOutcome | null> {
+  const redoApply = (await client.call('examApplyRedo', {
+    recruitId: target.recruitId,
+    examId: target.examKey,
+    description: '',
+    courseId: target.courseId,
+  })) as { rt?: unknown };
+  if (Number(redoApply.rt) !== 1) {
+    return { status: 'failed', message: '申请重做失败：保存申请信息失败，请重新保存' };
+  }
+  return null;
+}
+
+/**
  * 收割建键并**先判覆盖率**——两者都是只读，不花任何机会。
  *
  * 先判再动重做的理由：申请重做要花掉一次机会，键覆盖不全时花掉它，
@@ -568,16 +586,8 @@ async function runAfterSubmit(client: ZhsClient, input: ExamRunInput, control: R
   if (isOutcome(prepared)) return prepared;
 
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
-  const redoApply = (await client.call('examApplyRedo', {
-    recruitId: target.recruitId,
-    examId: target.examKey,
-    description: '',
-    courseId: target.courseId,
-  })) as { rt?: unknown };
-  if (Number(redoApply.rt) !== 1) {
-    // 后半句是平台自己的失败文案（源码 1.184ad30c22bdba34ce6c.js:11835 字面量），照抄
-    return { status: 'failed', message: '申请重做失败：保存申请信息失败，请重新保存' };
-  }
+  const redoFailed = await applyRedo(client, target);
+  if (redoFailed !== null) return redoFailed;
 
   const settled = await runWithKey(client, { ...input, key: prepared.key, questionIds: prepared.questionIds }, control);
   return settled.status === 'done' ? { status: 'done', message: `重做定分：${settled.message}` } : settled;
@@ -643,15 +653,8 @@ async function runWithoutKey(client: ZhsClient, input: ExamRunInput, control: Ru
 
   // ③ 申请重做（分数覆盖）
   if (control.stopped()) return { status: 'skipped', message: '已停止' };
-  const redoApply = (await client.call('examApplyRedo', {
-    recruitId: target.recruitId,
-    examId: target.examKey,
-    description: '',
-    courseId: target.courseId,
-  })) as { rt?: unknown };
-  if (Number(redoApply.rt) !== 1) {
-    return { status: 'failed', message: '申请重做失败：保存申请信息失败，请重新保存' };
-  }
+  const redoFailed = await applyRedo(client, target);
+  if (redoFailed !== null) return redoFailed;
 
   // ④ 重开卷定分：这一次才是要留下的分数
   const settle = await runWithKey(

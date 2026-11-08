@@ -20,7 +20,11 @@ export interface SnapshotWork {
    * 答卷页地址需要它，而它不属于任何单元，只能随快照一起带出来。
    */
   examId: number | null;
-  type: 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective';
+  /**
+   * exam-new = 新版考试（独立体系，见 new-exam.ts）。与旧版考试同一处置：
+   * 只读展示、不自动执行。
+   */
+  type: 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective' | 'exam-new';
   /** 做没做。测验看 usedTryCount，作业看是否交过 */
   submitted: boolean;
   /** 提交截止 */

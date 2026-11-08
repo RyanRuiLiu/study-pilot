@@ -9,7 +9,7 @@
  */
 
 import type { QueryOutcome, JobRejection } from '../../../protocol.ts';
-import type { CoursewareProgress, MoocSession, PaperQuestion, QuizInfo } from '@study-pilot/platform-mooc';
+import type { CoursewareProgress, MoocSession, NewExamPaper, PaperQuestion, QuizInfo } from '@study-pilot/platform-mooc';
 
 /**
  * 单元状态。平台的叫法，不自创。
@@ -141,6 +141,8 @@ export type MoocRequest =
    * 填充索引只读、绝不新开卷；提交与一键执行共用平台包的 answerAndSubmitQuiz。
    */
   | { type: 'MOOC_QUIZ_FILL_INDEX'; tid: number; termId: number }
+  /** 新版考试答卷页取卷（读 judgeDtos 与选项序；只读，绝不建卷） */
+  | { type: 'MOOC_NEW_EXAM_PAPER'; examId: number }
   | { type: 'MOOC_QUIZ_INFO'; tid: number }
   | { type: 'MOOC_QUIZ_SUBMIT'; tid: number; termId: number }
   /**
@@ -187,6 +189,7 @@ export interface MoocResponseMap {
   MOOC_PENDING_SUMMARY: QueryOutcome<PendingSummary>;
   MOOC_COURSEWARE_SUMMARY: QueryOutcome<CoursewareSummary>;
   MOOC_HOMEWORK_PAPER: QueryOutcome<PaperQuestion[]>;
+  MOOC_NEW_EXAM_PAPER: QueryOutcome<NewExamPaper>;
   MOOC_QUIZ_FILL_INDEX: QueryOutcome<{
     /** 选项 id → 是否正确（选择类 / 判断题，页面是 radio/checkbox） */
     options: Record<string, boolean>;

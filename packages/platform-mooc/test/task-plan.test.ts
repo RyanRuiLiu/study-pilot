@@ -75,7 +75,7 @@ function snapshot(works: SnapshotWork[], units: CourseUnit[] = []): Snapshot {
   const course: SnapshotCourse = {
     termId: 1,
     courseId: 100,
-    schoolShortName: 'NTU',
+    schoolShortName: 'DEMO',
     mode: 0,
     courseName: '测试课程',
     works,

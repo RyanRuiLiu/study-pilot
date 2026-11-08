@@ -88,6 +88,8 @@ export interface MoocClient {
    * 在命令行/代理域这类载体上就会带着错的 Origin、发到错的站点。
    */
   send: FetchLike;
+  /** 取 NTESSTUDYSI（mm-tiku form 直发要它拼 csrfKey；与 rpc 内部同一来源） */
+  getToken: TokenProvider;
   /** 有账密配置时由载体注入；没有则沿用网页会话取 320 位 token 的旧路径。 */
   mobileSession?: MobileSessionProvider;
 }
@@ -111,6 +113,7 @@ export function createMoocClient(options: MoocClientOptions): MoocClient {
   return {
     origin,
     send: options.fetch,
+    getToken: options.getToken,
     ...(options.mobileSession === undefined ? {} : { mobileSession: options.mobileSession }),
     /*
      * auth 类失败统一换成平台那句话再交出去。

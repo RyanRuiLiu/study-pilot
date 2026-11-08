@@ -124,3 +124,23 @@ describe('拼出来再认回去', () => {
     }
   });
 });
+
+describe('新版考试（exam-new）的地址', () => {
+  it('拼出协议页（eid 是考试 id；官方入口，打开不建卷）', () => {
+    const href = workPageUrl(COURSE, 'exam-new', 1200000009, 1250000001);
+    expect(href).toBe(`${LEARN_BASE}?tid=${COURSE.termId}#/learn/newExamAgreement?eid=1250000001`);
+  });
+
+  it('eid 缺失退到考试列表页', () => {
+    expect(workPageUrl(COURSE, 'exam-new', 1200000009)).toBe(
+      `${LEARN_BASE}?tid=${COURSE.termId}#/learn/examlist`,
+    );
+  });
+
+  it('协议页解析回 exam-new；eid 不是 id，contentId 为空', () => {
+    const result = parseWorkLocation(
+      `${LEARN_BASE}?tid=1400000001#/learn/newExamAgreement?eid=1250000001`,
+    );
+    expect(result).toEqual({ termId: 1400000001, view: 'exam-new', contentId: null });
+  });
+});
