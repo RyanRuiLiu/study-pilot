@@ -76,7 +76,7 @@ export async function runSelf(
   comment: string,
   control: RunControl = NEVER_STOPPED,
 ): Promise<ExecResult> {
-  // 评测对象 id：新版考试是主观题部分 testId（评分机器全按它），其余类型 = tid 本身
+  // 评测对象 id：新版考试是主观题部分 testId（2026-11-08 评分页抓包：评分机器全按它），其余类型 = tid 本身
   const subjectTestId = action.work.subjectTestId ?? action.work.tid;
   const base = { tid: subjectTestId, name: action.work.name, kind: action.kind } as const;
 

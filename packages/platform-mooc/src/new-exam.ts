@@ -92,7 +92,7 @@ export async function getNewExamList(
   for (const raw of payload.value as Array<Record<string, unknown> | null>) {
     if (raw === null || typeof raw !== 'object') continue;
     const eid = Number(raw.id);
-    if (!Number.isFinite(eid) || eid <= 0) continue; // 没有 eid 挂不上任何入口，跳过
+    if (!Number.isFinite(eid) || eid <= 0) continue; // 没有 eid 挂不上任何入口
     items.push({
       eid,
       name: typeof raw.name === 'string' ? raw.name : '',
