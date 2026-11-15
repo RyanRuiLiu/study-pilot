@@ -57,8 +57,12 @@ export interface NewExamListItem {
   draftAid: number | null;
   /** 客观题部分的 test id（填充索引的入口参数；提交不自动化） */
   objectTestId: number | null;
-  /** 主观题部分的 test id（拍照上传一类，必须人工） */
+  /** 主观题部分的 test id（互评/自评的评测对象；拍照上传一类，必须人工） */
   subjectTestId: number | null;
+  /** 互评（评分阶段）窗口开始；毫秒，取不到为 null */
+  evaluateStart: number | null;
+  /** 互评（评分阶段）窗口截止；毫秒，取不到为 null */
+  evaluateEnd: number | null;
 }
 
 /**
@@ -101,6 +105,8 @@ export async function getNewExamList(
       draftAid: asNumber(raw.draftAid),
       objectTestId: asNumber(raw.objectTestId),
       subjectTestId: asNumber(raw.subjectTestId),
+      evaluateStart: asMs(raw.evaluateStart),
+      evaluateEnd: asMs(raw.evaluateEnd),
     });
   }
   return ok(items);

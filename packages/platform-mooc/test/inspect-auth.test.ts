@@ -152,6 +152,8 @@ describe('inspect 的会话失效记账', () => {
           draftAid: null,
           objectTestId: null,
           subjectTestId: null,
+          evaluateStart: 1794000001000,
+          evaluateEnd: 1794000010000,
         },
         {
           eid: 1250000002,
@@ -165,6 +167,8 @@ describe('inspect 的会话失效记账', () => {
           draftAid: null,
           objectTestId: null,
           subjectTestId: null,
+          evaluateStart: 1794000001000,
+          evaluateEnd: 1794000010000,
         },
       ]),
     );
