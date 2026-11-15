@@ -64,7 +64,8 @@ export interface ManualItem {
     | 'review-overdue'
     | 'self-overdue'
     | 'exam'
-    | 'exam-overdue';
+    | 'exam-overdue'
+    | 'exam-evaluating';
 }
 
 export interface Plan {

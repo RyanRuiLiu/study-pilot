@@ -8,7 +8,7 @@
  * 这里的函数都是纯的：给定计划与快照，输出消息对象，不碰网络也不碰存储。
  */
 
-import { manualItemId, workItemId, workPageUrl } from '@study-pilot/platform-mooc';
+import { coursePageUrl, manualItemId, workItemId, workPageUrl } from '@study-pilot/platform-mooc';
 import type { PendingEntry, PendingKind, PendingSummary } from './messages/payload.ts';
 import { OVERDUE_REASONS, type ManualItem, type Plan, type WorkAutoAction } from '@study-pilot/platform-mooc';
 import type { SnapshotCourse } from '@study-pilot/platform-mooc';
@@ -43,6 +43,7 @@ const MANUAL_KIND: Record<ManualItem['reason'], PendingKind> = {
   'self-overdue': 'self-evaluate',
   exam: 'submit-exam',
   'exam-overdue': 'submit-exam',
+  'exam-evaluating': 'submit-exam',
 };
 
 /** 同属互评期的两个类别：同一份作业的这两条在界面上合成一行。 */
@@ -145,12 +146,21 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
 
   for (const item of plan.manual) {
     const { course, work, reason } = item;
+    /*
+     * 评分阶段的考试（互评/自评未完成）落考试列表页：那里的卡片带
+     * 「进入互评」按钮（源码 examlist chunk 49318 逐字），协议页此时
+     * 已经没有意义（卷已交）。
+     */
+    const href =
+      reason === 'exam-evaluating'
+        ? `${coursePageUrl(course)}#/learn/examlist`
+        : workPageUrl(course, work.type, work.tid, work.examId ?? undefined);
     entries.push({
       // 每一类原因对应一件具体的事，不再有一对多的兜底分支
       kind: MANUAL_KIND[reason],
       itemIds: [manualItemId(work.tid, reason)],
       handling: 'manual',
-      href: workPageUrl(course, work.type, work.tid, work.examId ?? undefined),
+      href,
       /*
        * 四种过了截止的情形都要标出来。
        * 它们共有的含义是「平台上已经做不了了」，界面据此改说法，
@@ -166,7 +176,9 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
       statusDetail:
         reason === 'quiz-login-required'
           ? '需先在设置页的「移动端登录」配置账号密码，配置后才能取答案。'
-          : describeStatusDetail(describeWorkStatus(work, now)),
+          : reason === 'exam-evaluating'
+            ? '评分阶段：完成互评与自评。'
+            : describeStatusDetail(describeWorkStatus(work, now)),
       ...(reason === 'quiz-login-required' ? { note: '需先配置移动端登录' } : {}),
       deadline: item.deadline ?? 0,
       evaluateDone: null,

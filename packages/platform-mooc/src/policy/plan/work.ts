@@ -51,6 +51,26 @@ export function planWork(
     if (!work.submitted) {
       const past = work.deadline !== null && work.deadline <= now;
       manual.push({ course, work, deadline: work.deadline, reason: past ? 'exam-overdue' : 'exam' });
+      return { auto, manual };
+    }
+    /*
+     * 已提交但评分窗口未关：互评/自评还没做完，仍是一条人工待办
+     * （评分窗口截止 = evaluateEnd）。新版考试的评分阶段实证存在
+     * （2026-11-08 期中测试：交卷后进入学生互评，配额 5 份 + 自评）；
+     * 旧体系的考试同走这段（快照字段两套都有）。窗口关闭或互评自评
+     * 都已完成后不再列——平台上也没有可做的了。
+     */
+    const evaluating =
+      work.evaluateStart !== null &&
+      work.evaluateEnd !== null &&
+      now >= work.evaluateStart &&
+      now <= work.evaluateEnd &&
+      (work.evaluateTotal === null ||
+       work.evaluateDone === null ||
+       work.evaluateDone < work.evaluateTotal ||
+       work.selfDone === false);
+    if (evaluating) {
+      manual.push({ course, work, deadline: work.evaluateEnd, reason: 'exam-evaluating' });
     }
     return { auto, manual };
   }
