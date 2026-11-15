@@ -36,6 +36,8 @@ const RAW_EXAM = {
   examType: 1,
   objectTestId: 1250000002,
   subjectTestId: 1250000003,
+  evaluateStart: 1793000000000,
+  evaluateEnd: 1794000000000,
   objectTest: { id: 1250000002, trytime: 1 },
   subjectTest: { id: 1250000003, trytime: 1 },
 };
@@ -63,6 +65,8 @@ describe('getNewExamList', () => {
       draftAid: null,
       objectTestId: 1250000002,
       subjectTestId: 1250000003,
+      evaluateStart: 1793000000000,
+      evaluateEnd: 1794000000000,
     });
   });
 

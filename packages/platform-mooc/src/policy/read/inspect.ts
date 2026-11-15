@@ -42,6 +42,8 @@ function positive(value: unknown): number | null {
 
 /** 新版考试条目 → 快照工作项（type=exam-new；与旧版考试同一处置：只读展示、不自动执行）。 */
 function newExamEntry(exam: NewExamListItem): SnapshotWork {
+  const submitted =
+    exam.usedTryCount !== null && exam.tryTime !== null && exam.usedTryCount >= exam.tryTime;
   return {
     tid: exam.eid,
     name: exam.name,
@@ -54,11 +56,14 @@ function newExamEntry(exam: NewExamListItem): SnapshotWork {
      * usedTryCount=0）。两者缺一就不判已交——宁可多列一条待办，
      * 不可把没考的考试从清单里藏掉。
      */
-    submitted:
-      exam.usedTryCount !== null && exam.tryTime !== null && exam.usedTryCount >= exam.tryTime,
-    deadline: exam.deadline,
-    evaluateStart: null,
-    evaluateEnd: null,
+    submitted,
+    /*
+     * 截止取「当前可行动事情」的截止：未交时是提交截止；已交后进入
+     * 评分阶段（学生互评），剩下的动作是互评与自评，截止 = 评分窗口。
+     */
+    deadline: submitted ? (exam.evaluateEnd ?? exam.deadline) : exam.deadline,
+    evaluateStart: exam.evaluateStart,
+    evaluateEnd: exam.evaluateEnd,
     evaluateScoreRelease: null,
     score: exam.userScore,
     totalScore: positive(exam.totalScore),
@@ -227,7 +232,27 @@ export async function inspect(
      * 提交状态字段），已用满机会即已交。
      */
     for (const exam of newExams.value) {
-      works.push(newExamEntry(exam));
+      const entry = newExamEntry(exam);
+
+      /*
+       * 评分阶段（学生互评）的进度读取：**与旧作业互评同一个读取函数**
+       * （review.ts 的 getEvaluationDetail，DWR MocEvaluateBean.getEvaluateDetail）。
+       * 评测对象 = 新考试的 subjectTestId——实测旧链完整服务新考试的互评
+       * （配额/已完成/自评对象逐字段命中，2026-11-08 开考现场抓包）。
+       * 只对已交的考试读（未交的没有互评）；读取失败不打断课程，
+       * 互评状态按未知呈现（与旧作业的失败处理同口径）。
+       */
+      if (entry.submitted && exam.subjectTestId !== null) {
+        const detail = await getEvaluationDetail(client, exam.subjectTestId, evaluatorId);
+        if (detail.ok) {
+          entry.evaluateTotal = detail.value.required;
+          entry.evaluateDone = detail.value.completed;
+          entry.selfDone = detail.value.self?.done ?? null;
+          entry.reviewable = detail.value.required > 0;
+        }
+      }
+
+      works.push(entry);
     }
 
     /*
