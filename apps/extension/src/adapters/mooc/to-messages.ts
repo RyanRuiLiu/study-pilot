@@ -43,7 +43,8 @@ const MANUAL_KIND: Record<ManualItem['reason'], PendingKind> = {
   'self-overdue': 'self-evaluate',
   exam: 'submit-exam',
   'exam-overdue': 'submit-exam',
-  'exam-evaluating': 'submit-exam',
+  // 评分阶段的待办是互评（给同学的卷子评分）与自评，不是提交考试
+  'exam-evaluating': 'evaluate-homework',
 };
 
 /** 同属互评期的两个类别：同一份作业的这两条在界面上合成一行。 */
@@ -120,7 +121,14 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
       // id 的取名规则在平台包里（唯一一份），这里原样透出给界面
       itemIds: [workItemId(work.tid, action.kind)],
       handling: 'auto',
-      href: workPageUrl(course, work.type, work.tid, work.examId ?? undefined),
+      /*
+       * 互评/自评的深链落互评界面（主观题考试路由 + isNew，平台「进入互评」
+       * 按钮的同款目标）；其余按各自的答卷页。subjectTestId 只有新版考试带。
+       */
+      href:
+        (action.kind === 'review' || action.kind === 'self') && work.subjectTestId !== null
+          ? `${coursePageUrl(course)}#/learn/examSubjective?eid=${work.examId}&id=${work.subjectTestId}&isNew`
+          : workPageUrl(course, work.type, work.tid, work.examId ?? undefined),
       overdue: false,
       testId: work.tid,
       courseName: course.courseName,
@@ -147,13 +155,14 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
   for (const item of plan.manual) {
     const { course, work, reason } = item;
     /*
-     * 评分阶段的考试（互评/自评未完成）落考试列表页：那里的卡片带
-     * 「进入互评」按钮（源码 examlist chunk 49318 逐字），协议页此时
-     * 已经没有意义（卷已交）。
+     * 评分阶段的考试（互评/自评未完成）：深链直落互评界面——平台「进入互评」
+     * 按钮的目标就是主观题考试路由加 isNew 标记（examlist chunk 49318 逐字：
+     * `#/learn/examSubjective?eid=&id=&isNew`），互评界面寄生在考试页上，
+     * 这是平台自己的跳转设计。subjectTestId 缺失时退到考试列表页。
      */
     const href =
-      reason === 'exam-evaluating'
-        ? `${coursePageUrl(course)}#/learn/examlist`
+      reason === 'exam-evaluating' && work.subjectTestId !== null
+        ? `${coursePageUrl(course)}#/learn/examSubjective?eid=${work.examId}&id=${work.subjectTestId}&isNew`
         : workPageUrl(course, work.type, work.tid, work.examId ?? undefined);
     entries.push({
       // 每一类原因对应一件具体的事，不再有一对多的兜底分支
