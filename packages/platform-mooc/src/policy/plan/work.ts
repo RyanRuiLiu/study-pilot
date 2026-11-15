@@ -60,8 +60,9 @@ export function planWork(
      * subjectTestId 对齐）——因此与作业互评同一处置：进自动，由执行器
      * 分配答卷、按评分点评分、自评。
      *
-     * 配额未知（快照里的互评读取失败过）时不进自动：nextSubmission 有分配
-     * 副作用，先如实给一条人工待办，配额在下一次读取成功后恢复自动。
+     * 配额未知（快照里的互评读取失败过）时**不排**——与作业互评的既有判据
+     * 一致：nextSubmission 有分配副作用，配额不明就不能动手，也不列一条
+     * 人工兜底把不确定的事说成待办。
      */
     const inWindow =
       work.evaluateStart !== null &&
@@ -69,25 +70,14 @@ export function planWork(
       now >= work.evaluateStart &&
       now <= work.evaluateEnd;
     if (inWindow) {
-      const total = work.evaluateTotal;
-      const done = work.evaluateDone;
-      const quotaKnown = total !== null && done !== null;
-      const quotaLeft = quotaKnown ? total - done : null;
-      if (quotaLeft !== null && quotaLeft > 0) {
-        auto.push({ kind: 'review', course, work, remaining: quotaLeft });
+      if (work.evaluateTotal !== null && work.evaluateDone !== null && work.reviewable) {
+        const quotaLeft = work.evaluateTotal - work.evaluateDone;
+        if (quotaLeft > 0) {
+          auto.push({ kind: 'review', course, work, remaining: quotaLeft });
+        }
       }
       if (work.selfDone === false) {
         auto.push({ kind: 'self', course, work, remaining: 0 });
-      }
-      /*
-       * 人工兜底只在**确有剩余工作**时给：配额未知（互评读取失败过，无法
-       * 核实）或自评未做。配额已满且自评已完成时平台上已无可做之事，
-       * 再列一条「评分阶段」就是把已完成的事说成待办（实测：期中测试
-       * 5/5 + 自评完成后仍被列出）。
-       */
-      const workLeft = quotaLeft === null || quotaLeft > 0 || work.selfDone === false;
-      if (auto.length === 0 && workLeft) {
-        manual.push({ course, work, deadline: work.evaluateEnd, reason: 'exam-evaluating' });
       }
     }
     return { auto, manual };

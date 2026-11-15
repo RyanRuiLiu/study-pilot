@@ -88,7 +88,6 @@ const MANUAL_KINDS: Record<ManualItem['reason'], string> = {
   'self-overdue': 'self',
   exam: 'exam',
   'exam-overdue': 'exam',
-  'exam-evaluating': 'exam',
 };
 
 /** 计划 → 调度层的项。做法与顺序都是慕课自己的判断，调度层只挑 auto 的执行。 */

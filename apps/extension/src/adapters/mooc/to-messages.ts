@@ -43,8 +43,6 @@ const MANUAL_KIND: Record<ManualItem['reason'], PendingKind> = {
   'self-overdue': 'self-evaluate',
   exam: 'submit-exam',
   'exam-overdue': 'submit-exam',
-  // 评分阶段的待办是互评（给同学的卷子评分）与自评，不是提交考试
-  'exam-evaluating': 'evaluate-homework',
 };
 
 /** 同属互评期的两个类别：同一份作业的这两条在界面上合成一行。 */
@@ -154,22 +152,12 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
 
   for (const item of plan.manual) {
     const { course, work, reason } = item;
-    /*
-     * 评分阶段的考试（互评/自评未完成）：深链直落互评界面——平台「进入互评」
-     * 按钮的目标就是主观题考试路由加 isNew 标记（examlist chunk 49318 逐字：
-     * `#/learn/examSubjective?eid=&id=&isNew`），互评界面寄生在考试页上，
-     * 这是平台自己的跳转设计。subjectTestId 缺失时退到考试列表页。
-     */
-    const href =
-      reason === 'exam-evaluating' && work.subjectTestId !== null
-        ? `${coursePageUrl(course)}#/learn/examSubjective?eid=${work.examId}&id=${work.subjectTestId}&isNew`
-        : workPageUrl(course, work.type, work.tid, work.examId ?? undefined);
     entries.push({
       // 每一类原因对应一件具体的事，不再有一对多的兜底分支
       kind: MANUAL_KIND[reason],
       itemIds: [manualItemId(work.tid, reason)],
       handling: 'manual',
-      href,
+      href: workPageUrl(course, work.type, work.tid, work.examId ?? undefined),
       /*
        * 四种过了截止的情形都要标出来。
        * 它们共有的含义是「平台上已经做不了了」，界面据此改说法，
@@ -185,9 +173,7 @@ export function toPendingSummary(plan: Plan, keepDays: number, now: number = Dat
       statusDetail:
         reason === 'quiz-login-required'
           ? '需先在设置页的「移动端登录」配置账号密码，配置后才能取答案。'
-          : reason === 'exam-evaluating'
-            ? '评分阶段：完成互评与自评。'
-            : describeStatusDetail(describeWorkStatus(work, now)),
+          : describeStatusDetail(describeWorkStatus(work, now)),
       ...(reason === 'quiz-login-required' ? { note: '需先配置移动端登录' } : {}),
       deadline: item.deadline ?? 0,
       evaluateDone: null,

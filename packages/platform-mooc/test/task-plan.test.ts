@@ -276,6 +276,7 @@ describe('考试', () => {
       evaluateTotal: 5,
       evaluateDone: 2,
       selfDone: false,
+      reviewable: true,
       score: 51.5,
       deadline: NOW - DAY, // 提交截止已过；剩余动作在评分阶段
     });
@@ -285,7 +286,7 @@ describe('考试', () => {
     expect(review && 'remaining' in review ? review.remaining : undefined).toBe(3); // 配额 5 已评 2
   });
 
-  it('评分阶段配额未知（互评读取失败过）→ 人工待办，不进自动', () => {
+  it('评分阶段配额未知（互评读取失败过）→ 不排——与作业互评配额未知的判据一致，不兜底', () => {
     const exam = work({
       tid: 1233000001,
       subjectTestId: 1258000002,
@@ -297,7 +298,7 @@ describe('考试', () => {
       evaluateDone: null,
       selfDone: null,
     });
-    expect(shape(derivePlan(snapshot([exam]), SETTINGS, NOW))).toBe('人工:exam-evaluating');
+    expect(shape(derivePlan(snapshot([exam]), SETTINGS, NOW))).toBe('空');
   });
 
   it('评分窗口关闭或互评自评都已完成后 → 不出现', () => {
