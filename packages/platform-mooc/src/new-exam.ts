@@ -49,6 +49,8 @@ export interface NewExamListItem {
   totalScore: number | null;
   /** 已公布的成绩；未公布为 null */
   userScore: number | null;
+  /** 评分公布状态（0/1/2，见 SnapshotWork.scorePubStatus） */
+  scorePubStatus: number | null;
   /** 已用掉的作答机会 */
   usedTryCount: number | null;
   /** 作答机会总数 */
@@ -100,6 +102,7 @@ export async function getNewExamList(
       deadline: asMs(raw.deadline),
       totalScore: asNumber(raw.totalScore),
       userScore: asNumber(raw.userScore),
+      scorePubStatus: asNumber(raw.scorePubStatus),
       usedTryCount: asNumber(raw.usedTryCount),
       tryTime: asNumber(raw.tryTime),
       draftAid: asNumber(raw.draftAid),

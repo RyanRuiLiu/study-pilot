@@ -17,15 +17,29 @@ import type { SnapshotWork } from '@study-pilot/platform-mooc';
 /**
  * 一个单元此刻的状态。
  *
- * 顺序即优先级：有分数最高，其次是没提交的两种，最后才是与互评有关的。
+ * 判据顺序（与平台自己的阶段划分同构，源码 examlist chunk 8017-8031 的
+ * SCORE_PUB_STATUS 与阶段逻辑）：
+ *   1. 互评窗口开着 → 互评期显示。**窗口内的 userScore 是互评给分的实况，
+ *      不是终局分**（2026-11-08/15 现场实证：评分期 userScore=51.5、
+ *      scorePubStatus=0 未确认），不能显示成「成绩已公布」。
+ *   2. 分数成为「已公布」的条件 = scorePubStatus 确认（=2）。没有该字段的
+ *      类型（测验、旧作业——实测 DTO 不带），有分即公布，行为不变。
  */
 export function describeWorkStatus(work: SnapshotWork, now: number = Date.now()): WorkStatus {
-  /*
-   * 有分数就是已公布。
-   * 这一点不能靠阶段判断：测验的 phase 永远为空，先前用阶段判据时，
-   * 测验拿到分数后仍显示「已提交」。
-   */
-  if (work.score !== null) return WORK_STATUS.SCORED;
+  const inEvaluateWindow =
+    work.evaluateStart !== null &&
+    work.evaluateEnd !== null &&
+    now >= work.evaluateStart &&
+    now <= work.evaluateEnd;
+  if (inEvaluateWindow) {
+    if (work.evaluateDone !== null && work.evaluateTotal !== null && work.evaluateDone >= work.evaluateTotal) {
+      return WORK_STATUS.REVIEWED;
+    }
+    return WORK_STATUS.REVIEWING;
+  }
+
+  const published = work.score !== null && (work.scorePubStatus === null || work.scorePubStatus === 2);
+  if (published) return WORK_STATUS.SCORED;
 
   if (!work.submitted) {
     // 截止时间缺失时按「还能做」处理：平台确实有这类无截止的单元
@@ -33,24 +47,7 @@ export function describeWorkStatus(work: SnapshotWork, now: number = Date.now())
     return WORK_STATUS.UNSUBMITTED;
   }
 
-  // 已提交：先看互评窗口，再看评够没有
-  const end = work.evaluateEnd;
-  if (end !== null && now <= end) {
-    /*
-     * 互评期内要区分「还要去评别人」与「已经评够了」。
-     *
-     * 早先这里只回一个「互评阶段」，于是评够 5/5 之后仍显示同一个说法。
-     * 那不只是不够精确：用户看到「互评阶段」会以为还有事要做，
-     * 而实际分数已经定了，剩下的只是等公布。
-     *
-     * 未评够、或份数还没查过（两者都是 null）时按需处理显示。
-     */
-    if (work.evaluateDone !== null && work.evaluateTotal !== null && work.evaluateDone >= work.evaluateTotal) {
-      return WORK_STATUS.REVIEWED;
-    }
-    return WORK_STATUS.REVIEWING;
-  }
-
+  // 已提交：互评窗口已关，平台未确认公布 → 等待公布
   return WORK_STATUS.WAITING;
 }
 

@@ -40,6 +40,7 @@ function snapshotWithQuiz(tid: number): Snapshot {
     chapterName: '第1章',
     examId: null,
     subjectTestId: null,
+    scorePubStatus: null,
     type: 'quiz',
     submitted: false,
     deadline: NOW + 3 * DAY,

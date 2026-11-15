@@ -79,7 +79,14 @@ export function planWork(
       if (work.selfDone === false) {
         auto.push({ kind: 'self', course, work, remaining: 0 });
       }
-      if (auto.length === 0) {
+      /*
+       * 人工兜底只在**确有剩余工作**时给：配额未知（互评读取失败过，无法
+       * 核实）或自评未做。配额已满且自评已完成时平台上已无可做之事，
+       * 再列一条「评分阶段」就是把已完成的事说成待办（实测：期中测试
+       * 5/5 + 自评完成后仍被列出）。
+       */
+      const workLeft = quotaLeft === null || quotaLeft > 0 || work.selfDone === false;
+      if (auto.length === 0 && workLeft) {
         manual.push({ course, work, deadline: work.evaluateEnd, reason: 'exam-evaluating' });
       }
     }

@@ -35,6 +35,8 @@ export interface SnapshotWork {
   submitted: boolean;
   /** 提交截止 */
   deadline: number | null;
+  /** 评分公布状态（实测枚举：0 未评完 / 1 已评完 / 2 已确认公布）。互评类工作项有 */
+  scorePubStatus: number | null;
   /** 互评窗口起点 */
   evaluateStart: number | null;
   /** 互评截止 */

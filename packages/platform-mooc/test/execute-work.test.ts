@@ -92,6 +92,7 @@ function snapshotWork(overrides: Partial<SnapshotWork> = {}): SnapshotWork {
     chapterName: '第1章',
     examId: null,
     subjectTestId: null,
+    scorePubStatus: null,
     type: 'quiz',
     submitted: false,
     deadline: NOW - DAY,
