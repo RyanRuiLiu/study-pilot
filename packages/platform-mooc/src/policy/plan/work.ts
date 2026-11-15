@@ -54,23 +54,34 @@ export function planWork(
       return { auto, manual };
     }
     /*
-     * 已提交但评分窗口未关：互评/自评还没做完，仍是一条人工待办
-     * （评分窗口截止 = evaluateEnd）。新版考试的评分阶段实证存在
-     * （2026-11-08 期中测试：交卷后进入学生互评，配额 5 份 + 自评）；
-     * 旧体系的考试同走这段（快照字段两套都有）。窗口关闭或互评自评
-     * 都已完成后不再列——平台上也没有可做的了。
+     * 已提交但评分窗口未关：互评/自评还没做完。新版考试的评分阶段实证存在
+     * （2026-11-08 期中测试：交卷后进入学生互评，配额 5 份 + 自评），且评分
+     * 机器与作业互评**同一套**（DWR MocEvaluateBean，执行器已按
+     * subjectTestId 对齐）——因此与作业互评同一处置：进自动，由执行器
+     * 分配答卷、按评分点评分、自评。
+     *
+     * 配额未知（快照里的互评读取失败过）时不进自动：nextSubmission 有分配
+     * 副作用，先如实给一条人工待办，配额在下一次读取成功后恢复自动。
      */
-    const evaluating =
+    const inWindow =
       work.evaluateStart !== null &&
       work.evaluateEnd !== null &&
       now >= work.evaluateStart &&
-      now <= work.evaluateEnd &&
-      (work.evaluateTotal === null ||
-       work.evaluateDone === null ||
-       work.evaluateDone < work.evaluateTotal ||
-       work.selfDone === false);
-    if (evaluating) {
-      manual.push({ course, work, deadline: work.evaluateEnd, reason: 'exam-evaluating' });
+      now <= work.evaluateEnd;
+    if (inWindow) {
+      const total = work.evaluateTotal;
+      const done = work.evaluateDone;
+      const quotaKnown = total !== null && done !== null;
+      const quotaLeft = quotaKnown ? total - done : null;
+      if (quotaLeft !== null && quotaLeft > 0) {
+        auto.push({ kind: 'review', course, work, remaining: quotaLeft });
+      }
+      if (work.selfDone === false) {
+        auto.push({ kind: 'self', course, work, remaining: 0 });
+      }
+      if (auto.length === 0) {
+        manual.push({ course, work, deadline: work.evaluateEnd, reason: 'exam-evaluating' });
+      }
     }
     return { auto, manual };
   }

@@ -49,6 +49,7 @@ function newExamEntry(exam: NewExamListItem): SnapshotWork {
     name: exam.name,
     chapterName: '',
     examId: exam.eid,
+    subjectTestId: exam.subjectTestId,
     type: 'exam-new',
     /*
      * 「交没交」的判据只用实测字段：新版考试 DTO 没有旧版的提交状态，
@@ -173,6 +174,7 @@ export async function inspect(
         name: work.name,
         chapterName: work.chapterName,
         examId: work.examId ?? null,
+        subjectTestId: null,
         type: work.type,
         submitted: status.submitted,
         deadline: asNumber(work.test.deadline),

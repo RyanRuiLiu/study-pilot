@@ -53,6 +53,7 @@ function work(overrides: Partial<SnapshotWork> & { tid: number }): SnapshotWork 
     name: `单元 ${overrides.tid}`,
     chapterName: '第1章',
     examId: null,
+    subjectTestId: null,
     type: 'quiz',
     submitted: false,
     deadline: NOW + 3 * DAY,
@@ -261,6 +262,56 @@ describe('考试', () => {
   it('已参加 → 不出现', () => {
     const exam = work({ tid: 3, type: 'exam-objective', submitted: true });
     expect(shape(derivePlan(snapshot([exam]), SETTINGS, NOW))).toBe('空');
+  });
+
+  it('新版考试评分阶段（互评未满 + 自评未做）→ 自动互评 + 自评（与作业互评同一执行器）', () => {
+    const exam = work({
+      tid: 1233000001,
+      subjectTestId: 1258000002,
+      type: 'exam-new',
+      submitted: true,
+      evaluateStart: NOW - DAY,
+      evaluateEnd: NOW + DAY,
+      evaluateTotal: 5,
+      evaluateDone: 2,
+      selfDone: false,
+      score: 51.5,
+      deadline: NOW - DAY, // 提交截止已过；剩余动作在评分阶段
+    });
+    const plan = derivePlan(snapshot([exam]), SETTINGS, NOW);
+    expect(shape(plan)).toBe('自动:self+review');
+    const review = plan.auto.find((a) => a.kind === 'review');
+    expect(review && 'remaining' in review ? review.remaining : undefined).toBe(3); // 配额 5 已评 2
+  });
+
+  it('评分阶段配额未知（互评读取失败过）→ 人工待办，不进自动', () => {
+    const exam = work({
+      tid: 1233000001,
+      subjectTestId: 1258000002,
+      type: 'exam-new',
+      submitted: true,
+      evaluateStart: NOW - DAY,
+      evaluateEnd: NOW + DAY,
+      evaluateTotal: null,
+      evaluateDone: null,
+      selfDone: null,
+    });
+    expect(shape(derivePlan(snapshot([exam]), SETTINGS, NOW))).toBe('人工:exam-evaluating');
+  });
+
+  it('评分窗口关闭或互评自评都已完成后 → 不出现', () => {
+    const done = work({
+      tid: 1233000001,
+      subjectTestId: 1258000002,
+      type: 'exam-new',
+      submitted: true,
+      evaluateStart: NOW - 2 * DAY,
+      evaluateEnd: NOW - DAY,
+      evaluateTotal: 5,
+      evaluateDone: 5,
+      selfDone: true,
+    });
+    expect(shape(derivePlan(snapshot([done]), SETTINGS, NOW))).toBe('空');
   });
 });
 

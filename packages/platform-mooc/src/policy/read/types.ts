@@ -21,8 +21,14 @@ export interface SnapshotWork {
    */
   examId: number | null;
   /**
-   * exam-new = 新版考试（独立体系，见 new-exam.ts）。与旧版考试同一处置：
-   * 只读展示、不自动执行。
+   * 互评/自评机器的评测对象 id：新版考试 = 主观题部分 testId（评分链全按它，
+   * 实测旧 DWR 机器完整服务新考试的 testId），旧作业/旧考试 = tid 本身。
+   * 仅此用途，其余类型为 null。
+   */
+  subjectTestId: number | null;
+  /**
+   * exam-new = 新版考试（独立体系，见 new-exam.ts）。提交阶段只读展示 +
+   * 答卷页面板；评分阶段（互评/自评）与作业互评同一执行器。
    */
   type: 'quiz' | 'homework' | 'exam-objective' | 'exam-subjective' | 'exam-new';
   /** 做没做。测验看 usedTryCount，作业看是否交过 */

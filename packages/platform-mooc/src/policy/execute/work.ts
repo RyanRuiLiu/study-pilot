@@ -76,9 +76,11 @@ export async function runSelf(
   comment: string,
   control: RunControl = NEVER_STOPPED,
 ): Promise<ExecResult> {
-  const base = { tid: action.work.tid, name: action.work.name, kind: action.kind } as const;
+  // 评测对象 id：新版考试是主观题部分 testId（评分机器全按它），其余类型 = tid 本身
+  const subjectTestId = action.work.subjectTestId ?? action.work.tid;
+  const base = { tid: subjectTestId, name: action.work.name, kind: action.kind } as const;
 
-  const info = await getHomeworkInfo(client, action.work.tid);
+  const info = await getHomeworkInfo(client, subjectTestId);
   if (!info.ok) {
     return { ...base, status: 'failed', detail: `读取作业信息失败：${info.error.message}` };
   }
@@ -88,7 +90,7 @@ export async function runSelf(
     return { ...base, status: 'skipped', detail: '已不在互评期内' };
   }
 
-  const detail = await getEvaluationDetail(client, action.work.tid, evaluatorId);
+  const detail = await getEvaluationDetail(client, subjectTestId, evaluatorId);
   if (!detail.ok) {
     return { ...base, status: 'failed', detail: `读取评测进度失败：${detail.error.message}` };
   }
@@ -97,7 +99,7 @@ export async function runSelf(
   if (!self) return { ...base, status: 'skipped', detail: '这份作业没有自评环节' };
   if (self.done) return { ...base, status: 'skipped', detail: '自评已完成' };
 
-  const paper = await getHomeworkPaper(client, action.work.tid, {
+  const paper = await getHomeworkPaper(client, subjectTestId, {
     aid: self.answerformId,
     evaluateId: self.evaluateId,
     phase,
@@ -118,7 +120,7 @@ export async function runSelf(
     return { ...base, status: 'skipped', detail: '按停止键中断，未提交自评' };
   }
 
-  const result = await submitEvaluation(client, self.evaluateId, action.work.tid, items);
+  const result = await submitEvaluation(client, self.evaluateId, subjectTestId, items);
   if (!result.ok) {
     return { ...base, status: 'failed', detail: `提交自评失败：${result.error.message}` };
   }
@@ -140,9 +142,11 @@ export async function runReview(
   comment: string,
   control: RunControl = NEVER_STOPPED,
 ): Promise<ExecResult> {
-  const base = { tid: action.work.tid, name: action.work.name, kind: action.kind } as const;
+  // 评测对象 id：新版考试是主观题部分 testId（评分机器全按它），其余类型 = tid 本身
+  const subjectTestId = action.work.subjectTestId ?? action.work.tid;
+  const base = { tid: subjectTestId, name: action.work.name, kind: action.kind } as const;
 
-  const info = await getHomeworkInfo(client, action.work.tid);
+  const info = await getHomeworkInfo(client, subjectTestId);
   if (!info.ok) {
     return { ...base, status: 'failed', detail: `读取作业信息失败：${info.error.message}` };
   }
@@ -152,7 +156,7 @@ export async function runReview(
     return { ...base, status: 'skipped', detail: '已不在互评期内' };
   }
 
-  const detail = await getEvaluationDetail(client, action.work.tid, evaluatorId);
+  const detail = await getEvaluationDetail(client, subjectTestId, evaluatorId);
   if (!detail.ok) {
     return { ...base, status: 'failed', detail: `读取互评进度失败：${detail.error.message}` };
   }
@@ -163,7 +167,7 @@ export async function runReview(
     return { ...base, status: 'skipped', detail: `互评已完成 ${required} / ${required} 份` };
   }
 
-  const paper = await getHomeworkPaper(client, action.work.tid, {
+  const paper = await getHomeworkPaper(client, subjectTestId, {
     aid: info.value.aid ?? undefined,
     phase,
   });
@@ -187,7 +191,7 @@ export async function runReview(
      * 已经取到手上的那一份会评完：配额已被它占了，丢下反而留下悬挂状态。
      */
     if (control.stopped()) break;
-    const next = await nextSubmission(client, action.work.tid, evaluatorId);
+    const next = await nextSubmission(client, subjectTestId, evaluatorId);
     if (!next.ok) {
       /*
        * 已经评了几份就如实报几份，但结局是 failed：配额没评够就不是完成。
@@ -208,7 +212,7 @@ export async function runReview(
     const submission = next.value.next;
     if (!submission || submission.evaluateId <= 0) break;
 
-    const result = await submitEvaluation(client, submission.evaluateId, action.work.tid, items);
+    const result = await submitEvaluation(client, submission.evaluateId, subjectTestId, items);
     if (!result.ok) {
       // 同上：评够之前的任何一次失败都不是完成
       return {
